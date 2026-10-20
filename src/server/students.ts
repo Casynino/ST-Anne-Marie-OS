@@ -115,7 +115,11 @@ async function resolveEnrollmentTarget(tx: Tx | typeof db, schoolId: string, d: 
   return year;
 }
 
-export async function createStudent(ctx: AuthContext, input: unknown) {
+type ParsedCreate = z.output<typeof createSchema>;
+export type PreparedStudent = { d: ParsedCreate; today: Date; admissionDate: Date };
+
+/** Permission checks, validation and date rules for registering a student. No database writes. */
+export async function prepareStudent(ctx: AuthContext, input: unknown): Promise<PreparedStudent> {
   requirePermission(ctx, "student.create");
   requirePermission(ctx, "guardian.manage");
   const d = parse(createSchema, input);
@@ -128,83 +132,103 @@ export async function createStudent(ctx: AuthContext, input: unknown) {
   const admissionDate = d.admissionDate ?? today;
   if (d.dateOfBirth >= admissionDate) throw invalid("Please correct the highlighted fields.", { dateOfBirth: "Date of birth must be before the admission date" });
   if (d.dateOfBirth > today) throw invalid("Please correct the highlighted fields.", { dateOfBirth: "Date of birth cannot be in the future" });
+  return { d, today, admissionDate };
+}
 
-  return db.$transaction(async (tx) => {
-    if (!d.confirmDuplicate) {
-      const dup = await tx.student.findFirst({
-        where: {
-          schoolId: ctx.schoolId,
-          firstName: { equals: d.firstName, mode: "insensitive" },
-          lastName: { equals: d.lastName, mode: "insensitive" },
-          dateOfBirth: d.dateOfBirth,
-        },
-        select: { admissionNo: true },
-      });
-      if (dup) {
-        throw conflict(`A student with the same name and date of birth already exists (${dup.admissionNo}). If this is a different child, confirm and submit again.`);
-      }
-    }
-
-    const year = d.classId ? await resolveEnrollmentTarget(tx, ctx.schoolId, { classId: d.classId, streamId: d.streamId }) : null;
-
-    const settings = await getAdmissionSettings(tx, ctx.schoolId);
-    const admissionNo = await allocateAdmissionNo(tx, ctx.schoolId, settings, admissionDate.getUTCFullYear());
-
-    const student = await tx.student.create({
-      data: {
+/**
+ * Creates the student, guardians, enrolment and audit entry inside the caller's transaction. Shared by
+ * direct registration and by the admissions "enrol" step so both follow exactly the same rules
+ * (duplicate check, concurrency-safe admission number, guardian rules).
+ */
+export async function createStudentInTx(tx: Tx, ctx: AuthContext, p: PreparedStudent, audit: { source?: string; applicationId?: string } = {}) {
+  const { d, admissionDate } = p;
+  if (!d.confirmDuplicate) {
+    const dup = await tx.student.findFirst({
+      where: {
         schoolId: ctx.schoolId,
-        admissionNo,
-        firstName: d.firstName,
-        middleName: d.middleName,
-        lastName: d.lastName,
+        firstName: { equals: d.firstName, mode: "insensitive" },
+        lastName: { equals: d.lastName, mode: "insensitive" },
         dateOfBirth: d.dateOfBirth,
-        gender: d.gender,
-        admissionDate,
-        nationality: d.nationality,
-        religion: d.religion,
-        birthCertificateNo: d.birthCertificateNo,
-        previousSchool: d.previousSchool,
-        address: d.address,
-        medicalNotes: d.medicalNotes,
-        createdById: ctx.userId,
-        emergencyContacts: { create: d.emergencyContacts.map((c, i) => ({ ...c, schoolId: ctx.schoolId, sortOrder: i })) },
+      },
+      select: { admissionNo: true },
+    });
+    if (dup) {
+      throw conflict(`A student with the same name and date of birth already exists (${dup.admissionNo}). If this is a different child, confirm and submit again.`);
+    }
+  }
+
+  const year = d.classId ? await resolveEnrollmentTarget(tx, ctx.schoolId, { classId: d.classId, streamId: d.streamId }) : null;
+
+  const settings = await getAdmissionSettings(tx, ctx.schoolId);
+  const admissionNo = await allocateAdmissionNo(tx, ctx.schoolId, settings, admissionDate.getUTCFullYear());
+
+  const student = await tx.student.create({
+    data: {
+      schoolId: ctx.schoolId,
+      admissionNo,
+      firstName: d.firstName,
+      middleName: d.middleName,
+      lastName: d.lastName,
+      dateOfBirth: d.dateOfBirth,
+      gender: d.gender,
+      admissionDate,
+      nationality: d.nationality,
+      religion: d.religion,
+      birthCertificateNo: d.birthCertificateNo,
+      previousSchool: d.previousSchool,
+      address: d.address,
+      medicalNotes: d.medicalNotes,
+      createdById: ctx.userId,
+      emergencyContacts: { create: d.emergencyContacts.map((c, i) => ({ ...c, schoolId: ctx.schoolId, sortOrder: i })) },
+    },
+  });
+
+  const seen = new Set<string>();
+  const primaryIndex = Math.max(0, d.guardians.findIndex((g) => g.isPrimary));
+  for (const [i, g] of d.guardians.entries()) {
+    const guardianId = await resolveGuardian(tx, ctx, g);
+    if (seen.has(guardianId)) throw invalid("The same guardian was added twice.", { [`guardians.${i}.guardianId`]: "Duplicate guardian" });
+    seen.add(guardianId);
+    await tx.studentGuardian.create({
+      data: {
+        studentId: student.id,
+        guardianId,
+        schoolId: ctx.schoolId,
+        relationship: g.relationship,
+        isPrimary: i === primaryIndex,
+        isFinanciallyResponsible: g.isFinanciallyResponsible,
+        receivesNotifications: g.receivesNotifications,
       },
     });
+  }
 
-    const seen = new Set<string>();
-    const primaryIndex = Math.max(0, d.guardians.findIndex((g) => g.isPrimary));
-    for (const [i, g] of d.guardians.entries()) {
-      const guardianId = await resolveGuardian(tx, ctx, g);
-      if (seen.has(guardianId)) throw invalid("The same guardian was added twice.", { [`guardians.${i}.guardianId`]: "Duplicate guardian" });
-      seen.add(guardianId);
-      await tx.studentGuardian.create({
-        data: {
-          studentId: student.id,
-          guardianId,
-          schoolId: ctx.schoolId,
-          relationship: g.relationship,
-          isPrimary: i === primaryIndex,
-          isFinanciallyResponsible: g.isFinanciallyResponsible,
-          receivesNotifications: g.receivesNotifications,
-        },
-      });
-    }
-
-    if (year && d.classId) {
-      await tx.studentEnrollment.create({
-        data: { schoolId: ctx.schoolId, studentId: student.id, academicYearId: year.id, classId: d.classId, streamId: d.streamId, startedOn: admissionDate, createdById: ctx.userId },
-      });
-    }
-
-    await writeAudit(tx, actorOf(ctx), {
-      action: "student.create",
-      entityType: "Student",
-      entityId: student.id,
-      summary: `${student.firstName} ${student.lastName} (${admissionNo})`,
-      changes: { admissionNo, classId: d.classId ?? null, streamId: d.streamId ?? null, guardianCount: d.guardians.length, duplicateConfirmed: d.confirmDuplicate },
+  if (year && d.classId) {
+    await tx.studentEnrollment.create({
+      data: { schoolId: ctx.schoolId, studentId: student.id, academicYearId: year.id, classId: d.classId, streamId: d.streamId, startedOn: admissionDate, createdById: ctx.userId },
     });
-    return student;
+  }
+
+  await writeAudit(tx, actorOf(ctx), {
+    action: "student.create",
+    entityType: "Student",
+    entityId: student.id,
+    summary: `${student.firstName} ${student.lastName} (${admissionNo})`,
+    changes: {
+      admissionNo,
+      classId: d.classId ?? null,
+      streamId: d.streamId ?? null,
+      guardianCount: d.guardians.length,
+      duplicateConfirmed: d.confirmDuplicate,
+      ...(audit.source ? { source: audit.source } : {}),
+      ...(audit.applicationId ? { applicationId: audit.applicationId } : {}),
+    },
   });
+  return student;
+}
+
+export async function createStudent(ctx: AuthContext, input: unknown) {
+  const prepared = await prepareStudent(ctx, input);
+  return db.$transaction((tx) => createStudentInTx(tx, ctx, prepared));
 }
 
 // ───────────────────────── Update ─────────────────────────

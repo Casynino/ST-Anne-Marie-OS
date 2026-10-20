@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   serverExternalPackages: ["pg"],
+  // Document uploads (default limit 4 MB, see DOCUMENT_MAX_BYTES) and CSV imports go through server actions.
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
