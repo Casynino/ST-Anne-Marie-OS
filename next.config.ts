@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
   // Lets a second server (e.g. a smoke-test copy on another database) run beside the main dev server.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
+  images: {
+    formats: ["image/avif", "image/webp"],
+    // Only the school's own images (bundled under /site, uploaded under /media) may be optimised.
+    localPatterns: [{ pathname: "/site/**" }, { pathname: "/media/**" }],
+    deviceSizes: [360, 480, 640, 828, 1080, 1280, 1600, 1920],
+    minimumCacheTTL: 60 * 60 * 24 * 30,
+  },
   serverExternalPackages: ["pg"],
   // Document uploads (default limit 4 MB, see DOCUMENT_MAX_BYTES) and CSV imports go through server actions.
   experimental: { serverActions: { bodySizeLimit: "6mb" } },

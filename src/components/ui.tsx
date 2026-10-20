@@ -17,7 +17,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 
 export function Card({ title, children, className = "", actions }: { title?: string; children: ReactNode; className?: string; actions?: ReactNode }) {
   return (
-    <section className={`rounded-xl border border-line bg-surface ${className}`}>
+    <section className={`rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)] ${className}`}>
       {(title || actions) && (
         <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
           {title && <h2 className="text-base font-semibold">{title}</h2>}
@@ -70,7 +70,7 @@ export function NoAccess({ t }: { t: Translate }) {
 
 export function DataTable({ head, children, empty }: { head: ReactNode[]; children: ReactNode; empty?: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-white">
+    <div className="overflow-x-auto rounded-2xl border border-line bg-white shadow-[var(--shadow-card)]">
       <table className="w-full min-w-[36rem] text-left text-sm">
         <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
           <tr>

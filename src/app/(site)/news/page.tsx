@@ -1,37 +1,46 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getLocale, getT } from "@/lib/auth/next";
-import { getSite } from "@/lib/site";
-import { listPublicNews } from "@/server/website";
-import { displayDate } from "@/lib/dates";
+import { getSite, pageMetadata } from "@/lib/site";
+import { listNewsCategories, listPublicNews, resolveSiteImages } from "@/server/website";
 import { PageHero } from "@/components/site/blocks";
+import { NewsCard } from "@/components/site/news-card";
+import { Reveal } from "@/components/site/fx/reveal";
 import { Pagination } from "@/components/ui";
 
-export const metadata: Metadata = { title: "News" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return pageMetadata(await getSite(), { title: t("site.nav.newsEvents"), path: "/news" });
+}
 
-export default async function NewsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function NewsPage({ searchParams }: { searchParams: Promise<{ page?: string; category?: string }> }) {
   const [site, t, locale, sp] = await Promise.all([getSite(), getT(), getLocale(), searchParams]);
   if (!site) return null;
   const page = Math.max(1, Number(sp.page) || 1);
-  const { items, total, pageSize } = await listPublicNews(site.school.id, { page, limit: 9 });
+  const category = sp.category?.slice(0, 40);
+  const [{ items, total, pageSize }, categories] = await Promise.all([listPublicNews(site.school.id, { page, limit: 9, category }), listNewsCategories(site.school.id)]);
+  const covers = await resolveSiteImages(items.map((n) => n.coverImage));
+  const chip = (active: boolean) => `inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold transition-colors ${active ? "bg-brand-700 text-white" : "bg-white text-brand-800 ring-1 ring-line hover:bg-brand-50"}`;
+
   return (
     <>
-      <PageHero kicker={t("site.news.kicker")} title={t("site.news.title")} />
-      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
-        {items.length === 0 ? <p className="text-muted">{t("site.news.empty")}</p> : (
-          <ul className="divide-y divide-brand-800/10 border-y border-brand-800/10">
-            {items.map((n) => (
-              <li key={n.id}>
-                <Link href={`/news/${n.id}`} className="group block py-6">
-                  <p className="text-sm text-muted">{displayDate(n.publishedAt, locale)}</p>
-                  <h2 className="site-serif mt-1 text-2xl font-semibold text-brand-900 group-hover:underline">{locale === "SW" && n.titleSw ? n.titleSw : n.title}</h2>
-                  <p className="mt-2 line-clamp-2 text-muted">{locale === "SW" && n.bodySw ? n.bodySw : n.body}</p>
-                </Link>
-              </li>
-            ))}
+      <PageHero eyebrow={t("site.news.kicker")} title={t("site.nav.newsEvents")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/news", label: t("site.nav.newsEvents") }]} />
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <div className="flex flex-wrap items-center gap-2" role="navigation" aria-label={t("site.news.filter")}>
+          <Link href="/news" className={chip(!category)} aria-current={!category ? "page" : undefined}>{t("site.news.tabNews")}</Link>
+          <Link href="/events" className={chip(false)}>{t("site.news.tabEvents")}</Link>
+          {categories.length > 0 && <span aria-hidden className="mx-2 h-6 w-px bg-line" />}
+          {categories.map((c) => <Link key={c} href={`/news?category=${encodeURIComponent(c)}`} className={chip(category === c)} aria-current={category === c ? "page" : undefined}>{c}</Link>)}
+        </div>
+
+        {items.length === 0 ? (
+          <p className="mt-12 text-muted">{t("site.news.empty")}</p>
+        ) : (
+          <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((n, i) => <Reveal as="li" key={n.id} delay={(i % 3) * 80}><NewsCard post={n} cover={n.coverImage ? covers.get(n.coverImage) : undefined} locale={locale} /></Reveal>)}
           </ul>
         )}
-        <Pagination page={page} pageSize={pageSize} total={total} basePath="/news" params={{}} t={t} />
+        <Pagination page={page} pageSize={pageSize} total={total} basePath="/news" params={{ category }} t={t} />
       </div>
     </>
   );

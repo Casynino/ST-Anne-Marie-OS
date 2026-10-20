@@ -162,7 +162,7 @@ export async function trackApplication(schoolId: string, input: unknown, meta: R
   if (!(await consumeRateLimit(`track:ip:${ip}`, 10, WINDOW_HOUR))) throw new AppError("RATE_LIMITED", "Too many attempts. Please try again later.");
   const d = parse(trackSchema, input);
   const notFound = invalid("We could not find an application matching those details. Check the number and the phone number given on the application.");
-  if (!(await consumeRateLimit(`track:app:${d.applicationNo}`, 10, WINDOW_DAY))) throw new AppError("RATE_LIMITED", "Too many attempts for this application. Please contact the school office.");
+  if (!(await consumeRateLimit(`track:app:${schoolId}:${d.applicationNo}`, 10, WINDOW_DAY))) throw new AppError("RATE_LIMITED", "Too many attempts for this application. Please contact the school office.");
   const app = await db.application.findUnique({ where: { schoolId_applicationNo: { schoolId, applicationNo: d.applicationNo } }, select: { status: true, createdAt: true, guardians: true, classAppliedId: true, decidedAt: true } });
   if (!app) throw notFound;
   const phones = (app.guardians as unknown[]).map((g) => normalizePhone(String((g as { phone?: string }).phone ?? "")));

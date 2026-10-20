@@ -1,3 +1,41 @@
 {
-  "gallery": []
+  "hero": [],
+  "gallery": [
+    {
+      "path": "/site/gallery/01-students-and-teachers-in-a-corridor.jpg",
+      "width": 640,
+      "height": 640,
+      "alt": "Students in school uniform talking with teachers in a bright corridor"
+    },
+    {
+      "path": "/site/gallery/02-students-and-staff-in-front-of-a-hall.jpg",
+      "width": 640,
+      "height": 482,
+      "alt": "A large group of students and staff in uniform standing in front of an arched hall"
+    },
+    {
+      "path": "/site/gallery/03-students-and-guests-on-a-lawn.jpg",
+      "width": 640,
+      "height": 360,
+      "alt": "Students in white uniforms and a crowd of guests gathered on a lawn beside a red carpet"
+    },
+    {
+      "path": "/site/gallery/04-students-in-a-library.jpg",
+      "width": 640,
+      "height": 640,
+      "alt": "A group of students in school uniform standing in a library"
+    },
+    {
+      "path": "/site/gallery/05-students-and-teachers-on-steps.jpg",
+      "width": 640,
+      "height": 482,
+      "alt": "Students and teachers posing together on the wide steps of a building"
+    },
+    {
+      "path": "/site/gallery/06-students-at-a-library-desk.jpg",
+      "width": 640,
+      "height": 640,
+      "alt": "Students sitting at a library desk with shelves of books behind them"
+    }
+  ]
 }

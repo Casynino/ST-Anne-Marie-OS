@@ -1,17 +1,20 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import type { Locale } from "@/lib/i18n";
 import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
+import { isImageRef, mediaIdOf, slugify } from "@/lib/images";
 import { actorOf, writeAudit } from "@/server/audit";
+import { mediaDimensions } from "@/server/media";
 import { checkbox, dateOnly, optDateOnly, optText, parse, text } from "@/lib/validation";
 import siteMedia from "@/lib/site-media.json";
 
 /**
- * Public website content. Everything shown to the public comes from the database (admin-edited content,
- * the real class structure, published news and events). Nothing is invented: empty fields simply hide
- * their section, and imagery only appears when the school supplies a file.
+ * Public website content. Everything shown to the public comes from the database (admin-edited content, the real
+ * class structure, published news and events) or from image files the school supplied. Nothing is invented:
+ * empty fields simply hide their section.
  */
 
 // ───────────────────────── Public school lookup ─────────────────────────
@@ -19,91 +22,65 @@ import siteMedia from "@/lib/site-media.json";
 /** Single-school deployment: the public site serves PUBLIC_SCHOOL_CODE (default SAM), else the first school. */
 export async function getPublicSchool() {
   const code = process.env.PUBLIC_SCHOOL_CODE ?? "SAM";
-  const school = (await db.school.findUnique({ where: { code } })) ?? (await db.school.findFirst({ orderBy: { createdAt: "asc" } }));
-  return school;
+  return (await db.school.findUnique({ where: { code } })) ?? (await db.school.findFirst({ orderBy: { createdAt: "asc" } }));
 }
 
-// ───────────────────────── Content settings ─────────────────────────
+// ───────────────────────── Settings model ─────────────────────────
 
 const SETTING_KEY = "website";
 
-type LocalText = { heroTitle?: string; heroSubtitle?: string; about?: string; admissionsIntro?: string; requirements?: string; faqs?: string; feesNote?: string };
+/** Per-language text fields and their maximum lengths. One table drives the type, the validation and the admin form. */
+export const LOCAL_TEXT = {
+  heroTitle: 120, heroSubtitle: 240, about: 3000, vision: 600, mission: 900, philosophy: 1500, learningApproach: 1500,
+  values: 2000, strengths: 3000, programs: 4000, schoolLife: 3000, academicSupport: 1500, curriculum: 1500, examinations: 1500,
+  history: 3000, leadership: 2000, admissionsIntro: 1500, requirements: 2000, faqs: 5000, feesNote: 1500, parentCommunity: 1500,
+} as const;
+export type LocalKey = keyof typeof LOCAL_TEXT;
+export const LOCAL_KEYS = Object.keys(LOCAL_TEXT) as LocalKey[];
+type LocalText = Partial<Record<LocalKey, string>>;
+
+const SHARED_TEXT = ["phone", "phone2", "email", "address", "hours", "whatsapp"] as const;
+const SHARED_URLS = ["facebook", "instagram", "youtube", "mapUrl"] as const;
+const SHARED_IMAGES = ["logoPath", "heroImagePath", "heroImage2Path", "heroImage3Path", "aboutImagePath", "ogImagePath"] as const;
+
 export type WebsiteSettings = {
   en: LocalText;
   sw: LocalText;
   applicationsOpen: boolean;
-  phone?: string;
-  phone2?: string;
-  email?: string;
-  address?: string;
-  hours?: string;
-  facebook?: string;
-  instagram?: string;
-  whatsapp?: string;
-  /** Path of a file the school placed under /public (e.g. /site/logo.png). */
-  logoPath?: string;
-  heroImagePath?: string;
-  aboutImagePath?: string;
-  /** Approved photos the school placed under /public (path + optional caption). */
   gallery?: { path: string; caption?: string }[];
-};
+} & Partial<Record<(typeof SHARED_TEXT)[number] | (typeof SHARED_URLS)[number] | (typeof SHARED_IMAGES)[number], string>>;
 
 const EMPTY: WebsiteSettings = { en: {}, sw: {}, applicationsOpen: false };
 
-const safePath = z
-  .string()
-  .trim()
-  .max(200)
-  .regex(/^\/[A-Za-z0-9_\-./]+\.(png|jpe?g|webp|svg)$/i, "Use a file path such as /site/logo.png")
-  .refine((v) => !v.includes(".."), "Invalid path");
-const optPath = () => z.preprocess((v) => (v === "" || v === null ? undefined : v), safePath.optional());
-const safeUrl = z.string().trim().max(200).refine((v) => /^https:\/\/[^\s]+$/.test(v), "Must start with https://");
-const optUrl = () => z.preprocess((v) => (v === "" || v === null ? undefined : v), safeUrl.optional());
+const emptyToUndefined = (v: unknown) => (v === "" || v === null ? undefined : v);
+const imageRef = () => z.preprocess(emptyToUndefined, z.string().trim().max(200).refine(isImageRef, "Choose an image from the list, or use a path such as /site/logo.png").optional());
+const httpsUrl = () => z.preprocess(emptyToUndefined, z.string().trim().max(300).refine((v) => /^https:\/\/[^\s]+$/.test(v), "Must start with https://").optional());
 
+const localShape = Object.fromEntries(
+  (["en", "sw"] as const).flatMap((lang) => LOCAL_KEYS.map((k) => [`${lang}_${k}`, optText(LOCAL_TEXT[k])])),
+);
 const settingsSchema = z.object({
-  en_heroTitle: optText(120),
-  en_heroSubtitle: optText(240),
-  en_about: optText(3000),
-  en_admissionsIntro: optText(1500),
-  en_requirements: optText(2000),
-  en_faqs: optText(5000),
-  en_feesNote: optText(1500),
-  sw_heroTitle: optText(120),
-  sw_heroSubtitle: optText(240),
-  sw_about: optText(3000),
-  sw_admissionsIntro: optText(1500),
-  sw_requirements: optText(2000),
-  sw_faqs: optText(5000),
-  sw_feesNote: optText(1500),
+  ...localShape,
   applicationsOpen: checkbox(),
-  phone: optText(40),
-  phone2: optText(40),
-  email: z.preprocess((v) => (v === "" ? undefined : v), z.string().trim().email("Enter a valid email address").max(200).optional()),
-  address: optText(300),
-  hours: optText(200),
-  facebook: optUrl(),
-  instagram: optUrl(),
-  whatsapp: optText(40),
-  logoPath: optPath(),
-  heroImagePath: optPath(),
-  aboutImagePath: optPath(),
+  phone: optText(40), phone2: optText(40), whatsapp: optText(40), address: optText(300), hours: optText(200),
+  email: z.preprocess(emptyToUndefined, z.string().trim().email("Enter a valid email address").max(200).optional()),
+  facebook: httpsUrl(), instagram: httpsUrl(), youtube: httpsUrl(), mapUrl: httpsUrl(),
+  logoPath: imageRef(), heroImagePath: imageRef(), heroImage2Path: imageRef(), heroImage3Path: imageRef(), aboutImagePath: imageRef(), ogImagePath: imageRef(),
   gallery: optText(3000),
 });
 
-/** One image per line: "/site/photo.jpg | optional caption". Max 8; every path is validated like the other image paths. */
+/** One image per line: "<image reference> | optional caption". Max 12; every reference is validated. */
 export function parseGallery(raw?: string): { path: string; caption?: string }[] {
   const out: { path: string; caption?: string }[] = [];
   for (const line of (raw ?? "").split(/\r?\n/)) {
-    const [pathPart, ...rest] = line.split("|");
-    const path = safePath.safeParse((pathPart ?? "").trim());
-    if (!path.success) continue;
+    const [refPart, ...rest] = line.split("|");
+    const ref = (refPart ?? "").trim();
+    if (!isImageRef(ref)) continue;
     const caption = rest.join("|").trim().slice(0, 140);
-    out.push({ path: path.data, ...(caption ? { caption } : {}) });
+    out.push({ path: ref, ...(caption ? { caption } : {}) });
   }
-  return out.slice(0, 8);
+  return out.slice(0, 12);
 }
-
-const LOCAL_FIELDS = ["heroTitle", "heroSubtitle", "about", "admissionsIntro", "requirements", "faqs", "feesNote"] as const;
 
 export async function loadWebsiteSettings(schoolId: string): Promise<WebsiteSettings> {
   const row = await db.schoolSetting.findUnique({ where: { schoolId_key: { schoolId, key: SETTING_KEY } } });
@@ -117,18 +94,18 @@ export async function getWebsiteSettings(ctx: AuthContext) {
 
 export async function updateWebsiteSettings(ctx: AuthContext, input: unknown) {
   requirePermission(ctx, "website.manage");
-  const d = parse(settingsSchema, input);
-  const next: WebsiteSettings = { en: {}, sw: {}, applicationsOpen: d.applicationsOpen };
-  for (const lang of ["en", "sw"] as const) for (const f of LOCAL_FIELDS) {
-    const v = d[`${lang}_${f}` as keyof typeof d] as string | undefined;
-    if (v) next[lang][f] = v;
+  const d = parse(settingsSchema, input) as Record<string, unknown>;
+  const next: WebsiteSettings = { en: {}, sw: {}, applicationsOpen: d.applicationsOpen === true };
+  for (const lang of ["en", "sw"] as const) for (const k of LOCAL_KEYS) {
+    const v = d[`${lang}_${k}`];
+    if (typeof v === "string" && v) next[lang][k] = v;
   }
-  const gallery = parseGallery(d.gallery);
+  for (const k of [...SHARED_TEXT, ...SHARED_URLS, ...SHARED_IMAGES]) {
+    const v = d[k];
+    if (typeof v === "string" && v) next[k] = v;
+  }
+  const gallery = parseGallery(d.gallery as string | undefined);
   if (gallery.length) next.gallery = gallery;
-  for (const f of ["phone", "phone2", "email", "address", "hours", "facebook", "instagram", "whatsapp", "logoPath", "heroImagePath", "aboutImagePath"] as const) {
-    const v = d[f];
-    if (v) next[f] = v;
-  }
   const before = await loadWebsiteSettings(ctx.schoolId);
   await db.$transaction(async (tx) => {
     await tx.schoolSetting.upsert({
@@ -136,16 +113,11 @@ export async function updateWebsiteSettings(ctx: AuthContext, input: unknown) {
       create: { schoolId: ctx.schoolId, key: SETTING_KEY, value: next as object, updatedById: ctx.userId },
       update: { value: next as object, updatedById: ctx.userId },
     });
-    await writeAudit(tx, actorOf(ctx), {
-      action: "website.settings_update",
-      entityType: "SchoolSetting",
-      entityId: SETTING_KEY,
-      changes: { applicationsOpen: [before.applicationsOpen, next.applicationsOpen] },
-    });
+    await writeAudit(tx, actorOf(ctx), { action: "website.settings_update", entityType: "SchoolSetting", entityId: SETTING_KEY, changes: { applicationsOpen: [before.applicationsOpen, next.applicationsOpen] } });
   });
 }
 
-// ───────────────────────── Public content (render-ready) ─────────────────────────
+// ───────────────────────── Parsing helpers for editor-friendly text ─────────────────────────
 
 export type Faq = { q: string; a: string };
 
@@ -161,47 +133,139 @@ export function parseFaqs(raw?: string): Faq[] {
 
 export const parseLines = (raw?: string): string[] => (raw ?? "").split(/\r?\n/).map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
 
+/** "Title | description" per line (values, school life). */
+export function parsePairs(raw?: string): { title: string; text: string }[] {
+  return parseLines(raw).map((l) => { const [title, ...rest] = l.split("|"); return { title: (title ?? "").trim(), text: rest.join("|").trim() }; }).filter((p) => p.title);
+}
+
+/** "Level | summary | learning focus" per line. */
+export function parsePrograms(raw?: string): { name: string; summary: string; focus: string }[] {
+  return parseLines(raw).map((l) => { const [name, summary, ...rest] = l.split("|"); return { name: (name ?? "").trim(), summary: (summary ?? "").trim(), focus: rest.join("|").trim() }; }).filter((p) => p.name);
+}
+
+// ───────────────────────── Images ─────────────────────────
+
+export type SiteImage = { src: string; width: number; height: number; alt: string; caption?: string };
+type BundledEntry = { path: string; width: number; height: number; alt?: string; caption?: string };
+type BundledMedia = { logo?: BundledEntry; og?: BundledEntry; hero: BundledEntry[]; about?: BundledEntry; gallery: BundledEntry[] };
+const bundled = siteMedia as unknown as BundledMedia;
+const bundledByPath = new Map<string, BundledEntry>([bundled.logo, bundled.og, bundled.about, ...bundled.hero, ...bundled.gallery].filter((e): e is BundledEntry => !!e).map((e) => [e.path, e]));
+
+/** Resolves image references (bundled /site/... or uploaded /media/<id>) to sizes and alt text so pages reserve space. */
+async function resolveImages(refs: { ref: string; caption?: string; alt?: string }[]): Promise<Map<string, SiteImage>> {
+  const ids = refs.map((r) => mediaIdOf(r.ref)).filter((x): x is string => !!x);
+  const media = await mediaDimensions(ids);
+  const out = new Map<string, SiteImage>();
+  for (const r of refs) {
+    const id = mediaIdOf(r.ref);
+    const m = id ? media.get(id) : undefined;
+    const b = bundledByPath.get(r.ref);
+    if (id && !m) continue; // deleted asset: skip instead of rendering a broken image
+    out.set(r.ref, { src: r.ref, width: m?.width ?? b?.width ?? 1200, height: m?.height ?? b?.height ?? 900, alt: r.alt ?? b?.alt ?? m?.alt ?? "", ...(r.caption ?? b?.caption ? { caption: r.caption ?? b?.caption } : {}) });
+  }
+  return out;
+}
+
+/** Resolves a list of image references (e.g. news covers) in one query. Missing or deleted images are omitted. */
+export async function resolveSiteImages(refs: (string | null | undefined)[]): Promise<Map<string, SiteImage>> {
+  return resolveImages([...new Set(refs.filter((r): r is string => !!r && isImageRef(r)))].map((ref) => ({ ref })));
+}
+
+/** The school logo (website settings or bundled file) for the staff area; undefined when none is set. */
+export async function getBrandLogo(schoolId: string): Promise<SiteImage | undefined> {
+  const s = await loadWebsiteSettings(schoolId);
+  const ref = s.logoPath ?? bundled.logo?.path;
+  return ref ? (await resolveImages([{ ref }])).get(ref) : undefined;
+}
+
+// ───────────────────────── Public site data ─────────────────────────
+
 export async function getPublicSite(locale: Locale) {
   const school = await getPublicSchool();
   if (!school) return null;
   const s = await loadWebsiteSettings(school.id);
-  const pick = (f: (typeof LOCAL_FIELDS)[number]) => (locale === "SW" ? s.sw[f] || s.en[f] : s.en[f] || s.sw[f]) || undefined;
-  const levels = await db.academicLevel.findMany({
+  const pick = (f: LocalKey) => (locale === "SW" ? s.sw[f] || s.en[f] : s.en[f] || s.sw[f]) || undefined;
+
+  const levelRows = await db.academicLevel.findMany({
     where: { schoolId: school.id, classes: { some: { isActive: true } } },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, nameSw: true, classes: { where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, nameSw: true } } },
+    select: {
+      id: true, name: true, nameSw: true,
+      classes: {
+        where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { name: true, nameSw: true, subjects: { select: { subject: { select: { name: true, nameSw: true, isActive: true } } } } },
+      },
+    },
   });
-  // Images dropped into public/site are picked up automatically; paths typed in Website settings take priority.
-  const media = siteMedia as { logo?: string; hero?: string; about?: string; gallery?: { path: string; caption?: string }[] };
-  const settings: WebsiteSettings = { ...s, logoPath: s.logoPath ?? media.logo, heroImagePath: s.heroImagePath ?? media.hero, aboutImagePath: s.aboutImagePath ?? media.about };
+  const programs = parsePrograms(pick("programs"));
+  const levels = levelRows.map((l) => {
+    const display = locale === "SW" && l.nameSw ? l.nameSw : l.name;
+    const p = programs.find((x) => [l.name, l.nameSw ?? ""].some((n) => n && n.toLowerCase() === x.name.toLowerCase()));
+    // Subjects actually assigned to this level's classes (real data, de-duplicated).
+    const subjects = [...new Set(l.classes.flatMap((c) => c.subjects.filter((x) => x.subject.isActive).map((x) => (locale === "SW" && x.subject.nameSw ? x.subject.nameSw : x.subject.name))))].sort((a, b) => a.localeCompare(b));
+    return { id: l.id, name: display, slug: slugify(l.name), classes: l.classes.map((c) => (locale === "SW" && c.nameSw ? c.nameSw : c.name)), subjects, summary: p?.summary || undefined, focus: p?.focus || undefined };
+  });
+
+  // Admin-chosen images win; otherwise the school's bundled files (public/site) are used.
+  const galleryRefs = (s.gallery?.length ? s.gallery : bundled.gallery.map((g) => ({ path: g.path, caption: g.caption }))).map((g) => ({ ref: g.path, caption: g.caption }));
+  const heroRefs = [s.heroImagePath, s.heroImage2Path, s.heroImage3Path].filter((x): x is string => !!x);
+  const heroList = heroRefs.length ? heroRefs : bundled.hero.map((h) => h.path);
+  const wanted = [
+    ...(s.logoPath ?? bundled.logo?.path ? [{ ref: (s.logoPath ?? bundled.logo?.path) as string }] : []),
+    ...(s.ogImagePath ?? bundled.og?.path ? [{ ref: (s.ogImagePath ?? bundled.og?.path) as string }] : []),
+    ...(s.aboutImagePath ?? bundled.about?.path ? [{ ref: (s.aboutImagePath ?? bundled.about?.path) as string }] : []),
+    ...heroList.map((ref) => ({ ref })),
+    ...galleryRefs,
+  ];
+  const images = await resolveImages(wanted);
+  const get = (ref?: string) => (ref ? images.get(ref) : undefined);
+  const galleryImages = galleryRefs.map((g) => get(g.ref)).filter((x): x is SiteImage => !!x);
+
   return {
     school: { id: school.id, name: school.name, motto: school.motto, timezone: school.timezone, email: school.email, phone: school.phone, address: school.address },
-    settings,
+    settings: s,
     text: {
       heroTitle: pick("heroTitle") ?? school.name,
       heroSubtitle: pick("heroSubtitle") ?? school.motto ?? undefined,
-      about: pick("about"),
-      admissionsIntro: pick("admissionsIntro"),
+      about: pick("about"), vision: pick("vision"), mission: pick("mission"), philosophy: pick("philosophy"), learningApproach: pick("learningApproach"),
+      academicSupport: pick("academicSupport"), curriculum: pick("curriculum"), examinations: pick("examinations"),
+      admissionsIntro: pick("admissionsIntro"), feesNote: pick("feesNote"), parentCommunity: pick("parentCommunity"),
       requirements: parseLines(pick("requirements")),
       faqs: parseFaqs(pick("faqs")),
-      feesNote: pick("feesNote"),
+      values: parsePairs(pick("values")),
+      strengths: parsePairs(pick("strengths")),
+      history: pick("history"),
+      leadership: parsePairs(pick("leadership")),
+      schoolLife: parsePairs(pick("schoolLife")),
     },
     contact: {
-      phone: s.phone ?? school.phone ?? undefined,
-      phone2: s.phone2,
-      email: s.email ?? school.email ?? undefined,
-      address: s.address ?? school.address ?? undefined,
-      hours: s.hours,
-      whatsapp: s.whatsapp,
+      phone: s.phone ?? school.phone ?? undefined, phone2: s.phone2, email: s.email ?? school.email ?? undefined,
+      address: s.address ?? school.address ?? undefined, hours: s.hours, whatsapp: s.whatsapp, mapUrl: s.mapUrl,
     },
-    gallery: s.gallery?.length ? s.gallery : (media.gallery ?? []),
-    levels: levels.map((l) => ({ id: l.id, name: locale === "SW" && l.nameSw ? l.nameSw : l.name, classes: l.classes.map((c) => (locale === "SW" && c.nameSw ? c.nameSw : c.name)) })),
+    social: { facebook: s.facebook, instagram: s.instagram, youtube: s.youtube },
+    levels,
+    images: {
+      logo: get(s.logoPath ?? bundled.logo?.path),
+      og: get(s.ogImagePath ?? bundled.og?.path),
+      // About picture: the chosen one, else a later gallery photo (so it differs from the hero's first photos).
+      about: get(s.aboutImagePath ?? bundled.about?.path) ?? galleryImages[4] ?? galleryImages[3],
+      hero: heroList.map(get).filter((x): x is SiteImage => !!x),
+      gallery: galleryImages,
+    },
   };
 }
 
-// ───────────────────────── News ─────────────────────────
+export type PublicSite = NonNullable<Awaited<ReturnType<typeof getPublicSite>>>;
 
-const newsSchema = z.object({ title: text(160), titleSw: optText(160), body: text(8000), bodySw: optText(8000), isPublic: checkbox() });
+// ───────────────────────── Announcements / news ─────────────────────────
+
+const refOrPath = z.preprocess(emptyToUndefined, z.string().trim().max(300).refine((v) => /^https:\/\/[^\s]+$/.test(v) || /^\/[A-Za-z0-9_\-./#?=&]*$/.test(v), "Use https://… or a path starting with /").optional());
+
+const newsSchema = z.object({
+  title: text(160), titleSw: optText(160), body: text(8000), bodySw: optText(8000),
+  category: optText(40), excerpt: optText(240), coverImage: imageRef(),
+  isPublic: checkbox(), showInBar: checkbox(), barLink: refOrPath,
+});
 
 export async function listNews(ctx: AuthContext) {
   requirePermission(ctx, "website.manage");
@@ -218,8 +282,10 @@ export async function getNews(ctx: AuthContext, id: string) {
 export async function createNews(ctx: AuthContext, input: unknown) {
   requirePermission(ctx, "website.manage");
   const d = parse(newsSchema, input);
+  const id = randomUUID();
+  const slug = `${slugify(d.title) || "post"}-${id.slice(0, 6)}`; // stable for the life of the post
   return db.$transaction(async (tx) => {
-    const row = await tx.announcement.create({ data: { ...d, schoolId: ctx.schoolId, createdById: ctx.userId } });
+    const row = await tx.announcement.create({ data: { ...d, id, slug, schoolId: ctx.schoolId, createdById: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "news.create", entityType: "Announcement", entityId: row.id, summary: row.title });
     return row;
   });
@@ -230,7 +296,10 @@ export async function updateNews(ctx: AuthContext, id: string, input: unknown) {
   const d = parse(newsSchema, input);
   await getNews(ctx, id);
   await db.$transaction(async (tx) => {
-    await tx.announcement.update({ where: { id }, data: { title: d.title, titleSw: d.titleSw ?? null, body: d.body, bodySw: d.bodySw ?? null, isPublic: d.isPublic } });
+    await tx.announcement.update({
+      where: { id },
+      data: { title: d.title, titleSw: d.titleSw ?? null, body: d.body, bodySw: d.bodySw ?? null, category: d.category ?? null, excerpt: d.excerpt ?? null, coverImage: d.coverImage ?? null, isPublic: d.isPublic, showInBar: d.showInBar, barLink: d.barLink ?? null },
+    });
     await writeAudit(tx, actorOf(ctx), { action: "news.update", entityType: "Announcement", entityId: id, summary: d.title });
   });
 }
@@ -256,25 +325,45 @@ export async function deleteNews(ctx: AuthContext, id: string) {
 
 const publicNewsWhere = (schoolId: string) => ({ schoolId, isPublic: true, publishedAt: { not: null, lte: new Date() } });
 
-export async function listPublicNews(schoolId: string, opts: { limit?: number; page?: number } = {}) {
+export async function listPublicNews(schoolId: string, opts: { limit?: number; page?: number; category?: string } = {}) {
   const limit = opts.limit ?? 9;
   const page = Math.max(1, opts.page ?? 1);
+  const where = { ...publicNewsWhere(schoolId), ...(opts.category ? { category: opts.category } : {}) };
   const [items, total] = await Promise.all([
-    db.announcement.findMany({ where: publicNewsWhere(schoolId), orderBy: { publishedAt: "desc" }, skip: (page - 1) * limit, take: limit }),
-    db.announcement.count({ where: publicNewsWhere(schoolId) }),
+    db.announcement.findMany({ where, orderBy: { publishedAt: "desc" }, skip: (page - 1) * limit, take: limit }),
+    db.announcement.count({ where }),
   ]);
   return { items, total, page, pageSize: limit };
 }
 
-export async function getPublicNews(schoolId: string, id: string) {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
-  return db.announcement.findFirst({ where: { id, ...publicNewsWhere(schoolId) } });
+export async function listNewsCategories(schoolId: string): Promise<string[]> {
+  const rows = await db.announcement.findMany({ where: { ...publicNewsWhere(schoolId), category: { not: null } }, distinct: ["category"], select: { category: true }, orderBy: { category: "asc" } });
+  return rows.map((r) => r.category as string);
+}
+
+/** Public lookup by stable slug, falling back to the id so older links keep working. */
+export async function getPublicNews(schoolId: string, slugOrId: string) {
+  const isId = /^[0-9a-f-]{36}$/i.test(slugOrId);
+  if (!isId && !/^[a-z0-9-]{1,80}$/.test(slugOrId)) return null;
+  return db.announcement.findFirst({ where: { ...publicNewsWhere(schoolId), ...(isId ? { id: slugOrId } : { slug: slugOrId }) } });
+}
+
+/** The single notice shown in the announcement bar: newest published public post flagged "show in bar". */
+export async function getBarAnnouncement(schoolId: string) {
+  return db.announcement.findFirst({ where: { ...publicNewsWhere(schoolId), showInBar: true }, orderBy: { publishedAt: "desc" }, select: { id: true, slug: true, title: true, titleSw: true, barLink: true } });
+}
+
+/** Plain-text excerpt: the editor's excerpt, else the start of the article. */
+export function excerptOf(post: { excerpt: string | null; body: string; bodySw?: string | null }, locale: Locale, max = 170): string {
+  const base = post.excerpt || (locale === "SW" && post.bodySw ? post.bodySw : post.body);
+  const flat = base.replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}…` : flat;
 }
 
 // ───────────────────────── Events ─────────────────────────
 
 const eventSchema = z
-  .object({ title: text(160), titleSw: optText(160), description: optText(2000), descriptionSw: optText(2000), location: optText(160), startsOn: dateOnly(), endsOn: optDateOnly(), isPublic: checkbox() })
+  .object({ title: text(160), titleSw: optText(160), description: optText(2000), descriptionSw: optText(2000), location: optText(160), category: optText(40), coverImage: imageRef(), startsOn: dateOnly(), endsOn: optDateOnly(), isPublic: checkbox() })
   .refine((v) => !v.endsOn || v.endsOn >= v.startsOn, { path: ["endsOn"], message: "End date cannot be before the start date" });
 
 export async function listEvents(ctx: AuthContext) {
@@ -306,7 +395,7 @@ export async function updateEvent(ctx: AuthContext, id: string, input: unknown) 
   await db.$transaction(async (tx) => {
     await tx.schoolEvent.update({
       where: { id },
-      data: { title: d.title, titleSw: d.titleSw ?? null, description: d.description ?? null, descriptionSw: d.descriptionSw ?? null, location: d.location ?? null, startsOn: d.startsOn, endsOn: d.endsOn ?? null, isPublic: d.isPublic },
+      data: { title: d.title, titleSw: d.titleSw ?? null, description: d.description ?? null, descriptionSw: d.descriptionSw ?? null, location: d.location ?? null, category: d.category ?? null, coverImage: d.coverImage ?? null, startsOn: d.startsOn, endsOn: d.endsOn ?? null, isPublic: d.isPublic },
     });
     await writeAudit(tx, actorOf(ctx), { action: "event.update", entityType: "SchoolEvent", entityId: id, summary: d.title });
   });
@@ -329,4 +418,9 @@ export async function listPublicEvents(schoolId: string, timezone: string, opts:
     orderBy: { startsOn: "asc" },
     take: opts.limit ?? 50,
   });
+}
+
+export async function getPublicEvent(schoolId: string, id: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  return db.schoolEvent.findFirst({ where: { id, schoolId, isPublic: true } });
 }

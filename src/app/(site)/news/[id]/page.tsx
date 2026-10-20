@@ -3,25 +3,72 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getLocale, getT } from "@/lib/auth/next";
-import { getSite } from "@/lib/site";
-import { getPublicNews } from "@/server/website";
+import { baseUrl, getSite, pageMetadata } from "@/lib/site";
+import { excerptOf, getPublicNews, listPublicNews, resolveSiteImages } from "@/server/website";
 import { displayDate } from "@/lib/dates";
+import { Photo } from "@/components/site/photo";
+import { NewsCard } from "@/components/site/news-card";
 
-export const metadata: Metadata = { title: "News" };
+type Props = { params: Promise<{ id: string }> };
 
-export default async function NewsPostPage({ params }: { params: Promise<{ id: string }> }) {
-  const [{ id }, site, t, locale] = await Promise.all([params, getSite(), getT(), getLocale()]);
-  if (!site) notFound();
-  const post = await getPublicNews(site.school.id, id);
-  if (!post) notFound();
+async function load(slug: string) {
+  const site = await getSite();
+  if (!site) return null;
+  const post = await getPublicNews(site.school.id, slug);
+  return post ? { site, post } : null;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const [data, locale] = await Promise.all([load(id), getLocale()]);
+  if (!data) return { title: "News", robots: { index: false } };
+  const cover = data.post.coverImage ? (await resolveSiteImages([data.post.coverImage])).get(data.post.coverImage) : undefined;
+  const title = locale === "SW" && data.post.titleSw ? data.post.titleSw : data.post.title;
+  return pageMetadata(data.site, { title, path: `/news/${data.post.slug ?? data.post.id}`, description: excerptOf(data.post, locale, 160), image: cover?.src, type: "article" });
+}
+
+export default async function NewsPostPage({ params }: Props) {
+  const { id } = await params;
+  const [data, t, locale] = await Promise.all([load(id), getT(), getLocale()]);
+  if (!data) notFound();
+  const { site, post } = data;
   const title = locale === "SW" && post.titleSw ? post.titleSw : post.title;
   const body = locale === "SW" && post.bodySw ? post.bodySw : post.body;
+  const url = `${baseUrl()}/news/${post.slug ?? post.id}`;
+  const more = (await listPublicNews(site.school.id, { limit: 4 })).items.filter((n) => n.id !== post.id).slice(0, 2);
+  const covers = await resolveSiteImages([post.coverImage, ...more.map((m) => m.coverImage)]);
+  const cover = post.coverImage ? covers.get(post.coverImage) : undefined;
+  const ld = { "@context": "https://schema.org", "@type": "NewsArticle", headline: title, datePublished: post.publishedAt?.toISOString(), dateModified: post.updatedAt.toISOString(), mainEntityOfPage: url, publisher: { "@type": "EducationalOrganization", name: site.school.name }, ...(cover ? { image: [`${baseUrl()}${cover.src}`] } : {}) };
+  const share = [
+    { label: "WhatsApp", href: `https://wa.me/?text=${encodeURIComponent(`${title} ${url}`)}` },
+    { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
+  ];
+
   return (
-    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <Link href="/news" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden /> {t("site.news.back")}</Link>
-      <p className="mt-6 text-sm text-muted">{t("site.news.published", { date: displayDate(post.publishedAt, locale) })}</p>
-      <h1 className="site-serif mt-2 text-4xl font-semibold leading-tight text-brand-900 sm:text-5xl">{title}</h1>
-      <div className="mt-8 whitespace-pre-line text-lg leading-relaxed text-ink/85">{body}</div>
+    <article>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
+      <header className="bg-cream">
+        <div className="mx-auto max-w-3xl px-4 pb-10 pt-10 sm:px-6 sm:pt-14">
+          <Link href="/news" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-700 hover:underline"><ArrowLeft className="size-4" aria-hidden /> {t("site.news.back")}</Link>
+          <p className="mt-6 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-wider text-muted">
+            {post.category && <span className="rounded-full bg-brand-50 px-3 py-1 text-brand-800">{post.category}</span>}
+            <time dateTime={post.publishedAt?.toISOString()}>{displayDate(post.publishedAt, locale)}</time>
+          </p>
+          <h1 className="display mt-4 text-4xl text-brand-950 sm:text-6xl">{title}</h1>
+        </div>
+        {cover && <div className="mx-auto max-w-5xl px-4 sm:px-6"><div className="frame aspect-[16/9] rounded-3xl"><Photo image={cover} sizes="(min-width: 1024px) 64rem, 100vw" priority /></div></div>}
+      </header>
+      <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+        <div className="whitespace-pre-line text-lg leading-[1.8] text-ink/90">{body}</div>
+        <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-line pt-6">
+          <span className="text-sm font-semibold text-muted">{t("site.news.share")}</span>
+          {share.map((s) => <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-full bg-brand-50 px-4 text-sm font-semibold text-brand-800 hover:bg-brand-100">{s.label}</a>)}
+        </div>
+      </div>
+      {more.length > 0 && (
+        <section className="bg-cream-deep"><div className="mx-auto max-w-6xl px-4 py-16 sm:px-6"><h2 className="display text-3xl text-brand-950">{t("site.news.more")}</h2>
+          <ul className="mt-8 grid gap-5 sm:grid-cols-2">{more.map((n) => <li key={n.id}><NewsCard post={n} cover={n.coverImage ? covers.get(n.coverImage) : undefined} locale={locale} /></li>)}</ul></div></section>
+      )}
     </article>
   );
 }

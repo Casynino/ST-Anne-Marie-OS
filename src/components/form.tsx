@@ -19,6 +19,7 @@ export function ActionForm({
   inline,
   tone = "primary",
   confirm,
+  successTitle,
 }: {
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
   children?: ReactNode;
@@ -29,11 +30,22 @@ export function ActionForm({
   inline?: boolean;
   tone?: "primary" | "danger" | "neutral";
   confirm?: string;
+  /** When set, a successful submit replaces the form with this title + the server message (used by public forms). */
+  successTitle?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
   const failed = state && !state.ok ? state : null;
   const done = state && state.ok ? state : null;
   const tempPassword = done?.data?.temporaryPassword;
+
+  if (successTitle && done) {
+    return (
+      <div role="status" className="rounded-2xl border border-ok/30 bg-green-50 p-6">
+        <p className="flex items-center gap-2 text-lg font-semibold text-ok"><CheckCircle2 className="size-5" aria-hidden />{successTitle}</p>
+        {done.message && <p className="mt-2 text-ink/80">{done.message}</p>}
+      </div>
+    );
+  }
 
   return (
     <Ctx.Provider value={{ errors: failed?.fieldErrors, values: failed?.values, code: failed?.code }}>
@@ -134,7 +146,7 @@ export function Field({
       <div className={className}>
         <label className="flex min-h-11 cursor-pointer items-center gap-3 text-base">
           <input type="checkbox" name={name} id={id} defaultChecked={checked} key={`${name}-${checked}`} className="size-5 rounded border-line accent-brand-700" aria-describedby={describedBy} />
-          <span>{label}</span>
+          <span>{label}{required ? <span aria-hidden className="ml-0.5 text-bad"> *</span> : null}</span>
         </label>
         {error && (
           <p id={`${id}-err`} className="text-sm text-bad">
@@ -150,6 +162,7 @@ export function Field({
     <div className={className}>
       <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink">
         {label}
+        {required ? <span aria-hidden className="ml-0.5 text-bad"> *</span> : null}
         {!required && optionalLabel ? <span className="ml-1 font-normal text-muted">({optionalLabel})</span> : null}
       </label>
       {type === "textarea" ? (

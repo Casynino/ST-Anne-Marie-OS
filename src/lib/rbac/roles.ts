@@ -25,6 +25,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: "Head Teacher / Academic Master",
     description: "Oversees academics, students, staff activity.",
     permissions: [
+      "enquiry.read",
+      "enquiry.manage",
       "website.manage",
       "school.settings.read",
       "user.read",
@@ -73,6 +75,8 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: "Registrar / Secretary",
     description: "Admissions, student records and guardians.",
     permissions: [
+      "enquiry.read",
+      "enquiry.manage",
       "academic.read",
       "student.read",
       "student.create",

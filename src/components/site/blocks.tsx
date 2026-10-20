@@ -1,68 +1,78 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Reveal } from "@/components/site/fx/reveal";
 
-export function Kicker({ children, dark }: { children: ReactNode; dark?: boolean }) {
-  return <p className={`site-mono text-xs font-semibold uppercase ${dark ? "text-glow" : "text-accent"}`}>{children}</p>;
+export function Eyebrow({ children, light }: { children: ReactNode; light?: boolean }) {
+  return <p className={`eyebrow ${light ? "eyebrow-light" : ""}`}>{children}</p>;
 }
 
-export function SectionHeading({ kicker, title, children, dark }: { kicker?: string; title: string; children?: ReactNode; dark?: boolean }) {
+export function SectionHeading({ eyebrow, title, children, light, align = "left" }: { eyebrow?: string; title: string; children?: ReactNode; light?: boolean; align?: "left" | "center" }) {
   return (
-    <Reveal className="max-w-2xl">
-      {kicker && <Kicker dark={dark}>{kicker}</Kicker>}
-      <h2 className={`site-serif mt-3 text-3xl leading-[1.1] sm:text-5xl ${dark ? "text-white" : "text-night"}`}>{title}</h2>
-      {children && <p className={`mt-4 text-base leading-relaxed sm:text-lg ${dark ? "text-brand-100" : "text-muted"}`}>{children}</p>}
+    <Reveal className={`max-w-2xl ${align === "center" ? "mx-auto text-center [&_.eyebrow]:justify-center" : ""}`}>
+      {eyebrow && <Eyebrow light={light}>{eyebrow}</Eyebrow>}
+      <h2 className={`display mt-4 text-[2rem] sm:text-5xl ${light ? "text-white" : "text-brand-900"}`}>{title}</h2>
+      {children && <p className={`mt-4 text-base leading-relaxed sm:text-lg ${light ? "text-brand-100" : "text-muted"}`}>{children}</p>}
     </Reveal>
   );
 }
 
-const CTA = {
-  solid: "bg-night text-white hover:bg-night-2",
-  accent: "bg-accent text-white hover:bg-accent-700",
-  signal: "bg-signal text-night hover:bg-signal-700 shadow-[0_8px_30px_-8px_rgb(255_178_62/.6)]",
-  ghost: "border border-white/25 text-white hover:bg-white/10",
-  outline: "border border-night/20 bg-white text-night hover:bg-paper-deep",
+const BTN = {
+  primary: "bg-brand-700 text-white hover:bg-brand-800 shadow-[0_6px_18px_-8px_rgb(2_106_67/.7)]",
+  sun: "bg-sun text-brand-950 hover:bg-sun-600",
+  outline: "border-2 border-brand-700 text-brand-800 hover:bg-brand-700 hover:text-white",
+  ghost: "border-2 border-white/40 text-white hover:bg-white hover:text-brand-900",
+  soft: "bg-brand-50 text-brand-800 hover:bg-brand-100",
 } as const;
 
-export function CtaLink({ href, children, variant = "solid", arrow }: { href: string; children: ReactNode; variant?: keyof typeof CTA; arrow?: boolean }) {
-  return (
-    <Link href={href} className={`group inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full px-6 text-base font-semibold transition-colors ${CTA[variant]}`}>
-      {children}
-      {arrow && <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden />}
-    </Link>
+export function ButtonLink({ href, children, variant = "primary", arrow, external, size = "md" }: { href: string; children: ReactNode; variant?: keyof typeof BTN; arrow?: boolean; external?: boolean; size?: "md" | "sm" }) {
+  const cls = `group inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-[background-color,color,box-shadow,transform] duration-200 active:scale-[.98] ${size === "md" ? "min-h-12 px-6 text-base" : "min-h-11 px-4 text-sm"} ${BTN[variant]}`;
+  const icon = arrow ? external ? <ArrowUpRight className="size-4" aria-hidden /> : <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden /> : null;
+  return external ? (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>{children}{icon}</a>
+  ) : (
+    <Link href={href} className={cls}>{children}{icon}</Link>
   );
 }
 
-/** Decorative orbit illustration drawn in SVG: no image to download, colours come from the tokens. */
-export function Orbit({ className = "" }: { className?: string }) {
+/** Inner-page header: breadcrumb, large display title, short lead. Light, editorial, with a brand-green corner arch. */
+export function PageHero({ eyebrow, title, children, crumbs }: { eyebrow?: string; title: string; children?: ReactNode; crumbs?: { href: string; label: string }[] }) {
   return (
-    <svg viewBox="0 0 400 400" className={className} aria-hidden fill="none">
-      <circle cx="200" cy="200" r="170" stroke="rgb(76 201 240 / .18)" />
-      <circle cx="200" cy="200" r="120" stroke="rgb(255 255 255 / .14)" />
-      <circle cx="200" cy="200" r="70" stroke="rgb(76 201 240 / .3)" />
-      <circle cx="200" cy="200" r="26" className="fill-glow/20" stroke="rgb(76 201 240 / .8)" />
-      <g className="orbit-ring">
-        <circle cx="200" cy="30" r="7" className="fill-signal" />
-        <circle cx="370" cy="200" r="4" className="fill-glow" />
-      </g>
-      <g className="orbit-ring-2">
-        <circle cx="80" cy="200" r="5" className="fill-white" />
-        <circle cx="200" cy="320" r="8" className="fill-glow/70" />
-      </g>
-    </svg>
-  );
-}
-
-/** Dark, compact header band for inner pages. */
-export function PageHero({ kicker, title, children }: { kicker?: string; title: string; children?: ReactNode }) {
-  return (
-    <header className="hero-glow hero-grid relative isolate overflow-hidden bg-night text-white">
-      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-14 pt-14 sm:px-6 sm:pb-20 sm:pt-20">
-        {kicker && <div className="site-rise"><Kicker dark>{kicker}</Kicker></div>}
-        <h1 className="site-serif site-rise-2 mt-3 max-w-3xl text-4xl leading-[1.05] sm:text-6xl">{title}</h1>
-        {children && <div className="site-rise-3 mt-5 max-w-2xl text-lg leading-relaxed text-brand-100">{children}</div>}
+    <header className="relative isolate overflow-hidden bg-cream">
+      <div aria-hidden className="absolute -right-24 -top-24 -z-10 size-[26rem] rounded-full bg-brand-700 sm:size-[34rem]" />
+      <div aria-hidden className="absolute -right-6 top-10 -z-10 hidden h-40 w-28 rounded-t-full bg-sun sm:block" />
+      <div className="mx-auto max-w-6xl px-4 pb-14 pt-10 sm:px-6 sm:pb-20 sm:pt-14">
+        {crumbs && (
+          <nav aria-label="Breadcrumb" className="mb-6 text-sm text-muted">
+            <ol className="flex flex-wrap items-center gap-2">
+              {crumbs.map((c, i) => (
+                <li key={c.href} className="flex items-center gap-2">
+                  <Link href={c.href} className="hover:text-brand-800 hover:underline">{c.label}</Link>
+                  {i < crumbs.length - 1 && <span aria-hidden>/</span>}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
+        {eyebrow && <div className="rise"><Eyebrow>{eyebrow}</Eyebrow></div>}
+        <h1 className="display rise-2 mt-4 max-w-3xl text-4xl text-brand-950 sm:text-6xl">{title}</h1>
+        {children && <div className="rise-3 mt-5 max-w-2xl text-lg leading-relaxed text-ink/80">{children}</div>}
       </div>
     </header>
   );
+}
+
+/** Intentional empty slot for a photograph the school has not supplied yet. Visible only to signed-in editors' preview via the page copy; here it is a calm brand panel, never stock imagery. */
+export function PhotoSlot({ label, className = "" }: { label: string; className?: string }) {
+  return (
+    <div role="img" aria-label={label} className={`relative flex items-end overflow-hidden bg-brand-700 ${className}`}>
+      <div aria-hidden className="absolute -right-8 -top-8 size-40 rounded-full bg-brand-600" />
+      <div aria-hidden className="absolute bottom-0 left-6 h-24 w-16 rounded-t-full bg-sun/90" />
+      <div aria-hidden className="absolute bottom-0 left-28 h-14 w-10 rounded-t-full bg-brand-300/70" />
+    </div>
+  );
+}
+
+export function Prose({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`whitespace-pre-line text-lg leading-relaxed text-ink/85 ${className}`}>{children}</div>;
 }

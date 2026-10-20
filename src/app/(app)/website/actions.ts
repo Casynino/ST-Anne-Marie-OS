@@ -1,8 +1,10 @@
 "use server";
 
 import { run, str, type ActionState } from "@/lib/action";
+import { AppError } from "@/lib/errors";
 import { makeT } from "@/lib/i18n";
 import * as web from "@/server/website";
+import * as media from "@/server/media";
 
 const saved = (locale: "EN" | "SW") => ({ message: makeT(locale)("common.saved") });
 
@@ -29,4 +31,17 @@ export async function updateEventAction(_: ActionState, form: FormData) {
 }
 export async function deleteEventAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => (await web.deleteEvent(ctx, str(i.id)), saved(ctx.locale)));
+}
+
+export async function uploadMediaAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const file = form.get("file");
+    if (!(file instanceof File) || file.size === 0) throw new AppError("VALIDATION", "Choose an image to upload.", { file: "Required" });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    await media.uploadMedia(ctx, { name: file.name, bytes }, i);
+    return saved(ctx.locale);
+  });
+}
+export async function deleteMediaAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => (await media.deleteMedia(ctx, str(i.id)), saved(ctx.locale)));
 }

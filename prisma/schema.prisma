@@ -118,6 +118,8 @@ model School {
   importRows             ImportRow[]
   announcements          Announcement[]
   events                 SchoolEvent[]
+  enquiries              Enquiry[]
+  mediaAssets            MediaAsset[]
 
   @@map("schools")
 }
@@ -1070,6 +1072,12 @@ model Announcement {
   title       String
   titleSw     String?
   body        String
+  slug        String?
+  category    String?
+  excerpt     String?
+  coverImage  String? // image reference: /site/... (bundled) or /media/<id> (uploaded)
+  showInBar   Boolean   @default(false) // appears in the public announcement bar while published
+  barLink     String?
   bodySw      String?
   isPublic    Boolean   @default(true)
   publishedAt DateTime?
@@ -1079,6 +1087,7 @@ model Announcement {
 
   school School @relation(fields: [schoolId], references: [id])
 
+  @@unique([schoolId, slug])
   @@index([schoolId, publishedAt])
   @@map("announcements")
 }
@@ -1091,6 +1100,8 @@ model SchoolEvent {
   description   String?
   descriptionSw String?
   location      String?
+  category      String?
+  coverImage    String?
   startsOn      DateTime  @db.Date
   endsOn        DateTime? @db.Date
   isPublic      Boolean   @default(true)
@@ -1112,4 +1123,54 @@ model RateLimitEvent {
 
   @@index([key, createdAt])
   @@map("rate_limit_events")
+}
+
+enum EnquiryStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+}
+
+// Messages from the public contact form. Saved first, then handled by staff (never just "success on screen").
+model Enquiry {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  schoolId     String        @db.Uuid
+  name         String
+  phone        String?
+  email        String?
+  topic        String? // e.g. admissions, general
+  message      String
+  status       EnquiryStatus @default(NEW)
+  consentAt    DateTime
+  internalNote String?
+  handledById  String?       @db.Uuid
+  handledAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, status, createdAt])
+  @@map("enquiries")
+}
+
+// Images uploaded by staff for the public website (logo, hero, gallery, news covers). Public by design:
+// only put images here that the school is allowed to publish. Served by /media/<id> with long cache headers.
+model MediaAsset {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @db.Uuid
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  width       Int
+  height      Int
+  alt         String
+  bytes       Bytes
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, createdAt])
+  @@map("media_assets")
 }

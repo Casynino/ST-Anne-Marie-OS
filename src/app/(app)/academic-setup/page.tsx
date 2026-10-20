@@ -25,7 +25,7 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
       <PageHeader title={t("academics.title")} />
       <nav aria-label="Academics sections" className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((k) => (
-          <Link key={k} href={`/academics?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`-mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${tab === k ? "border-brand-700 text-brand-800" : "border-transparent text-muted hover:text-ink"}`}>
+          <Link key={k} href={`/academic-setup?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`-mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${tab === k ? "border-brand-700 text-brand-800" : "border-transparent text-muted hover:text-ink"}`}>
             {labels[k]}
           </Link>
         ))}

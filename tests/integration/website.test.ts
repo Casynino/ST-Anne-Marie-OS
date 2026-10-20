@@ -138,7 +138,7 @@ describe("online application", () => {
     expect(ok.status).toBe("APPLIED");
     expect(Object.keys(ok).sort()).toEqual(["className", "status", "submittedOn"]);
     const wrongPhone = (await pub.trackApplication(school.id, { applicationNo, phone: "0799000111" }, meta()).catch((e) => e)) as AppError;
-    const unknownNo = (await pub.trackApplication(school.id, { applicationNo: "APP/2099/9999", phone: "0799000111" }, meta()).catch((e) => e)) as AppError;
+    const unknownNo = (await pub.trackApplication(school.id, { applicationNo: `APP/2099/${String(1000 + Math.floor(Math.random() * 8999))}`, phone: "0799000111" }, meta()).catch((e) => e)) as AppError;
     expect(wrongPhone.message).toBe(unknownNo.message); // cannot probe which numbers exist
     const other = await createTestSchool("Other 2");
     expect(await code(pub.trackApplication(other.id, { applicationNo, phone: String(input.g1_phone) }, meta()))).toBe("VALIDATION"); // not found in another school

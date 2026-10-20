@@ -62,6 +62,8 @@ export const PERMISSIONS = {
 
   // Public website
   "website.manage": { module: "website", description: "Edit the public website content, news and events" },
+  "enquiry.read": { module: "website", description: "View enquiries sent through the public contact form" },
+  "enquiry.manage": { module: "website", description: "Update enquiry status and notes" },
   "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 

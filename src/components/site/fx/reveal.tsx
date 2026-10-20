@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
-type Tag = "div" | "li" | "ul" | "ol" | "section" | "article" | "figure" | "blockquote" | "span";
+type Tag = "div" | "li" | "ul" | "ol" | "section" | "article" | "figure" | "blockquote" | "span" | "p";
 
 let observer: IntersectionObserver | undefined;
 function getObserver() {
@@ -11,7 +11,10 @@ function getObserver() {
       for (const e of entries) {
         if (!e.isIntersecting) continue;
         observer?.unobserve(e.target);
-        (e.target as HTMLElement).dataset.rv = "in";
+        const el = e.target as HTMLElement;
+        el.dataset.rv = "in";
+        // Once the entrance has played, drop the state so the element's own hover transitions are not delayed or overridden.
+        window.setTimeout(() => { if (el.dataset.rv === "in") el.dataset.rv = "done"; }, 1000 + Number(el.style.getPropertyValue("--d") || 0));
       }
     },
     { rootMargin: "0px 0px -8% 0px", threshold: 0.01 },
