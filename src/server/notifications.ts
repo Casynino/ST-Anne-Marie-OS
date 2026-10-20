@@ -16,6 +16,7 @@ import { getSmsAdapter } from "@/lib/sms/adapter";
 
 const MAX_ATTEMPTS = 5;
 const LEASE_MINUTES = 5;
+const CONCURRENCY = 8;
 
 export type AbsenceEventContext = { className: string; streamName: string | null; sessionName: string; date: string };
 type AbsencePayload = AbsenceEventContext & { studentName: string; admissionNo: string; guardianName: string };
@@ -86,7 +87,7 @@ export async function processPendingEvents(opts: { schoolId?: string; limit?: nu
     RETURNING id`;
   let processed = 0;
   let failed = 0;
-  for (const { id } of claimed) {
+  const run = async (id: string) => {
     try {
       await processOne(id);
       processed++;
@@ -99,7 +100,9 @@ export async function processPendingEvents(opts: { schoolId?: string; limit?: nu
         data: { lastError: (e instanceof Error ? e.message : String(e)).slice(0, 300), ...(exhausted ? { status: "FAILED" } : { nextAttemptAt: new Date(Date.now() + backoffMs(ev?.attempts ?? 1)) }) },
       });
     }
-  }
+  };
+  // Bounded concurrency: a class with many absences must not make finalising slow.
+  for (let i = 0; i < claimed.length; i += CONCURRENCY) await Promise.all(claimed.slice(i, i + CONCURRENCY).map(({ id }) => run(id)));
   return { claimed: claimed.length, processed, failed };
 }
 
