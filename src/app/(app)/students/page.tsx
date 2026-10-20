@@ -26,7 +26,15 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title={t("student.title")} actions={ctx.permissions.has("student.create") ? <LinkButton href="/students/new"><Plus className="size-4" aria-hidden /> {t("student.new")}</LinkButton> : undefined} />
+      <PageHeader
+        title={t("student.title")}
+        actions={
+          <>
+            {ctx.permissions.has("student.import") && <LinkButton href="/students/import" variant="secondary">{t("imp.title")}</LinkButton>}
+            {ctx.permissions.has("student.create") && <LinkButton href="/students/new"><Plus className="size-4" aria-hidden /> {t("student.new")}</LinkButton>}
+          </>
+        }
+      />
       <FilterBar t={t} resetHref="/students">
         <Field name="q" label={t("common.search")} defaultValue={sp.q} placeholder={t("student.search")} className="min-w-56 flex-1" />
         <Field name="classId" label={t("student.class")} type="select" defaultValue={sp.classId} placeholder={t("common.all")} options={classes.map((c) => ({ value: c.id, label: c.name }))} />
