@@ -2290,6 +2290,23 @@ export const en = {
   "tch.hero.homework.one": "homework to mark",
   "tch.hero.sheets.one": "mark sheet to finish",
   "tch.todo.sub": "Open an item to deal with it",
+  "fam.hero.attendance": "attendance this term",
+  "fam.hero.owed": "owed in fees",
+  "fam.hero.nothingOwed": "nothing owed in fees",
+  "fam.hero.homework": "homework tasks to do",
+  "fam.hero.homework.one": "homework task to do",
+  "fam.hero.average": "latest report average",
+  "fam.day.title": "Today and this week",
+  "fam.day.sub": "Lessons for today and the homework to watch",
+  "fam.day.noLessons": "No lessons on the timetable today.",
+  "fam.day.lessons": "{n} lessons today",
+  "fam.hw.title": "Homework",
+  "fam.hw.sub": "The latest tasks set by teachers",
+  "fam.recorded": "{n} days recorded",
+  "fam.reports.sub": "Published report cards, newest first",
+  "fam.hero.children": "children linked to your account",
+  "fam.children.title": "Your children",
+  "fam.hw.allDone": "Nothing waiting to be handed in",
 } as const;
 
 export type MessageKey = keyof typeof en;

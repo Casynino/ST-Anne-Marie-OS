@@ -3,7 +3,7 @@ import type { AuthContext } from "@/lib/auth/context";
 import { listAssignments } from "@/server/assignments";
 import { listBehaviour } from "@/server/behaviour";
 import { listLessonPlans, listSchemes, myTeachingUnits } from "@/server/lesson-plans";
-import { schoolTimezone, teachingStudentIds } from "@/server/learning-access";
+import { isoWeekday, schoolTimezone, teachingStudentIds } from "@/server/learning-access";
 import { teacherTimetable } from "@/server/timetable";
 
 /*
@@ -12,12 +12,6 @@ import { teacherTimetable } from "@/server/timetable";
  */
 
 const can = (ctx: AuthContext, p: string) => ctx.permissions.has(p as never);
-
-/** 1 = Monday … 7 = Sunday in the school's time zone. */
-function isoWeekday(tz: string, now = new Date()) {
-  const w = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(now);
-  return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(w) + 1;
-}
 
 export async function teacherHome(ctx: AuthContext) {
   const tz = await schoolTimezone(ctx.schoolId);

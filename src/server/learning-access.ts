@@ -87,6 +87,12 @@ export async function canActForStudent(ctx: AuthContext, studentId: string): Pro
   return schoolWide(ctx) || (await teachesStudent(ctx, studentId));
 }
 
+/** 1 = Monday … 7 = Sunday in the given time zone. */
+export function isoWeekday(tz: string, now = new Date()) {
+  const w = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(now);
+  return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(w) + 1;
+}
+
 export async function schoolTimezone(schoolId: string): Promise<string> {
   return (await db.school.findUnique({ where: { id: schoolId }, select: { timezone: true } }))?.timezone ?? "Africa/Dar_es_Salaam";
 }
