@@ -8,6 +8,7 @@ import { registerOverview } from "@/server/attendance";
 import { getCurrentAcademicContext } from "@/server/academics";
 import { listStudents } from "@/server/students";
 import { getSchoolBasics } from "@/server/settings";
+import { ExportMenu } from "@/components/export-menu";
 import { Badge, Card, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Stat, Td } from "@/components/ui";
 import { Field } from "@/components/form";
 import { AttendanceNav } from "@/components/attendance/subnav";
@@ -128,7 +129,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title={t("rep.title")} />
+      <PageHeader title={t("rep.title")} actions={view === "class" && sp.target ? <ExportMenu base={`/api/export/attendance?classId=${sp.target.split("|")[0]}${sp.target.split("|")[1] ? `&streamId=${sp.target.split("|")[1]}` : ""}&from=${from}&to=${to}`} t={t} /> : undefined} />
       <AttendanceNav ctx={ctx} t={t} current="/attendance/reports" />
       <nav className="mb-3 flex flex-wrap gap-2" aria-label={t("rep.title")}>
         {VIEWS.map((v) => (

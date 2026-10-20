@@ -5,7 +5,8 @@ import { ArrowLeft, FileDown } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
 import { AppError } from "@/lib/errors";
 import { displayDate } from "@/lib/dates";
-import { childOverview, myChildren } from "@/server/portal";
+import { childFees, childOverview, myChildren } from "@/server/portal";
+import { formatMoney } from "@/lib/finance/money";
 import { Badge, Card, EmptyState, PageHeader, Stat } from "@/components/ui";
 
 export const metadata: Metadata = { title: "My child" };
@@ -23,13 +24,19 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const many = (await myChildren(ctx)).length > 1;
+  const [many, fees] = await Promise.all([myChildren(ctx).then((c) => c.length > 1), childFees(ctx, studentId)]);
+  const latest = ov.reportCards[0];
   const { child, attendance: a } = ov;
   return (
     <>
       {many && <Link href="/family" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("fam.allChildren")}</Link>}
       <PageHeader title={child.name} subtitle={`${child.className ? `${child.className}${child.streamName ? ` ${child.streamName}` : ""}` : t("fam.notPlaced")} · ${child.admissionNo}`} />
 
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Stat label={t("fam.summary.attendance")} value={a.ratePct === null ? "—" : `${a.ratePct}%`} hint={ov.period?.label} />
+        <Link href={`/family/${child.id}/fees`} className="block"><Stat label={t("fam.summary.fees")} value={fees.summary.outstanding > 0 ? formatMoney(fees.summary.outstanding, fees.currency) : t("fam.summary.nothingOwed")} hint={fees.summary.overdue > 0 ? t("fam.summary.overdue", { amount: formatMoney(fees.summary.overdue, fees.currency) }) : undefined} /></Link>
+        <Stat label={t("fam.summary.report")} value={latest ? (latest.average === null ? "—" : latest.average.toFixed(1)) : "—"} hint={latest ? `${latest.term}${latest.position !== null ? ` · ${t("rc.position")} ${latest.position}/${latest.classSize}` : ""}` : t("fam.summary.noReport")} />
+      </div>
       <Link href={`/family/${child.id}/fees`} className="mb-8 flex min-h-16 items-center justify-between rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)] hover:border-brand-400"><span className="font-semibold">{t("fam.fees")}</span><span className="text-sm text-muted">{t("fam.fees.hint")}</span></Link>
 
       <section aria-labelledby="rc-h" className="mb-8">

@@ -5,6 +5,7 @@ import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { listStudents } from "@/server/students";
 import { listClasses } from "@/server/academics";
 import { ageOn } from "@/lib/dates";
+import { ExportMenu } from "@/components/export-menu";
 import { Badge, DataTable, EmptyState, FilterBar, LinkButton, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
 import { Field } from "@/components/form";
 
@@ -30,6 +31,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         title={t("student.title")}
         actions={
           <>
+            <ExportMenu base={`/api/export/students?${new URLSearchParams(Object.entries({ q: sp.q ?? "", classId: sp.classId ?? "", status: sp.status ?? "" }).filter(([, v]) => v))}`} t={t} />
             {ctx.permissions.has("student.import") && <LinkButton href="/students/import" variant="secondary">{t("imp.title")}</LinkButton>}
             {ctx.permissions.has("student.create") && <LinkButton href="/students/new"><Plus className="size-4" aria-hidden /> {t("student.new")}</LinkButton>}
           </>

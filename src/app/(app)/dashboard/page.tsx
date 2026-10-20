@@ -1,17 +1,19 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CalendarDays, ClipboardCheck, GraduationCap, Inbox, UserCog, UserPlus, ArrowRight, CheckCircle2, AlertTriangle } from "lucide-react";
+import { CalendarDays, ClipboardCheck, GraduationCap, Inbox, UserCog, UserPlus, ArrowRight, CheckCircle2, AlertTriangle, Wallet, FileCheck, Receipt } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireContext, getT, getLocale } from "@/lib/auth/next";
 import { getDashboard } from "@/server/dashboard";
 import { displayDate, displayDateTime } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
 import { BarList, ChartCard, Donut, EmptyChart, TrendChart } from "@/components/charts";
+import { CollectionsChart } from "@/components/finance/collections-chart";
+import { formatMoney } from "@/lib/finance/money";
 import { Badge, Card, DataTable, EmptyState, LinkButton, PageHeader, Td } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-const KPI_ICON = { enrolled: GraduationCap, pipeline: UserPlus, attendanceToday: ClipboardCheck, staff: UserCog, enquiries: Inbox } as const;
+const KPI_ICON = { enrolled: GraduationCap, pipeline: UserPlus, attendanceToday: ClipboardCheck, staff: UserCog, enquiries: Inbox, collected: Wallet, outstanding: Receipt, resultsLocked: FileCheck } as const;
 const STATUS_TONE = { APPLIED: "brand", INTERVIEW: "brand", ACCEPTED: "warn", ENROLLED: "ok", REJECTED: "bad", WITHDRAWN: "neutral" } as const;
 
 function entityHref(type: string, id: string | null): string | null {
@@ -32,10 +34,11 @@ export default async function DashboardPage() {
   ]);
   const can = (p: string) => ctx.permissions.has(p as never);
   const first = ctx.fullName.split(" ")[0] ?? ctx.fullName;
-  const nothingToShow = d.kpis.length === 0 && !d.enrollmentByClass && !d.pipeline && !d.attendanceTrend && !d.recentApplications && !d.activity && d.myRegisters.length === 0;
+  const nothingToShow = d.kpis.length === 0 && !d.finance && !d.exams && !d.enrollmentByClass && !d.pipeline && !d.attendanceTrend && !d.recentApplications && !d.activity && d.myRegisters.length === 0;
   const pipelineTotal = d.pipeline?.reduce((n, p) => n + p.value, 0) ?? 0;
   const enrolTotal = d.enrollmentByClass?.reduce((n, p) => n + p.value, 0) ?? 0;
   const fmtDay = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), locale).slice(0, 6);
+  const money = (c: number) => formatMoney(c, school.currency);
 
   return (
     <>
@@ -68,15 +71,16 @@ export default async function DashboardPage() {
       {nothingToShow && <EmptyState><p className="font-semibold text-ink">{t("dash.empty.title")}</p><p className="mt-1">{t("dash.empty.body")}</p></EmptyState>}
 
       {d.kpis.length > 0 && (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("dash.kpis")}>
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("dash.kpis")}>
           {d.kpis.map((k) => {
             const Icon = KPI_ICON[k.key as keyof typeof KPI_ICON];
-            const hint = k.key === "pipeline" ? t("dash.kpi.pipeline.hint", { count: Number(k.hint ?? 0) }) : k.key === "attendanceToday" ? (k.value === null ? t("dash.kpi.attendanceToday.none") : t("dash.kpi.attendanceToday.hint", { done: k.hint?.split("/")[0] ?? "0", total: k.hint?.split("/")[1] ?? "0" })) : undefined;
+            const money_ = k.key === "collected" || k.key === "outstanding";
+            const hint = k.key === "collected" ? (k.hint ? t("dash.kpi.collected.hint", { pct: k.hint }) : undefined) : k.key === "outstanding" ? t("dash.kpi.outstanding.hint", { amount: money(Number(k.hint ?? 0)) }) : k.key === "resultsLocked" ? t("dash.kpi.resultsLocked.hint", { done: k.hint?.split("/")[0] ?? "0", total: k.hint?.split("/")[1] ?? "0" }) : k.key === "pipeline" ? t("dash.kpi.pipeline.hint", { count: Number(k.hint ?? 0) }) : k.key === "attendanceToday" ? (k.value === null ? t("dash.kpi.attendanceToday.none") : t("dash.kpi.attendanceToday.hint", { done: k.hint?.split("/")[0] ?? "0", total: k.hint?.split("/")[1] ?? "0" })) : undefined;
             return (
               <li key={k.key}>
                 <Link href={k.href} className="group flex h-full flex-col rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]">
                   <span className="flex items-center justify-between text-sm text-muted"><span>{t(`dash.kpi.${k.key}` as "dash.kpi.enrolled")}</span><span className="rounded-lg bg-brand-50 p-1.5 text-brand-700"><Icon className="size-4" aria-hidden /></span></span>
-                  <span className="mt-2 text-3xl font-semibold tabular-nums text-ink">{k.value === null ? <span aria-label={t("dash.unavailable")}>—</span> : typeof k.value === "number" ? k.value.toLocaleString() : k.value}</span>
+                  <span className="mt-2 text-3xl font-semibold tabular-nums text-ink">{k.value === null ? <span aria-label={t("dash.unavailable")}>—</span> : money_ && typeof k.value === "number" ? money(k.value) : typeof k.value === "number" ? k.value.toLocaleString() : k.value}</span>
                   {hint && <span className="mt-1 text-xs text-muted">{hint}</span>}
                   <span className="mt-auto inline-flex items-center gap-1 pt-3 text-xs font-medium text-brand-700 group-hover:underline">{t("dash.kpi.open")} <ArrowRight className="size-3.5" aria-hidden /></span>
                 </Link>
@@ -99,6 +103,47 @@ export default async function DashboardPage() {
             </ul>
           )}
         </section>
+      )}
+
+      {(d.finance || d.exams) && (
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          {d.finance && (
+            <ChartCard title={t("dash.finance.title")} subtitle={t("dash.finance.sub", { term: d.finance.term.name })} href="/finance" hrefLabel={t("dash.kpi.open")} className="lg:col-span-2">
+              <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+                <div>
+                  {d.finance.trend.every((p) => p.cents === 0) ? <EmptyChart>{t("dash.finance.noPayments")}</EmptyChart> : <CollectionsChart points={d.finance.trend} label={t("dash.finance.chart")} summary={t("dash.finance.chart.sub", { total: money(d.finance.trend.reduce((n, p) => n + p.cents, 0)) })} format={money} dayLabel={fmtDay} />}
+                </div>
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">{t("dash.finance.arrears")}</h3>
+                  {d.finance.topArrears.length === 0 ? <p className="text-sm text-muted">{t("fin.reports.noArrears")}</p> : (
+                    <ul className="divide-y divide-line text-sm">
+                      {d.finance.topArrears.map((a) => (
+                        <li key={a.studentId} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"><Link href={`/finance/students/${a.studentId}`} className="min-w-0 truncate font-medium text-brand-800 hover:underline">{a.name}<span className="block text-xs font-normal text-muted">{a.className ?? ""} · {a.admissionNo}</span></Link><span className="shrink-0 text-right tabular-nums">{money(a.outstanding)}{a.overdue > 0 && <span className="block text-xs text-bad">{t("dash.finance.overdueAmount", { amount: money(a.overdue) })}</span>}</span></li>
+                      ))}
+                    </ul>
+                  )}
+                  <Link href="/finance/reports" className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">{t("dash.finance.allArrears")}</Link>
+                </div>
+              </div>
+            </ChartCard>
+          )}
+          {d.exams && (
+            <ChartCard title={t("dash.exams.title")} subtitle={t("dash.exams.sub", { term: d.exams.term.name, total: d.exams.total })} href="/marks" hrefLabel={t("dash.kpi.open")} className={d.exams.mine.length > 0 && d.exams.overall ? "" : "lg:col-span-2"}>
+              {d.exams.total === 0 ? <EmptyChart>{t("dash.exams.none")}</EmptyChart> : (
+                <BarList items={([["DRAFT", "muted"], ["RETURNED", "warn"], ["SUBMITTED", "sun"], ["APPROVED", "indigo"], ["LOCKED", "brand"]] as const).map(([k, tone]) => ({ label: t(`marks.status.${k}`), value: d.exams!.byStatus[k], tone }))} label={t("dash.exams.title")} summary={t("dash.exams.summary")} />
+              )}
+            </ChartCard>
+          )}
+          {d.exams && d.exams.mine.length > 0 && (
+            <ChartCard title={t("dash.exams.mine")} subtitle={t("dash.exams.mine.sub")} href="/marks" hrefLabel={t("dash.table.viewAll")}>
+              <ul className="space-y-2">
+                {d.exams.mine.map((m) => (
+                  <li key={m.id}><Link href={`/marks/${m.id}`} className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-line px-4 py-2 hover:bg-canvas"><span className="min-w-0"><span className="block truncate font-medium">{m.subjectName} · {m.className}{m.streamName ? ` ${m.streamName}` : ""}</span><span className="text-xs text-muted">{m.examName} · {m.entered}/{m.roster}</span></span>{m.overdue ? <Badge tone="bad">{t("marks.overdue")}</Badge> : <Badge tone={m.status === "RETURNED" ? "warn" : "neutral"}>{t(`marks.status.${m.status}` as "marks.status.DRAFT")}</Badge>}</Link></li>
+                ))}
+              </ul>
+            </ChartCard>
+          )}
+        </div>
       )}
 
       {d.myRegisters.length > 0 && (

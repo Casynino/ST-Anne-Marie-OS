@@ -7,6 +7,11 @@ import { attendanceRate, emptyCounts } from "@/server/attendance-reports";
 import { getAttendanceSettings, registerOverview, countPendingConflicts } from "@/server/attendance";
 import { countNewEnquiries } from "@/server/enquiries";
 import { getBrandLogo } from "@/server/website";
+import { arrearsReport, financeOverview } from "@/server/finance-reports";
+import { listSubmissions } from "@/server/marks";
+import { countStaffAttention } from "@/server/messaging";
+import { countUnmatchedEvents } from "@/server/payment-events";
+import { centsOf } from "@/lib/finance/money";
 
 /*
  * Dashboard data. Every number comes from the same services and rules the detail screens use (attendance rate
@@ -18,7 +23,22 @@ import { getBrandLogo } from "@/server/website";
 export type Kpi = { key: string; value: number | string | null; hint?: string; href: string };
 export type Bar = { label: string; value: number; tone?: "brand" | "sun" | "indigo" | "warn" | "bad" | "muted" };
 export type TrendPoint = { date: string; rate: number };
-export type Attention = { key: "conflicts" | "failedNotifications" | "newEnquiries" | "newApplications" | "registersOpen"; count: number; href: string };
+export type Attention = { key: "conflicts" | "failedNotifications" | "newEnquiries" | "newApplications" | "registersOpen" | "unmatchedPayments" | "refundsPending" | "resultsToApprove" | "marksOverdue" | "messagesWaiting"; count: number; href: string };
+export type CollectionsPoint = { date: string; cents: number };
+export type FinancePanel = {
+  term: { id: string; name: string };
+  billed: number; collected: number; outstanding: number; overdue: number; credit: number; expenses: number; ratePct: number | null;
+  trend: CollectionsPoint[];
+  topArrears: { studentId: string; name: string; admissionNo: string; className: string | null; overdue: number; outstanding: number }[];
+};
+export type ExamsPanel = {
+  term: { id: string; name: string };
+  total: number;
+  byStatus: Record<"DRAFT" | "SUBMITTED" | "APPROVED" | "LOCKED" | "RETURNED", number>;
+  overall: boolean; // true when the counts cover every unit (approvers); false when they are only the user's own
+  toApprove: number; toLock: number; overdue: number;
+  mine: { id: string; examName: string; className: string; streamName: string | null; subjectName: string; status: string; entered: number; roster: number; overdue: boolean }[];
+};
 export type MyRegister = { sessionId: string; classId: string; className: string; streamId: string | null; streamName: string | null; status: "NOT_STARTED" | "DRAFT" | "FINALISED"; students: number };
 
 const APPLICATION_ORDER = ["APPLIED", "INTERVIEW", "ACCEPTED", "ENROLLED", "REJECTED", "WITHDRAWN"] as const;
@@ -62,6 +82,39 @@ async function attendanceTrend(ctx: AuthContext, today: Date, days: number): Pro
   });
 }
 
+/** Posted payments per day for the last `days` days (reversed payments never count). */
+async function collectionsTrend(ctx: AuthContext, today: Date, days: number): Promise<CollectionsPoint[]> {
+  const from = new Date(today.getTime() - (days - 1) * 86_400_000);
+  const rows = await db.payment.groupBy({ by: ["receivedOn"], where: { schoolId: ctx.schoolId, status: "POSTED", receivedOn: { gte: from, lte: today } }, _sum: { amount: true } });
+  const byDay = new Map(rows.map((r) => [formatDateOnly(r.receivedOn), centsOf(r._sum.amount)]));
+  return Array.from({ length: days }, (_, i) => { const d = formatDateOnly(new Date(from.getTime() + i * 86_400_000)); return { date: d, cents: byDay.get(d) ?? 0 }; });
+}
+
+async function financePanel(ctx: AuthContext, today: Date): Promise<FinancePanel | null> {
+  if (!ctx.permissions.has("finance.reports")) return null;
+  const o = await financeOverview(ctx);
+  if (!o) return null;
+  const [trend, arrears] = await Promise.all([collectionsTrend(ctx, today, 30), arrearsReport(ctx, { termId: o.term.id })]);
+  return {
+    term: o.term, billed: o.billed, collected: o.collected, outstanding: o.outstanding, overdue: o.overdue, credit: o.credit, expenses: o.expenses, ratePct: o.collectionRatePct, trend,
+    topArrears: arrears.rows.slice(0, 5).map((r) => ({ studentId: r.studentId, name: r.name, admissionNo: r.admissionNo, className: r.className, overdue: r.overdue, outstanding: r.outstanding })),
+  };
+}
+
+async function examsPanel(ctx: AuthContext, term: { id: string; name: string } | null): Promise<ExamsPanel | null> {
+  if (!term || !["marks.enter", "marks.enter_any", "results.read", "results.read_assigned", "results.approve"].some((p) => ctx.permissions.has(p as never))) return null;
+  const units = await listSubmissions(ctx, { termId: term.id });
+  const byStatus = { DRAFT: 0, SUBMITTED: 0, APPROVED: 0, LOCKED: 0, RETURNED: 0 };
+  for (const u of units) byStatus[u.status as keyof typeof byStatus]++;
+  const mine = (ctx.permissions.has("marks.enter") || ctx.permissions.has("marks.enter_any")) ? units.filter((u) => u.canEnter && (u.status === "DRAFT" || u.status === "RETURNED")).slice(0, 8) : [];
+  const overall = ctx.permissions.has("results.read") || ctx.permissions.has("marks.enter_any");
+  return {
+    term, total: units.length, byStatus, overall,
+    toApprove: ctx.permissions.has("results.approve") ? byStatus.SUBMITTED : 0, toLock: ctx.permissions.has("results.lock") ? byStatus.APPROVED : 0, overdue: units.filter((u) => u.overdue && u.canEnter).length,
+    mine: mine.map((u) => ({ id: u.id, examName: u.examName, className: u.className, streamName: u.streamName, subjectName: u.subjectName, status: u.status, entered: u.entered, roster: u.roster, overdue: u.overdue })),
+  };
+}
+
 export async function getDashboard(ctx: AuthContext) {
   const school = await db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
   const todayStr = todayInTimezone(school.timezone);
@@ -70,7 +123,7 @@ export async function getDashboard(ctx: AuthContext) {
   const can = (p: string) => ctx.permissions.has(p as never);
   const canStudents = can("student.read") || can("student.read_assigned");
 
-  const [students, attendance, trend, classCounts, pipeline, recentApplications, activity, staff, enquiries, conflicts, failed, byGender] = await Promise.all([
+  const [students, attendance, trend, classCounts, pipeline, recentApplications, activity, staff, enquiries, conflicts, failed, byGender, finance, exams, unmatched, refundsPending, messagesWaiting] = await Promise.all([
     canStudents ? studentCounts(ctx) : null,
     todaysAttendance(ctx, todayStr),
     attendanceTrend(ctx, today, 14),
@@ -96,6 +149,11 @@ export async function getDashboard(ctx: AuthContext) {
     can("attendance.correct") ? countPendingConflicts(ctx) : null,
     can("attendance.read") || can("user.read") ? db.notificationEvent.count({ where: { schoolId: ctx.schoolId, status: "FAILED" } }) : null,
     canStudents ? studentScope(ctx).then((scope) => db.student.groupBy({ by: ["gender"], where: { AND: [scope, { status: "ENROLLED" }] }, _count: { _all: true } })) : null,
+    financePanel(ctx, today),
+    examsPanel(ctx, term),
+    can("finance.reconcile") ? countUnmatchedEvents(ctx) : null,
+    can("refund.approve") ? db.refund.count({ where: { schoolId: ctx.schoolId, status: "REQUESTED", requestedById: { not: ctx.userId } } }) : null,
+    countStaffAttention(ctx),
   ]);
 
   const counts = Object.fromEntries((pipeline ?? []).map((p) => [p.status, p._count._all])) as Record<string, number>;
@@ -107,6 +165,11 @@ export async function getDashboard(ctx: AuthContext) {
   if (attendance) {
     kpis.push({ key: "attendanceToday", value: attendance.rate === null ? null : `${attendance.rate}%`, hint: `${attendance.finalised}/${attendance.total}`, href: "/attendance" });
   }
+  if (finance) {
+    kpis.push({ key: "collected", value: finance.collected, hint: finance.ratePct === null ? undefined : `${finance.ratePct}`, href: "/finance" });
+    kpis.push({ key: "outstanding", value: finance.outstanding, hint: `${finance.overdue}`, href: "/finance/reports" });
+  }
+  if (exams && exams.overall) kpis.push({ key: "resultsLocked", value: exams.total === 0 ? null : `${Math.round((exams.byStatus.LOCKED / exams.total) * 100)}%`, hint: `${exams.byStatus.LOCKED}/${exams.total}`, href: "/marks?view=all" });
   if (staff !== null) kpis.push({ key: "staff", value: staff, href: "/users" });
   if (enquiries !== null) kpis.push({ key: "enquiries", value: enquiries, href: "/enquiries" });
 
@@ -115,6 +178,11 @@ export async function getDashboard(ctx: AuthContext) {
   if (failed) attention.push({ key: "failedNotifications", count: failed, href: "/attendance/alerts" });
   if (enquiries) attention.push({ key: "newEnquiries", count: enquiries, href: "/enquiries" });
   if (counts.APPLIED) attention.push({ key: "newApplications", count: counts.APPLIED, href: "/admissions?status=APPLIED" });
+  if (unmatched) attention.push({ key: "unmatchedPayments", count: unmatched, href: "/finance/reconciliation" });
+  if (refundsPending) attention.push({ key: "refundsPending", count: refundsPending, href: "/finance/refunds" });
+  if (exams?.toApprove) attention.push({ key: "resultsToApprove", count: exams.toApprove, href: "/marks?view=queue" });
+  if (exams?.overdue) attention.push({ key: "marksOverdue", count: exams.overdue, href: "/marks" });
+  if (messagesWaiting) attention.push({ key: "messagesWaiting", count: messagesWaiting, href: "/communication/messages" });
   const open = attendance ? attendance.total - attendance.finalised : 0;
   if (attendance && open > 0 && attendance.total > 0) attention.push({ key: "registersOpen", count: open, href: "/attendance" });
 
@@ -131,6 +199,7 @@ export async function getDashboard(ctx: AuthContext) {
     gender: byGender ? Object.fromEntries(byGender.map((g) => [g.gender, g._count._all])) as Record<string, number> : null,
     pipeline: pipeline ? (APPLICATION_ORDER.map((s): Bar => ({ label: s, value: counts[s] ?? 0, tone: s === "REJECTED" ? "bad" : s === "WITHDRAWN" ? "muted" : s === "ENROLLED" ? "brand" : s === "ACCEPTED" ? "sun" : "indigo" })) as Bar[]) : null,
     attendanceTrend: trend,
+    finance, exams,
     recentApplications: recentApplications?.map((a) => ({ ...a, className: classNames.find((c) => c.id === a.classAppliedId)?.name ?? null })) ?? null,
     activity: activity ?? null,
     myRegisters,

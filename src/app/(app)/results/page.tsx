@@ -4,6 +4,7 @@ import { AppError } from "@/lib/errors";
 import { getCurrentAcademicContext } from "@/server/academics";
 import { listExamClasses, listExamTerms } from "@/server/exams";
 import { getClassResults } from "@/server/results";
+import { ExportMenu } from "@/components/export-menu";
 import { Badge, EmptyState, FilterBar, NoAccess, PageHeader } from "@/components/ui";
 import { Field } from "@/components/form";
 
@@ -36,7 +37,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title={t("res.title")} subtitle={t("res.subtitle")} />
+      <PageHeader title={t("res.title")} subtitle={t("res.subtitle")} actions={data ? <ExportMenu base={`/api/export/results?termId=${termId ?? ""}&classId=${cls?.id ?? ""}${streamId ? `&streamId=${streamId}` : ""}&basis=${basis}`} t={t} /> : undefined} />
       <FilterBar t={t} resetHref="/results">
         <Field name="termId" type="select" label={t("exam.term")} options={terms.map((x) => ({ value: x.id, label: `${x.academicYear.name} · ${x.name}` }))} defaultValue={termId ?? ""} />
         <Field name="classId" type="select" label={t("exam.class")} options={classes.map((c) => ({ value: c.id, label: c.name }))} defaultValue={sp.classId ?? ""} placeholder={t("res.chooseClass")} />

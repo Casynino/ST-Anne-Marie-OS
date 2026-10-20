@@ -11,6 +11,7 @@ import { arrearsReport, classCollectionReport, collectionsReport, expensesReport
 import { Card, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Stat, Td } from "@/components/ui";
 import { Field } from "@/components/form";
 import { FinanceNav } from "@/components/finance/subnav";
+import { ExportMenu } from "@/components/export-menu";
 import { financePage } from "../_lib";
 
 export const metadata: Metadata = { title: "Finance reports" };
@@ -102,7 +103,7 @@ export default async function FinanceReportsPage({ searchParams }: { searchParam
 
   return (
     <>
-      <PageHeader title={t("fin.reports.title")} subtitle={t("fin.reports.subtitle")} actions={exportHref ? <a href={exportHref} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:bg-canvas">{t("fin.exportCsv")}</a> : undefined} />
+      <PageHeader title={t("fin.reports.title")} subtitle={t("fin.reports.subtitle")} actions={exportHref ? <ExportMenu base={exportHref} t={t} /> : undefined} />
       <FinanceNav ctx={ctx} t={t} current="/finance/reports" unmatched={unmatched} />
       <nav className="mb-4 flex flex-wrap gap-2" aria-label={t("fin.reports.title")}>
         {REPORTS.map((r) => <Link key={r} href={`/finance/reports?report=${r}`} aria-current={report === r ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${report === r ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white hover:bg-canvas"}`}>{t(`fin.report.${r}` as never)}</Link>)}

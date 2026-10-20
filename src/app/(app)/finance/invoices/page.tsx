@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { Badge, Card, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
 import { ActionForm, Field } from "@/components/form";
 import { FinanceNav } from "@/components/finance/subnav";
+import { ExportMenu } from "@/components/export-menu";
 import { financePage, STATE_TONE } from "../_lib";
 import { generateInvoicesAction } from "../actions";
 
@@ -41,7 +42,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title={t("fin.invoices.title")} subtitle={t("fin.invoices.subtitle")} actions={<a href={`/api/finance/export?type=invoices&${q}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:bg-canvas">{t("fin.exportCsv")}</a>} />
+      <PageHeader title={t("fin.invoices.title")} subtitle={t("fin.invoices.subtitle")} actions={<ExportMenu base={`/api/finance/export?type=invoices&${q}`} t={t} />} />
       <FinanceNav ctx={ctx} t={t} current="/finance/invoices" unmatched={unmatched} />
 
       {canGenerate && termId && (

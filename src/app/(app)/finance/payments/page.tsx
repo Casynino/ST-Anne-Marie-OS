@@ -7,6 +7,7 @@ import { displayDate } from "@/lib/dates";
 import { Badge, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
 import { Field } from "@/components/form";
 import { FinanceNav } from "@/components/finance/subnav";
+import { ExportMenu } from "@/components/export-menu";
 import { financePage } from "../_lib";
 
 export const metadata: Metadata = { title: "Payments" };
@@ -26,7 +27,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title={t("fin.payments.title")}
         subtitle={t("fin.payments.subtitle")}
-        actions={<>{hasAny(ctx, ["finance.reports"]) && <a href={`/api/finance/export?type=payments&${q}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:bg-canvas">{t("fin.exportCsv")}</a>}{hasAny(ctx, ["payment.record"]) && <Link href="/finance/payments/new" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("fin.payments.record")}</Link>}</>}
+        actions={<>{hasAny(ctx, ["finance.reports"]) && <ExportMenu base={`/api/finance/export?type=payments&${q}`} t={t} />}{hasAny(ctx, ["payment.record"]) && <Link href="/finance/payments/new" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("fin.payments.record")}</Link>}</>}
       />
       <FinanceNav ctx={ctx} t={t} current="/finance/payments" unmatched={unmatched} />
       <FilterBar t={t} resetHref="/finance/payments">

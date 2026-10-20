@@ -83,3 +83,7 @@ Local only: `stanne_dev` (`DATABASE_URL`) and `stanne_test` (`TEST_DATABASE_URL`
 - `communication.ts`: templates (`message_templates`, variables whitelisted per key), audiences (`resolveRecipients`), `previewBroadcast`/`createBroadcast`/`cancelBroadcast`, preferences. Permissions: `comms.read|send|fee_reminder|manage`, `messages.read|send|moderate`.
 - `messaging.ts`: threads between a parent and a teacher/office, moderation, scope checks (`teachingScope`), rate limit. `calendar.ts`: term dates + `school_events` (internal events are staff-only). Staff calendar lives at `/school-calendar` because the public site owns `/calendar`.
 - Route rule: a path may exist in only one route group; run `NEXT_DIST_DIR=.next-build npx next build` after adding routes.
+
+## Phase 7 architecture (Dashboards & exports)
+- `dashboard.ts` composes panels (`financePanel`, `examsPanel`) from the finance-reports, marks and messaging services; every panel is permission-gated and returns null when the user may not see it. Money values on the dashboard are cents; format with the school currency on the page.
+- Exports: build a `Table` in `src/server/exports.ts` (use the matching service so scope and permission are identical to the screen), then `respondTable(ctx, table, format, kind)` (`src/server/export-response.ts`) which renders CSV/XLSX/PDF, audits and sets no-store headers. Routes: `/api/export/[kind]` (students, results, attendance) and `/api/finance/export`. UI: `<ExportMenu base="…" t={t} />`. Money in tables is in major units.

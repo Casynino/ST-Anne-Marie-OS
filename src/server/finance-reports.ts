@@ -19,7 +19,10 @@ export async function financeOverview(ctx: AuthContext, input: unknown = {}) {
   if (!term) return null;
   const today = await schoolToday(db, ctx.schoolId);
   const invoices = await db.invoice.findMany({ where: { schoolId: ctx.schoolId, termId: term.id, status: "ISSUED" }, select: { id: true, studentId: true } });
-  const studentIds = [...new Set(invoices.map((i) => i.studentId))];
+  const billedStudents = [...new Set(invoices.map((i) => i.studentId))];
+  // Credit is school-wide: money paid by students who have no live invoice this term (or none at all) is still unapplied credit.
+  const payers = (await db.payment.findMany({ where: { schoolId: ctx.schoolId, status: "POSTED" }, distinct: ["studentId"], select: { studentId: true } })).map((p) => p.studentId);
+  const studentIds = [...new Set([...billedStudents, ...payers])];
   const finance = await loadFinance(db, ctx.schoolId, studentIds, today);
   const ids = new Set(invoices.map((i) => i.id));
   let billed = 0, paid = 0, outstanding = 0, overdue = 0, noCharge = 0, unpaid = 0, partial = 0, settled = 0;
@@ -36,7 +39,7 @@ export async function financeOverview(ctx: AuthContext, input: unknown = {}) {
     db.payment.groupBy({ by: ["method"], where: { schoolId: ctx.schoolId, status: "POSTED", receivedOn: range }, _sum: { amount: true } }),
     db.refund.aggregate({ where: { schoolId: ctx.schoolId, status: "PAID", paidAt: { gte: term.startsOn, lt: new Date(term.endsOn.getTime() + 86_400_000) } }, _sum: { amount: true } }),
     db.expense.aggregate({ where: { schoolId: ctx.schoolId, voided: false, spentOn: range }, _sum: { amount: true } }),
-    loadFinance(db, ctx.schoolId, studentIds, today).then((m) => [...m.values()].reduce((n, f) => n + f.ledger.credit, 0)),
+    Promise.resolve([...finance.values()].reduce((n, f) => n + f.ledger.credit, 0)),
   ]);
   const collectedC = centsOf(collected._sum.amount);
   const refundsC = centsOf(refundsPaid._sum.amount);

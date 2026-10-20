@@ -375,7 +375,7 @@ export async function changeStudentStatus(ctx: AuthContext, studentId: string, i
 
 export async function listStudents(
   ctx: AuthContext,
-  opts: { q?: string; classId?: string; streamId?: string; status?: string; page?: number } = {},
+  opts: { q?: string; classId?: string; streamId?: string; status?: string; page?: number; all?: boolean } = {},
 ) {
   const scope = await studentScope(ctx);
   const pageSize = 25;
@@ -407,8 +407,8 @@ export async function listStudents(
     db.student.findMany({
       where,
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+      skip: opts.all ? 0 : (page - 1) * pageSize,
+      take: opts.all ? 5000 : pageSize,
       select: {
         id: true, admissionNo: true, firstName: true, middleName: true, lastName: true, gender: true, status: true, dateOfBirth: true,
         enrollments: {
