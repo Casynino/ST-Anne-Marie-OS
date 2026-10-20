@@ -25,6 +25,11 @@ function entityHref(type: string, id: string | null): string | null {
   return null;
 }
 
+/** The monitoring panels are extras: if one cannot be built (for example a migration has not run yet) the rest of the dashboard still loads. */
+async function optional<T>(name: string, fn: () => Promise<T>): Promise<T | null> {
+  try { return await fn(); } catch (e) { console.error(JSON.stringify({ level: "error", msg: "dashboard_panel_failed", panel: name, error: e instanceof Error ? e.message.slice(0, 300) : String(e) })); return null; }
+}
+
 export default async function DashboardPage() {
   const ctx = await requireContext();
   const t = await getT();
@@ -33,9 +38,9 @@ export default async function DashboardPage() {
     getDashboard(ctx),
     getSchoolBasics(ctx.schoolId),
     db.role.findMany({ where: { schoolId: ctx.schoolId, key: { in: [...ctx.roleKeys] } }, select: { name: true } }),
-    ctx.permissions.has("audit.read") ? activityPanel(ctx) : null,
-    ctx.permissions.has("audit.read") ? securityPanel(ctx) : null,
-    ctx.permissions.has("backup.read") ? systemPanel(ctx) : null,
+    ctx.permissions.has("audit.read") ? optional("activity", () => activityPanel(ctx)) : null,
+    ctx.permissions.has("audit.read") ? optional("security", () => securityPanel(ctx)) : null,
+    ctx.permissions.has("backup.read") ? optional("system", () => systemPanel(ctx)) : null,
   ]);
   const can = (p: string) => ctx.permissions.has(p as never);
   const first = ctx.fullName.split(" ")[0] ?? ctx.fullName;
