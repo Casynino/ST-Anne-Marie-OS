@@ -86,3 +86,19 @@ export async function canActForStudent(ctx: AuthContext, studentId: string): Pro
   if (!(await db.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId }, select: { id: true } }))) return false;
   return schoolWide(ctx) || (await teachesStudent(ctx, studentId));
 }
+
+export async function schoolTimezone(schoolId: string): Promise<string> {
+  return (await db.school.findUnique({ where: { id: schoolId }, select: { timezone: true } }))?.timezone ?? "Africa/Dar_es_Salaam";
+}
+
+/** Students this staff member may work with (their classes, or everyone for school-wide readers), optionally filtered by a name/number search. */
+export async function searchMyStudents(ctx: AuthContext, q: string) {
+  const ids = schoolWide(ctx) ? undefined : await teachingStudentIds(ctx);
+  if (ids && !ids.length) return [];
+  const term = q.trim();
+  const rows = await db.student.findMany({
+    where: { schoolId: ctx.schoolId, status: "ENROLLED", ...(ids ? { id: { in: ids } } : {}), ...(term ? { OR: [{ firstName: { contains: term, mode: "insensitive" } }, { lastName: { contains: term, mode: "insensitive" } }, { admissionNo: { contains: term, mode: "insensitive" } }] } : {}) },
+    select: { id: true, firstName: true, middleName: true, lastName: true, admissionNo: true }, orderBy: [{ firstName: "asc" }, { lastName: "asc" }], take: 40,
+  });
+  return rows.map((r) => ({ id: r.id, name: personName(r), admissionNo: r.admissionNo }));
+}

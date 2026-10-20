@@ -120,7 +120,7 @@ export function Field({
 }: {
   name: string;
   label: string;
-  type?: "text" | "email" | "tel" | "date" | "password" | "number" | "textarea" | "select" | "checkbox";
+  type?: "text" | "email" | "tel" | "date" | "datetime-local" | "time" | "password" | "number" | "textarea" | "select" | "checkbox";
   required?: boolean;
   hint?: string;
   defaultValue?: string | number | boolean | null;

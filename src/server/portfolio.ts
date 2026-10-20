@@ -4,7 +4,7 @@ import { AppError, conflict, forbidden, invalid, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { actorOf, writeAudit } from "@/server/audit";
-import { canActForStudent, notifyFamilies, personName, teachingStudentIds, schoolWide } from "@/server/learning-access";
+import { canActForStudent, notifyFamilies, personName, schoolWide, searchMyStudents, teachingStudentIds } from "@/server/learning-access";
 import { removeLearningFile, storeLearningFile } from "@/server/learning-store";
 import { childOrThrow } from "@/server/portal";
 import { optText, optUuid, parse, text, uuid } from "@/lib/validation";
@@ -147,3 +147,9 @@ export async function childPortfolio(ctx: AuthContext, studentId: string) {
   return { canAdd: mine, items: await view(ctx.schoolId, items) };
 }
 
+
+/** Students this staff member may open a portfolio for. */
+export async function portfolioStudents(ctx: AuthContext, q: string) {
+  requirePermission(ctx, "portfolio.manage");
+  return searchMyStudents(ctx, q);
+}

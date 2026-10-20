@@ -4,6 +4,7 @@ import { conflict, invalid, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { actorOf, writeAudit } from "@/server/audit";
 import { currentYearId } from "@/server/learning-access";
+import { childOrThrow } from "@/server/portal";
 import { optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
 export const DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -171,4 +172,23 @@ export async function studentTimetable(schoolId: string, studentId: string) {
 export async function listTeachers(ctx: AuthContext) {
   requirePermission(ctx, "timetable.read");
   return db.staff.findMany({ where: { schoolId: ctx.schoolId, user: { status: "ACTIVE", type: "STAFF" } }, select: { id: true, user: { select: { fullName: true } } }, orderBy: { user: { fullName: "asc" } } });
+}
+
+/** Classes (with their streams and subjects) and teachers, for the timetable pickers. */
+export async function timetableOptions(ctx: AuthContext) {
+  requirePermission(ctx, "timetable.read");
+  const [classes, teachers] = await Promise.all([
+    db.schoolClass.findMany({ where: { schoolId: ctx.schoolId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, streams: { select: { id: true, name: true }, orderBy: { name: "asc" } }, subjects: { select: { subject: { select: { id: true, name: true } } } } } }),
+    listTeachers(ctx),
+  ]);
+  return {
+    classes: classes.map((c) => ({ id: c.id, name: c.name, streams: c.streams, subjects: c.subjects.map((s) => s.subject).sort((a, b) => a.name.localeCompare(b.name)) })),
+    teachers: teachers.map((t) => ({ id: t.id, name: t.user.fullName })),
+  };
+}
+
+/** Portal: the timetable of a child (or of the student themself). The family link is checked first. */
+export async function childTimetable(ctx: AuthContext, studentId: string) {
+  await childOrThrow(ctx, studentId);
+  return studentTimetable(ctx.schoolId, studentId);
 }

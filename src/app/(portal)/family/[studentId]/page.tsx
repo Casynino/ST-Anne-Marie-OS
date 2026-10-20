@@ -6,6 +6,8 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { AppError } from "@/lib/errors";
 import { displayDate } from "@/lib/dates";
 import { childFees, childOverview, myChildren } from "@/server/portal";
+import { childAssignments } from "@/server/assignments";
+import { ChildTiles } from "@/components/learning/child-tiles";
 import { formatMoney } from "@/lib/finance/money";
 import { Badge, Card, EmptyState, PageHeader, Stat } from "@/components/ui";
 
@@ -24,7 +26,8 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const [many, fees] = await Promise.all([myChildren(ctx).then((c) => c.length > 1), childFees(ctx, studentId)]);
+  const [many, fees, homework] = await Promise.all([myChildren(ctx).then((c) => c.length > 1), childFees(ctx, studentId), childAssignments(ctx, studentId)]);
+  const todo = homework.items.filter((i) => !i.closed && !i.submission).length;
   const latest = ov.reportCards[0];
   const { child, attendance: a } = ov;
   return (
@@ -37,7 +40,13 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
         <Link href={`/family/${child.id}/fees`} className="block"><Stat label={t("fam.summary.fees")} value={fees.summary.outstanding > 0 ? formatMoney(fees.summary.outstanding, fees.currency) : t("fam.summary.nothingOwed")} hint={fees.summary.overdue > 0 ? t("fam.summary.overdue", { amount: formatMoney(fees.summary.overdue, fees.currency) }) : undefined} /></Link>
         <Stat label={t("fam.summary.report")} value={latest ? (latest.average === null ? "—" : latest.average.toFixed(1)) : "—"} hint={latest ? `${latest.term}${latest.position !== null ? ` · ${t("rc.position")} ${latest.position}/${latest.classSize}` : ""}` : t("fam.summary.noReport")} />
       </div>
-      <Link href={`/family/${child.id}/fees`} className="mb-8 flex min-h-16 items-center justify-between rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)] hover:border-brand-400"><span className="font-semibold">{t("fam.fees")}</span><span className="text-sm text-muted">{t("fam.fees.hint")}</span></Link>
+      <ChildTiles tiles={[
+        { key: "homework", href: `/family/${child.id}/assignments`, label: t("learn.fam.homework"), hint: todo > 0 ? t("learn.fam.todoCount", { count: todo }) : undefined, badge: todo },
+        { key: "timetable", href: `/family/${child.id}/timetable`, label: t("learn.tt.title") },
+        { key: "portfolio", href: `/family/${child.id}/portfolio`, label: t("learn.pf.title") },
+        { key: "behaviour", href: `/family/${child.id}/behaviour`, label: t("learn.bh.familyTitle") },
+        { key: "fees", href: `/family/${child.id}/fees`, label: t("fam.fees"), hint: t("fam.fees.hint") },
+      ]} />
 
       <section aria-labelledby="rc-h" className="mb-8">
         <h2 id="rc-h" className="mb-3 text-lg font-semibold">{t("fam.reportCards")}</h2>

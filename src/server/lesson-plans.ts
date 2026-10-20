@@ -251,3 +251,10 @@ export async function myTeachingUnits(ctx: AuthContext) {
   }
   return out.sort((a, b) => a.className.localeCompare(b.className) || a.subjectName.localeCompare(b.subjectName));
 }
+
+/** Terms of the current academic year, for the scheme-of-work form. */
+export async function currentTerms(ctx: AuthContext) {
+  requireAnyPermission(ctx, ["plans.write", "plans.review"]);
+  const yearId = await currentYearId(db, ctx.schoolId);
+  return yearId ? db.term.findMany({ where: { schoolId: ctx.schoolId, academicYearId: yearId }, orderBy: { sequence: "asc" }, select: { id: true, name: true } }) : [];
+}

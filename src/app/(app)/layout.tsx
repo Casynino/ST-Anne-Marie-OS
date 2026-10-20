@@ -47,6 +47,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasAny(ctx, ["grading.manage"]) && { href: "/grading", label: t("nav.grading"), icon: "grading" as const },
   ].filter(Boolean) as NavGroup["items"];
   if (examNav.length) groups.push({ label: t("navgroup.exams"), items: examNav });
+  const learnNav = [
+    hasAny(ctx, ["timetable.read"]) && { href: "/timetable", label: t("nav.timetable"), icon: "timetable" as const },
+    hasAny(ctx, ["plans.write", "plans.review"]) && { href: "/planning", label: t("nav.planning"), icon: "planning" as const },
+    hasAny(ctx, ["assignments.manage", "assignments.oversee"]) && { href: "/assignments", label: t("nav.assignments"), icon: "assignments" as const },
+    hasAny(ctx, ["portfolio.manage"]) && { href: "/portfolio", label: t("nav.portfolio"), icon: "portfolio" as const },
+    hasAny(ctx, ["behaviour.record", "behaviour.read_all"]) && { href: "/behaviour", label: t("nav.behaviour"), icon: "behaviour" as const },
+  ].filter(Boolean) as NavGroup["items"];
+  if (learnNav.length) groups.push({ label: t("navgroup.learning"), items: learnNav });
   const financeNav = [
     hasAny(ctx, ["fees.read", "finance.reports", "expense.read", "finance.reconcile"]) && { href: "/finance", label: t("nav.finance"), icon: "finance" as const, badge: unmatchedPayments },
   ].filter(Boolean) as NavGroup["items"];
@@ -73,6 +81,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     students: t("nav.students"), admissions: t("nav.admissions"), attendance: t("nav.attendance"), guardians: t("nav.guardians"), "academic-setup": t("nav.academics"),
     users: t("nav.users"), roles: t("nav.roles"), settings: t("nav.settings"), audit: t("nav.audit"), website: t("nav.website"), enquiries: t("nav.enquiries"), notifications: t("nav.notifications"),
     "report-cards": t("nav.reportCards"), finance: t("nav.finance"), communication: t("nav.communication"), "school-calendar": t("nav.calendar"), messages: t("msg.title"), templates: t("comm.nav.templates"), invoices: t("fin.nav.invoices"), payments: t("fin.nav.payments"), refunds: t("fin.nav.refunds"), reconciliation: t("fin.nav.reconciliation"), fees: t("fin.nav.fees"), expenses: t("fin.nav.expenses"), remarks: t("rc.remarks.title"), exams: t("nav.exams"), marks: t("nav.marks"), results: t("nav.results"), grading: t("nav.grading"),
+    timetable: t("nav.timetable"), planning: t("nav.planning"), assignments: t("nav.assignments"), portfolio: t("nav.portfolio"), behaviour: t("nav.behaviour"), periods: t("learn.periods.title"), schemes: t("learn.schemes"), lessons: t("learn.lessons"),
     new: t("bc.new"), edit: t("common.edit"), import: t("bc.import"), take: t("bc.take"), reports: t("bc.reports"), conflicts: t("bc.conflicts"), alerts: t("bc.alerts"), staff: t("bc.staff"), register: t("bc.register"),
   };
   const canSearch = hasAny(ctx, ["student.read", "student.read_assigned"]);

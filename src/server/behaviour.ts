@@ -5,7 +5,7 @@ import { conflict, forbidden, invalid, notFound } from "@/lib/errors";
 import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
 import { parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { actorOf, writeAudit } from "@/server/audit";
-import { canActForStudent, personName, schoolWide, teachingStudentIds } from "@/server/learning-access";
+import { canActForStudent, personName, searchMyStudents, teachingStudentIds } from "@/server/learning-access";
 import { childOrThrow } from "@/server/portal";
 import { dateOnly, optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
@@ -103,14 +103,7 @@ export async function listBehaviour(ctx: AuthContext, f: BehaviourFilter = {}) {
 /** Students the user may record behaviour for (used by the form). */
 export async function behaviourStudents(ctx: AuthContext, q: string) {
   requirePermission(ctx, "behaviour.record");
-  const ids = schoolWide(ctx) ? undefined : await teachingStudentIds(ctx);
-  if (ids && !ids.length) return [];
-  const term = q.trim();
-  const rows = await db.student.findMany({
-    where: { schoolId: ctx.schoolId, status: "ENROLLED", ...(ids ? { id: { in: ids } } : {}), ...(term ? { OR: [{ firstName: { contains: term, mode: "insensitive" } }, { lastName: { contains: term, mode: "insensitive" } }, { admissionNo: { contains: term, mode: "insensitive" } }] } : {}) },
-    select: { id: true, firstName: true, middleName: true, lastName: true, admissionNo: true }, orderBy: { firstName: "asc" }, take: 30,
-  });
-  return rows.map((r) => ({ id: r.id, name: personName(r), admissionNo: r.admissionNo }));
+  return searchMyStudents(ctx, q);
 }
 
 /** Portal: only records somebody chose to share. A student account sees shared POSITIVE records only. */

@@ -72,3 +72,10 @@ export function zonedToUtc(local: string, timeZone: string): Date | null {
   const first = guess - zoneOffsetMs(new Date(guess), timeZone);
   return new Date(guess - zoneOffsetMs(new Date(first), timeZone));
 }
+
+/** A UTC instant as the "yyyy-mm-ddThh:mm" text a datetime-local field expects, in the school's time zone. */
+export function toZonedInput(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(date);
+  const o = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${o.year}-${o.month}-${o.day}T${o.hour}:${o.minute}`;
+}
