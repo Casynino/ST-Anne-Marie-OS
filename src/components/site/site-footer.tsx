@@ -5,14 +5,18 @@ import type { Translate } from "@/lib/i18n";
 import type { PublicSite } from "@/server/website";
 import { initialsOf, telHref, waHref } from "@/lib/site";
 import type { SiteLink } from "@/components/site/site-header";
+import { HeroBackdrop, Wave } from "@/components/site/blocks";
 
 export function SiteFooter({ t, site, links }: { t: Translate; site: PublicSite; links: SiteLink[] }) {
   const { school, contact, social, levels, images } = site;
   const hasContact = Object.values(contact).some(Boolean);
   const intro = site.text.heroSubtitle ?? school.motto;
   return (
-    <footer className="bg-brand-950 text-brand-100">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr]">
+    <footer className="relative isolate overflow-hidden text-brand-100">
+      <Wave className="absolute inset-x-0 top-0 rotate-180 text-cream" />
+      <HeroBackdrop />
+      <p aria-hidden className="outline-text-light display pointer-events-none absolute -bottom-6 right-2 -z-10 select-none text-[7rem] leading-none sm:text-[14rem]">{initialsOf(school.name) || "SAM"}</p>
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-28 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr]">
         <div>
           <Link href="/" className="inline-flex items-center gap-3" aria-label={school.name}>
             {images.logo ? <Image src={images.logo.src} alt="" width={48} height={48} className="size-12 rounded-full bg-white object-contain p-0.5" /> : <span aria-hidden className="display flex size-12 items-center justify-center rounded-full bg-white text-sm font-semibold text-brand-800">{initialsOf(school.name)}</span>}

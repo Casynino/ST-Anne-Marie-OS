@@ -10,7 +10,7 @@ export default async function TrackPage() {
   const t = await getT();
   return (
     <>
-      <PageHero title={t("apply.track.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }, { href: "/apply/track", label: t("apply.track.title") }]}>{t("apply.track.intro")}</PageHero>
+      <PageHero photo={false} title={t("apply.track.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }, { href: "/apply/track", label: t("apply.track.title") }]}>{t("apply.track.intro")}</PageHero>
       <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
         <div className="rounded-2xl border border-brand-800/10 bg-white p-6">
           <ActionForm action={trackApplicationAction} submitLabel={t("apply.track.button")}>

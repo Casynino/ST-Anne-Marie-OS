@@ -24,6 +24,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   return (
     <div className="min-h-dvh bg-cream text-ink">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schoolJsonLd(site)).replace(/</g, "\\u003c") }} />
+      <div aria-hidden className="scroll-line" />
       <AnnouncementBar schoolId={site.school.id} t={t} locale={locale} />
       <SiteHeader
         name={site.school.name}

@@ -1760,6 +1760,22 @@ export const en = {
   "fam.summary.overdue": "{amount} overdue",
   "fam.summary.report": "Latest report",
   "fam.summary.noReport": "Not published yet",
+  "site.stats.admissions": "Admissions",
+  "site.stats.open": "Open",
+  "site.stats.closed": "Closed",
+  "site.portal.kicker": "Family portal",
+  "site.portal.today": "Today at school",
+  "site.portal.f.reports": "Report cards",
+  "site.portal.f.fees": "Fee statements",
+  "site.portal.f.attendance": "Attendance",
+  "site.portal.f.homework": "Homework",
+  "site.portal.f.messages": "Messages",
+  "site.portal.f.calendar": "School calendar",
+  "site.portal.f.timetable": "Timetable",
+  "site.portal.note": "Accounts are created by the school office for parents, guardians and students.",
+  "site.footer.top": "Back to top",
+  "site.portal.headline": "Your child's school life, in one place",
+  "site.hero.scrollHint": "Scroll to explore",
 } as const;
 
 export type MessageKey = keyof typeof en;

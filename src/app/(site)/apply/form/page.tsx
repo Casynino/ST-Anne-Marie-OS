@@ -16,7 +16,7 @@ export default async function ApplyPage() {
   if (!site.settings.applicationsOpen) {
     return (
       <>
-        <PageHero title={t("apply.closed.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }]}>{t("apply.closed.body")}</PageHero>
+        <PageHero photo={false} title={t("apply.closed.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }]}>{t("apply.closed.body")}</PageHero>
         <div className="mx-auto max-w-3xl space-y-4 px-4 py-10 sm:px-6">
           <ButtonLink href="/contact" arrow>{t("site.nav.contact")}</ButtonLink>
           <p><Link href="/apply/track" className="font-semibold text-brand-800 hover:underline">{t("site.admissions.track")}</Link></p>
@@ -30,7 +30,7 @@ export default async function ApplyPage() {
 
   return (
     <>
-      <PageHero eyebrow={t("site.how.kicker")} title={t("apply.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }, { href: "/apply/form", label: t("apply.title") }]}>{t("apply.intro")}</PageHero>
+      <PageHero photo={false} eyebrow={t("site.how.kicker")} title={t("apply.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }, { href: "/apply/form", label: t("apply.title") }]}>{t("apply.intro")}</PageHero>
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <ActionForm action={submitApplicationAction} submitLabel={t("apply.submit")} className="space-y-8">
           <fieldset className="space-y-4 rounded-2xl border border-brand-800/10 bg-white p-5 sm:p-7">

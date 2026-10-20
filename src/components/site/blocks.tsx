@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Reveal } from "@/components/site/fx/reveal";
+import { Photo } from "@/components/site/photo";
+import { getSite } from "@/lib/site";
 
 export function Eyebrow({ children, light }: { children: ReactNode; light?: boolean }) {
   return <p className={`eyebrow ${light ? "eyebrow-light" : ""}`}>{children}</p>;
@@ -35,29 +37,81 @@ export function ButtonLink({ href, children, variant = "primary", arrow, externa
   );
 }
 
-/** Inner-page header: breadcrumb, large display title, short lead. Light, editorial, with a brand-green corner arch. */
-export function PageHero({ eyebrow, title, children, crumbs }: { eyebrow?: string; title: string; children?: ReactNode; crumbs?: { href: string; label: string }[] }) {
+/** Curved edge between two sections: the fill colour is the colour of the section BELOW (set with a text-* class). */
+export function Wave({ className = "" }: { className?: string }) {
   return (
-    <header className="relative isolate overflow-hidden bg-cream">
-      <div aria-hidden className="absolute -right-24 -top-24 -z-10 size-[26rem] rounded-full bg-brand-700 sm:size-[34rem]" />
-      <div aria-hidden className="absolute -right-6 top-10 -z-10 hidden h-40 w-28 rounded-t-full bg-sun sm:block" />
-      <div className="mx-auto max-w-6xl px-4 pb-14 pt-10 sm:px-6 sm:pb-20 sm:pt-14">
-        {crumbs && (
-          <nav aria-label="Breadcrumb" className="mb-6 text-sm text-muted">
-            <ol className="flex flex-wrap items-center gap-2">
-              {crumbs.map((c, i) => (
-                <li key={c.href} className="flex items-center gap-2">
-                  <Link href={c.href} className="hover:text-brand-800 hover:underline">{c.label}</Link>
-                  {i < crumbs.length - 1 && <span aria-hidden>/</span>}
-                </li>
-              ))}
-            </ol>
-          </nav>
+    <svg aria-hidden viewBox="0 0 1440 90" preserveAspectRatio="none" className={`block h-8 w-full sm:h-14 lg:h-[4.5rem] ${className}`}>
+      <path fill="currentColor" d="M0 90V46C180 8 360 0 560 22s420 56 640 34c90-9 170-26 240-46v80z" />
+    </svg>
+  );
+}
+
+/** Layered dark-green backdrop used by every hero: soft moving light, an arch pattern and film grain. Pure CSS. */
+export function HeroBackdrop({ className = "" }: { className?: string }) {
+  return (
+    <div aria-hidden className={`mesh-hero absolute inset-0 -z-10 overflow-hidden ${className}`}>
+      <span className="glow glow-a -left-[12%] -top-[28%] size-[34rem] sm:size-[46rem]" />
+      <span className="glow glow-b -right-[10%] top-[6%] size-[26rem] sm:size-[34rem]" />
+      <span className="glow glow-c -bottom-[34%] right-[22%] size-[30rem] sm:size-[40rem]" />
+      <div className="tex-arches absolute inset-0" />
+      <div className="tex-grain absolute inset-0" />
+    </div>
+  );
+}
+
+/** Headline whose words rise into place one after another (CSS only; plain text for assistive technology and without motion). */
+export function RiseWords({ text, className = "", offset = 0 }: { text: string; className?: string; offset?: number }) {
+  return (
+    <span className={className}>
+      {text.split(/\s+/).map((w, i, all) => (
+        <span key={i}>
+          <span className="hw"><span style={{ "--i": i + offset } as React.CSSProperties}>{w}</span></span>
+          {i < all.length - 1 ? " " : ""}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+const hashOf = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+
+/**
+ * Inner-page header: deep green, moving light, breadcrumb, large display title and lead, with one of the school's own
+ * photographs in an arch on larger screens (a different one per page). No photograph is shown if the school has none.
+ */
+export async function PageHero({ eyebrow, title, children, crumbs, photo = true }: { eyebrow?: string; title: string; children?: ReactNode; crumbs?: { href: string; label: string }[]; photo?: boolean }) {
+  const gallery = photo ? ((await getSite())?.images.gallery ?? []) : [];
+  const pic = gallery.length ? gallery[hashOf(title) % gallery.length] : undefined;
+  return (
+    <header className="relative isolate overflow-hidden text-white">
+      <HeroBackdrop />
+      <div className={`mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6 sm:pb-32 sm:pt-16 ${pic ? "grid items-center gap-10 md:grid-cols-[1.25fr_0.75fr]" : ""}`}>
+        <div>
+          {crumbs && (
+            <nav aria-label="Breadcrumb" className="mb-6 text-sm text-brand-200">
+              <ol className="flex flex-wrap items-center gap-2">
+                {crumbs.map((c, i) => (
+                  <li key={c.href} className="flex items-center gap-2">
+                    <Link href={c.href} className="hover:text-white hover:underline">{c.label}</Link>
+                    {i < crumbs.length - 1 && <span aria-hidden>/</span>}
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
+          {eyebrow && <div className="rise"><Eyebrow light>{eyebrow}</Eyebrow></div>}
+          <h1 className="display mt-4 max-w-3xl text-4xl text-white sm:text-6xl"><RiseWords text={title} /></h1>
+          {children && <div className="rise-3 mt-5 max-w-2xl text-lg leading-relaxed text-brand-100">{children}</div>}
+        </div>
+        {pic && (
+          <div className="relative hidden aspect-[4/5] w-full max-w-xs justify-self-end md:block">
+            <svg aria-hidden viewBox="0 0 100 100" className="spin-slow absolute -left-8 -top-8 size-44 text-sun/70"><circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1.2" strokeDasharray="3 5" /></svg>
+            <div aria-hidden className="float-b absolute -bottom-4 -left-6 h-28 w-20 rounded-t-full bg-sun" />
+            <div className="frame frame-arch float-a relative size-full shadow-[0_30px_60px_-24px_rgb(0_0_0/.6)]"><Photo image={pic} sizes="(min-width: 768px) 24vw, 0px" /></div>
+          </div>
         )}
-        {eyebrow && <div className="rise"><Eyebrow>{eyebrow}</Eyebrow></div>}
-        <h1 className="display rise-2 mt-4 max-w-3xl text-4xl text-brand-950 sm:text-6xl">{title}</h1>
-        {children && <div className="rise-3 mt-5 max-w-2xl text-lg leading-relaxed text-ink/80">{children}</div>}
       </div>
+      <Wave className="absolute inset-x-0 bottom-0 text-cream" />
     </header>
   );
 }
