@@ -10,6 +10,7 @@ import { getBrandLogo } from "@/server/website";
 import { arrearsReport, financeOverview } from "@/server/finance-reports";
 import { listSubmissions } from "@/server/marks";
 import { countStaffAttention } from "@/server/messaging";
+import { backupHealth } from "@/server/backups";
 import { countUnmatchedEvents } from "@/server/payment-events";
 import { centsOf } from "@/lib/finance/money";
 
@@ -23,7 +24,7 @@ import { centsOf } from "@/lib/finance/money";
 export type Kpi = { key: string; value: number | string | null; hint?: string; href: string };
 export type Bar = { label: string; value: number; tone?: "brand" | "sun" | "indigo" | "warn" | "bad" | "muted" };
 export type TrendPoint = { date: string; rate: number };
-export type Attention = { key: "conflicts" | "failedNotifications" | "newEnquiries" | "newApplications" | "registersOpen" | "unmatchedPayments" | "refundsPending" | "resultsToApprove" | "marksOverdue" | "messagesWaiting"; count: number; href: string };
+export type Attention = { key: "conflicts" | "failedNotifications" | "newEnquiries" | "newApplications" | "registersOpen" | "unmatchedPayments" | "refundsPending" | "resultsToApprove" | "marksOverdue" | "messagesWaiting" | "backupStale"; count: number; href: string };
 export type CollectionsPoint = { date: string; cents: number };
 export type FinancePanel = {
   term: { id: string; name: string };
@@ -123,7 +124,7 @@ export async function getDashboard(ctx: AuthContext) {
   const can = (p: string) => ctx.permissions.has(p as never);
   const canStudents = can("student.read") || can("student.read_assigned");
 
-  const [students, attendance, trend, classCounts, pipeline, recentApplications, activity, staff, enquiries, conflicts, failed, byGender, finance, exams, unmatched, refundsPending, messagesWaiting] = await Promise.all([
+  const [students, attendance, trend, classCounts, pipeline, recentApplications, activity, staff, enquiries, conflicts, failed, byGender, finance, exams, unmatched, refundsPending, messagesWaiting, backups] = await Promise.all([
     canStudents ? studentCounts(ctx) : null,
     todaysAttendance(ctx, todayStr),
     attendanceTrend(ctx, today, 14),
@@ -154,6 +155,7 @@ export async function getDashboard(ctx: AuthContext) {
     can("finance.reconcile") ? countUnmatchedEvents(ctx) : null,
     can("refund.approve") ? db.refund.count({ where: { schoolId: ctx.schoolId, status: "REQUESTED", requestedById: { not: ctx.userId } } }) : null,
     countStaffAttention(ctx),
+    can("backup.read") ? backupHealth() : null,
   ]);
 
   const counts = Object.fromEntries((pipeline ?? []).map((p) => [p.status, p._count._all])) as Record<string, number>;
@@ -183,6 +185,7 @@ export async function getDashboard(ctx: AuthContext) {
   if (exams?.toApprove) attention.push({ key: "resultsToApprove", count: exams.toApprove, href: "/marks?view=queue" });
   if (exams?.overdue) attention.push({ key: "marksOverdue", count: exams.overdue, href: "/marks" });
   if (messagesWaiting) attention.push({ key: "messagesWaiting", count: messagesWaiting, href: "/communication/messages" });
+  if (backups && backups.level !== "ok") attention.push({ key: "backupStale", count: 1, href: "/settings/backups" });
   const open = attendance ? attendance.total - attendance.finalised : 0;
   if (attendance && open > 0 && attendance.total > 0) attention.push({ key: "registersOpen", count: open, href: "/attendance" });
 

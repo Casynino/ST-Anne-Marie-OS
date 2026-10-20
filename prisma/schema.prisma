@@ -2230,3 +2230,33 @@ model BehaviourRecord {
   @@index([schoolId, studentId, occurredOn])
   @@map("behaviour_records")
 }
+
+// Evidence of backups and restore tests. Written only by the backup scripts after the copy exists and its checksum is known;
+// nothing in the app creates, edits or deletes these rows, so the status page can only report what really happened.
+enum BackupKind {
+  BACKUP
+  RESTORE_TEST
+}
+
+enum BackupStatus {
+  SUCCESS
+  FAILED
+}
+
+model BackupRun {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  kind       BackupKind   @default(BACKUP)
+  status     BackupStatus
+  startedAt  DateTime
+  finishedAt DateTime     @default(now())
+  fileName   String?
+  sizeBytes  BigInt?
+  sha256     String?
+  location   String? // where the copy lives (a folder or a bucket path); never a credential
+  rowCounts  Json? // key tables and their row counts at the time (restore tests compare source and copy)
+  note       String? // for FAILED: the reason; for RESTORE_TEST: what was checked
+  createdAt  DateTime     @default(now())
+
+  @@index([kind, status, finishedAt])
+  @@map("backup_runs")
+}

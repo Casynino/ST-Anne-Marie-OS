@@ -1,0 +1,36 @@
+# Copy this file to .github/workflows/backup.yml in the repository to run the backup every night on GitHub's servers.
+# One-time setup in GitHub → Settings:
+#   Variables:  BACKUP_ENABLED = true
+#   Secrets:    BACKUP_DATABASE_URL (the DIRECT Neon connection string), S3_ENDPOINT, S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY
+# Pushing a workflow file needs a GitHub token with the "workflow" permission.
+name: Nightly database backup
+on:
+  schedule: [{ cron: "30 22 * * *" }] # 01:30 in Dar es Salaam
+  workflow_dispatch: {}
+jobs:
+  backup:
+    if: ${{ vars.BACKUP_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PG_MAJOR: "17" # must be the same as or newer than your Neon server's PostgreSQL version
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update && sudo apt-get install -y postgresql-client-$PG_MAJOR
+          echo "/usr/lib/postgresql/$PG_MAJOR/bin" >> "$GITHUB_PATH"
+      - run: npm ci --ignore-scripts
+      - run: npm run db:backup
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_UPLOAD: s3
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}

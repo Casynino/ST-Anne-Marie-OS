@@ -118,6 +118,7 @@ export const PERMISSIONS = {
   "portfolio.manage": { module: "learning", description: "Add and approve portfolio items for students you teach" },
   "behaviour.record": { module: "learning", description: "Record behaviour for students you teach and read those records" },
   "behaviour.read_all": { module: "learning", description: "Read behaviour records of every student" },
+  "backup.read": { module: "school", description: "View backup and restore-test records and whether backups are current" },
   "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 

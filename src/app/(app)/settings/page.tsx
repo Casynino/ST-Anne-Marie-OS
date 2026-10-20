@@ -3,7 +3,7 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { getAdmissionSettings, getSchoolProfile } from "@/server/settings";
 import { formatAdmissionNo } from "@/server/students";
 import { ActionForm, Field } from "@/components/form";
-import { Card, NoAccess, PageHeader } from "@/components/ui";
+import { Card, LinkButton, NoAccess, PageHeader } from "@/components/ui";
 import { updateAdmissionAction, updateSchoolAction } from "./actions";
 
 export const metadata: Metadata = { title: "School settings" };
@@ -21,7 +21,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader title={t("settings.title")} subtitle={canEdit ? undefined : t("settings.readOnly")} />
+      <PageHeader title={t("settings.title")} subtitle={canEdit ? undefined : t("settings.readOnly")} actions={ctx.permissions.has("backup.read") ? <LinkButton href="/settings/backups" variant="secondary">{t("backup.title")}</LinkButton> : undefined} />
       <div className="space-y-5">
         <Card title={t("settings.profile")}>
           <ActionForm action={updateSchoolAction} submitLabel={t("common.save")} hideSubmit={!canEdit}>

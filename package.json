@@ -18,7 +18,8 @@
     "db:generate": "prisma generate",
     "db:bootstrap": "tsx --env-file-if-exists=.env scripts/bootstrap.ts",
     "site:media": "tsx scripts/scan-site-media.ts",
-    "predev": "tsx scripts/scan-site-media.ts"
+    "predev": "tsx scripts/scan-site-media.ts",
+    "db:backup": "tsx --env-file-if-exists=.env scripts/backup.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
