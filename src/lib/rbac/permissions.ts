@@ -78,6 +78,10 @@ export const PERMISSIONS = {
   "results.unlock": { module: "exams", description: "Unlock locked results (reason required, audited)" },
   "remarks.class": { module: "exams", description: "Write class teacher remarks for report cards" },
   "remarks.head": { module: "exams", description: "Write head teacher comments for report cards" },
+  "reportcard.read": { module: "exams", description: "View and download report cards of any class" },
+  "reportcard.generate": { module: "exams", description: "Generate report cards from locked results" },
+  "reportcard.publish": { module: "exams", description: "Publish report cards to parents and students, or withdraw them" },
+  "portal.manage": { module: "guardians", description: "Create, reset and disable parent and student portal accounts" },
   "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 

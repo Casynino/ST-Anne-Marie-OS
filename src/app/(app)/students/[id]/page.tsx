@@ -12,6 +12,8 @@ import { ActionForm, Field } from "@/components/form";
 import { GuardianFields } from "@/components/guardian-fields";
 import { guardianLabels } from "@/components/guardian-labels";
 import { Badge, Card, DefList, LinkButton, PageHeader } from "@/components/ui";
+import { studentAccountState } from "@/server/portal";
+import { createStudentAccountAction, resetPortalPasswordAction, setPortalActiveAction } from "@/app/(app)/guardians/actions";
 import { RELATIONSHIPS } from "@/server/guardians";
 import { listDocuments } from "@/server/documents";
 import * as A from "../actions";
@@ -38,6 +40,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   const fullName = [s.firstName, s.middleName, s.lastName].filter(Boolean).join(" ");
   const statusTargets = s.status === "ENROLLED" ? (["TRANSFERRED", "WITHDRAWN", "GRADUATED"] as const) : (["ENROLLED"] as const);
   const docs = ctx.permissions.has("document.read") ? await listDocuments(ctx, { studentId: id }).catch(() => []) : [];
+  const portalAccount = ctx.permissions.has("portal.manage") ? await studentAccountState(ctx, id) : undefined;
   const canSeeAttendance = ["attendance.read", "attendance.read_assigned", "attendance.take", "attendance.take_any"].some((p) => ctx.permissions.has(p as "attendance.read"));
   const relOptions = RELATIONSHIPS.map((r) => ({ value: r, label: t(`student.rel.${r}` as "student.rel.FATHER") }));
 
@@ -182,6 +185,26 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                 <input type="hidden" name="studentId" value={s.id} />
                 <Field name="placement" label={`${t("student.class")} / ${t("student.stream")}`} type="select" options={placementOptions} placeholder={t("common.select")} required />
               </ActionForm>
+            </Card>
+          )}
+          {ctx.permissions.has("portal.manage") && s.status === "ENROLLED" && (
+            <Card title={t("portal.admin.studentAccount")}>
+              {portalAccount ? (
+                <div className="space-y-3 text-sm">
+                  <p className="flex flex-wrap items-center gap-2"><Badge tone={portalAccount.status === "ACTIVE" ? "ok" : "bad"}>{portalAccount.status === "ACTIVE" ? t("common.active") : t("portal.admin.suspended")}</Badge>{portalAccount.mustChangePassword && <span className="text-muted">{t("portal.admin.notYetChanged")}</span>}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <ActionForm action={resetPortalPasswordAction} submitLabel={t("portal.admin.resetPassword")} inline confirm={t("portal.admin.resetConfirm")} className="space-y-1"><input type="hidden" name="userId" value={portalAccount.id} /></ActionForm>
+                    <ActionForm action={setPortalActiveAction} submitLabel={portalAccount.status === "ACTIVE" ? t("portal.admin.suspend") : t("portal.admin.reactivate")} inline tone={portalAccount.status === "ACTIVE" ? "danger" : "neutral"} className="space-y-1"><input type="hidden" name="userId" value={portalAccount.id} /><input type="hidden" name="active" value={portalAccount.status === "ACTIVE" ? "false" : "true"} /></ActionForm>
+                  </div>
+                </div>
+              ) : (
+                <ActionForm action={createStudentAccountAction} submitLabel={t("portal.admin.create")} className="space-y-3">
+                  <input type="hidden" name="studentId" value={s.id} />
+                  <p className="text-sm text-muted">{t("portal.admin.studentHint")}</p>
+                  <Field name="email" type="email" label={t("common.email")} optionalLabel={t("common.optional")} />
+                  <Field name="phone" type="tel" label={t("common.phone")} optionalLabel={t("common.optional")} />
+                </ActionForm>
+              )}
             </Card>
           )}
           {ctx.permissions.has("student.status_change") && (

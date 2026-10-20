@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireContext, getT, hasAny, getLocale } from "@/lib/auth/next";
@@ -17,6 +18,7 @@ import { Breadcrumbs, GlobalSearch, NotificationBell, UserMenu } from "@/compone
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireContext();
+  if (ctx.userType !== "STAFF") redirect("/family"); // parents and students use the family portal, never the staff area
   const [t, locale, school, academic, logo, unread, newEnquiries, roles, jar] = await Promise.all([
     getT(), getLocale(), getSchoolBasics(ctx.schoolId), getCurrentAcademicContext(ctx.schoolId), getBrandLogo(ctx.schoolId),
     countMyUnread(ctx), countNewEnquiries(ctx),
@@ -39,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasAny(ctx, ["exam.read"]) && { href: "/exams", label: t("nav.exams"), icon: "exams" as const },
     hasAny(ctx, ["marks.enter", "marks.enter_any", "results.approve", "results.lock"]) && { href: "/marks", label: t("nav.marks"), icon: "marks" as const },
     hasAny(ctx, ["results.read", "results.read_assigned"]) && { href: "/results", label: t("nav.results"), icon: "results" as const },
+    hasAny(ctx, ["reportcard.read", "remarks.class", "remarks.head"]) && { href: "/report-cards", label: t("nav.reportCards"), icon: "reportcards" as const },
     hasAny(ctx, ["grading.manage"]) && { href: "/grading", label: t("nav.grading"), icon: "grading" as const },
   ].filter(Boolean) as NavGroup["items"];
   if (examNav.length) groups.push({ label: t("navgroup.exams"), items: examNav });
@@ -61,7 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const crumbLabels: Record<string, string> = {
     students: t("nav.students"), admissions: t("nav.admissions"), attendance: t("nav.attendance"), guardians: t("nav.guardians"), "academic-setup": t("nav.academics"),
     users: t("nav.users"), roles: t("nav.roles"), settings: t("nav.settings"), audit: t("nav.audit"), website: t("nav.website"), enquiries: t("nav.enquiries"), notifications: t("nav.notifications"),
-    exams: t("nav.exams"), marks: t("nav.marks"), results: t("nav.results"), grading: t("nav.grading"),
+    "report-cards": t("nav.reportCards"), remarks: t("rc.remarks.title"), exams: t("nav.exams"), marks: t("nav.marks"), results: t("nav.results"), grading: t("nav.grading"),
     new: t("bc.new"), edit: t("common.edit"), import: t("bc.import"), take: t("bc.take"), reports: t("bc.reports"), conflicts: t("bc.conflicts"), alerts: t("bc.alerts"), staff: t("bc.staff"), register: t("bc.register"),
   };
   const canSearch = hasAny(ctx, ["student.read", "student.read_assigned"]);

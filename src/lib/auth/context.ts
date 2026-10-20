@@ -7,6 +7,7 @@ export type RequestMeta = { ip: string | null; userAgent: string | null };
 /** Everything a service needs to authorise and audit an operation. Built server-side only. */
 export type AuthContext = {
   userId: string;
+  userType: "STAFF" | "GUARDIAN" | "STUDENT";
   schoolId: string;
   branchId: string | null;
   fullName: string;
@@ -50,6 +51,7 @@ export async function buildAuthContext(userId: string, meta: RequestMeta = NO_ME
 
   return {
     userId: user.id,
+    userType: user.type,
     schoolId: user.schoolId,
     branchId: user.branchId,
     fullName: user.fullName,

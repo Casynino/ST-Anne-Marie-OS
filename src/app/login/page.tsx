@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { getContext, getLocale, getT } from "@/lib/auth/next";
+import { homeFor } from "@/lib/auth/home";
 import { ActionForm, Field } from "@/components/form";
 import { LanguageSwitch } from "@/components/language-switch";
 import { loginAction } from "./actions";
@@ -9,7 +10,8 @@ import { loginAction } from "./actions";
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
-  if (await getContext()) redirect("/dashboard");
+  const signedIn = await getContext();
+  if (signedIn) redirect(homeFor(signedIn.userType));
   const t = await getT();
   const locale = await getLocale();
   // Single-school deployment: show the school's name on the sign-in screen.

@@ -126,6 +126,8 @@ model School {
   resultSubmissions      ResultSubmission[]
   marks                  Mark[]
   resultChanges          ResultChange[]
+  reportRemarks          ReportRemark[]
+  reportCards            ReportCard[]
 
   @@map("schools")
 }
@@ -185,6 +187,7 @@ model User {
   sessions Session[]
   staff    Staff?
   guardian Guardian?
+  student  Student?
 
   @@index([schoolId, type])
   @@map("users")
@@ -521,11 +524,13 @@ model Student {
   medicalNotes       String? // restricted: student.medical.* permissions
   exitedOn           DateTime?     @db.Date
   exitReason         String?
+  userId             String?       @unique @db.Uuid // student portal account, linked explicitly
   createdById        String?       @db.Uuid
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
   school            School                 @relation(fields: [schoolId], references: [id])
+  user              User?                  @relation(fields: [userId], references: [id])
   guardians         StudentGuardian[]
   enrollments       StudentEnrollment[]
   emergencyContacts EmergencyContact[]
@@ -1375,4 +1380,79 @@ model ResultChange {
 
   @@index([schoolId, examSubjectId, studentId])
   @@map("result_changes")
+}
+
+// ═════════════════════════ Phase 4: Report cards & portal ═════════════════════════
+
+enum ReportCardStatus {
+  GENERATED // built from locked results, visible to staff only
+  PUBLISHED // visible to the student and linked guardians in the portal
+  WITHDRAWN // taken back (reason kept); never visible in the portal; can be regenerated
+}
+
+// Class teacher and head teacher comments for one student in one term.
+model ReportRemark {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  schoolId        String   @db.Uuid
+  studentId       String   @db.Uuid
+  termId          String   @db.Uuid
+  classRemark     String?
+  headRemark      String?
+  classRemarkById String?  @db.Uuid
+  headRemarkById  String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([studentId, termId])
+  @@index([schoolId, termId])
+  @@map("report_remarks")
+}
+
+// One report card per student per term. The snapshot is the document: it is built once from locked results and
+// does not change when marks, scales or remarks change later. Regenerating keeps the old snapshot in report_card_revisions.
+model ReportCard {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  schoolId       String           @db.Uuid
+  studentId      String           @db.Uuid
+  termId         String           @db.Uuid
+  classId        String           @db.Uuid
+  streamId       String?          @db.Uuid
+  status         ReportCardStatus @default(GENERATED)
+  version        Int              @default(1)
+  snapshot       Json
+  generatedById  String           @db.Uuid
+  generatedAt    DateTime         @default(now())
+  publishedById  String?          @db.Uuid
+  publishedAt    DateTime?
+  withdrawnById  String?          @db.Uuid
+  withdrawnAt    DateTime?
+  withdrawReason String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  school    School               @relation(fields: [schoolId], references: [id])
+  revisions ReportCardRevision[]
+
+  @@unique([studentId, termId])
+  @@index([schoolId, termId, classId])
+  @@index([schoolId, studentId, status])
+  @@map("report_cards")
+}
+
+// Append-only copies of superseded snapshots (trigger in the migration).
+model ReportCardRevision {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  reportCardId  String   @db.Uuid
+  version       Int
+  snapshot      Json
+  generatedById String   @db.Uuid
+  generatedAt   DateTime
+  supersededAt  DateTime @default(now())
+
+  reportCard ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
+
+  @@unique([reportCardId, version])
+  @@map("report_card_revisions")
 }

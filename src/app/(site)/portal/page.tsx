@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { GraduationCap, ShieldCheck, Users } from "lucide-react";
 import { getContext, getT } from "@/lib/auth/next";
+import { homeFor } from "@/lib/auth/home";
 import { getSite, pageMetadata } from "@/lib/site";
 import { ButtonLink, PageHero } from "@/components/site/blocks";
 import { Reveal } from "@/components/site/fx/reveal";
@@ -13,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PortalPage() {
   const [site, t, ctx] = await Promise.all([getSite(), getT(), getContext()]);
-  if (ctx) redirect("/dashboard"); // already signed in: no second sign-in, no confusion
+  if (ctx) redirect(homeFor(ctx.userType)); // already signed in: no second sign-in, no confusion
   if (!site) return null;
   const { contact } = site;
   return (

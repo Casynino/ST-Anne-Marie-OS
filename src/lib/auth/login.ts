@@ -11,7 +11,7 @@ export const MAX_FAILURES_PER_IDENTIFIER = 5;
 export const MAX_FAILURES_PER_IP = 30;
 const GENERIC_FAILURE = "Incorrect email/phone or password.";
 
-export type LoginResult = { token: string; expiresAt: Date; userId: string; mustChangePassword: boolean };
+export type LoginResult = { token: string; expiresAt: Date; userId: string; userType: "STAFF" | "GUARDIAN" | "STUDENT"; mustChangePassword: boolean };
 
 /**
  * Verifies credentials with DB-backed rate limiting (no Redis needed).
@@ -63,5 +63,5 @@ export async function authenticate(identifierInput: string, password: string, me
     entityId: user.id,
     summary: user.fullName,
   });
-  return { ...session, userId: user.id, mustChangePassword: user.mustChangePassword };
+  return { ...session, userId: user.id, userType: user.type, mustChangePassword: user.mustChangePassword };
 }

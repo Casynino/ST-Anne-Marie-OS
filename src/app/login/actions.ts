@@ -6,6 +6,7 @@ import { AppError } from "@/lib/errors";
 import { authenticate } from "@/lib/auth/login";
 import { SESSION_COOKIE } from "@/lib/auth/session";
 import { getRequestMeta } from "@/lib/auth/next";
+import { homeFor } from "@/lib/auth/home";
 import type { ActionState } from "@/lib/action";
 
 export async function loginAction(_prev: ActionState, form: FormData): Promise<ActionState> {
@@ -26,5 +27,5 @@ export async function loginAction(_prev: ActionState, form: FormData): Promise<A
     path: "/",
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
-  redirect(result.mustChangePassword ? "/change-password" : "/dashboard");
+  redirect(result.mustChangePassword ? "/change-password" : homeFor(result.userType));
 }

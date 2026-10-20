@@ -56,7 +56,7 @@ async function loadUnit(client: Db | Tx, ctx: AuthContext, submissionId: string)
 }
 
 /** Students on the unit's list: enrolled in that class (and stream) at any point during the exam's term. */
-async function loadRoster(client: Db | Tx, schoolId: string, exam: { academicYearId: string; termId: string }, classId: string, streamId: string | null) {
+export async function loadRoster(client: Db | Tx, schoolId: string, exam: { academicYearId: string; termId: string }, classId: string, streamId: string | null) {
   const term = await client.term.findFirstOrThrow({ where: { id: exam.termId, schoolId }, select: { startsOn: true, endsOn: true } });
   const rows = await client.studentEnrollment.findMany({
     where: {
