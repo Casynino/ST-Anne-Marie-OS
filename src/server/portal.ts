@@ -26,7 +26,7 @@ const portalOnly = (ctx: AuthContext) => {
   if (ctx.userType === "STAFF") throw forbidden("This area is for parents and students.");
 };
 
-async function childIds(ctx: AuthContext): Promise<string[]> {
+export async function childIds(ctx: AuthContext): Promise<string[]> {
   portalOnly(ctx);
   if (ctx.userType === "STUDENT") {
     const s = await db.student.findFirst({ where: { userId: ctx.userId, schoolId: ctx.schoolId }, select: { id: true } });
@@ -63,7 +63,7 @@ export async function myChildren(ctx: AuthContext): Promise<Child[]> {
   }));
 }
 
-async function childOrThrow(ctx: AuthContext, studentId: string): Promise<Child> {
+export async function childOrThrow(ctx: AuthContext, studentId: string): Promise<Child> {
   const child = (await myChildren(ctx)).find((c) => c.id === studentId);
   if (!child) throw notFound("Student");
   return child;

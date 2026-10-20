@@ -21,10 +21,10 @@ import { parse, text } from "@/lib/validation";
 
 // ───────────────────────── Access ─────────────────────────
 
-type TeachingRow = { classId: string; streamId: string | null; subjectId: string | null };
+export type TeachingRow = { classId: string; streamId: string | null; subjectId: string | null };
 
 /** What the signed-in teacher teaches in a year. subjectId null = class teacher (any subject of the class/stream). */
-async function teachingRows(client: Db | Tx, ctx: AuthContext, academicYearId: string): Promise<TeachingRow[]> {
+export async function teachingRows(client: Db | Tx, ctx: AuthContext, academicYearId: string): Promise<TeachingRow[]> {
   if (!ctx.staffId) return [];
   const [ct, st] = await Promise.all([
     client.classTeacher.findMany({ where: { staffId: ctx.staffId, academicYearId, schoolId: ctx.schoolId }, select: { classId: true, streamId: true } }),

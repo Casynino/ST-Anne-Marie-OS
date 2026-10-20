@@ -107,6 +107,17 @@ export const PERMISSIONS = {
   "messages.read": { module: "communication", description: "Read parent-teacher conversations you take part in" },
   "messages.send": { module: "communication", description: "Write to parents of students you teach and reply to their messages" },
   "messages.moderate": { module: "communication", description: "See all conversations, handle the school office inbox, hide messages and close conversations" },
+
+  // Learning hub
+  "timetable.read": { module: "learning", description: "View timetables (classes, teachers)" },
+  "timetable.manage": { module: "learning", description: "Set up lesson periods and build or change the timetable" },
+  "plans.write": { module: "learning", description: "Write schemes of work and lesson plans for the classes and subjects you teach" },
+  "plans.review": { module: "learning", description: "Read, approve or return teachers' schemes of work and lesson plans" },
+  "assignments.manage": { module: "learning", description: "Set homework for the classes and subjects you teach, mark it and give feedback" },
+  "assignments.oversee": { module: "learning", description: "Read all homework and submissions (oversight, no marking)" },
+  "portfolio.manage": { module: "learning", description: "Add and approve portfolio items for students you teach" },
+  "behaviour.record": { module: "learning", description: "Record behaviour for students you teach and read those records" },
+  "behaviour.read_all": { module: "learning", description: "Read behaviour records of every student" },
   "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 

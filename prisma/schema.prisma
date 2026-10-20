@@ -141,6 +141,15 @@ model School {
   broadcasts             Broadcast[]
   messageTemplates       MessageTemplate[]
   messageThreads         MessageThread[]
+  timetablePeriods       TimetablePeriod[]
+  timetableEntries       TimetableEntry[]
+  schemesOfWork          SchemeOfWork[]
+  lessonPlans            LessonPlan[]
+  assignments            Assignment[]
+  assignmentSubmissions  AssignmentSubmission[]
+  learningFiles          LearningFile[]
+  portfolioItems         PortfolioItem[]
+  behaviourRecords       BehaviourRecord[]
 
   @@map("schools")
 }
@@ -1948,4 +1957,276 @@ model ThreadMessage {
   @@index([threadId, createdAt])
   @@index([flaggedAt])
   @@map("thread_messages")
+}
+
+// ═════════════════════════ Learning hub ═════════════════════════
+// Timetable, schemes of work and lesson plans, homework with submissions and feedback, portfolios, behaviour records.
+// Built natively on the existing classes, subjects, teacher assignments and portal accounts.
+
+enum PlanStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  RETURNED
+}
+
+enum SubmissionState {
+  SUBMITTED // handed in, waiting for the teacher
+  RETURNED // the teacher asked for a revision
+  GRADED // marked; the family sees score and feedback only once released
+}
+
+enum SubmissionVia {
+  ONLINE
+  PAPER // the teacher recorded work handed in on paper (many students have no account)
+}
+
+enum LearningFileOwner {
+  ASSIGNMENT
+  SUBMISSION
+  PORTFOLIO
+}
+
+enum PortfolioStatus {
+  PENDING // added by the student, waiting for a teacher
+  PUBLISHED // visible to the student and the family
+  REMOVED
+}
+
+enum BehaviourType {
+  POSITIVE
+  CONCERN
+  INCIDENT
+}
+
+model TimetablePeriod {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  schoolId  String  @db.Uuid
+  sequence  Int
+  name      String
+  startTime String // HH:MM, school time
+  endTime   String
+  isBreak   Boolean @default(false)
+
+  school  School           @relation(fields: [schoolId], references: [id])
+  entries TimetableEntry[]
+
+  @@unique([schoolId, sequence])
+  @@map("timetable_periods")
+}
+
+// One lesson in the weekly timetable. streamId null = the whole class. The partial unique indexes in the migration stop a
+// teacher or a room being in two places at once and a class (stream) having two lessons in one period.
+model TimetableEntry {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  schoolId       String   @db.Uuid
+  academicYearId String   @db.Uuid
+  classId        String   @db.Uuid
+  streamId       String?  @db.Uuid
+  dayOfWeek      Int // 1 = Monday ... 7 = Sunday
+  periodId       String   @db.Uuid
+  subjectId      String   @db.Uuid
+  teacherStaffId String?  @db.Uuid
+  room           String?
+  createdById    String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  school School          @relation(fields: [schoolId], references: [id])
+  period TimetablePeriod @relation(fields: [periodId], references: [id])
+
+  // Real index is NULLS NOT DISTINCT (see migration SQL); declared here so Prisma does not drop it.
+  @@unique([academicYearId, classId, streamId, dayOfWeek, periodId], map: "timetable_class_slot_unique")
+  @@index([schoolId, academicYearId, classId])
+  @@index([teacherStaffId])
+  @@map("timetable_entries")
+}
+
+model SchemeOfWork {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  schoolId       String     @db.Uuid
+  academicYearId String     @db.Uuid
+  termId         String?    @db.Uuid
+  classId        String     @db.Uuid
+  subjectId      String     @db.Uuid
+  teacherStaffId String     @db.Uuid
+  title          String
+  status         PlanStatus @default(DRAFT)
+  reviewNote     String?
+  submittedAt    DateTime?
+  reviewedById   String?    @db.Uuid
+  reviewedAt     DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  school School       @relation(fields: [schoolId], references: [id])
+  weeks  SchemeWeek[]
+
+  @@index([schoolId, teacherStaffId])
+  @@index([schoolId, status])
+  @@map("schemes_of_work")
+}
+
+model SchemeWeek {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  schemeId   String  @db.Uuid
+  weekNo     Int
+  topic      String
+  objectives String?
+  activities String?
+  resources  String?
+  assessment String?
+  periods    Int?
+
+  scheme SchemeOfWork @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+
+  @@unique([schemeId, weekNo])
+  @@map("scheme_weeks")
+}
+
+model LessonPlan {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  schoolId       String     @db.Uuid
+  academicYearId String     @db.Uuid
+  classId        String     @db.Uuid
+  streamId       String?    @db.Uuid
+  subjectId      String     @db.Uuid
+  teacherStaffId String     @db.Uuid
+  lessonDate     DateTime   @db.Date
+  topic          String
+  objectives     String
+  activities     String
+  resources      String?
+  assessment     String?
+  homework       String?
+  reflection     String?
+  status         PlanStatus @default(DRAFT)
+  reviewNote     String?
+  submittedAt    DateTime?
+  reviewedById   String?    @db.Uuid
+  reviewedAt     DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, teacherStaffId, lessonDate])
+  @@index([schoolId, status])
+  @@map("lesson_plans")
+}
+
+model Assignment {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  schoolId       String    @db.Uuid
+  academicYearId String    @db.Uuid
+  classId        String    @db.Uuid
+  streamId       String?   @db.Uuid
+  subjectId      String    @db.Uuid
+  teacherStaffId String?   @db.Uuid
+  createdById    String    @db.Uuid
+  title          String
+  instructions   String
+  dueAt          DateTime
+  maxScore       Decimal?  @db.Decimal(6, 2) // null = not marked with a score
+  publishedAt    DateTime? // null = draft, not visible to students or families
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  school      School                 @relation(fields: [schoolId], references: [id])
+  submissions AssignmentSubmission[]
+
+  @@index([schoolId, classId, publishedAt])
+  @@index([schoolId, teacherStaffId])
+  @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id           String          @id @default(uuid(7)) @db.Uuid
+  schoolId     String          @db.Uuid
+  assignmentId String          @db.Uuid
+  studentId    String          @db.Uuid
+  via          SubmissionVia   @default(ONLINE)
+  text         String?
+  state        SubmissionState @default(SUBMITTED)
+  late         Boolean         @default(false)
+  revision     Int             @default(1)
+  submittedAt  DateTime        @default(now())
+  score        Decimal?        @db.Decimal(6, 2)
+  feedback     String?
+  gradedById   String?         @db.Uuid
+  gradedAt     DateTime?
+  releasedAt   DateTime? // when the score and feedback became visible to the student and family
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  school     School     @relation(fields: [schoolId], references: [id])
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@index([schoolId, studentId])
+  @@map("assignment_submissions")
+}
+
+// An attachment (PDF, JPEG, PNG or WebP) in the file storage. Served only through a permission-checked route.
+model LearningFile {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  schoolId     String            @db.Uuid
+  ownerKind    LearningFileOwner
+  ownerId      String            @db.Uuid
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String
+  uploadedById String            @db.Uuid
+  createdAt    DateTime          @default(now())
+  deletedAt    DateTime?
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([ownerKind, ownerId])
+  @@map("learning_files")
+}
+
+model PortfolioItem {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  schoolId         String          @db.Uuid
+  studentId        String          @db.Uuid
+  subjectId        String?         @db.Uuid
+  title            String
+  description      String?
+  createdById      String          @db.Uuid
+  createdByStudent Boolean         @default(false)
+  status           PortfolioStatus @default(PENDING)
+  teacherComment   String?
+  publishedAt      DateTime?
+  publishedById    String?         @db.Uuid
+  createdAt        DateTime        @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, studentId, status])
+  @@map("portfolio_items")
+}
+
+// Never deleted: a wrong record is voided with a reason. Only records marked as shared are visible to the family.
+model BehaviourRecord {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  schoolId         String        @db.Uuid
+  studentId        String        @db.Uuid
+  occurredOn       DateTime      @db.Date
+  type             BehaviourType
+  category         String
+  description      String
+  action           String?
+  sharedWithFamily Boolean       @default(false)
+  recordedById     String        @db.Uuid
+  createdAt        DateTime      @default(now())
+  voidedAt         DateTime?
+  voidedById       String?       @db.Uuid
+  voidReason       String?
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, studentId, occurredOn])
+  @@map("behaviour_records")
 }
