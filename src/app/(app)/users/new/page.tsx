@@ -1,0 +1,22 @@
+import type { Metadata } from "next";
+import { requireContext, getT } from "@/lib/auth/next";
+import { assignableRoles } from "@/server/rbac";
+import { ActionForm } from "@/components/form";
+import { UserFields } from "@/components/user-form";
+import { Card, NoAccess, PageHeader } from "@/components/ui";
+import { createUserAction } from "../actions";
+
+export const metadata: Metadata = { title: "Add staff member" };
+
+export default async function NewUserPage() {
+  const ctx = await requireContext();
+  const t = await getT();
+  if (!ctx.permissions.has("user.create")) return <NoAccess t={t} />;
+  const roles = await assignableRoles(ctx);
+  return (
+    <>
+      <PageHeader title={t("users.new")} />
+      <Card><ActionForm action={createUserAction} submitLabel={t("common.create")}><UserFields t={t} roles={roles} /></ActionForm></Card>
+    </>
+  );
+}

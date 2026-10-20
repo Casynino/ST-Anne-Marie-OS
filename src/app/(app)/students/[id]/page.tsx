@@ -1,0 +1,211 @@
+import Link from "next/link";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
+import { requireContext, getT, getLocale } from "@/lib/auth/next";
+import { getStudentProfile } from "@/server/students";
+import { listClasses } from "@/server/academics";
+import { AppError } from "@/lib/errors";
+import { ageOn, displayDate, formatDateOnly, todayInTimezone } from "@/lib/dates";
+import { getSchoolBasics } from "@/server/settings";
+import { ActionForm, Field } from "@/components/form";
+import { GuardianFields } from "@/components/guardian-fields";
+import { guardianLabels } from "@/components/guardian-labels";
+import { Badge, Card, DefList, LinkButton, PageHeader } from "@/components/ui";
+import { RELATIONSHIPS } from "@/server/guardians";
+import * as A from "../actions";
+
+export const metadata: Metadata = { title: "Student" };
+const STATUS_TONE = { ENROLLED: "ok", TRANSFERRED: "warn", WITHDRAWN: "bad", GRADUATED: "brand" } as const;
+
+export default async function StudentPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const ctx = await requireContext();
+  const t = await getT();
+  const locale = await getLocale();
+  const s = await getStudentProfile(ctx, id).catch((e) => (e instanceof AppError && (e.code === "NOT_FOUND" || e.code === "FORBIDDEN") ? null : Promise.reject(e)));
+  if (!s) notFound();
+
+  const school = await getSchoolBasics(ctx.schoolId);
+  const today = todayInTimezone(school.timezone);
+  const canEnroll = ctx.permissions.has("student.enroll") && s.status === "ENROLLED";
+  const classes = canEnroll ? await listClasses(ctx).catch(() => []) : [];
+  const placementOptions = classes.filter((c) => c.isActive).flatMap((c) => (c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}` })) : [{ value: c.id, label: c.name }]));
+  const current = s.enrollments.find((e) => e.status === "ACTIVE");
+  const canManageGuardians = ctx.permissions.has("guardian.manage");
+  const labels = await guardianLabels(ctx.permissions.has("guardian.read") || canManageGuardians);
+  const fullName = [s.firstName, s.middleName, s.lastName].filter(Boolean).join(" ");
+  const statusTargets = s.status === "ENROLLED" ? (["TRANSFERRED", "WITHDRAWN", "GRADUATED"] as const) : (["ENROLLED"] as const);
+  const relOptions = RELATIONSHIPS.map((r) => ({ value: r, label: t(`student.rel.${r}` as "student.rel.FATHER") }));
+
+  return (
+    <>
+      <PageHeader
+        title={fullName}
+        subtitle={`${s.admissionNo} · ${current ? `${current.class.name}${current.stream ? ` – ${current.stream.name}` : ""}` : t("student.notPlaced")}`}
+        actions={<>
+          <Badge tone={STATUS_TONE[s.status]}>{t(`student.status.${s.status}`)}</Badge>
+          {ctx.permissions.has("student.update") && <LinkButton href={`/students/${s.id}/edit`} variant="secondary"><Pencil className="size-4" aria-hidden /> {t("student.profile.edit")}</LinkButton>}
+        </>}
+      />
+
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="space-y-5 lg:col-span-2">
+          <Card title={t("student.profile.details")}>
+            <DefList items={[
+              { label: t("student.dob"), value: `${displayDate(s.dateOfBirth, locale)} (${ageOn(s.dateOfBirth)})` },
+              { label: t("student.gender"), value: s.gender === "MALE" ? t("student.male") : t("student.female") },
+              { label: t("student.admissionDate"), value: displayDate(s.admissionDate, locale) },
+              { label: t("student.nationality"), value: s.nationality },
+              { label: t("student.religion"), value: s.religion },
+              { label: t("student.birthCert"), value: s.birthCertificateNo },
+              { label: t("student.previousSchool"), value: s.previousSchool },
+              { label: t("common.address"), value: s.address },
+              ...(s.exitedOn ? [{ label: t("common.status"), value: `${t(`student.status.${s.status}`)} — ${t("student.exited", { date: displayDate(s.exitedOn, locale) })}${s.exitReason ? `: ${s.exitReason}` : ""}` }] : []),
+            ]} />
+          </Card>
+
+          <Card title={t("student.guardians")}>
+            {!s.canSeeGuardians ? (
+              <p className="text-sm text-muted">{t("student.noGuardianAccess")}</p>
+            ) : (
+              <div className="space-y-4">
+                {s.guardians.map((g) => (
+                  <div key={g.guardianId} className="rounded-lg border border-line p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{g.guardian.fullName} <span className="font-normal text-muted">· {t(`student.rel.${g.relationship}` as "student.rel.FATHER")}</span></p>
+                        <p className="text-sm text-muted">{g.guardian.phone}{g.guardian.altPhone ? ` · ${g.guardian.altPhone}` : ""}{g.guardian.email ? ` · ${g.guardian.email}` : ""}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {g.isPrimary && <Badge tone="brand">{t("student.primary")}</Badge>}
+                        {g.isFinanciallyResponsible && <Badge>{t("student.financial")}</Badge>}
+                        <Badge tone={g.verifiedAt ? "ok" : "warn"}>{g.verifiedAt ? t("student.verified") : t("student.unverified")}</Badge>
+                      </div>
+                    </div>
+                    {(canManageGuardians || ctx.permissions.has("guardian.verify")) && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {ctx.permissions.has("guardian.verify") && (
+                          <ActionForm action={A.verifyGuardianAction} submitLabel={g.verifiedAt ? t("student.unverify") : t("student.verify")} inline className="inline">
+                            <input type="hidden" name="studentId" value={s.id} /><input type="hidden" name="guardianId" value={g.guardianId} /><input type="hidden" name="verified" value={g.verifiedAt ? "false" : "true"} />
+                          </ActionForm>
+                        )}
+                        {canManageGuardians && (
+                          <>
+                            <details className="w-full">
+                              <summary className="min-h-9 cursor-pointer py-1 text-sm font-medium text-brand-700">{t("common.edit")}</summary>
+                              <div className="mt-2 grid gap-4 md:grid-cols-2">
+                                <ActionForm action={A.updateRelationshipAction} submitLabel={t("common.save")} className="space-y-3">
+                                  <input type="hidden" name="studentId" value={s.id} /><input type="hidden" name="guardianId" value={g.guardianId} />
+                                  <Field name="relationship" label={t("student.relationship")} type="select" options={relOptions} defaultValue={g.relationship} required />
+                                  <Field name="isPrimary" type="checkbox" label={t("student.primary")} defaultValue={g.isPrimary} />
+                                  <Field name="isFinanciallyResponsible" type="checkbox" label={t("student.financial")} defaultValue={g.isFinanciallyResponsible} />
+                                  <Field name="receivesNotifications" type="checkbox" label={t("student.notify")} defaultValue={g.receivesNotifications} />
+                                </ActionForm>
+                                <ActionForm action={A.updateGuardianAction} submitLabel={t("guardian.edit")} className="space-y-3">
+                                  <input type="hidden" name="guardianId" value={g.guardianId} />
+                                  <Field name="fullName" label={t("users.fullName")} defaultValue={g.guardian.fullName} required />
+                                  <Field name="phone" label={t("common.phone")} type="tel" defaultValue={g.guardian.phone} required />
+                                  <Field name="altPhone" label={t("guardian.altPhone")} type="tel" defaultValue={g.guardian.altPhone} optionalLabel={t("common.optional")} />
+                                  <Field name="email" label={t("common.email")} type="email" defaultValue={g.guardian.email} optionalLabel={t("common.optional")} />
+                                  <Field name="occupation" label={t("guardian.occupation")} defaultValue={g.guardian.occupation} optionalLabel={t("common.optional")} />
+                                </ActionForm>
+                              </div>
+                            </details>
+                            {!g.isPrimary && s.guardians.length > 1 && (
+                              <details className="w-full">
+                                <summary className="min-h-9 cursor-pointer py-1 text-sm font-medium text-bad">{t("student.unlink")}</summary>
+                                <ActionForm action={A.unlinkGuardianAction} submitLabel={t("student.unlink")} tone="danger" className="mt-2 space-y-3" confirm={t("common.confirmAction")}>
+                                  <input type="hidden" name="studentId" value={s.id} /><input type="hidden" name="guardianId" value={g.guardianId} />
+                                  <Field name="reason" label={t("common.reason")} required />
+                                </ActionForm>
+                              </details>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {canManageGuardians && (
+                  <details>
+                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("student.link")}</summary>
+                    <ActionForm action={A.linkGuardianAction} submitLabel={t("student.link")} className="mt-2 space-y-3">
+                      <input type="hidden" name="studentId" value={s.id} />
+                      <GuardianFields prefix="" labels={labels} canSearch={labels.canSearch} />
+                    </ActionForm>
+                  </details>
+                )}
+              </div>
+            )}
+          </Card>
+
+          {s.canSeeGuardians && s.emergencyContacts.length > 0 && (
+            <Card title={t("student.emergency")}>
+              <ul className="divide-y divide-line text-sm">
+                {s.emergencyContacts.map((c) => <li key={c.id} className="py-2"><strong>{c.name}</strong> · {c.relationship} · {c.phone}</li>)}
+              </ul>
+            </Card>
+          )}
+          {s.canSeeMedical && (
+            <Card title={t("student.medical")}>
+              <p className="whitespace-pre-wrap text-sm">{s.medicalNotes || "—"}</p>
+            </Card>
+          )}
+        </div>
+
+        <div className="space-y-5">
+          {canEnroll && placementOptions.length > 0 && (
+            <Card title={current ? t("student.enrol.move") : t("student.enrol.title")}>
+              <ActionForm action={A.enrollStudentAction} submitLabel={t("student.enrol.button")} className="space-y-3">
+                <input type="hidden" name="studentId" value={s.id} />
+                <Field name="placement" label={`${t("student.class")} / ${t("student.stream")}`} type="select" options={placementOptions} placeholder={t("common.select")} required />
+              </ActionForm>
+            </Card>
+          )}
+          {ctx.permissions.has("student.status_change") && (
+            <Card title={t("student.status.title")}>
+              <ActionForm action={A.changeStatusAction} submitLabel={t("common.confirm")} tone="danger" className="space-y-3" confirm={t("common.confirmAction")}>
+                <input type="hidden" name="studentId" value={s.id} />
+                <Field name="status" label={t("student.status.new")} type="select" placeholder={t("common.select")} options={statusTargets.map((v) => ({ value: v, label: v === "ENROLLED" ? t("student.status.reinstate") : t(`student.status.${v}`) }))} required />
+                <Field name="effectiveOn" label={t("student.status.effective")} type="date" defaultValue={today} required />
+                <Field name="reason" label={t("common.reason")} type="textarea" rows={2} required />
+              </ActionForm>
+            </Card>
+          )}
+          <Card title={t("student.profile.enrollments")}>
+            {s.enrollments.length === 0 ? <p className="text-sm text-muted">{t("student.notPlaced")}</p> : (
+              <ul className="space-y-3 text-sm">
+                {s.enrollments.map((e) => (
+                  <li key={e.id}>
+                    <p className="font-medium">{e.class.name}{e.stream ? ` – ${e.stream.name}` : ""} <span className="font-normal text-muted">· {e.academicYear.name}</span></p>
+                    <p className="text-muted">{displayDate(e.startedOn, locale)} → {e.endedOn ? displayDate(e.endedOn, locale) : "…"} · <Badge tone={e.status === "ACTIVE" ? "ok" : "neutral"}>{t(`student.enrollment.${e.status}`)}</Badge></p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+          {s.statusHistory.length > 0 && (
+            <Card title={t("student.profile.statusHistory")}>
+              <ul className="space-y-3 text-sm">
+                {s.statusHistory.map((h) => (
+                  <li key={h.id}>
+                    <p className="font-medium">{t(`student.status.${h.fromStatus}`)} → {t(`student.status.${h.toStatus}`)} <span className="font-normal text-muted">· {formatDateOnly(h.effectiveOn)}</span></p>
+                    <p className="text-muted">{h.reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {s.siblings.length > 0 && (
+            <Card title={t("student.profile.siblings")}>
+              <ul className="space-y-1 text-sm">
+                {s.siblings.map((x) => <li key={x.id}><Link href={`/students/${x.id}`} className="text-brand-700 hover:underline">{x.firstName} {x.lastName}</Link> <span className="text-muted">· {x.admissionNo}</span></li>)}
+              </ul>
+            </Card>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

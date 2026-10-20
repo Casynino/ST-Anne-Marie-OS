@@ -1,0 +1,619 @@
+// St Anne Marie Schools — Phase 1 (Foundation) schema.
+// Conventions:
+//  * Every school-owned row carries schoolId; services always filter by it.
+//  * Calendar dates (dob, term dates, admission date) use @db.Date; timestamps are UTC.
+//  * Extra integrity rules that Prisma cannot express (partial unique indexes,
+//    CHECK constraints, append-only audit log) live in the migration SQL.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Enums ─────────────────────────
+
+enum Locale {
+  EN
+  SW
+}
+
+enum UserType {
+  STAFF
+  GUARDIAN
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum StudentStatus {
+  ENROLLED
+  TRANSFERRED
+  WITHDRAWN
+  GRADUATED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  MOVED
+  COMPLETED
+  TRANSFERRED_OUT
+  WITHDRAWN
+}
+
+enum GuardianRelationship {
+  FATHER
+  MOTHER
+  GRANDPARENT
+  UNCLE
+  AUNT
+  SIBLING
+  GUARDIAN
+  OTHER
+}
+
+// ───────────────────────── Tenancy ─────────────────────────
+
+model School {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  code          String   @unique
+  name          String
+  motto         String?
+  logoUrl       String?
+  email         String?
+  phone         String?
+  address       String?
+  timezone      String   @default("Africa/Dar_es_Salaam")
+  currency      String   @default("TZS")
+  defaultLocale Locale   @default(EN)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  branches         Branch[]
+  users            User[]
+  roles            Role[]
+  staff            Staff[]
+  settings         SchoolSetting[]
+  auditLogs        AuditLog[]
+  academicYears    AcademicYear[]
+  terms            Term[]
+  levels           AcademicLevel[]
+  classes          SchoolClass[]
+  streams          Stream[]
+  subjects         Subject[]
+  classSubjects    ClassSubject[]
+  classTeachers    ClassTeacher[]
+  subjectTeachers  SubjectTeacher[]
+  students         Student[]
+  guardians        Guardian[]
+  studentGuardians StudentGuardian[]
+  enrollments      StudentEnrollment[]
+  emergencyContacts EmergencyContact[]
+  statusHistory    StudentStatusHistory[]
+  admissionCounters AdmissionCounter[]
+
+  @@map("schools")
+}
+
+model Branch {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  name      String
+  code      String
+  address   String?
+  isMain    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+  users  User[]
+
+  @@unique([schoolId, code])
+  @@map("branches")
+}
+
+model SchoolSetting {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @db.Uuid
+  key         String
+  value       Json
+  updatedById String?  @db.Uuid
+  updatedAt   DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, key])
+  @@map("school_settings")
+}
+
+// ───────────────────────── Identity & access ─────────────────────────
+
+model User {
+  id                 String     @id @default(uuid(7)) @db.Uuid
+  schoolId           String     @db.Uuid
+  branchId           String?    @db.Uuid
+  type               UserType   @default(STAFF)
+  fullName           String
+  email              String?    @unique // stored lowercase
+  phone              String?    @unique // stored as +255XXXXXXXXX
+  passwordHash       String
+  status             UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(true)
+  locale             Locale     @default(EN)
+  lastLoginAt        DateTime?
+  passwordChangedAt  DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  school   School     @relation(fields: [schoolId], references: [id])
+  branch   Branch?    @relation(fields: [branchId], references: [id])
+  roles    UserRole[]
+  sessions Session[]
+  staff    Staff?
+  guardian Guardian?
+
+  @@index([schoolId, type])
+  @@map("users")
+}
+
+model Session {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String   @db.Uuid
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  ip         String?
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model LoginAttempt {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  identifier String
+  ip         String?
+  success    Boolean
+  createdAt  DateTime @default(now())
+
+  @@index([identifier, createdAt])
+  @@index([ip, createdAt])
+  @@map("login_attempts")
+}
+
+model Role {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @db.Uuid
+  key         String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  school      School           @relation(fields: [schoolId], references: [id])
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@unique([schoolId, key])
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  key         String  @unique
+  module      String
+  description String?
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId       String   @db.Uuid
+  roleId       String   @db.Uuid
+  assignedAt   DateTime @default(now())
+  assignedById String?  @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model Staff {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  schoolId   String    @db.Uuid
+  userId     String    @unique @db.Uuid
+  staffNo    String?
+  jobTitle   String?
+  employedOn DateTime? @db.Date
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  school          School           @relation(fields: [schoolId], references: [id])
+  user            User             @relation(fields: [userId], references: [id])
+  classTeacherOf  ClassTeacher[]
+  subjectTeacherOf SubjectTeacher[]
+
+  @@unique([schoolId, staffNo])
+  @@map("staff")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  schoolId   String   @db.Uuid
+  actorId    String?  @db.Uuid
+  actorName  String?
+  action     String
+  entityType String
+  entityId   String?
+  summary    String?
+  changes    Json?
+  reason     String?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, createdAt])
+  @@index([schoolId, entityType, entityId])
+  @@index([schoolId, actorId])
+  @@map("audit_logs")
+}
+
+// ───────────────────────── Academic structure ─────────────────────────
+
+model AcademicYear {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  name      String
+  startsOn  DateTime @db.Date
+  endsOn    DateTime @db.Date
+  isCurrent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school          School              @relation(fields: [schoolId], references: [id])
+  terms           Term[]
+  enrollments     StudentEnrollment[]
+  classTeachers   ClassTeacher[]
+  subjectTeachers SubjectTeacher[]
+
+  @@unique([schoolId, name])
+  @@map("academic_years")
+}
+
+model Term {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  schoolId       String   @db.Uuid
+  academicYearId String   @db.Uuid
+  name           String
+  sequence       Int
+  startsOn       DateTime @db.Date
+  endsOn         DateTime @db.Date
+  isCurrent      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  school       School       @relation(fields: [schoolId], references: [id])
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  @@unique([academicYearId, sequence])
+  @@unique([academicYearId, name])
+  @@map("terms")
+}
+
+model AcademicLevel {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  name      String
+  nameSw    String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  school  School        @relation(fields: [schoolId], references: [id])
+  classes SchoolClass[]
+
+  @@unique([schoolId, name])
+  @@map("academic_levels")
+}
+
+model SchoolClass {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  levelId   String   @db.Uuid
+  name      String
+  nameSw    String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  school          School              @relation(fields: [schoolId], references: [id])
+  level           AcademicLevel       @relation(fields: [levelId], references: [id])
+  streams         Stream[]
+  subjects        ClassSubject[]
+  enrollments     StudentEnrollment[]
+  classTeachers   ClassTeacher[]
+  subjectTeachers SubjectTeacher[]
+
+  @@unique([schoolId, name])
+  @@index([levelId])
+  @@map("classes")
+}
+
+model Stream {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  classId   String   @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+
+  school          School              @relation(fields: [schoolId], references: [id])
+  class           SchoolClass         @relation(fields: [classId], references: [id])
+  enrollments     StudentEnrollment[]
+  classTeachers   ClassTeacher[]
+  subjectTeachers SubjectTeacher[]
+
+  @@unique([classId, name])
+  @@map("streams")
+}
+
+model Subject {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  code      String
+  name      String
+  nameSw    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  school          School           @relation(fields: [schoolId], references: [id])
+  classSubjects   ClassSubject[]
+  subjectTeachers SubjectTeacher[]
+
+  @@unique([schoolId, code])
+  @@map("subjects")
+}
+
+model ClassSubject {
+  id           String  @id @default(uuid(7)) @db.Uuid
+  schoolId     String  @db.Uuid
+  classId      String  @db.Uuid
+  subjectId    String  @db.Uuid
+  isCompulsory Boolean @default(true)
+
+  school  School      @relation(fields: [schoolId], references: [id])
+  class   SchoolClass @relation(fields: [classId], references: [id])
+  subject Subject     @relation(fields: [subjectId], references: [id])
+
+  @@unique([classId, subjectId])
+  @@map("class_subjects")
+}
+
+// One class teacher per class/stream per year (uniqueness enforced in migration SQL
+// with NULLS NOT DISTINCT because streamId is optional).
+model ClassTeacher {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  schoolId       String   @db.Uuid
+  academicYearId String   @db.Uuid
+  classId        String   @db.Uuid
+  streamId       String?  @db.Uuid
+  staffId        String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  school       School       @relation(fields: [schoolId], references: [id])
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+  class        SchoolClass  @relation(fields: [classId], references: [id])
+  stream       Stream?      @relation(fields: [streamId], references: [id])
+  staff        Staff        @relation(fields: [staffId], references: [id])
+
+  // Real index is NULLS NOT DISTINCT (see migration SQL); declared here so Prisma does not drop it.
+  @@unique([academicYearId, classId, streamId], map: "class_teachers_unique_assignment")
+  @@index([staffId, academicYearId])
+  @@map("class_teachers")
+}
+
+model SubjectTeacher {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  schoolId       String   @db.Uuid
+  academicYearId String   @db.Uuid
+  classId        String   @db.Uuid
+  streamId       String?  @db.Uuid
+  subjectId      String   @db.Uuid
+  staffId        String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  school       School       @relation(fields: [schoolId], references: [id])
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+  class        SchoolClass  @relation(fields: [classId], references: [id])
+  stream       Stream?      @relation(fields: [streamId], references: [id])
+  subject      Subject      @relation(fields: [subjectId], references: [id])
+  staff        Staff        @relation(fields: [staffId], references: [id])
+
+  // Real index is NULLS NOT DISTINCT (see migration SQL); declared here so Prisma does not drop it.
+  @@unique([academicYearId, classId, streamId, subjectId, staffId], map: "subject_teachers_unique_assignment")
+  @@index([staffId, academicYearId])
+  @@map("subject_teachers")
+}
+
+// ───────────────────────── Students & guardians ─────────────────────────
+
+model AdmissionCounter {
+  schoolId  String @db.Uuid
+  scope     String // e.g. "2026" when numbering resets per year, "ALL" otherwise
+  lastValue Int    @default(0)
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@id([schoolId, scope])
+  @@map("admission_counters")
+}
+
+model Student {
+  id                 String        @id @default(uuid(7)) @db.Uuid
+  schoolId           String        @db.Uuid
+  admissionNo        String
+  firstName          String
+  middleName         String?
+  lastName           String
+  dateOfBirth        DateTime      @db.Date
+  gender             Gender
+  status             StudentStatus @default(ENROLLED)
+  admissionDate      DateTime      @db.Date
+  nationality        String?
+  religion           String?
+  birthCertificateNo String?
+  previousSchool     String?
+  address            String?
+  medicalNotes       String? // restricted: student.medical.* permissions
+  exitedOn           DateTime?     @db.Date
+  exitReason         String?
+  createdById        String?       @db.Uuid
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  school            School                 @relation(fields: [schoolId], references: [id])
+  guardians         StudentGuardian[]
+  enrollments       StudentEnrollment[]
+  emergencyContacts EmergencyContact[]
+  statusHistory     StudentStatusHistory[]
+
+  @@unique([schoolId, admissionNo])
+  @@index([schoolId, status])
+  @@index([schoolId, lastName, firstName])
+  @@index([schoolId, dateOfBirth])
+  @@map("students")
+}
+
+model EmergencyContact {
+  id           String @id @default(uuid(7)) @db.Uuid
+  schoolId     String @db.Uuid
+  studentId    String @db.Uuid
+  name         String
+  relationship String
+  phone        String
+  sortOrder    Int    @default(0)
+
+  school  School  @relation(fields: [schoolId], references: [id])
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("emergency_contacts")
+}
+
+model Guardian {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  schoolId   String   @db.Uuid
+  userId     String?  @unique @db.Uuid // portal account, linked explicitly (never by phone match)
+  fullName   String
+  phone      String
+  altPhone   String?
+  email      String?
+  occupation String?
+  address    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  school   School            @relation(fields: [schoolId], references: [id])
+  user     User?             @relation(fields: [userId], references: [id])
+  students StudentGuardian[]
+
+  @@index([schoolId, phone])
+  @@index([schoolId, fullName])
+  @@map("guardians")
+}
+
+model StudentGuardian {
+  studentId                String               @db.Uuid
+  guardianId               String               @db.Uuid
+  schoolId                 String               @db.Uuid
+  relationship             GuardianRelationship
+  isPrimary                Boolean              @default(false)
+  receivesNotifications    Boolean              @default(true)
+  isFinanciallyResponsible Boolean              @default(false)
+  verifiedAt               DateTime?
+  verifiedById             String?              @db.Uuid
+  createdAt                DateTime             @default(now())
+
+  school   School   @relation(fields: [schoolId], references: [id])
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  guardian Guardian @relation(fields: [guardianId], references: [id])
+
+  @@id([studentId, guardianId])
+  @@index([guardianId])
+  @@map("student_guardians")
+}
+
+// Enrollment per academic year. History is never overwritten: moves and
+// year-end transitions close the old row and open a new one.
+model StudentEnrollment {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  schoolId       String           @db.Uuid
+  studentId      String           @db.Uuid
+  academicYearId String           @db.Uuid
+  classId        String           @db.Uuid
+  streamId       String?          @db.Uuid
+  status         EnrollmentStatus @default(ACTIVE)
+  startedOn      DateTime         @db.Date
+  endedOn        DateTime?        @db.Date
+  notes          String?
+  createdById    String?          @db.Uuid
+  createdAt      DateTime         @default(now())
+
+  school       School       @relation(fields: [schoolId], references: [id])
+  student      Student      @relation(fields: [studentId], references: [id])
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+  class        SchoolClass  @relation(fields: [classId], references: [id])
+  stream       Stream?      @relation(fields: [streamId], references: [id])
+
+  @@index([schoolId, academicYearId, classId, streamId, status])
+  @@index([studentId])
+  @@map("student_enrollments")
+}
+
+model StudentStatusHistory {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  schoolId    String        @db.Uuid
+  studentId   String        @db.Uuid
+  fromStatus  StudentStatus
+  toStatus    StudentStatus
+  reason      String
+  effectiveOn DateTime      @db.Date
+  changedById String        @db.Uuid
+  createdAt   DateTime      @default(now())
+
+  school  School  @relation(fields: [schoolId], references: [id])
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("student_status_history")
+}
