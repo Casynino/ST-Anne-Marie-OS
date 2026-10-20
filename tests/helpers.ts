@@ -5,6 +5,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { ensureSchoolRoles, syncPermissionCatalog } from "@/server/rbac";
 import { ensureDefaultSettings } from "@/server/settings";
 import * as academics from "@/server/academics";
+import { todayInTimezone } from "@/lib/dates";
 
 let catalogReady = false;
 
@@ -70,4 +71,19 @@ export function studentInput(n: number, extra: Record<string, unknown> = {}) {
     guardians: [guardianFor(n)],
     ...extra,
   };
+}
+
+/** Like createTestAcademics but the academic year contains TODAY (attendance cannot be recorded for future dates). */
+export async function createCurrentYearAcademics(admin: AuthContext, opts: { streams?: string[]; className?: string } = {}) {
+  const today = todayInTimezone("Africa/Dar_es_Salaam");
+  const yearNo = Number(today.slice(0, 4));
+  const year = await academics.createAcademicYear(admin, { name: `${yearNo}`, startsOn: `${yearNo}-01-01`, endsOn: `${yearNo}-12-31` });
+  await academics.setCurrentAcademicYear(admin, year.id);
+  const term = await academics.createTerm(admin, { academicYearId: year.id, name: "Term 1", sequence: 1, startsOn: `${yearNo}-01-05`, endsOn: `${yearNo}-12-20` });
+  await academics.setCurrentTerm(admin, term.id);
+  const level = await academics.createLevel(admin, { name: "Primary", sortOrder: 1 });
+  const cls = await academics.createClass(admin, { levelId: level.id, name: opts.className ?? "Standard I", sortOrder: 1 });
+  const streams = [];
+  for (const s of opts.streams ?? []) streams.push(await academics.createStream(admin, cls.id, s));
+  return { year, yearNo, term, level, cls, streams, today };
 }

@@ -39,6 +39,27 @@ export const PERMISSIONS = {
   "guardian.read": { module: "guardians", description: "View the guardian directory" },
   "guardian.manage": { module: "guardians", description: "Create, edit, link and unlink guardians" },
   "guardian.verify": { module: "guardians", description: "Verify guardian-student relationships" },
+
+  // Attendance (Phase 2)
+  "attendance.read": { module: "attendance", description: "View attendance registers and reports for all classes" },
+  "attendance.read_assigned": { module: "attendance", description: "View attendance for assigned classes only" },
+  "attendance.take": { module: "attendance", description: "Take and finalise attendance for assigned classes" },
+  "attendance.take_any": { module: "attendance", description: "Take and finalise attendance for any class" },
+  "attendance.correct": { module: "attendance", description: "Correct finalised attendance and resolve sync conflicts" },
+  "attendance.configure": { module: "attendance", description: "Configure attendance sessions and thresholds" },
+  "attendance.staff.read": { module: "attendance", description: "View staff attendance" },
+  "attendance.staff.record": { module: "attendance", description: "Record staff attendance" },
+  "notification.read": { module: "attendance", description: "View absence notification events and their delivery status" },
+
+  // Admissions, documents, import (Phase 2)
+  "admission.read": { module: "admissions", description: "View admission applications" },
+  "admission.create": { module: "admissions", description: "Record and edit admission applications" },
+  "admission.review": { module: "admissions", description: "Move applications through interview, acceptance or rejection" },
+  "admission.enrol": { module: "admissions", description: "Enrol accepted applicants as students" },
+  "document.read": { module: "admissions", description: "View and download uploaded documents" },
+  "document.upload": { module: "admissions", description: "Upload documents to applications and students" },
+  "document.delete": { module: "admissions", description: "Remove uploaded documents" },
+  "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 
 export type PermissionKey = keyof typeof PERMISSIONS;
