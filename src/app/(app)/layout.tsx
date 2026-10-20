@@ -13,12 +13,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const t = await getT();
   const school = await getSchoolBasics(ctx.schoolId);
 
-  const items: NavItem[] = [{ href: "/", label: t("nav.dashboard"), icon: "dashboard" }];
+  const items: NavItem[] = [{ href: "/dashboard", label: t("nav.dashboard"), icon: "dashboard" }];
   if (hasAny(ctx, ["attendance.read", "attendance.read_assigned", "attendance.take", "attendance.take_any"])) items.push({ href: "/attendance", label: t("nav.attendance"), icon: "attendance" });
   if (hasAny(ctx, ["admission.read"])) items.push({ href: "/admissions", label: t("nav.admissions"), icon: "admissions" });
   if (hasAny(ctx, ["student.read", "student.read_assigned"])) items.push({ href: "/students", label: t("nav.students"), icon: "students" });
   if (hasAny(ctx, ["guardian.read"])) items.push({ href: "/guardians", label: t("nav.guardians"), icon: "guardians" });
   if (hasAny(ctx, ["academic.read"])) items.push({ href: "/academics", label: t("nav.academics"), icon: "academics" });
+  if (hasAny(ctx, ["website.manage"])) items.push({ href: "/website", label: t("nav.website"), icon: "website" });
   if (hasAny(ctx, ["user.read"])) items.push({ href: "/users", label: t("nav.users"), icon: "users" });
   if (hasAny(ctx, ["role.read"])) items.push({ href: "/roles", label: t("nav.roles"), icon: "roles" });
   if (hasAny(ctx, ["school.settings.read"])) items.push({ href: "/settings", label: t("nav.settings"), icon: "settings" });
@@ -36,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
       <aside className="no-print sticky top-0 hidden h-dvh flex-col bg-brand-900 p-4 text-white lg:flex">
-        <Link href="/" className="mb-6 block px-1">
+        <Link href="/dashboard" className="mb-6 block px-1">
           <span className="block text-lg font-semibold leading-tight">{school.name}</span>
           <span className="text-xs text-brand-200">{t("app.tagline")}</span>
         </Link>

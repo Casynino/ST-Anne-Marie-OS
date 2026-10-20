@@ -10,7 +10,7 @@ export async function changePasswordAction(_prev: ActionState, form: FormData): 
     async (ctx, input) => {
       const session = await getSessionInfo();
       await changeOwnPassword(ctx, input, session?.sessionId);
-      return { redirectTo: "/" };
+      return { redirectTo: "/dashboard" };
     },
     { allowMustChangePassword: true },
   );

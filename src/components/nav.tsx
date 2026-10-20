@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, BookOpen, ClipboardCheck, GraduationCap, LayoutDashboard, Menu, ScrollText, Settings, ShieldCheck, UserCog, UserPlus, Users, X } from "lucide-react";
+import { Bell, BookOpen, ClipboardCheck, Globe, GraduationCap, LayoutDashboard, Menu, ScrollText, Settings, ShieldCheck, UserCog, UserPlus, Users, X } from "lucide-react";
 
-const ICONS = { dashboard: LayoutDashboard, attendance: ClipboardCheck, admissions: UserPlus, notifications: Bell, students: GraduationCap, guardians: Users, academics: BookOpen, users: UserCog, roles: ShieldCheck, settings: Settings, audit: ScrollText } as const;
+const ICONS = { dashboard: LayoutDashboard, attendance: ClipboardCheck, admissions: UserPlus, notifications: Bell, students: GraduationCap, guardians: Users, academics: BookOpen, users: UserCog, roles: ShieldCheck, settings: Settings, audit: ScrollText, website: Globe } as const;
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
 
 function Links({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
@@ -14,7 +14,7 @@ function Links({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => voi
     <ul className="space-y-1">
       {items.map((item) => {
         const Icon = ICONS[item.icon];
-        const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <li key={item.href}>
             <Link

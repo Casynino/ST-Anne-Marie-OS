@@ -49,7 +49,7 @@ export function formatApplicationNo(year: number, seq: number) {
 }
 
 /** Concurrency-safe application number (counter row locked until the transaction commits; never reused). */
-async function allocateApplicationNo(tx: Tx, schoolId: string, year: number): Promise<string> {
+export async function allocateApplicationNo(tx: Tx, schoolId: string, year: number): Promise<string> {
   const rows = await tx.$queryRaw<{ lastValue: number }[]>`
     INSERT INTO admission_counters ("schoolId", "scope", "lastValue")
     VALUES (${schoolId}::uuid, ${`APP:${year}`}, 1)
@@ -303,7 +303,7 @@ export async function getApplication(ctx: AuthContext, applicationId: string) {
   requirePermission(ctx, "admission.read");
   const app = await db.application.findFirst({ where: { id: applicationId, schoolId: ctx.schoolId }, include: { events: { orderBy: { createdAt: "asc" } } } });
   if (!app) throw notFound("Application");
-  const users = await db.user.findMany({ where: { schoolId: ctx.schoolId, id: { in: [...new Set(app.events.map((e) => e.byUserId))] } }, select: { id: true, fullName: true } });
+  const users = await db.user.findMany({ where: { schoolId: ctx.schoolId, id: { in: [...new Set(app.events.flatMap((e) => (e.byUserId ? [e.byUserId] : [])))] } }, select: { id: true, fullName: true } });
   const [cls, year, student] = await Promise.all([
     app.classAppliedId ? db.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId: ctx.schoolId }, select: { name: true } }) : null,
     app.intakeYearId ? db.academicYear.findFirst({ where: { id: app.intakeYearId, schoolId: ctx.schoolId }, select: { name: true } }) : null,
@@ -315,6 +315,6 @@ export async function getApplication(ctx: AuthContext, applicationId: string) {
     className: cls?.name ?? null,
     intakeYear: year?.name ?? null,
     student,
-    events: app.events.map((e) => ({ ...e, by: users.find((u) => u.id === e.byUserId)?.fullName ?? "" })),
+    events: app.events.map((e) => ({ ...e, by: e.byUserId ? (users.find((u) => u.id === e.byUserId)?.fullName ?? "") : "", byApplicant: !e.byUserId })),
   };
 }

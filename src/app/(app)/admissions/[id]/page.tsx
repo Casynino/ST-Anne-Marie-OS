@@ -167,7 +167,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
             {app.events.map((e) => (
               <li key={e.id} className="flex flex-wrap items-baseline gap-x-2">
                 <Badge tone={TONE[e.toStatus]}>{t(`adm.status.${e.toStatus}`)}</Badge>
-                <span className="text-muted">{displayDateTime(e.createdAt, school.timezone, ctx.locale)} · {e.by}</span>
+                <span className="text-muted">{displayDateTime(e.createdAt, school.timezone, ctx.locale)} · {e.byApplicant ? t("adm.byApplicant") : e.by}</span>
                 {e.reason && <span className="basis-full">{e.reason}</span>}
               </li>
             ))}

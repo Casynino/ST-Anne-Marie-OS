@@ -26,5 +26,5 @@ export async function loginAction(_prev: ActionState, form: FormData): Promise<A
     path: "/",
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
-  redirect(result.mustChangePassword ? "/change-password" : "/");
+  redirect(result.mustChangePassword ? "/change-password" : "/dashboard");
 }

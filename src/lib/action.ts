@@ -51,6 +51,31 @@ export async function run(
   return { ok: true, message: result?.message, data: result?.data };
 }
 
+/**
+ * Like `run`, for PUBLIC (signed-out) forms such as the online application. No session is required, so the
+ * service itself must do its own abuse protection (rate limit, honeypot) and never trust the input.
+ */
+export async function publicRun(
+  form: FormData,
+  fn: (input: Record<string, string | string[] | undefined>) => Promise<ActionResult>,
+  opts: { mapFieldErrors?: (errors: Record<string, string>) => Record<string, string> } = {},
+): Promise<ActionState> {
+  const input = formToObject(form);
+  let result: ActionResult;
+  try {
+    result = await fn(input);
+  } catch (e) {
+    if (e instanceof AppError) {
+      const fieldErrors = e.fieldErrors && opts.mapFieldErrors ? opts.mapFieldErrors(e.fieldErrors) : e.fieldErrors;
+      return { ok: false, error: e.message, code: e.code, fieldErrors, values: echoValues(input) };
+    }
+    console.error(JSON.stringify({ level: "error", msg: "public_action_failed", error: e instanceof Error ? e.message : String(e) }));
+    return { ok: false, error: "Something went wrong. Please try again.", values: echoValues(input) };
+  }
+  if (result && result.redirectTo) redirect(result.redirectTo);
+  return { ok: true, message: result?.message, data: result?.data };
+}
+
 /** Form-input helpers for services that take typed arguments. */
 export const str = (v: string | string[] | undefined): string => (Array.isArray(v) ? (v[0] ?? "") : (v ?? ""));
 export const list = (v: string | string[] | undefined): string[] => (Array.isArray(v) ? v : v ? [v] : []);

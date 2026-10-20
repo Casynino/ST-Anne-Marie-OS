@@ -116,6 +116,8 @@ model School {
   documents              Document[]
   importBatches          ImportBatch[]
   importRows             ImportRow[]
+  announcements          Announcement[]
+  events                 SchoolEvent[]
 
   @@map("schools")
 }
@@ -906,6 +908,11 @@ model InAppNotification {
 
 // ═════════════════════════ Phase 2: Admissions ═════════════════════════
 
+enum ApplicationSource {
+  STAFF
+  ONLINE
+}
+
 enum ApplicationStatus {
   APPLIED
   INTERVIEW
@@ -941,7 +948,9 @@ model Application {
   decidedAt          DateTime?
   decidedById        String?           @db.Uuid
   studentId          String?           @unique @db.Uuid
-  createdById        String            @db.Uuid
+  source             ApplicationSource @default(STAFF)
+  consentAt          DateTime? // online applicants confirm the data-processing notice
+  createdById        String?           @db.Uuid // null for online applications
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
@@ -962,7 +971,7 @@ model ApplicationEvent {
   fromStatus    ApplicationStatus?
   toStatus      ApplicationStatus
   reason        String?
-  byUserId      String             @db.Uuid
+  byUserId      String?            @db.Uuid // null when the applicant submitted online
   createdAt     DateTime           @default(now())
 
   school      School      @relation(fields: [schoolId], references: [id])
@@ -1049,4 +1058,58 @@ model ImportRow {
 
   @@unique([batchId, rowNumber])
   @@map("import_rows")
+}
+
+// ═════════════════════════ Public website ═════════════════════════
+
+// News shown on the public website (and later the portals/communication module).
+// publishedAt = null means draft. Only isPublic + published posts are visible to the public.
+model Announcement {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  schoolId    String    @db.Uuid
+  title       String
+  titleSw     String?
+  body        String
+  bodySw      String?
+  isPublic    Boolean   @default(true)
+  publishedAt DateTime?
+  createdById String    @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, publishedAt])
+  @@map("announcements")
+}
+
+model SchoolEvent {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  schoolId      String    @db.Uuid
+  title         String
+  titleSw       String?
+  description   String?
+  descriptionSw String?
+  location      String?
+  startsOn      DateTime  @db.Date
+  endsOn        DateTime? @db.Date
+  isPublic      Boolean   @default(true)
+  createdById   String    @db.Uuid
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, startsOn])
+  @@map("school_events")
+}
+
+// Generic sliding-window counter for public endpoints (applications, status checks). No Redis needed.
+model RateLimitEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@map("rate_limit_events")
 }

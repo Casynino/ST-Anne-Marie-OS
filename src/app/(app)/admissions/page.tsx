@@ -42,7 +42,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
         <DataTable head={[t("adm.applicant"), t("adm.applicationNo"), t("adm.classApplied"), t("adm.guardian"), t("adm.appliedOn"), t("common.status")]}>
           {items.map((a) => (
             <tr key={a.id} className="hover:bg-canvas">
-              <Td><Link href={`/admissions/${a.id}`} className="font-medium text-brand-700 hover:underline">{a.firstName} {a.lastName}</Link></Td>
+              <Td><Link href={`/admissions/${a.id}`} className="font-medium text-brand-700 hover:underline">{a.firstName} {a.lastName}</Link>{a.source === "ONLINE" && <span className="ml-2 align-middle"><Badge tone="brand">{t("adm.online")}</Badge></span>}</Td>
               <Td className="whitespace-nowrap tabular-nums">{a.applicationNo}</Td>
               <Td>{a.className ?? "—"}</Td>
               <Td>{a.primaryGuardian?.fullName ?? "—"}</Td>

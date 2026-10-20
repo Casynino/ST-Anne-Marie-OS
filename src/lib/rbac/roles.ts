@@ -25,6 +25,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: "Head Teacher / Academic Master",
     description: "Oversees academics, students, staff activity.",
     permissions: [
+      "website.manage",
       "school.settings.read",
       "user.read",
       "role.read",

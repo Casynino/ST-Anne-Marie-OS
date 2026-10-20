@@ -20,6 +20,17 @@
   --color-ok: #17794a;
   --color-warn: #a35f00;
   --color-bad: #b42318;
+  --color-paper: #f4f7fb;
+  --color-paper-deep: #e8eef6;
+  --color-night: #07101e;
+  --color-night-2: #0c1a2f;
+  --color-glow: #4cc9f0;
+  --color-signal: #ffb23e;
+  --color-signal-700: #f0991a;
+  --color-accent: #0e7aa6;
+  --color-accent-700: #0b6185;
+  --color-accent-50: #e3f4fb;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
 }
 
 html { color-scheme: light; }
@@ -28,3 +39,60 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
 @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
 
 @media print { .no-print { display: none !important; } body { background: #fff; } }
+
+/* Public website: futuristic but restrained. System fonts only, CSS-only motion, no JS needed for any effect. */
+.site-serif { letter-spacing: -0.03em; font-weight: 700; }
+.site-mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace; letter-spacing: 0.08em; }
+
+@keyframes site-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.site-rise { animation: site-rise 0.7s cubic-bezier(.2,.7,.2,1) both; }
+.site-rise-2 { animation: site-rise 0.7s 0.1s cubic-bezier(.2,.7,.2,1) both; }
+.site-rise-3 { animation: site-rise 0.7s 0.2s cubic-bezier(.2,.7,.2,1) both; }
+
+/* Scroll reveal (Reveal component). Only blocks that start below the fold are hidden, and only after hydration,
+   so there is never a blank page without JS or with reduced motion. */
+[data-rv="wait"] { opacity: 0; transform: translateY(32px); }
+[data-rv="in"] { opacity: 1; transform: none; transition: opacity .9s cubic-bezier(.2,.7,.2,1) calc(var(--d, 0) * 1ms), transform .9s cubic-bezier(.2,.7,.2,1) calc(var(--d, 0) * 1ms); }
+.draw { transform-origin: left; transition: transform 1.4s cubic-bezier(.2,.7,.2,1) .25s; }
+[data-rv="wait"] .draw { transform: scaleX(0); }
+
+/* Headline words rise out of a mask (CSS only, runs from first paint). */
+@keyframes word-up { from { transform: translateY(108%); } to { transform: none; } }
+.word { display: inline-block; overflow: hidden; padding-bottom: .1em; margin-bottom: -.1em; vertical-align: bottom; }
+.word > span { display: inline-block; animation: word-up .9s cubic-bezier(.2,.7,.2,1) both; }
+
+/* Infinite ticker. */
+@keyframes marquee { to { transform: translateX(-50%); } }
+.marquee-track { display: flex; width: max-content; animation: marquee 38s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+
+/* Cursor-follow spotlight on cards (fine pointers only). */
+.spot { position: relative; overflow: hidden; }
+.spot::before { content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity .3s; background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(76 201 240 / .16), transparent 60%); pointer-events: none; }
+@media (hover: hover) and (pointer: fine) { .spot:hover::before { opacity: 1; } }
+
+/* Thin reading-progress line under the header where the browser supports scroll timelines. */
+@keyframes progress-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@supports (animation-timeline: scroll()) {
+  .scroll-progress { animation: progress-grow linear both; animation-timeline: scroll(root); transform-origin: left; }
+}
+
+/* Hero atmosphere: a slow-drifting light and a faint dot grid. Cheap radial gradients, no blur filters. */
+@keyframes glow-drift { 0%,100% { transform: translate3d(-4%, -3%, 0) scale(1); } 50% { transform: translate3d(5%, 4%, 0) scale(1.08); } }
+.hero-glow::before { content: ""; position: absolute; inset: -30%; background: radial-gradient(40% 40% at 70% 30%, rgb(76 201 240 / .28), transparent 70%), radial-gradient(35% 35% at 25% 75%, rgb(47 109 176 / .45), transparent 70%); animation: glow-drift 18s ease-in-out infinite; pointer-events: none; }
+.hero-grid::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgb(255 255 255 / .09) 1px, transparent 1px); background-size: 26px 26px; mask-image: radial-gradient(70% 70% at 60% 40%, #000, transparent); -webkit-mask-image: radial-gradient(70% 70% at 60% 40%, #000, transparent); pointer-events: none; }
+@keyframes orbit-spin { to { transform: rotate(360deg); } }
+.orbit-ring { transform-origin: 200px 200px; animation: orbit-spin 60s linear infinite; }
+.orbit-ring-2 { transform-origin: 200px 200px; animation: orbit-spin 90s linear infinite reverse; }
+.glass { background: rgb(255 255 255 / .06); border: 1px solid rgb(255 255 255 / .12); }
+@supports (backdrop-filter: blur(1px)) { .glass { backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); } }
+.lift { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+.lift:hover { transform: translateY(-4px); box-shadow: 0 18px 40px -18px rgb(7 16 30 / .35); border-color: rgb(14 122 166 / .45); }
+
+@media (prefers-reduced-motion: reduce) {
+  .site-rise, .site-rise-2, .site-rise-3, .word > span, .marquee-track, .scroll-progress, .hero-glow::before, .orbit-ring, .orbit-ring-2 { animation: none !important; }
+  [data-rv] { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .draw { transform: none !important; }
+  .lift:hover { transform: none; }
+}
+@media (max-width: 640px) { .hero-glow::before { animation: none; } }

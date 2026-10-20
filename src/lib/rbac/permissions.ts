@@ -59,6 +59,9 @@ export const PERMISSIONS = {
   "document.read": { module: "admissions", description: "View and download uploaded documents" },
   "document.upload": { module: "admissions", description: "Upload documents to applications and students" },
   "document.delete": { module: "admissions", description: "Remove uploaded documents" },
+
+  // Public website
+  "website.manage": { module: "website", description: "Edit the public website content, news and events" },
   "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 

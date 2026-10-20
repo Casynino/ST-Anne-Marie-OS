@@ -9,7 +9,7 @@ import { loginAction } from "./actions";
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
-  if (await getContext()) redirect("/");
+  if (await getContext()) redirect("/dashboard");
   const t = await getT();
   const locale = await getLocale();
   // Single-school deployment: show the school's name on the sign-in screen.

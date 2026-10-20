@@ -13,3 +13,5 @@ coverage
 .vercel
 uploads
 .data
+.next-smoke
+.next-build
