@@ -175,6 +175,28 @@ describe("conflicts and the keep-first-finalised policy", () => {
     expect((await db.studentAttendance.findMany({ where: { schoolId: school.id } })).every((r) => r.status === winner)).toBe(true);
   });
 
+  it("lets students who joined after finalisation be added without touching existing records", async () => {
+    await freshRegister();
+    // Register finalised with only the first three students (the fourth "joins late").
+    const late = kids[3]!;
+    await db.studentEnrollment.updateMany({ where: { studentId: late.id }, data: { status: "MOVED", endedOn: new Date(`${setup.today}T00:00:00Z`) } });
+    expect((await att.getAttendanceSheet(teacherA, sheetInput())).students).toHaveLength(3);
+    await submit(teacherA, allPresent().slice(0, 3), { kind: "FINALISE" });
+    await db.studentEnrollment.updateMany({ where: { studentId: late.id }, data: { status: "ACTIVE", endedOn: null } }); // (re)joins today
+    const withLate = [...allPresent().slice(0, 3), [3, "ABSENT"] as [number, string]];
+    const res = await submit(registrar, withLate, { kind: "FINALISE" });
+    expect(res).toMatchObject({ outcome: "APPLIED", code: "ADDED_TO_FINALISED" });
+    const rows = await db.studentAttendance.findMany({ where: { schoolId: school.id } });
+    expect(rows).toHaveLength(4);
+    expect(rows.filter((r) => r.status === "PRESENT")).toHaveLength(3); // originals untouched
+    expect(rows.find((r) => r.studentId === late.id)).toMatchObject({ status: "ABSENT", markedById: registrar.userId });
+    expect(await db.notificationEvent.count({ where: { schoolId: school.id, studentId: late.id } })).toBe(1); // absence alert for the late joiner
+    expect(await db.auditLog.count({ where: { schoolId: school.id, action: "attendance.add_late_records" } })).toBe(1);
+    // Re-sending is a no-op; changing an existing record is still a conflict.
+    expect((await submit(registrar, withLate, { kind: "FINALISE" })).code).toBe("NOOP_ALREADY_FINALISED");
+    expect((await submit(registrar, [[0, "ABSENT"], [3, "ABSENT"]], { kind: "FINALISE" })).outcome).toBe("CONFLICT");
+  });
+
   it("flags another user's different submission against an open draft, but lets the same user keep editing", async () => {
     await freshRegister();
     await submit(teacherA, [[0, "PRESENT"], [1, "ABSENT"]]);

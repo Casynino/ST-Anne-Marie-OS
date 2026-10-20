@@ -413,8 +413,20 @@ export async function submitAttendance(ctx: AuthContext, input: unknown): Promis
       };
 
       // 3. Conflicts. A later divergent submission never replaces a finalised register or another user's draft.
+      //    Students who have NO record yet (e.g. enrolled after the register was finalised) can still be added:
+      //    that only adds information and changes nothing that was already recorded.
       if (register?.status === "FINALISED") {
-        return sameStatuses(existing, entries) ? finish("APPLIED", "NOOP_ALREADY_FINALISED", register.id, "FINALISED") : finish("CONFLICT", "ALREADY_FINALISED", register.id, "FINALISED");
+        const diverges = entries.some((e) => existing.has(e.studentId) && existing.get(e.studentId) !== e.status);
+        if (diverges) return finish("CONFLICT", "ALREADY_FINALISED", register.id, "FINALISED");
+        const additions = entries.filter((e) => !existing.has(e.studentId));
+        if (!additions.length) return finish("APPLIED", "NOOP_ALREADY_FINALISED", register.id, "FINALISED");
+        const taken = await tx.studentAttendance.findFirst({
+          where: { schoolId: ctx.schoolId, sessionId: d.sessionId, date: d.date, studentId: { in: additions.map((e) => e.studentId) }, registerId: { not: register.id } },
+          select: { id: true },
+        });
+        if (taken) return finish("CONFLICT", "STUDENT_MARKED_ELSEWHERE", register.id, "FINALISED");
+        await addRecordsToFinalised(tx, ctx, { register: { id: register.id, classId: d.classId, streamId: d.streamId ?? null, sessionId: d.sessionId, date: d.date }, additions, cls: cls.name, stream: stream?.name ?? null, session: session.name });
+        return finish("APPLIED", "ADDED_TO_FINALISED", register.id, "FINALISED");
       }
       if (register && register.startedById !== ctx.userId && !sameStatuses(existing, entries)) {
         return finish("CONFLICT", "OTHER_USER_DRAFT", register.id, "DRAFT");
@@ -525,6 +537,32 @@ async function applyEntries(tx: Tx, ctx: AuthContext, a: ApplyArgs): Promise<{ c
     changes: { counts, absenceEventsCreated: events },
   });
   return { code: a.register ? "FINALISED" : "CREATED_FINALISED", registerId: register.id, status: "FINALISED" };
+}
+
+/** Adds records for students who have none in an already-finalised register (audited; existing records untouched). */
+async function addRecordsToFinalised(
+  tx: Tx,
+  ctx: AuthContext,
+  a: { register: { id: string; classId: string; streamId: string | null; sessionId: string; date: Date }; additions: Entry[]; cls: string; stream: string | null; session: string },
+) {
+  const now = new Date();
+  const created = await tx.studentAttendance.createManyAndReturn({
+    data: a.additions.map((e) => ({ schoolId: ctx.schoolId, registerId: a.register.id, studentId: e.studentId, classId: a.register.classId, streamId: a.register.streamId, sessionId: a.register.sessionId, date: a.register.date, status: e.status, note: e.note ?? null, markedById: ctx.userId, markedAt: now })),
+    select: { id: true, studentId: true, status: true },
+  });
+  const events = await createAbsenceEvents(tx, ctx.schoolId, created.filter((r) => r.status === "ABSENT").map((r) => ({ attendanceId: r.id, studentId: r.studentId })), {
+    className: a.cls,
+    streamName: a.stream,
+    sessionName: a.session,
+    date: formatDateOnly(a.register.date),
+  });
+  await writeAudit(tx, actorOf(ctx), {
+    action: "attendance.add_late_records",
+    entityType: "AttendanceRegister",
+    entityId: a.register.id,
+    summary: `${a.cls}${a.stream ? ` ${a.stream}` : ""} ${formatDateOnly(a.register.date)} (${a.session})`,
+    changes: { students: created.map((r) => ({ studentId: r.studentId, status: r.status })), absenceEventsCreated: events },
+  });
 }
 
 // ───────────────────────── Corrections ─────────────────────────
@@ -651,10 +689,19 @@ export async function resolveConflict(ctx: AuthContext, input: unknown) {
         if (!register) throw conflict("The register for this submission no longer exists.");
         if (register.status === "FINALISED") {
           const byStudent = new Map(register.records.map((r) => [r.studentId, r]));
+          const additions: Entry[] = [];
           for (const e of entries) {
             const rec = byStudent.get(e.studentId);
             if (rec) await applyCorrection(tx, ctx, rec, e.status, d.reason, { operationId: op.id });
-            else throw conflict("A student in this submission has no record in the finalised register.");
+            else additions.push(e);
+          }
+          if (additions.length) {
+            const [cls, session, stream] = await Promise.all([
+              tx.schoolClass.findUniqueOrThrow({ where: { id: op.classId }, select: { name: true } }),
+              tx.attendanceSession.findUniqueOrThrow({ where: { id: op.sessionId }, select: { name: true } }),
+              op.streamId ? tx.stream.findUnique({ where: { id: op.streamId }, select: { name: true } }) : null,
+            ]);
+            await addRecordsToFinalised(tx, ctx, { register: { id: register.id, classId: op.classId, streamId: op.streamId, sessionId: op.sessionId, date: op.date }, additions, cls: cls.name, stream: stream?.name ?? null, session: session.name });
           }
         } else {
           const [cls, session, stream] = await Promise.all([

@@ -13,6 +13,7 @@ import { GuardianFields } from "@/components/guardian-fields";
 import { guardianLabels } from "@/components/guardian-labels";
 import { Badge, Card, DefList, LinkButton, PageHeader } from "@/components/ui";
 import { RELATIONSHIPS } from "@/server/guardians";
+import { listDocuments } from "@/server/documents";
 import * as A from "../actions";
 
 export const metadata: Metadata = { title: "Student" };
@@ -36,6 +37,8 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   const labels = await guardianLabels(ctx.permissions.has("guardian.read") || canManageGuardians);
   const fullName = [s.firstName, s.middleName, s.lastName].filter(Boolean).join(" ");
   const statusTargets = s.status === "ENROLLED" ? (["TRANSFERRED", "WITHDRAWN", "GRADUATED"] as const) : (["ENROLLED"] as const);
+  const docs = ctx.permissions.has("document.read") ? await listDocuments(ctx, { studentId: id }).catch(() => []) : [];
+  const canSeeAttendance = ["attendance.read", "attendance.read_assigned", "attendance.take", "attendance.take_any"].some((p) => ctx.permissions.has(p as "attendance.read"));
   const relOptions = RELATIONSHIPS.map((r) => ({ value: r, label: t(`student.rel.${r}` as "student.rel.FATHER") }));
 
   return (
@@ -152,9 +155,27 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               <p className="whitespace-pre-wrap text-sm">{s.medicalNotes || "—"}</p>
             </Card>
           )}
+          {docs.length > 0 && (
+            <Card title={t("doc.title")}>
+              <p className="mb-2 text-sm text-muted">{t("doc.access")}</p>
+              <ul className="divide-y divide-line text-sm">
+                {docs.map((d) => (
+                  <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span className="min-w-0 break-words"><strong>{d.fileName}</strong> <span className="text-muted">· {t(`doc.type.${d.docType as "OTHER"}`)}</span></span>
+                    <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-3 font-medium text-brand-700 hover:bg-canvas">{t("doc.download")}</a>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-5">
+          {canSeeAttendance && (
+            <Card title={t("att.title")}>
+              <Link href={`/attendance/reports?view=student&studentId=${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">{t("att.reports")}</Link>
+            </Card>
+          )}
           {canEnroll && placementOptions.length > 0 && (
             <Card title={current ? t("student.enrol.move") : t("student.enrol.title")}>
               <ActionForm action={A.enrollStudentAction} submitLabel={t("student.enrol.button")} className="space-y-3">

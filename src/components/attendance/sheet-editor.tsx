@@ -76,7 +76,11 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
   const serverFinal = sheet.register?.status === "FINALISED";
   const localFinal = latest?.kind === "FINALISE" && (latest.state === "queued" || latest.state === "syncing" || latest.state === "synced");
   const conflicted = latest?.state === "conflict";
-  const readOnly = !sheet.canTake || serverFinal || Boolean(localFinal) || conflicted;
+  // A finalised register stays locked, except for students who have no record yet (joined after it was finalised).
+  const lateJoiners = serverFinal ? sheet.students.filter((s) => !sheet.records[s.id] && !sheet.markedElsewhere.includes(s.id)) : [];
+  const lateMode = serverFinal && sheet.canTake && lateJoiners.length > 0 && !localFinal && !conflicted;
+  const readOnly = !sheet.canTake || (serverFinal && !lateMode) || Boolean(localFinal) || conflicted;
+  const rowLocked = (id: string) => serverFinal && Boolean(sheet.records[id]);
 
   const students = sheet.students;
   const markable = students.filter((s) => !sheet.markedElsewhere.includes(s.id));
@@ -98,12 +102,12 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
   };
   const markAllPresent = () => {
     setDirty(true);
-    setMarks((m) => Object.fromEntries(Object.entries(m).map(([id, v]) => [id, v.status || sheet.markedElsewhere.includes(id) ? v : { status: "PRESENT" as const, note: "" }])));
+    setMarks((m) => Object.fromEntries(Object.entries(m).map(([id, v]) => [id, v.status || sheet.markedElsewhere.includes(id) || rowLocked(id) ? v : { status: "PRESENT" as const, note: "" }])));
   };
 
-  const submit = async (kind: "SAVE_DRAFT" | "FINALISE") => {
-    if (kind === "FINALISE" && !window.confirm(t("att.finalise.confirm"))) return;
-    const entries: OpEntry[] = markable.flatMap((s) => {
+  const submit = async (kind: "SAVE_DRAFT" | "FINALISE", skipConfirm = false) => {
+    if (kind === "FINALISE" && !skipConfirm && !window.confirm(t("att.finalise.confirm"))) return;
+    const entries: OpEntry[] = markable.filter((s) => !serverFinal || !sheet.records[s.id]).flatMap((s) => {
       const m = marks[s.id];
       return m?.status ? [{ studentId: s.id, status: m.status, ...(m.note.trim() ? { note: m.note.trim() } : {}) }] : [];
     });
@@ -209,7 +213,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
                   </div>
                   {elsewhere ? (
                     <p className="mt-1 text-sm text-warn">{t("att.markedElsewhere")}</p>
-                  ) : readOnly ? (
+                  ) : readOnly || rowLocked(s.id) ? (
                     <p className="mt-1 text-sm">
                       {m.status ? <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-semibold ${STYLE[m.status]}`}>{t(`att.status.${m.status}`)}</span> : <span className="text-muted">{t("att.unmarked")}</span>}
                       {m.note && <span className="ml-2 text-muted">{m.note}</span>}
@@ -257,8 +261,16 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
               <strong>{t("att.marked", { marked: markedCount, total: markable.length })}</strong>
               <span className="block text-muted sm:ml-2 sm:inline">{t("att.summary", { present: counts.PRESENT, absent: counts.ABSENT, late: counts.LATE, excused: counts.EXCUSED })}</span>
             </p>
-            {!readOnly && unmarked > 0 && <p className="mb-2 text-sm text-warn">{t("att.unmarkedLeft", { count: unmarked })}</p>}
-            {!readOnly && (
+            {!readOnly && !lateMode && unmarked > 0 && <p className="mb-2 text-sm text-warn">{t("att.unmarkedLeft", { count: unmarked })}</p>}
+            {lateMode && (
+              <div>
+                <p className="mb-2 text-sm text-muted">{t("att.late.hint")}</p>
+                <button type="button" disabled={busy || lateJoiners.every((s) => !marks[s.id]?.status)} onClick={() => submit("FINALISE", true)} className="min-h-12 w-full rounded-xl bg-brand-700 px-3 text-base font-semibold text-white hover:bg-brand-800 disabled:opacity-50">
+                  {busy ? <Loader2 className="mx-auto size-5 animate-spin" aria-hidden /> : t("att.late.add")}
+                </button>
+              </div>
+            )}
+            {!readOnly && !lateMode && (
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" disabled={busy || markedCount === 0} onClick={() => submit("SAVE_DRAFT")} className="min-h-12 rounded-xl border border-brand-700 bg-white px-3 text-base font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50">
                   {t("att.saveDraft")}

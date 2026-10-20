@@ -43,7 +43,7 @@ export default async function ConflictsPage({ searchParams }: { searchParams: Pr
                 <p className="mt-3 text-sm">{t("conf.sameContent")}</p>
               ) : (
                 <div className="mt-3 overflow-x-auto">
-                  <table className="w-full min-w-[22rem] text-left text-sm">
+                  <table className="w-full text-left text-sm">
                     <thead className="text-xs uppercase tracking-wide text-muted">
                       <tr>
                         <th className="py-1 pr-3 font-medium">{t("common.name")}</th>

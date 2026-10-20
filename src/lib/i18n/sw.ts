@@ -620,4 +620,6 @@ export const sw: Record<MessageKey, string> = {
   "imp.report.row": "Safu",
   "imp.report.problem": "Tatizo",
   "imp.row": "Safu {row}",
+  "att.late.hint": "Baadhi ya wanafunzi wamejiunga baada ya daftari hili kukamilishwa. Unaweza kurekodi mahudhurio yao hapa chini. Rekodi zilizopo zinabaki kama zilivyo.",
+  "att.late.add": "Rekodi mahudhurio ya wanafunzi wapya",
 };

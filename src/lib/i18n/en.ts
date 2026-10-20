@@ -618,6 +618,8 @@ export const en = {
   "imp.report.row": "Row",
   "imp.report.problem": "Problem",
   "imp.row": "Row {row}",
+  "att.late.hint": "Some students joined after this register was finalised. You can record their attendance below. Existing records stay as they are.",
+  "att.late.add": "Record attendance for new students",
 } as const;
 
 export type MessageKey = keyof typeof en;

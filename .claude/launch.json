@@ -26,6 +26,22 @@
         "127.0.0.1"
       ],
       "port": 3100
+    },
+    {
+      "name": "st-anne-smoke-prod",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NEXT_DIST_DIR=.next-prod",
+        "DATABASE_URL=postgresql://nino@localhost:5432/stanne_smoke",
+        "npx",
+        "next",
+        "start",
+        "-p",
+        "3101",
+        "-H",
+        "127.0.0.1"
+      ],
+      "port": 3101
     }
   ]
 }
