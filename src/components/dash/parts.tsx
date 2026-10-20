@@ -1,0 +1,125 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { ArrowRight, type LucideIcon } from "lucide-react";
+
+/** Section heading in the dashboard: a bold title with a one-line purpose, closed by a hairline. */
+export function DashSection({ id, eyebrow, title, subtitle, children }: { id: string; eyebrow?: string; title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <section aria-labelledby={`${id}-h`} className="mt-10">
+      {eyebrow && (
+        <div className="mb-3 flex items-center gap-3"><span className="rounded-full bg-surface px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em] text-muted ring-1 ring-inset ring-line">{eyebrow}</span><span aria-hidden className="h-px flex-1 bg-line" /></div>
+      )}
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-3">
+        <h2 id={`${id}-h`} className="text-xl font-semibold tracking-tight text-ink">{title}</h2>
+        {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+const PILL = {
+  ok: "bg-ok/12 text-ok ring-ok/25",
+  warn: "bg-warn/12 text-warn ring-warn/25",
+  bad: "bg-bad/12 text-bad ring-bad/25",
+  info: "bg-indigo/12 text-indigo ring-indigo/25",
+  brand: "bg-brand-600/12 text-brand-700 ring-brand-600/25",
+  neutral: "bg-muted/12 text-muted ring-muted/25",
+} as const;
+export type PillTone = keyof typeof PILL;
+export const Pill = ({ tone = "neutral", children }: { tone?: PillTone; children: ReactNode }) => <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-[.12em] ring-1 ring-inset ${PILL[tone]}`}>{children}</span>;
+
+/** A headline number: small capital label, big figure, one line of context and a status pill. */
+export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLabel }: { label: string; value: ReactNode; caption?: string; pill?: { text: string; tone: PillTone }; icon: LucideIcon; href?: string; openLabel?: string }) {
+  const body = (
+    <>
+      <span className="flex items-start justify-between gap-3">
+        <span className="text-[11px] font-bold uppercase tracking-[.14em] text-muted">{label}</span>
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-600/12 text-brand-700"><Icon className="size-[1.15rem]" aria-hidden /></span>
+      </span>
+      <span className="mt-2 block text-4xl font-semibold tabular-nums tracking-tight text-ink">{value}</span>
+      {caption && <span className="mt-0.5 block text-sm text-muted">{caption}</span>}
+      <span className="mt-auto flex items-center justify-between gap-2 pt-4">
+        {pill ? <Pill tone={pill.tone}>{pill.text}</Pill> : <span />}
+        {href && openLabel && <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 group-hover:underline">{openLabel}<ArrowRight className="size-3.5" aria-hidden /></span>}
+      </span>
+    </>
+  );
+  const cls = "group flex h-full min-h-[10.5rem] flex-col rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]";
+  return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+export const Panel = ({ title, subtitle, children, className = "", right }: { title: string; subtitle?: string; children: ReactNode; className?: string; right?: ReactNode }) => (
+  <section className={`min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] ${className}`}>
+    <header className="mb-4 flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="text-base font-semibold text-ink">{title}</h3>{subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}</div>{right}</header>
+    {children}
+  </section>
+);
+
+export const SERIES_COLORS = ["#0f9462", "#4f46e5", "#e0a100", "#14a3b8", "#e5604d", "#8b95a1", "#a066d9"] as const;
+
+const niceMax = (n: number) => { if (n <= 4) return 4; const p = Math.pow(10, Math.floor(Math.log10(n))); const f = n / p; return (f <= 1.5 ? 1.5 : f <= 2 ? 2 : f <= 3 ? 3 : f <= 4 ? 4 : f <= 5 ? 5 : f <= 8 ? 8 : 10) * p; };
+
+/**
+ * Vertical bars, one stack per day (or per hour). Y-axis grid, a coloured legend, a native tooltip on every bar and a hidden table
+ * with the same numbers, so nothing depends on colour or hovering.
+ */
+export function StackedBars({ points, series, label, summary, format = (n) => n.toLocaleString(), every = 2, height = 220 }: { points: { key: string; label: string; parts: Record<string, number> }[]; series: { key: string; label: string; color?: string }[]; label: string; summary: string; format?: (n: number) => string; every?: number; height?: number }) {
+  const W = 640, H = height, L = 40, R = 8, T = 12, B = 28;
+  const totals = points.map((p) => series.reduce((n, s) => n + (p.parts[s.key] ?? 0), 0));
+  const top = niceMax(Math.max(1, ...totals));
+  const ticks = [0, 1, 2, 3, 4].map((i) => (top / 4) * i);
+  const bw = (W - L - R) / points.length;
+  const y = (v: number) => T + (1 - v / top) * (H - T - B);
+  const colorOf = (i: number) => series[i]!.color ?? SERIES_COLORS[i % SERIES_COLORS.length]!;
+  return (
+    <figure>
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="h-auto w-full">
+        <desc>{summary}</desc>
+        {ticks.map((t) => (<g key={t}><line x1={L} x2={W - R} y1={y(t)} y2={y(t)} className="stroke-line" strokeDasharray={t === 0 ? undefined : "3 4"} /><text x={L - 6} y={y(t) + 3.5} textAnchor="end" className="fill-muted text-[10px]">{format(Math.round(t * 10) / 10)}</text></g>))}
+        {points.map((p, i) => {
+          let acc = 0;
+          const x = L + i * bw;
+          return (
+            <g key={p.key} className="[&_rect]:transition-opacity hover:[&_rect]:opacity-80">
+              <title>{`${p.label}: ${series.map((s) => `${s.label} ${format(p.parts[s.key] ?? 0)}`).join(", ")}`}</title>
+              {series.map((s, si) => { const v = p.parts[s.key] ?? 0; if (!v) return null; const h = (v / top) * (H - T - B); acc += v; return <rect key={s.key} x={x + bw * 0.14} y={y(acc)} width={bw * 0.72} height={Math.max(1.5, h)} rx={si === series.length - 1 || acc === totals[i] ? 3 : 0} fill={colorOf(si)} />; })}
+              {i % every === (points.length - 1) % every && <text x={x + bw / 2} y={H - 9} textAnchor="middle" className="fill-muted text-[10px]">{p.label}</text>}
+            </g>
+          );
+        })}
+      </svg>
+      {series.length > 1 && <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">{series.map((s, i) => <li key={s.key} className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-full" style={{ background: colorOf(i) }} />{s.label}</li>)}</ul>}
+      <figcaption className="sr-only">{summary}</figcaption>
+      <table className="sr-only"><caption>{label}</caption><tbody>{points.map((p) => <tr key={p.key}><th scope="row">{p.label}</th>{series.map((s) => <td key={s.key}>{s.label}: {format(p.parts[s.key] ?? 0)}</td>)}</tr>)}</tbody></table>
+    </figure>
+  );
+}
+
+/** Ranked list: name on the left, number on the right, a thin bar below (the "where the work happens" look). */
+export function HBars({ items, label, summary, tone = "#0f9462", format = (n) => n.toLocaleString() }: { items: { label: string; value: number }[]; label: string; summary: string; tone?: string; format?: (n: number) => string }) {
+  const max = Math.max(1, ...items.map((i) => i.value));
+  return (
+    <figure aria-label={label}>
+      <ul className="space-y-3.5">
+        {items.map((i) => (
+          <li key={i.label} title={`${i.label}: ${i.value}`}>
+            <div className="flex items-baseline justify-between gap-3 text-sm"><span className="truncate font-medium text-ink">{i.label}</span><span className="font-semibold tabular-nums text-ink">{format(i.value)}</span></div>
+            <div aria-hidden className="mt-1 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full" style={{ width: `${(i.value / max) * 100}%`, background: tone, minWidth: i.value ? 6 : 0 }} /></div>
+          </li>
+        ))}
+      </ul>
+      <figcaption className="sr-only">{summary}</figcaption>
+    </figure>
+  );
+}
+
+export const Avatar = ({ name }: { name: string }) => (
+  <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-600/12 text-xs font-bold text-brand-700 ring-1 ring-inset ring-brand-600/20">{name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?"}</span>
+);
+
+export const PersonCell = ({ name, sub }: { name: string; sub?: string }) => (
+  <span className="flex min-w-0 items-center gap-3"><Avatar name={name} /><span className="min-w-0"><span className="block truncate font-semibold text-ink">{name}</span>{sub && <span className="block truncate text-xs text-muted">{sub}</span>}</span></span>
+);
+
+export const EmptyLine = ({ children }: { children: ReactNode }) => <p className="rounded-xl bg-canvas px-4 py-6 text-center text-sm text-muted">{children}</p>;

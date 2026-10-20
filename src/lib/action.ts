@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AppError } from "@/lib/errors";
 import { formToObject } from "@/lib/validation";
 import { requireContext } from "@/lib/auth/next";
+import { recordServerError } from "@/server/monitor";
 import type { AuthContext } from "@/lib/auth/context";
 
 export type ActionState =
@@ -44,6 +45,7 @@ export async function run(
       return { ok: false, error: e.message, code: e.code, fieldErrors, values: echoValues(input) };
     }
     console.error(JSON.stringify({ level: "error", msg: "action_failed", userId: ctx.userId, error: e instanceof Error ? e.message : String(e) }));
+    await recordServerError("action", e, undefined, ctx.userId);
     return { ok: false, error: "Something went wrong. Please try again.", values: echoValues(input) };
   }
   revalidatePath("/", "layout");
@@ -70,6 +72,7 @@ export async function publicRun(
       return { ok: false, error: e.message, code: e.code, fieldErrors, values: echoValues(input) };
     }
     console.error(JSON.stringify({ level: "error", msg: "public_action_failed", error: e instanceof Error ? e.message : String(e) }));
+    await recordServerError("action", e, "public form");
     return { ok: false, error: "Something went wrong. Please try again.", values: echoValues(input) };
   }
   if (result && result.redirectTo) redirect(result.redirectTo);

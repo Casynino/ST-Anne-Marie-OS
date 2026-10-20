@@ -61,7 +61,7 @@ describe("configuration and secrets", () => {
     expect(files.some((f) => /(^|\/)\.env($|\.)/.test(f) && !f.endsWith(".env.example"))).toBe(false);
     const bad: string[] = [];
     for (const f of files) {
-      if (/\.(png|jpe?g|webp|ico|pdf|woff2?|dump)$/i.test(f) || f.startsWith("src/generated/") || f === "package-lock.json" || f === "tests/unit/security-static.test.ts") continue;
+      if (/\.(png|jpe?g|webp|ico|pdf|woff2?|dump)$/i.test(f) || f.startsWith("src/generated/") || f === "package-lock.json" || f === "tests/unit/security-static.test.ts" || f === "tests/unit/backup.test.ts") continue; // the latter holds a made-up connection string as a parsing fixture
       let text: string;
       try { text = readFileSync(path.join(ROOT, f), "utf8"); } catch { continue; }
       if (/postgres(ql)?:\/\/[^\s:@/"']+:[^\s@/"']{6,}@/.test(text) || /npg_[A-Za-z0-9]{10,}/.test(text) || /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(text) || /\bAKIA(?!IOSFODNN7EXAMPLE)[0-9A-Z]{16}\b/.test(text)) bad.push(f);

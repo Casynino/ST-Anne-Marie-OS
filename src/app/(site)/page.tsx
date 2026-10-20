@@ -9,7 +9,7 @@ import { ButtonLink, Eyebrow, HeroBackdrop, PhotoSlot, RiseWords, SectionHeading
 import { Reveal } from "@/components/site/fx/reveal";
 import { CountUp } from "@/components/site/fx/count-up";
 import { PhotoStrip } from "@/components/site/fx/photo-strip";
-import { PhoneMock } from "@/components/site/fx/phone-mock";
+import { PortalShowcase } from "@/components/site/portal-showcase";
 import { Gallery } from "@/components/site/fx/gallery";
 import { Photo } from "@/components/site/photo";
 import { NewsCard } from "@/components/site/news-card";
@@ -305,30 +305,19 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ───────── Family portal ───────── */}
+      {/* ───────── Family portal (scroll-tilt showcase) ───────── */}
       <section className="relative isolate overflow-x-clip text-white">
         <HeroBackdrop />
-        <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 py-24 sm:px-6 sm:py-32 lg:grid-cols-[1.1fr_0.9fr]">
-          <Reveal>
-            <Eyebrow light>{t("site.portal.kicker")}</Eyebrow>
-            <h2 className="display mt-4 text-4xl sm:text-5xl">{t("site.portal.headline")}</h2>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-brand-100">{text.parentCommunity ?? t("site.community.default")}</p>
-            <ul className="mt-8 flex flex-wrap gap-2.5">
-              {(["reports", "fees", "attendance", "homework", "timetable", "messages", "calendar"] as const).map((k) => <li key={k} className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-brand-50">{t(`site.portal.f.${k}`)}</li>)}
-            </ul>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <ButtonLink href="/portal" variant="sun" arrow><GraduationCap className="size-5" aria-hidden />{t("site.nav.portal")}</ButtonLink>
-              <ButtonLink href="/login" variant="ghost">{t("site.nav.signIn")}</ButtonLink>
-            </div>
-            <p className="mt-5 max-w-md text-sm text-brand-200">{t("site.portal.note")}</p>
-          </Reveal>
-          <Reveal delay={120} className="relative mx-auto">
-            <div aria-hidden className="absolute -inset-10 rounded-full bg-brand-600/40 blur-3xl" />
-            <div style={{ "--r": "3deg" } as React.CSSProperties} className="float-a relative">
-              <PhoneMock title={t("site.portal.kicker")} labels={{ today: t("site.portal.today"), reports: t("site.portal.f.reports"), fees: t("site.portal.f.fees"), attendance: t("site.portal.f.attendance"), homework: t("site.portal.f.homework"), messages: t("site.portal.f.messages") }} />
-            </div>
-          </Reveal>
-        </div>
+        <PortalShowcase
+          eyebrow={t("site.portal.kicker")}
+          title={t("site.portal.headline")}
+          body={text.parentCommunity ?? t("site.community.default")}
+          features={(["reports", "fees", "attendance", "homework", "timetable", "messages", "calendar"] as const).map((k) => t(`site.portal.f.${k}`))}
+          primary={{ href: "/portal", label: t("site.nav.portal") }}
+          secondary={{ href: "/login", label: t("site.nav.signIn") }}
+          labels={{ today: t("site.portal.today"), portal: t("site.portal.kicker"), reports: t("site.portal.f.reports"), fees: t("site.portal.f.fees"), attendance: t("site.portal.f.attendance"), homework: t("site.portal.f.homework"), timetable: t("site.portal.f.timetable"), messages: t("site.portal.f.messages"), behaviour: t("learn.bh.familyTitle") }}
+        />
+        <p className="relative mx-auto -mt-16 max-w-md px-4 pb-6 text-center text-sm text-brand-200 md:-mt-28">{t("site.portal.note")}</p>
         <Wave className="absolute inset-x-0 -bottom-px text-cream" />
         <div className="h-8 sm:h-14" />
       </section>

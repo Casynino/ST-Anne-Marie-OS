@@ -2260,3 +2260,29 @@ model BackupRun {
   @@index([kind, status, finishedAt])
   @@map("backup_runs")
 }
+
+// Monitoring for the system dashboard. Written best-effort by the app (never blocks a request) and trimmed after 30 days.
+model ErrorEvent {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  occurredAt DateTime @default(now())
+  source     String // action | api | job
+  name       String // error class, e.g. PrismaClientKnownRequestError
+  message    String // cut short and scrubbed of e-mail addresses and long digit runs
+  where      String? // action name or route
+  userId     String?  @db.Uuid
+
+  @@index([occurredAt])
+  @@map("error_events")
+}
+
+model JobRun {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  name       String
+  startedAt  DateTime
+  finishedAt DateTime @default(now())
+  ok         Boolean
+  summary    Json?
+
+  @@index([name, finishedAt])
+  @@map("job_runs")
+}

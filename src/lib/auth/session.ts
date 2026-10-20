@@ -4,7 +4,7 @@ import type { RequestMeta } from "./context";
 
 export const SESSION_COOKIE = "sam_session";
 export const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000; // sliding 14 days
-const TOUCH_INTERVAL_MS = 60 * 60 * 1000;
+const TOUCH_INTERVAL_MS = 2 * 60 * 1000; // also tells the dashboard who is online right now
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -18,7 +18,7 @@ export async function createSession(userId: string, meta: RequestMeta): Promise<
   return { token, expiresAt };
 }
 
-/** Returns the userId for a valid, unexpired session of an ACTIVE user; slides expiry at most hourly. */
+/** Returns the userId for a valid, unexpired session of an ACTIVE user; slides expiry at most every two minutes. */
 export async function resolveSession(token: string): Promise<{ userId: string; sessionId: string } | null> {
   const session = await db.session.findUnique({
     where: { tokenHash: hashToken(token) },

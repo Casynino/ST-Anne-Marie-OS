@@ -22,8 +22,12 @@ export async function authenticate(identifierInput: string, password: string, me
   const key = identifier ?? identifierInput.trim().toLowerCase().slice(0, 100);
   const since = new Date(Date.now() - WINDOW_MS);
 
+  // Failures count from the last successful sign-in of that identifier (or the window start). Attempts are kept for 30 days
+  // so the security panel can show them; a success no longer erases the history.
+  const lastOk = await db.loginAttempt.findFirst({ where: { identifier: key, success: true }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
+  const identSince = lastOk && lastOk.createdAt > since ? lastOk.createdAt : since;
   const [identFailures, ipFailures] = await Promise.all([
-    db.loginAttempt.count({ where: { identifier: key, success: false, createdAt: { gte: since } } }),
+    db.loginAttempt.count({ where: { identifier: key, success: false, createdAt: { gt: identSince } } }),
     meta.ip ? db.loginAttempt.count({ where: { ip: meta.ip, success: false, createdAt: { gte: since } } }) : 0,
   ]);
   if (identFailures >= MAX_FAILURES_PER_IDENTIFIER || ipFailures >= MAX_FAILURES_PER_IP) {
@@ -52,9 +56,9 @@ export async function authenticate(identifierInput: string, password: string, me
     throw new AppError("UNAUTHENTICATED", GENERIC_FAILURE);
   }
 
-  await db.loginAttempt.deleteMany({ where: { identifier: key } });
+  await db.loginAttempt.create({ data: { identifier: key, ip: meta.ip, success: true } });
   // Opportunistic cleanup keeps the table small without a scheduler.
-  await db.loginAttempt.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
+  await db.loginAttempt.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } });
   await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   const session = await createSession(user.id, meta);
   await writeAudit(db, { schoolId: user.schoolId, actorId: user.id, actorName: user.fullName, meta }, {

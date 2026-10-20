@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AppError } from "@/lib/errors";
+import { recordServerError } from "@/server/monitor";
 
 export const noStore = { "Cache-Control": "no-store" } as const;
 
@@ -30,5 +31,6 @@ export function errorResponse(e: unknown, log: string) {
     return jsonError(status, e.message, { code: e.code, fieldErrors: e.fieldErrors });
   }
   console.error(JSON.stringify({ level: "error", msg: log, error: e instanceof Error ? e.message : String(e) }));
+  void recordServerError("api", e, log); // best effort, never awaited
   return jsonError(500, "Server error");
 }
