@@ -65,7 +65,7 @@ export default async function FeesSetupPage({ searchParams }: { searchParams: Pr
                   <li key={i.id} className="py-2 first:pt-0 last:pb-0">
                     <div className="flex items-center justify-between gap-2"><span className="font-medium">{i.name}</span><Badge tone={i.isActive ? "brand" : "neutral"}>{tDynamic(t, "fin.cat", i.category)}</Badge></div>
                     {manage && (
-                      <details className="mt-1"><summary className="min-h-9 cursor-pointer text-xs text-brand-800">{t("common.edit")}</summary>
+                      <details className="mt-1"><summary className="min-h-9 cursor-pointer text-xs text-link">{t("common.edit")}</summary>
                         <ActionForm action={updateFeeItemAction} submitLabel={t("common.save")} className="mt-2 space-y-2">
                           <input type="hidden" name="id" value={i.id} />
                           <Field name="name" label={t("grade.name")} defaultValue={i.name} required />
@@ -98,7 +98,7 @@ export default async function FeesSetupPage({ searchParams }: { searchParams: Pr
         </div>
 
         <div className="space-y-6">
-          <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-white p-3">
+          <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-3">
             <Field name="yearId" type="select" label={t("fin.fees.year")} options={years.map((y) => ({ value: y.id, label: y.name }))} defaultValue={yearId ?? ""} />
             <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("common.filter")}</button>
           </form>
@@ -115,7 +115,7 @@ export default async function FeesSetupPage({ searchParams }: { searchParams: Pr
                 </ul>
                 <p className="mt-2 text-sm font-medium">{t("fin.fees.perTerm", { amount: money(total) })}</p>
                 {manage && (
-                  <details className="mt-3 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer text-sm font-medium text-brand-800">{t("common.edit")}</summary>
+                  <details className="mt-3 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer text-sm font-medium text-link">{t("common.edit")}</summary>
                     <p className="mt-2 text-xs text-muted">{t("fin.fees.editHint")}</p>
                     <ActionForm action={updateStructureAction} submitLabel={t("common.save")} className="mt-3 space-y-3">
                       <input type="hidden" name="id" value={s.id} /><input type="hidden" name="academicYearId" value={s.academicYearId} />

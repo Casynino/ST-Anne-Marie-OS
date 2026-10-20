@@ -49,7 +49,7 @@ export default async function FinanceReportsPage({ searchParams }: { searchParam
             <DataTable head={[t("marks.student"), t("exam.class"), t("fin.outstanding"), t("fin.overdue"), t("fin.reports.oldest"), t("fin.reports.contact")]}>
               {a.rows.map((r) => (
                 <tr key={r.studentId}>
-                  <Td><Link href={`/finance/students/${r.studentId}`} className="font-medium text-brand-800 hover:underline">{r.name}</Link><p className="text-xs text-muted">{r.admissionNo}</p></Td>
+                  <Td><Link href={`/finance/students/${r.studentId}`} className="font-medium text-link hover:underline">{r.name}</Link><p className="text-xs text-muted">{r.admissionNo}</p></Td>
                   <Td>{r.className ?? "—"}</Td>
                   <Td className="tabular-nums font-medium">{money(r.outstanding)}</Td>
                   <Td className="tabular-nums">{r.overdue > 0 ? money(r.overdue) : "—"}</Td>
@@ -106,7 +106,7 @@ export default async function FinanceReportsPage({ searchParams }: { searchParam
       <PageHeader title={t("fin.reports.title")} subtitle={t("fin.reports.subtitle")} actions={exportHref ? <ExportMenu base={exportHref} t={t} /> : undefined} />
       <FinanceNav ctx={ctx} t={t} current="/finance/reports" unmatched={unmatched} />
       <nav className="mb-4 flex flex-wrap gap-2" aria-label={t("fin.reports.title")}>
-        {REPORTS.map((r) => <Link key={r} href={`/finance/reports?report=${r}`} aria-current={report === r ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${report === r ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white hover:bg-canvas"}`}>{t(`fin.report.${r}` as never)}</Link>)}
+        {REPORTS.map((r) => <Link key={r} href={`/finance/reports?report=${r}`} aria-current={report === r ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${report === r ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{t(`fin.report.${r}` as never)}</Link>)}
       </nav>
       <FilterBar t={t} resetHref={`/finance/reports?report=${report}`}>
         <input type="hidden" name="report" value={report} />

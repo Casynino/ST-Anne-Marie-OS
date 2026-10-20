@@ -25,7 +25,7 @@ export default async function FamilyHome() {
         <ul className="grid gap-3 sm:grid-cols-2">
           {children.map((c) => (
             <li key={c.id}>
-              <Link href={`/family/${c.id}`} className="flex min-h-20 items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)] hover:border-brand-400">
+              <Link href={`/family/${c.id}`} className="flex min-h-20 items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)] hover:border-brand-400">
                 <span className="min-w-0"><span className="block truncate text-base font-semibold">{c.name}</span><span className="block text-sm text-muted">{c.className ? `${c.className}${c.streamName ? ` ${c.streamName}` : ""}` : t("fam.notPlaced")} · {c.admissionNo}</span>{c.status !== "ENROLLED" && <Badge>{t(`student.status.${c.status}` as never)}</Badge>}</span>
                 <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />
               </Link>
@@ -38,7 +38,7 @@ export default async function FamilyHome() {
           <ul className="divide-y divide-line">
             {news.items.map((n) => (
               <li key={n.id} className="py-3 first:pt-0 last:pb-0">
-                <Link href={`/news/${n.slug ?? n.id}`} className="font-medium text-brand-800 hover:underline">{n.title}</Link>
+                <Link href={`/news/${n.slug ?? n.id}`} className="font-medium text-link hover:underline">{n.title}</Link>
                 <p className="text-xs text-muted">{displayDate(n.publishedAt, ctx.locale)}</p>
               </li>
             ))}

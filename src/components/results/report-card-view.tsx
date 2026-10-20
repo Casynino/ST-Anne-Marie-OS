@@ -18,14 +18,14 @@ export function ReportCardView({ snap, t }: { snap: ReportSnapshot; t: Translate
     ...(s.streamPosition !== null && s.streamSize ? ([[t("rc.streamPosition"), `${s.streamPosition} ${t("rc.of")} ${s.streamSize}`]] as [string, string][]) : []),
   ];
   return (
-    <article className="overflow-hidden rounded-2xl border border-line bg-white shadow-[var(--shadow-card)]">
+    <article className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]">
       <header className="border-b-4 border-brand-600 px-5 py-5 text-center">
-        <p className="text-lg font-bold uppercase tracking-wide text-brand-700">{snap.school.name}</p>
+        <p className="text-lg font-bold uppercase tracking-wide text-link">{snap.school.name}</p>
         {snap.school.motto && <p className="text-sm italic text-muted">{snap.school.motto}</p>}
         <p className="mt-0.5 text-xs text-muted">{[snap.school.address, snap.school.phone, snap.school.email].filter(Boolean).join("  ·  ")}</p>
         <h2 className="mt-3 text-sm font-bold uppercase tracking-widest">{t("rc.title")}</h2>
       </header>
-      <dl className="grid gap-x-6 gap-y-2 bg-brand-50/60 px-5 py-4 text-sm sm:grid-cols-2">
+      <dl className="grid gap-x-6 gap-y-2 bg-tint/60 px-5 py-4 text-sm sm:grid-cols-2">
         {([
           [t("rc.student"), snap.student.name], [t("rc.class"), `${snap.class.name}${snap.class.stream ? ` ${snap.class.stream}` : ""}`],
           [t("rc.admissionNo"), snap.student.admissionNo], [t("rc.term"), `${snap.term.name}, ${snap.term.year}`],
@@ -67,19 +67,19 @@ export function ReportCardView({ snap, t }: { snap: ReportSnapshot; t: Translate
       </div>
       <dl className="mx-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-brand-600 bg-line sm:grid-cols-3 lg:grid-cols-6">
         {summary.map(([k, v]) => (
-          <div key={k} className="bg-white px-3 py-2 text-center"><dt className="text-[11px] uppercase tracking-wide text-muted">{k}</dt><dd className="text-base font-bold tabular-nums">{v}</dd></div>
+          <div key={k} className="bg-surface px-3 py-2 text-center"><dt className="text-[11px] uppercase tracking-wide text-muted">{k}</dt><dd className="text-base font-bold tabular-nums">{v}</dd></div>
         ))}
       </dl>
       {snap.scale.divisionBestN && s.division === "INC" && <p className="mx-5 mt-2 text-xs italic text-muted">{t("rc.incNote")}</p>}
       <section className="mx-5 mt-5">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-brand-700">{t("rc.attendance")}</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wide text-link">{t("rc.attendance")}</h3>
         <p className="mt-1 text-sm">
           {a.recorded === 0 ? t("rc.attNone") : `${t("rc.attDays")}: ${a.recorded} · ${t("rc.attPresent")}: ${a.present} · ${t("rc.attAbsent")}: ${a.absent} · ${t("rc.attLate")}: ${a.late} · ${t("rc.attExcused")}: ${a.excused} · ${t("rc.attRate")}: ${a.ratePct === null ? "—" : `${a.ratePct}%`}`}
         </p>
       </section>
       <section className="mx-5 mt-5 grid gap-4 sm:grid-cols-2">
         {([[t("rc.remarkClass"), snap.remarks.class], [t("rc.remarkHead"), snap.remarks.head]] as const).map(([k, v]) => (
-          <div key={k}><h3 className="text-xs font-bold uppercase tracking-wide text-brand-700">{k}</h3><p className={`mt-1 whitespace-pre-line rounded-lg border border-line p-3 text-sm ${v ? "" : "italic text-muted"}`}>{v ?? t("rc.noRemark")}</p></div>
+          <div key={k}><h3 className="text-xs font-bold uppercase tracking-wide text-link">{k}</h3><p className={`mt-1 whitespace-pre-line rounded-lg border border-line p-3 text-sm ${v ? "" : "italic text-muted"}`}>{v ?? t("rc.noRemark")}</p></div>
         ))}
       </section>
       <footer className="mx-5 mb-5 mt-5 border-t border-line pt-3 text-xs text-muted">

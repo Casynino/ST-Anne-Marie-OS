@@ -31,7 +31,7 @@ export default async function ReconcileEventPage({ params, searchParams }: { par
   const invoices = fin ? [...fin.ledger.invoices.values()].filter((b) => b.outstanding > 0).map((b) => ({ value: b.id, label: `${fin.invoices.find((i) => i.id === b.id)!.number} · ${money(b.outstanding)}` })) : [];
   return (
     <>
-      <PageHeader title={t("fin.recon.matchTitle")} subtitle={`${ev.provider} · ${ev.providerEventId}`} actions={<Link href="/finance/reconciliation" className="text-sm font-medium text-brand-800 hover:underline">{t("fin.nav.reconciliation")}</Link>} />
+      <PageHeader title={t("fin.recon.matchTitle")} subtitle={`${ev.provider} · ${ev.providerEventId}`} actions={<Link href="/finance/reconciliation" className="text-sm font-medium text-link hover:underline">{t("fin.nav.reconciliation")}</Link>} />
       <FinanceNav ctx={ctx} t={t} current="/finance/reconciliation" unmatched={unmatched} />
       <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
         <Card title={t("fin.recon.notification")} className="h-fit">

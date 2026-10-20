@@ -18,7 +18,7 @@ export default async function FamilyCalendarPage() {
       {items.length === 0 ? <EmptyState>{t("cal.empty")}</EmptyState> : (
         <ul className="space-y-2">
           {items.map((i) => (
-            <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white px-4 py-3">
+            <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3">
               <span><span className="font-medium">{ctx.locale === "SW" && i.titleSw ? i.titleSw : i.title}</span>{i.location && <span className="block text-sm text-muted">{i.location}</span>}</span>
               <span className="text-sm text-muted">{displayDate(new Date(`${i.from}T00:00:00Z`), ctx.locale)}{i.to && i.to !== i.from ? ` – ${displayDate(new Date(`${i.to}T00:00:00Z`), ctx.locale)}` : ""}</span>
             </li>

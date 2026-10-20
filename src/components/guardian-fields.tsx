@@ -68,12 +68,12 @@ export function GuardianFields({ prefix, labels, primary, canSearch, optionalBlo
           <input id={`${prefix}search`} type="search" value={query} onChange={(e) => setQuery(e.target.value)} className={inputClass} autoComplete="off" />
           <p className="mt-1 text-sm text-muted">{labels.siblingHint}</p>
           {results.length > 0 && (
-            <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-line bg-white shadow-md">
+            <ul className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-line bg-surface shadow-md">
               {results.map((g) => (
                 <li key={g.id}>
                   <button type="button" onClick={() => { setChosen(g); setResults([]); setQuery(""); }} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-canvas">
                     <span><strong>{g.fullName}</strong> · {g.phone}</span>
-                    <span className="text-brand-700">{labels.useExisting}</span>
+                    <span className="text-link">{labels.useExisting}</span>
                   </button>
                 </li>
               ))}
@@ -83,10 +83,10 @@ export function GuardianFields({ prefix, labels, primary, canSearch, optionalBlo
       )}
 
       {guardianId ? (
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-tint-2 bg-tint px-3 py-2 text-sm">
           <input type="hidden" name={`${prefix}guardianId`} value={guardianId} />
           <span><span className="text-muted">{labels.existing}: </span><strong>{chosen ? `${chosen.fullName} · ${chosen.phone}` : guardianId.slice(0, 8)}</strong></span>
-          <button type="button" onClick={() => setChosen(null)} className="inline-flex min-h-9 items-center gap-1 text-brand-700"><X className="size-4" aria-hidden />{labels.clear}</button>
+          <button type="button" onClick={() => setChosen(null)} className="inline-flex min-h-9 items-center gap-1 text-link"><X className="size-4" aria-hidden />{labels.clear}</button>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">

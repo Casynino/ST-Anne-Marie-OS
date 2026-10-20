@@ -24,14 +24,14 @@ export default async function StaffMessagesPage({ searchParams }: { searchParams
       <CommunicationNav ctx={ctx} t={t} current="/communication/messages" attention={attention} />
       {boxes.length > 1 && (
         <nav className="mb-4 flex flex-wrap gap-2" aria-label={t("msg.title")}>
-          {boxes.map((b) => <Link key={b} href={`/communication/messages?box=${b}`} aria-current={box === b ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${box === b ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white hover:bg-canvas"}`}>{t(`msg.box.${b}` as never)}</Link>)}
+          {boxes.map((b) => <Link key={b} href={`/communication/messages?box=${b}`} aria-current={box === b ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${box === b ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{t(`msg.box.${b}` as never)}</Link>)}
         </nav>
       )}
       {rows.length === 0 ? <EmptyState>{t("msg.empty")}</EmptyState> : (
         <ul className="space-y-2">
           {rows.map((r) => (
             <li key={r.id}>
-              <Link href={`/communication/messages/${r.id}`} className="flex min-h-16 flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white px-4 py-3 hover:border-brand-400">
+              <Link href={`/communication/messages/${r.id}`} className="flex min-h-16 flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3 hover:border-brand-400">
                 <span className="min-w-0"><span className={`block truncate ${r.unread ? "font-bold" : "font-medium"}`}>{r.subject}</span><span className="block text-sm text-muted">{r.withName} · {r.studentName}</span></span>
                 <span className="flex items-center gap-2 text-xs text-muted">{r.flagged && <Badge tone="bad">{t("msg.flaggedBadge")}</Badge>}{r.office && <Badge>{t("msg.office")}</Badge>}{r.status === "CLOSED" && <Badge>{t("msg.closed")}</Badge>}{r.unread && <Badge tone="brand">{t("msg.new.badge")}</Badge>}{displayDateTime(r.lastMessageAt, school.timezone)}</span>
               </Link>

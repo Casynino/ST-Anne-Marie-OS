@@ -5,7 +5,7 @@ import { ArrowRight, type LucideIcon } from "lucide-react";
 /** Section heading in the dashboard: a bold title with a one-line purpose, closed by a hairline. */
 export function DashSection({ id, eyebrow, title, subtitle, children }: { id: string; eyebrow?: string; title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={`${id}-h`} className="mt-10">
+    <section id={id} aria-labelledby={`${id}-h`} className="mt-10 scroll-mt-24">
       {eyebrow && (
         <div className="mb-3 flex items-center gap-3"><span className="rounded-full bg-surface px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em] text-muted ring-1 ring-inset ring-line">{eyebrow}</span><span aria-hidden className="h-px flex-1 bg-line" /></div>
       )}
@@ -23,7 +23,7 @@ const PILL = {
   warn: "bg-warn/12 text-warn ring-warn/25",
   bad: "bg-bad/12 text-bad ring-bad/25",
   info: "bg-indigo/12 text-indigo ring-indigo/25",
-  brand: "bg-brand-600/12 text-brand-700 ring-brand-600/25",
+  brand: "bg-brand-600/12 text-link ring-brand-600/25",
   neutral: "bg-muted/12 text-muted ring-muted/25",
 } as const;
 export type PillTone = keyof typeof PILL;
@@ -35,13 +35,13 @@ export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLab
     <>
       <span className="flex items-start justify-between gap-3">
         <span className="text-[11px] font-bold uppercase tracking-[.14em] text-muted">{label}</span>
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-600/12 text-brand-700"><Icon className="size-[1.15rem]" aria-hidden /></span>
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-600/12 text-link"><Icon className="size-[1.15rem]" aria-hidden /></span>
       </span>
       <span className="mt-2 block text-4xl font-semibold tabular-nums tracking-tight text-ink">{value}</span>
       {caption && <span className="mt-0.5 block text-sm text-muted">{caption}</span>}
       <span className="mt-auto flex items-center justify-between gap-2 pt-4">
         {pill ? <Pill tone={pill.tone}>{pill.text}</Pill> : <span />}
-        {href && openLabel && <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 group-hover:underline">{openLabel}<ArrowRight className="size-3.5" aria-hidden /></span>}
+        {href && openLabel && <span className="inline-flex items-center gap-1 text-xs font-semibold text-link group-hover:underline">{openLabel}<ArrowRight className="size-3.5" aria-hidden /></span>}
       </span>
     </>
   );
@@ -115,7 +115,7 @@ export function HBars({ items, label, summary, tone = "#0f9462", format = (n) =>
 }
 
 export const Avatar = ({ name }: { name: string }) => (
-  <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-600/12 text-xs font-bold text-brand-700 ring-1 ring-inset ring-brand-600/20">{name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?"}</span>
+  <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-600/12 text-xs font-bold text-link ring-1 ring-inset ring-brand-600/20">{name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?"}</span>
 );
 
 export const PersonCell = ({ name, sub }: { name: string; sub?: string }) => (
@@ -123,3 +123,43 @@ export const PersonCell = ({ name, sub }: { name: string; sub?: string }) => (
 );
 
 export const EmptyLine = ({ children }: { children: ReactNode }) => <p className="rounded-xl bg-canvas px-4 py-6 text-center text-sm text-muted">{children}</p>;
+
+/** A table inside a Panel: small capital column heads, hairline rows, numbers right-aligned. */
+export function DashTable({ head, children, empty, min = "28rem" }: { head: { label: string; right?: boolean }[]; children: ReactNode; empty?: ReactNode; min?: string }) {
+  if (empty) return <EmptyLine>{empty}</EmptyLine>;
+  return (
+    <div className="-mx-5 overflow-x-auto">
+      <table className="w-full text-sm" style={{ minWidth: min }}>
+        <thead><tr className="border-y border-line text-left text-[11px] font-bold uppercase tracking-[.12em] text-muted">{head.map((h, i) => <th key={i} className={`px-5 py-2.5 ${h.right ? "text-right" : ""}`}>{h.label}</th>)}</tr></thead>
+        <tbody className="divide-y divide-line">{children}</tbody>
+      </table>
+    </div>
+  );
+}
+export const Cell = ({ children, right, className = "" }: { children?: ReactNode; right?: boolean; className?: string }) => <td className={`px-5 py-3 align-middle ${right ? "text-right tabular-nums" : ""} ${className}`}>{children}</td>;
+
+/** Ring chart with a big figure in the middle and a legend of counts (never colour alone). */
+export function DonutStat({ segments, center, caption, label }: { segments: { label: string; value: number; color: string }[]; center: ReactNode; caption?: string; label: string }) {
+  const total = segments.reduce((n, s) => n + s.value, 0);
+  const R = 52, C = 2 * Math.PI * R;
+  let offset = 0;
+  return (
+    <figure aria-label={label} className="flex flex-wrap items-center gap-6">
+      <div className="relative size-40 shrink-0">
+        <svg viewBox="0 0 140 140" className="size-full -rotate-90" role="img" aria-label={label}>
+          <circle cx="70" cy="70" r={R} fill="none" strokeWidth="14" className="stroke-line" />
+          {total > 0 && segments.map((s) => {
+            const len = (s.value / total) * C;
+            const el = <circle key={s.label} cx="70" cy="70" r={R} fill="none" strokeWidth="14" stroke={s.color} strokeDasharray={`${Math.max(0, len - 1.5)} ${C - Math.max(0, len - 1.5)}`} strokeDashoffset={-offset} strokeLinecap="butt"><title>{`${s.label}: ${s.value}`}</title></circle>;
+            offset += len;
+            return el;
+          })}
+        </svg>
+        <div className="absolute inset-0 grid place-items-center text-center"><div><div className="text-3xl font-semibold tabular-nums text-heading">{center}</div>{caption && <div className="text-[10px] font-bold uppercase tracking-[.16em] text-muted">{caption}</div>}</div></div>
+      </div>
+      <ul className="min-w-[10rem] flex-1 space-y-2 text-sm">
+        {segments.map((s) => <li key={s.label} className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 text-ink/90"><span aria-hidden className="size-2.5 rounded-full" style={{ background: s.color }} />{s.label}</span><span className="font-semibold tabular-nums text-ink">{s.value}</span></li>)}
+      </ul>
+    </figure>
+  );
+}

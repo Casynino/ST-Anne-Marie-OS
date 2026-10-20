@@ -45,10 +45,10 @@ export default async function NewBroadcastPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader title={kind === "FEE_REMINDER" ? t("comm.newReminder") : t("comm.newNotice")} subtitle={kind === "FEE_REMINDER" ? t("comm.reminder.subtitle") : t("comm.notice.subtitle")} actions={<Link href="/communication" className="text-sm font-medium text-brand-800 hover:underline">{t("comm.title")}</Link>} />
+      <PageHeader title={kind === "FEE_REMINDER" ? t("comm.newReminder") : t("comm.newNotice")} subtitle={kind === "FEE_REMINDER" ? t("comm.reminder.subtitle") : t("comm.notice.subtitle")} actions={<Link href="/communication" className="text-sm font-medium text-link hover:underline">{t("comm.title")}</Link>} />
       <CommunicationNav ctx={ctx} t={t} current="/communication" />
       <div className="grid gap-6 xl:grid-cols-[1fr_24rem]">
-        <form method="get" className="space-y-4 rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)]">
+        <form method="get" className="space-y-4 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
           <input type="hidden" name="kind" value={kind} />
           <input type="hidden" name="preview" value="1" />
           <Field name="title" label={t("comm.f.title")} defaultValue={formValues.title} required hint={t("comm.f.titleHint")} />

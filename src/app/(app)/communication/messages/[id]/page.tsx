@@ -24,7 +24,7 @@ export default async function StaffThreadPage({ params }: { params: Promise<{ id
   const th = d.thread;
   return (
     <>
-      <PageHeader title={th.subject} subtitle={`${d.guardianName} · ${th.studentName}`} actions={<><Link href="/communication/messages" className="text-sm font-medium text-brand-800 hover:underline">{t("msg.title")}</Link>{th.status === "CLOSED" && <Badge>{t("msg.closed")}</Badge>}</>} />
+      <PageHeader title={th.subject} subtitle={`${d.guardianName} · ${th.studentName}`} actions={<><Link href="/communication/messages" className="text-sm font-medium text-link hover:underline">{t("msg.title")}</Link>{th.status === "CLOSED" && <Badge>{t("msg.closed")}</Badge>}</>} />
       <CommunicationNav ctx={ctx} t={t} current="/communication/messages" />
       <p className="mb-4 text-xs text-muted">{t("msg.reviewNotice")}</p>
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
@@ -34,7 +34,7 @@ export default async function StaffThreadPage({ params }: { params: Promise<{ id
             actions={(m) => (
               <details className="mt-2 text-xs">
                 <summary className="min-h-9 cursor-pointer opacity-80">{t("msg.actions")}</summary>
-                <div className="mt-2 space-y-2 rounded-lg bg-white p-2 text-ink">
+                <div className="mt-2 space-y-2 rounded-lg bg-surface p-2 text-ink">
                   {!m.mine && !m.hidden && (
                     <ActionForm action={flagMessageAction} submitLabel={t("msg.flag")} inline className="space-y-1"><input type="hidden" name="messageId" value={m.id} /><Field name="reason" label={t("marks.reason")} required /></ActionForm>
                   )}

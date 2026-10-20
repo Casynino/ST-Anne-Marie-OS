@@ -52,7 +52,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
             <input type="hidden" name="preview" value="1" />
             <Field name="classId" type="select" label={t("exam.class")} options={classes.map((c) => ({ value: c.id, label: c.name }))} defaultValue={classId ?? ""} placeholder={t("fin.invoices.allClasses")} />
             <Field name="due" type="date" label={t("fin.invoices.dueDate")} defaultValue={due} required />
-            <button className="min-h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:bg-canvas">{t("fin.invoices.preview")}</button>
+            <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas">{t("fin.invoices.preview")}</button>
           </form>
           {previewError && <p role="alert" className="mt-3 text-sm text-bad">{previewError}</p>}
           {preview && (
@@ -87,7 +87,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
         <DataTable head={[t("fin.pdf.invoiceNo"), t("marks.student"), t("exam.class"), t("fin.total"), t("fin.paid"), t("fin.outstanding"), t("marks.status")]}>
           {data.items.map((i) => (
             <tr key={i.id}>
-              <Td><Link href={`/finance/invoices/${i.id}`} className="font-medium text-brand-800 hover:underline">{i.number}</Link><p className="text-xs text-muted">{i.termName ?? t("fin.invoices.oneOff")} · {t("fin.pdf.due")} {i.dueDate}</p></Td>
+              <Td><Link href={`/finance/invoices/${i.id}`} className="font-medium text-link hover:underline">{i.number}</Link><p className="text-xs text-muted">{i.termName ?? t("fin.invoices.oneOff")} · {t("fin.pdf.due")} {i.dueDate}</p></Td>
               <Td><Link href={`/finance/students/${i.studentId}`} className="hover:underline">{i.studentName}</Link><p className="text-xs text-muted">{i.admissionNo}</p></Td>
               <Td>{i.className ?? "—"}</Td>
               <Td className="tabular-nums">{i.balance ? money(i.balance.total) : "—"}</Td>

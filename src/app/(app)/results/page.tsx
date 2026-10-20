@@ -62,7 +62,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Prom
           {data.rows.length === 0 ? (
             <EmptyState>{t("res.noStudents")}</EmptyState>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-line bg-white shadow-[var(--shadow-card)]">
+            <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
                   <tr>

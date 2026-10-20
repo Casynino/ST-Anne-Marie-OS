@@ -18,7 +18,7 @@ export default async function FamilyMessagesPage() {
       {rows.length === 0 ? <EmptyState>{t("fam.messages.empty")}</EmptyState> : (
         <ul className="space-y-2">
           {rows.map((r) => (
-            <li key={r.id}><Link href={`/family/messages/${r.id}`} className="flex min-h-16 flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-white px-4 py-3 hover:border-brand-400">
+            <li key={r.id}><Link href={`/family/messages/${r.id}`} className="flex min-h-16 flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3 hover:border-brand-400">
               <span className="min-w-0"><span className={`block truncate ${r.unread ? "font-bold" : "font-medium"}`}>{r.subject}</span><span className="block text-sm text-muted">{r.withName} · {r.studentName}</span></span>
               <span className="flex items-center gap-2 text-xs text-muted">{r.status === "CLOSED" && <Badge>{t("msg.closed")}</Badge>}{r.unread && <Badge tone="brand">{t("msg.new.badge")}</Badge>}{displayDateTime(r.lastMessageAt, school.timezone)}</span>
             </Link></li>

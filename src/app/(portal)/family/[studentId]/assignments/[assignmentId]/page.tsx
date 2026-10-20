@@ -27,7 +27,7 @@ export default async function ChildAssignmentPage({ params }: { params: Promise<
     const s = d.submission;
     return (
       <>
-        <Link href={`/family/${studentId}/assignments`} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("learn.fam.homework")}</Link>
+        <Link href={`/family/${studentId}/assignments`} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("learn.fam.homework")}</Link>
         <PageHeader title={a.title} subtitle={`${a.subjectName} · ${t("learn.asg.due")}: ${displayDateTime(a.dueAt, tz, ctx.locale)}${a.maxScore !== null ? ` · ${t("learn.asg.outOf", { max: a.maxScore })}` : ""}`} actions={a.closed ? <Badge tone="neutral">{t("learn.fam.closed")}</Badge> : undefined} />
         <div className="space-y-5">
           <Card title={t("learn.asg.instructions")}>
@@ -46,8 +46,8 @@ export default async function ChildAssignmentPage({ params }: { params: Promise<
               {s.text && <p className="whitespace-pre-line rounded-xl bg-canvas px-3 py-2 text-sm">{s.text}</p>}
               <div className="mt-3"><FileList files={d.submissionFiles} remove={d.canSubmit ? (f) => <ActionForm action={removeMyFileAction} submitLabel={t("common.remove")} inline tone="danger" className=""><input type="hidden" name="fileId" value={f.id} /></ActionForm> : undefined} /></div>
               {s.released && (
-                <div className="mt-4 rounded-2xl border border-brand-200 bg-brand-50 p-4">
-                  {s.score !== null && a.maxScore !== null && <p className="display text-3xl text-brand-900">{s.score} <span className="text-lg text-brand-700">/ {a.maxScore}</span></p>}
+                <div className="mt-4 rounded-2xl border border-tint-2 bg-tint p-4">
+                  {s.score !== null && a.maxScore !== null && <p className="display text-3xl text-heading">{s.score} <span className="text-lg text-link">/ {a.maxScore}</span></p>}
                   {s.feedback && <p className="mt-1 whitespace-pre-line text-sm"><strong>{t("learn.fam.teacherSays")}:</strong> {s.feedback}</p>}
                 </div>
               )}
@@ -62,12 +62,12 @@ export default async function ChildAssignmentPage({ params }: { params: Promise<
                 <Field name="text" type="textarea" rows={6} label={t("learn.sub.answer")} defaultValue={s?.text ?? ""} />
                 <div>
                   <label htmlFor="work-files" className="mb-1 block text-sm font-medium">{t("learn.fam.files")} <span className="font-normal text-muted">({t("common.optional")})</span></label>
-                  <input id="work-files" name="file" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-800`} />
+                  <input id="work-files" name="file" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp" className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-2 file:text-sm file:font-medium file:text-link`} />
                   <p className="mt-1 text-sm text-muted">{d.filesEnabled ? t("learn.fam.filesHint") : t("learn.fam.filesOff")}</p>
                 </div>
               </ActionForm>
             </Card>
-          ) : ctx.userType === "GUARDIAN" && !s && !a.closed ? <p className="rounded-2xl border border-line bg-white px-4 py-3 text-sm text-muted">{t("learn.fam.parentNote")}</p> : null}
+          ) : ctx.userType === "GUARDIAN" && !s && !a.closed ? <p className="rounded-2xl border border-line bg-surface px-4 py-3 text-sm text-muted">{t("learn.fam.parentNote")}</p> : null}
         </div>
       </>
     );

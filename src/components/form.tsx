@@ -8,7 +8,7 @@ type FormCtx = { errors?: Record<string, string>; values?: Record<string, string
 const Ctx = createContext<FormCtx>({});
 
 export const inputClass =
-  "block w-full min-h-11 rounded-lg border border-line bg-white px-3 py-2 text-base text-ink placeholder:text-muted/70 focus:border-brand-500 disabled:bg-canvas aria-[invalid=true]:border-bad";
+  "block w-full min-h-11 rounded-lg border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-muted/70 focus:border-brand-500 disabled:bg-canvas aria-[invalid=true]:border-bad";
 
 export function ActionForm({
   action,
@@ -69,11 +69,11 @@ export function ActionForm({
           </div>
         )}
         {tempPassword && (
-          <div className="rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm">
-            <div className="flex items-center gap-2 font-medium text-brand-800">
+          <div className="rounded-lg border border-tint-2 bg-tint p-3 text-sm">
+            <div className="flex items-center gap-2 font-medium text-link">
               <KeyRound className="size-4" aria-hidden /> {done?.data?.temporaryPasswordLabel ?? "Temporary password"}
             </div>
-            <code className="mt-2 block select-all break-all rounded bg-white px-3 py-2 text-base font-semibold tracking-wide text-ink">{tempPassword}</code>
+            <code className="mt-2 block select-all break-all rounded bg-surface px-3 py-2 text-base font-semibold tracking-wide text-ink">{tempPassword}</code>
             <p className="mt-2 text-muted">{done?.data?.temporaryPasswordNote}</p>
           </div>
         )}
@@ -198,7 +198,7 @@ export function CheckGroup({ name, options, selected, disabled }: { name: string
   return (
     <div className="grid gap-1 sm:grid-cols-2">
       {options.map((o) => (
-        <label key={o.value} className={`flex min-h-11 items-start gap-3 rounded-lg border border-line bg-white px-3 py-2 ${o.disabled || disabled ? "opacity-60" : "cursor-pointer hover:bg-canvas"}`}>
+        <label key={o.value} className={`flex min-h-11 items-start gap-3 rounded-lg border border-line bg-surface px-3 py-2 ${o.disabled || disabled ? "opacity-60" : "cursor-pointer hover:bg-canvas"}`}>
           <input type="checkbox" name={name} value={o.value} defaultChecked={selected.includes(o.value)} disabled={o.disabled || disabled} className="mt-1 size-5 accent-brand-700" />
           <span className="text-sm leading-snug">
             <span className="font-medium">{o.label}</span>

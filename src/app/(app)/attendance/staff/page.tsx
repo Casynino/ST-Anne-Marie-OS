@@ -33,7 +33,7 @@ export default async function StaffAttendancePage({ searchParams }: { searchPara
         <input type="hidden" name="date" value={date} />
         <ul className="space-y-2">
           {rows.map((r) => (
-            <li key={r.staffId} className="rounded-xl border border-line bg-white p-3">
+            <li key={r.staffId} className="rounded-xl border border-line bg-surface p-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-medium">{r.name}</span>
                 {r.jobTitle && <span className="text-xs text-muted">{r.jobTitle}</span>}

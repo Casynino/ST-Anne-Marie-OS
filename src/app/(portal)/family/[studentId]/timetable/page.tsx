@@ -22,7 +22,7 @@ export default async function ChildTimetablePage({ params }: { params: Promise<{
     const d = await childTimetable(ctx, studentId);
     return (
       <>
-        <Link href={`/family/${studentId}`} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{child.name}</Link>
+        <Link href={`/family/${studentId}`} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{child.name}</Link>
         <PageHeader title={t("learn.tt.title")} subtitle={`${child.name} · ${child.className ?? ""}${child.streamName ? ` ${child.streamName}` : ""}`} />
         {d.lessons.length === 0 ? <EmptyState>{t("learn.tt.familyEmpty")}</EmptyState> : <TimetableGrid periods={d.periods} lessons={d.lessons} detail="teacher" labels={{ day: dayLabels(t), break: t("learn.tt.break"), free: t("learn.tt.free"), whole: t("learn.tt.wholeClass"), add: t("learn.tt.addLesson") }} />}
       </>

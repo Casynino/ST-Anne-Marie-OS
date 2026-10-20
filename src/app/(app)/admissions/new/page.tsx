@@ -32,7 +32,7 @@ export default async function NewApplicationPage() {
         </Card>
         <Card title={`${t("student.guardian2")} (${t("common.optional")})`}>
           <details>
-            <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("student.link")}</summary>
+            <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("student.link")}</summary>
             <div className="mt-2"><GuardianFields prefix="g2_" labels={labels} canSearch={labels.canSearch} optionalBlock /></div>
           </details>
         </Card>

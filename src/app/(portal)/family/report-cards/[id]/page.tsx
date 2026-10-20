@@ -24,7 +24,7 @@ export default async function FamilyReportCardPage({ params }: { params: Promise
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Link href={`/family/${card.studentId}`} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("fam.back")}</Link>
+        <Link href={`/family/${card.studentId}`} className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("fam.back")}</Link>
         <a href={`/api/report-cards/${card.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800"><FileDown className="size-4" aria-hidden />{t("rc.pdf")}</a>
       </div>
       <ReportCardView snap={card.snapshot} t={t} />

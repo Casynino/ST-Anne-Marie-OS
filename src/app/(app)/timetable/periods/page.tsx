@@ -21,12 +21,12 @@ export default async function PeriodsPage() {
           {periods.map((p) => (
             <Card key={p.id}>
               <div className="flex flex-wrap items-center gap-3">
-                <p className="display text-xl text-brand-900">{p.name}</p>
+                <p className="display text-xl text-heading">{p.name}</p>
                 <span className="text-sm tabular-nums text-muted">{p.startTime}–{p.endTime}</span>
                 {p.isBreak && <Badge tone="warn">{t("learn.tt.break")}</Badge>}
               </div>
               <details className="mt-3">
-                <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-brand-800">{t("common.edit")}</summary>
+                <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-link">{t("common.edit")}</summary>
                 <div className="mt-3 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-start">
                   <ActionForm action={updatePeriodAction} submitLabel={t("common.save")} className="grid gap-3 sm:grid-cols-4">
                     <input type="hidden" name="id" value={p.id} />

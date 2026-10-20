@@ -53,7 +53,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
           {overview.rows.map((r) => (
-            <li key={`${r.classId}-${r.streamId}`} className="rounded-xl border border-line bg-white p-4">
+            <li key={`${r.classId}-${r.streamId}`} className="rounded-xl border border-line bg-surface p-4">
               <div className="flex items-baseline justify-between gap-2">
                 <h2 className="text-base font-semibold">
                   {r.className}
@@ -80,7 +80,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
                       </div>
                       <Link
                         href={href}
-                        className={`inline-flex min-h-12 items-center justify-center rounded-xl px-5 text-base font-semibold ${r.canTake && c.status !== "FINALISED" ? "bg-brand-700 text-white hover:bg-brand-800" : "border border-line bg-white text-ink hover:bg-canvas"}`}
+                        className={`inline-flex min-h-12 items-center justify-center rounded-xl px-5 text-base font-semibold ${r.canTake && c.status !== "FINALISED" ? "bg-brand-700 text-white hover:bg-brand-800" : "border border-line bg-surface text-ink hover:bg-canvas"}`}
                       >
                         {label}
                       </Link>

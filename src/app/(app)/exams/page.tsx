@@ -35,12 +35,12 @@ export default async function ExamsPage({ searchParams }: { searchParams: Promis
           <DataTable head={[t("exam.name"), t("exam.category"), t("exam.date"), t("exam.weight"), t("exam.subjects"), ""]} empty={exams.length ? undefined : <p className="px-4 py-10 text-center text-sm text-muted">{t("exam.none")}</p>}>
             {exams.map((e) => (
               <tr key={e.id}>
-                <Td><Link href={`/exams/${e.id}`} className="font-medium text-brand-800 hover:underline">{e.name}</Link></Td>
+                <Td><Link href={`/exams/${e.id}`} className="font-medium text-link hover:underline">{e.name}</Link></Td>
                 <Td><Badge tone="brand">{tDynamic(t, "exam.cat", e.category)}</Badge></Td>
                 <Td>{displayDate(e.examDate, ctx.locale)}</Td>
                 <Td className="tabular-nums">{Number(e.weight)}%</Td>
                 <Td className="tabular-nums">{e._count.subjects}</Td>
-                <Td className="text-right"><Link href={`/exams/${e.id}`} className="text-sm font-medium text-brand-800 hover:underline">{t("common.view")}</Link></Td>
+                <Td className="text-right"><Link href={`/exams/${e.id}`} className="text-sm font-medium text-link hover:underline">{t("common.view")}</Link></Td>
               </tr>
             ))}
           </DataTable>

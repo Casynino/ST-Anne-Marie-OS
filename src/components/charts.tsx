@@ -5,10 +5,10 @@ import { ArrowRight } from "lucide-react";
 /** Card that frames a chart: a real heading, an optional link to the detail page and a text summary for assistive tech. */
 export function ChartCard({ title, subtitle, href, hrefLabel, children, className = "" }: { title: string; subtitle?: string; href?: string; hrefLabel?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={`min-w-0 rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)] ${className}`}>
+    <section className={`min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] ${className}`}>
       <header className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0"><h2 className="text-base font-semibold text-ink">{title}</h2>{subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}</div>
-        {href && <Link href={href} className="inline-flex min-h-9 shrink-0 items-center gap-1 text-sm font-medium text-brand-700 hover:underline">{hrefLabel}<ArrowRight className="size-4" aria-hidden /></Link>}
+        {href && <Link href={href} className="inline-flex min-h-9 shrink-0 items-center gap-1 text-sm font-medium text-link hover:underline">{hrefLabel}<ArrowRight className="size-4" aria-hidden /></Link>}
       </header>
       {children}
     </section>

@@ -50,7 +50,7 @@ export default async function GradingPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title={t("grade.title")} subtitle={t("grade.subtitle")} />
-      <div className="mb-6 rounded-lg border border-line bg-white px-4 py-3 text-sm text-muted">{t("grade.noBuiltin")}</div>
+      <div className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-muted">{t("grade.noBuiltin")}</div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="space-y-6">
@@ -58,7 +58,7 @@ export default async function GradingPage({ searchParams }: { searchParams: Prom
           {scales.map((s) => (
             <Card key={s.id} title={s.name} actions={<span className="flex gap-1">{s.isDefault && <Badge tone="brand">{t("grade.default")}</Badge>}{!s.isActive && <Badge>{t("common.inactive")}</Badge>}</span>}>
               <details>
-                <summary className="min-h-11 cursor-pointer text-sm font-medium text-brand-800">{t("common.edit")}</summary>
+                <summary className="min-h-11 cursor-pointer text-sm font-medium text-link">{t("common.edit")}</summary>
                 <div className="mt-3">
                   <ActionForm action={updateScaleAction} submitLabel={t("common.save")}>
                     <input type="hidden" name="id" value={s.id} />
@@ -87,7 +87,7 @@ export default async function GradingPage({ searchParams }: { searchParams: Prom
                 <p className="font-medium">{t("grade.templates")}</p>
                 {TEMPLATES.map((x) => (
                   <p key={x.key} className="mt-1 text-muted">
-                    <Link href={`/grading?template=${x.key}`} className="font-medium text-brand-800 hover:underline">{x.name}</Link> — {x.note}
+                    <Link href={`/grading?template=${x.key}`} className="font-medium text-link hover:underline">{x.name}</Link> — {x.note}
                   </p>
                 ))}
               </div>

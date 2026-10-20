@@ -32,7 +32,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
   const { child, attendance: a } = ov;
   return (
     <>
-      {many && <Link href="/family" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("fam.allChildren")}</Link>}
+      {many && <Link href="/family" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("fam.allChildren")}</Link>}
       <PageHeader title={child.name} subtitle={`${child.className ? `${child.className}${child.streamName ? ` ${child.streamName}` : ""}` : t("fam.notPlaced")} · ${child.admissionNo}`} />
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -55,7 +55,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
         ) : (
           <ul className="space-y-3">
             {ov.reportCards.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)]">
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
                 <div>
                   <p className="font-semibold">{c.term} <span className="font-normal text-muted">· {c.className}</span></p>
                   <p className="mt-0.5 text-sm text-muted">
@@ -67,7 +67,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
                   <p className="text-xs text-muted">{t("fam.published", { date: displayDate(c.publishedAt, ctx.locale) })}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Link href={`/family/report-cards/${c.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:bg-canvas">{t("common.view")}</Link>
+                  <Link href={`/family/report-cards/${c.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas">{t("common.view")}</Link>
                   <a href={`/api/report-cards/${c.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800"><FileDown className="size-4" aria-hidden />{t("rc.pdf")}</a>
                 </div>
               </li>

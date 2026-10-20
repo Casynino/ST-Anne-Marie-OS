@@ -35,7 +35,7 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
       <PageHeader title={t("website.title")} subtitle={t("website.intro")} actions={<LinkButton href="/" variant="secondary"><ExternalLink className="size-4" aria-hidden /> {t("website.view")}</LinkButton>} />
       <nav aria-label="Website sections" className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((k) => (
-          <Link key={k} href={`/website?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`-mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${tab === k ? "border-brand-700 text-brand-800" : "border-transparent text-muted hover:text-ink"}`}>{t(`website.tab.${k}`)}</Link>
+          <Link key={k} href={`/website?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`-mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${tab === k ? "border-brand-700 text-link" : "border-transparent text-muted hover:text-ink"}`}>{t(`website.tab.${k}`)}</Link>
         ))}
       </nav>
       {tab === "content" && <ContentTab ctx={ctx} />}
@@ -65,7 +65,7 @@ async function ContentTab({ ctx }: { ctx: Ctx }) {
       <Card><Field name="applicationsOpen" type="checkbox" label={t("website.applicationsOpen")} hint={t("website.applicationsOpen.hint")} defaultValue={s.applicationsOpen} /></Card>
 
       {GROUPS.map((g, gi) => (
-        <details key={g.title} open={gi === 0} className="rounded-xl border border-line bg-white">
+        <details key={g.title} open={gi === 0} className="rounded-xl border border-line bg-surface">
           <summary className="flex min-h-14 cursor-pointer items-center justify-between px-4 text-base font-semibold">{t(g.title)}</summary>
           <div className="space-y-6 border-t border-line p-4">
             <div className="hidden grid-cols-2 gap-4 text-xs font-bold uppercase tracking-wider text-muted sm:grid"><span>{t("website.lang.en")}</span><span>{t("website.lang.sw")}</span></div>
@@ -149,7 +149,7 @@ async function NewsTab({ ctx }: { ctx: Ctx }) {
             {!p.publishedAt && <ActionForm action={A.deleteNewsAction} submitLabel={t("common.delete")} inline tone="danger" confirm={t("common.confirmAction")} className="inline"><input type="hidden" name="id" value={p.id} /></ActionForm>}
           </div>
           <details className="mt-3">
-            <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("common.edit")}</summary>
+            <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("common.edit")}</summary>
             <ActionForm action={A.updateNewsAction} submitLabel={t("common.save")} className="mt-2 space-y-3"><input type="hidden" name="id" value={p.id} />{fields(p)}</ActionForm>
           </details>
         </Card>
@@ -186,7 +186,7 @@ async function EventsTab({ ctx }: { ctx: Ctx }) {
         return (
           <Card key={e.id} title={e.title} actions={<div className="flex gap-2">{past && <Badge>{t("website.events.past")}</Badge>}{!e.isPublic && <Badge tone="warn">{t("website.news.internal")}</Badge>}</div>}>
             <p className="text-sm text-muted">{displayDate(e.startsOn, locale)}{e.endsOn ? ` – ${displayDate(e.endsOn, locale)}` : ""}{e.location ? ` · ${e.location}` : ""}</p>
-            <details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("common.edit")}</summary>
+            <details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("common.edit")}</summary>
               <ActionForm action={A.updateEventAction} submitLabel={t("common.save")} className="mt-2 space-y-3"><input type="hidden" name="id" value={e.id} />{fields(e)}</ActionForm></details>
             <ActionForm action={A.deleteEventAction} submitLabel={t("common.delete")} inline tone="danger" confirm={t("common.confirmAction")} className="mt-2"><input type="hidden" name="id" value={e.id} /></ActionForm>
           </Card>
@@ -206,7 +206,7 @@ async function MediaTab({ ctx }: { ctx: Ctx }) {
         <ActionForm action={A.uploadMediaAction} submitLabel={t("website.media.uploadButton")} className="grid gap-3 sm:grid-cols-2 sm:items-end">
           <div>
             <label htmlFor="media-file" className="mb-1 block text-sm font-medium">{t("website.media.file")}</label>
-            <input id="media-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required className="block w-full min-h-11 rounded-lg border border-line bg-white px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-1.5 file:font-medium file:text-brand-800" />
+            <input id="media-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required className="block w-full min-h-11 rounded-lg border border-line bg-surface px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-1.5 file:font-medium file:text-link" />
           </div>
           <Field name="alt" label={t("website.media.alt")} hint={t("website.media.alt.hint")} required />
         </ActionForm>
@@ -214,7 +214,7 @@ async function MediaTab({ ctx }: { ctx: Ctx }) {
       {items.length === 0 ? <EmptyState>{t("website.media.none")}</EmptyState> : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((m) => (
-            <li key={m.id} className="overflow-hidden rounded-xl border border-line bg-white">
+            <li key={m.id} className="overflow-hidden rounded-xl border border-line bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`/media/${m.id}`} alt={m.alt} width={m.width} height={m.height} loading="lazy" className="aspect-[4/3] w-full object-cover" />
               <div className="space-y-1 p-3 text-sm">

@@ -1,6 +1,7 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { CalendarDays, ClipboardCheck, GraduationCap, Inbox, UserCog, UserPlus, ArrowRight, CheckCircle2, AlertTriangle, Wallet, FileCheck, Receipt, Activity, LogIn, ShieldAlert, Bug, Timer, DatabaseBackup, Gauge, Users } from "lucide-react";
+import { CalendarDays, ClipboardCheck, GraduationCap, Inbox, UserCog, UserPlus, ArrowRight, CheckCircle2, AlertTriangle, Wallet, FileCheck, Receipt } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireContext, getT, getLocale } from "@/lib/auth/next";
 import { getDashboard } from "@/server/dashboard";
@@ -10,8 +11,13 @@ import { BarList, ChartCard, Donut, EmptyChart, TrendChart } from "@/components/
 import { CollectionsChart } from "@/components/finance/collections-chart";
 import { formatMoney } from "@/lib/finance/money";
 import { Badge, Card, DataTable, EmptyState, LinkButton, PageHeader, Td } from "@/components/ui";
-import { activityPanel, securityPanel, systemPanel } from "@/server/ops";
-import { DashSection, EmptyLine, HBars, KpiCard, Panel, PersonCell, Pill, StackedBars, type PillTone } from "@/components/dash/parts";
+import { Cell, DashSection, DashTable, DonutStat, EmptyLine, HBars, KpiCard, Panel, Pill, StackedBars, type PillTone } from "@/components/dash/parts";
+import { DashHero, Hi } from "@/components/dash/hero";
+import { AttentionTabs } from "@/components/dash/attention-tabs";
+import { TeacherDashboard } from "./teacher";
+import { teacherHome } from "@/server/teacher-home";
+import * as ov from "@/server/school-overview";
+import { classCollectionReport } from "@/server/finance-reports";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -25,7 +31,7 @@ function entityHref(type: string, id: string | null): string | null {
   return null;
 }
 
-/** The monitoring panels are extras: if one cannot be built (for example a migration has not run yet) the rest of the dashboard still loads. */
+/** The data panels are extras: if one cannot be built (for example a migration has not run yet) the rest of the dashboard still loads. */
 async function optional<T>(name: string, fn: () => Promise<T>): Promise<T | null> {
   try { return await fn(); } catch (e) { console.error(JSON.stringify({ level: "error", msg: "dashboard_panel_failed", panel: name, error: e instanceof Error ? e.message.slice(0, 300) : String(e) })); return null; }
 }
@@ -34,13 +40,23 @@ export default async function DashboardPage() {
   const ctx = await requireContext();
   const t = await getT();
   const locale = await getLocale();
-  const [d, school, roles, act, sec, sys] = await Promise.all([
+  const [d, school, roles] = await Promise.all([
     getDashboard(ctx),
     getSchoolBasics(ctx.schoolId),
     db.role.findMany({ where: { schoolId: ctx.schoolId, key: { in: [...ctx.roleKeys] } }, select: { name: true } }),
-    ctx.permissions.has("audit.read") ? optional("activity", () => activityPanel(ctx)) : null,
-    ctx.permissions.has("audit.read") ? optional("security", () => securityPanel(ctx)) : null,
-    ctx.permissions.has("backup.read") ? optional("system", () => systemPanel(ctx)) : null,
+  ]);
+  // School data panels: each is gated by the permission of its detail screen and fails alone, never the whole page.
+  const [byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles] = await Promise.all([
+    optional("students", () => ov.studentsByClassGender(ctx)),
+    optional("attendance", () => ov.attendanceDaily(ctx)),
+    optional("absent", () => ov.absentToday(ctx)),
+    optional("payments", () => ov.recentPayments(ctx)),
+    optional("methods", () => ov.collectionByMethod(ctx)),
+    d.finance ? optional("classes", () => classCollectionReport(ctx, { termId: d.finance!.term.id })) : null,
+    optional("homework", () => ov.homeworkOverview(ctx)),
+    optional("behaviour", () => ov.behaviourDaily(ctx)),
+    optional("events", () => ov.upcomingEvents(ctx)),
+    optional("staff", () => ov.staffByRole(ctx)),
   ]);
   const can = (p: string) => ctx.permissions.has(p as never);
   const first = ctx.fullName.split(" ")[0] ?? ctx.fullName;
@@ -49,28 +65,48 @@ export default async function DashboardPage() {
   const enrolTotal = d.enrollmentByClass?.reduce((n, p) => n + p.value, 0) ?? 0;
   const fmtDay = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), locale).slice(0, 6);
   const money = (c: number) => formatMoney(c, school.currency);
-  const ago = (when: Date) => { const m = Math.round((Date.now() - when.getTime()) / 60000); return m < 1 ? t("dash.ago.now") : m < 60 ? t("dash.ago.min", { n: m }) : m < 48 * 60 ? t("dash.ago.hours", { n: Math.round(m / 60) }) : t("dash.ago.days", { n: Math.round(m / 1440) }); };
-  const bytes = (n: number) => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} GB` : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: school.timezone }).format(new Date()));
+  const enrolled = d.kpis.find((k) => k.key === "enrolled");
+  const summary: ReactNode[] = [
+    ...(enrolled ? [<><Hi>{Number(enrolled.value).toLocaleString()}</Hi> {t("dash.hero.students")}</>] : []),
+    ...(d.attendanceByClass && d.attendanceByClass.length > 0 ? [d.kpis.find((k) => k.key === "attendanceToday")?.value ? <>{t("dash.hero.attendance")} <Hi tone={parseInt(String(d.kpis.find((k) => k.key === "attendanceToday")!.value), 10) >= 90 ? "ok" : "warn"}>{String(d.kpis.find((k) => k.key === "attendanceToday")!.value)}</Hi></> : <>{t("dash.hero.noRegister")}</>] : []),
+    ...(d.finance ? [<><Hi>{money(d.finance.collected)}</Hi> {t("dash.hero.received")}</>, ...(d.finance.outstanding > 0 ? [<><Hi tone="warn">{money(d.finance.outstanding)}</Hi> {t("dash.hero.owed")}</>] : [])] : []),
+    ...(d.pipeline && (d.pipeline.find((p) => p.label === "APPLIED")?.value ?? 0) > 0 ? [<><Hi tone="warn">{d.pipeline.find((p) => p.label === "APPLIED")!.value}</Hi> {t("dash.hero.applications")}</>] : []),
+  ];
+  const chips = [
+    d.attention.length > 0 && { id: "attention", label: t("dash.attention.title") },
+    d.attendanceByClass && d.attendanceByClass.length > 0 && { id: "classes", label: t("dash.sec.classes") },
+    d.kpis.length > 0 && { id: "school", label: t("dash.sec.school") },
+    (byGender || attDaily || absent) && { id: "students", label: t("dash.sec.students") },
+    d.finance && { id: "fees", label: t("dash.sec.fees") },
+    (d.exams || d.pipeline || d.recentApplications) && { id: "results", label: t("dash.sec.results") },
+    (homework || behaviour) && { id: "learning", label: t("dash.sec.learning") },
+    (events || staffRoles) && { id: "calendar", label: t("dash.sec.calendar") },
+    d.activity && { id: "latest", label: t("dash.sec.latest") },
+  ].filter(Boolean) as { id: string; label: string }[];
+
+  // A teacher (class or subject) has no school-wide student access: show their own day instead of the school overview.
+  if (!can("student.read") && (can("attendance.take") || can("marks.enter") || can("assignments.manage"))) {
+    const th = await teacherHome(ctx);
+    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} roleNames={roles.map((r) => r.name).join(" · ")} today={d.today} d={d} th={th} />;
+  }
 
   return (
     <>
-      <PageHeader
-        title={t("dash.welcome", { name: first })}
-        subtitle={`${roles.map((r) => r.name).join(" · ")}`}
-        actions={
-          <>
-            {can("student.create") && <LinkButton href="/students/new"><UserPlus className="size-4" aria-hidden /> {t("dash.registerStudent")}</LinkButton>}
-            {can("admission.create") && <LinkButton href="/admissions/new" variant="secondary">{t("dash.newApplication")}</LinkButton>}
-            {can("attendance.take") && <LinkButton href="/attendance" variant="secondary"><ClipboardCheck className="size-4" aria-hidden /> {t("dash.takeAttendance")}</LinkButton>}
-          </>
-        }
-      />
-
-      <div className="mb-5 flex flex-wrap items-center gap-2 text-sm">
-        <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5"><CalendarDays className="size-4 text-brand-600" aria-hidden /><span className="text-muted">{t("dash.year")}:</span><strong>{d.year?.name ?? t("dash.notSet")}</strong></span>
-        {d.term && <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5"><span className="text-muted">{t("dash.term")}:</span><strong>{d.term.name}</strong></span>}
-        <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-muted">{displayDate(new Date(`${d.today}T00:00:00Z`), locale)}</span>
+      <DashHero eyebrow={`${school.name} · ${roles.map((r) => r.name).join(" · ")}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
+        {summary.length > 0 ? summary.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("dash.hero.empty")}
+      </DashHero>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {can("student.create") && <LinkButton href="/students/new"><UserPlus className="size-4" aria-hidden /> {t("dash.registerStudent")}</LinkButton>}
+        {can("admission.create") && <LinkButton href="/admissions/new" variant="secondary">{t("dash.newApplication")}</LinkButton>}
+        {can("attendance.take") && <LinkButton href="/attendance" variant="secondary"><ClipboardCheck className="size-4" aria-hidden /> {t("dash.takeAttendance")}</LinkButton>}
+        <span className="ml-auto inline-flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" aria-hidden />{displayDate(new Date(`${d.today}T00:00:00Z`), locale)}{d.year ? ` · ${d.year.name}` : ""}{d.term ? ` · ${d.term.name}` : ""}</span>
       </div>
+      {chips.length > 0 && (
+        <nav aria-label={t("dash.jump")} className="mt-4 flex flex-wrap gap-2">
+          {chips.map((c) => <a key={c.id} href={`#${c.id}`} className="inline-flex min-h-9 items-center rounded-full border border-line bg-surface px-3.5 text-sm font-medium text-ink hover:border-brand-500 hover:text-link">{c.label}</a>)}
+        </nav>
+      )}
 
       {d.needsSetup && (
         <Card className="mb-5 border-amber-200 bg-amber-50">
@@ -110,64 +146,44 @@ export default async function DashboardPage() {
         </DashSection>
       )}
 
-      {(d.attention.length > 0 || d.kpis.length > 0) && (
-        <section className="mt-5 rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)]" aria-labelledby="attention-h">
-          <h2 id="attention-h" className="text-base font-semibold">{t("dash.attention.title")}</h2>
-          {d.attention.length === 0 ? (
-            <p className="mt-3 flex items-center gap-2 text-sm text-muted"><CheckCircle2 className="size-4 text-ok" aria-hidden />{t("dash.attention.none")}</p>
-          ) : (
-            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-              {d.attention.map((a) => (
-                <li key={a.key}><Link href={a.href} className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-line px-4 py-2 text-sm hover:bg-canvas"><span className="flex items-center gap-2"><AlertTriangle className="size-4 text-warn" aria-hidden />{t(`dash.attention.${a.key}` as "dash.attention.none", { count: a.count })}</span><ArrowRight className="size-4 text-muted" aria-hidden /></Link></li>
-              ))}
-            </ul>
-          )}
-        </section>
+      {d.attention.length > 0 && (
+        <DashSection id="attention" title={t("dash.attention.title")} subtitle={t("dash.attention.count", { n: d.attention.length })}>
+          <AttentionTabs allLabel={t("dash.attention.all")} areas={(["attendance", "admissions", "finance", "results", "messages", "system"] as const).map((x) => ({ id: x, label: t(`dash.area.${x}`) }))} rows={d.attention.map((a) => ({ key: a.key, area: a.area, href: a.href, text: t(`dash.attention.${a.key}` as "dash.attention.none", { count: a.count }) }))} />
+        </DashSection>
       )}
 
-      <DashSection id="trends" title={t("dash.sec.trends")} subtitle={t("dash.sec.trends.sub")}>
-      {(d.finance || d.exams) && (
-        <div className="grid gap-5 lg:grid-cols-2">
-          {d.finance && (
-            <ChartCard title={t("dash.finance.title")} subtitle={t("dash.finance.sub", { term: d.finance.term.name })} href="/finance" hrefLabel={t("dash.kpi.open")} className="lg:col-span-2">
-              <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-                <div>
-                  {d.finance.trend.every((p) => p.cents === 0) ? <EmptyChart>{t("dash.finance.noPayments")}</EmptyChart> : <CollectionsChart points={d.finance.trend} label={t("dash.finance.chart")} summary={t("dash.finance.chart.sub", { total: money(d.finance.trend.reduce((n, p) => n + p.cents, 0)) })} format={money} dayLabel={fmtDay} />}
-                </div>
-                <div>
-                  <h3 className="mb-2 text-sm font-semibold">{t("dash.finance.arrears")}</h3>
-                  {d.finance.topArrears.length === 0 ? <p className="text-sm text-muted">{t("fin.reports.noArrears")}</p> : (
-                    <ul className="divide-y divide-line text-sm">
-                      {d.finance.topArrears.map((a) => (
-                        <li key={a.studentId} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"><Link href={`/finance/students/${a.studentId}`} className="min-w-0 truncate font-medium text-brand-800 hover:underline">{a.name}<span className="block text-xs font-normal text-muted">{a.className ?? ""} · {a.admissionNo}</span></Link><span className="shrink-0 text-right tabular-nums">{money(a.outstanding)}{a.overdue > 0 && <span className="block text-xs text-bad">{t("dash.finance.overdueAmount", { amount: money(a.overdue) })}</span>}</span></li>
-                      ))}
-                    </ul>
-                  )}
-                  <Link href="/finance/reports" className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">{t("dash.finance.allArrears")}</Link>
-                </div>
-              </div>
-            </ChartCard>
-          )}
-          {d.exams && (
-            <ChartCard title={t("dash.exams.title")} subtitle={t("dash.exams.sub", { term: d.exams.term.name, total: d.exams.total })} href="/marks" hrefLabel={t("dash.kpi.open")} className={d.exams.mine.length > 0 && d.exams.overall ? "" : "lg:col-span-2"}>
-              {d.exams.total === 0 ? <EmptyChart>{t("dash.exams.none")}</EmptyChart> : (
-                <BarList items={([["DRAFT", "muted"], ["RETURNED", "warn"], ["SUBMITTED", "sun"], ["APPROVED", "indigo"], ["LOCKED", "brand"]] as const).map(([k, tone]) => ({ label: t(`marks.status.${k}`), value: d.exams!.byStatus[k], tone }))} label={t("dash.exams.title")} summary={t("dash.exams.summary")} />
-              )}
-            </ChartCard>
-          )}
-          {d.exams && d.exams.mine.length > 0 && (
-            <ChartCard title={t("dash.exams.mine")} subtitle={t("dash.exams.mine.sub")} href="/marks" hrefLabel={t("dash.table.viewAll")}>
-              <ul className="space-y-2">
-                {d.exams.mine.map((m) => (
-                  <li key={m.id}><Link href={`/marks/${m.id}`} className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-line px-4 py-2 hover:bg-canvas"><span className="min-w-0"><span className="block truncate font-medium">{m.subjectName} · {m.className}{m.streamName ? ` ${m.streamName}` : ""}</span><span className="text-xs text-muted">{m.examName} · {m.entered}/{m.roster}</span></span>{m.overdue ? <Badge tone="bad">{t("marks.overdue")}</Badge> : <Badge tone={m.status === "RETURNED" ? "warn" : "neutral"}>{t(`marks.status.${m.status}` as "marks.status.DRAFT")}</Badge>}</Link></li>
-                ))}
-              </ul>
-            </ChartCard>
-          )}
-        </div>
-      )}
+      {d.attendanceByClass && d.attendanceByClass.length > 0 && (() => {
+        const sum = { PRESENT: 0, LATE: 0, EXCUSED: 0, ABSENT: 0, open: 0 };
+        for (const r of d.attendanceByClass!) { if (r.status === "FINALISED") { sum.PRESENT += r.counts.PRESENT; sum.LATE += r.counts.LATE; sum.EXCUSED += r.counts.EXCUSED; sum.ABSENT += r.counts.ABSENT; } else sum.open += r.students; }
+        const marked = sum.PRESENT + sum.LATE + sum.EXCUSED + sum.ABSENT;
+        const rateKpi = d.kpis.find((k) => k.key === "attendanceToday")?.value;
+        return (
+          <DashSection id="classes" title={t("dash.sec.classes")} subtitle={t("dash.sec.classes.sub")}>
+            <div className="grid gap-5 lg:grid-cols-[24rem_1fr]">
+              <Panel title={t("dash.classes.tonight")} subtitle={t("dash.classes.tonight.sub", { n: marked })}>
+                <DonutStat label={t("dash.classes.tonight")} center={rateKpi ? String(rateKpi) : "—"} caption={t("dash.classes.caption")} segments={[{ label: t("att.status.PRESENT"), value: sum.PRESENT, color: "#2fd08f" }, { label: t("att.status.LATE"), value: sum.LATE, color: "#f3b94c" }, { label: t("att.status.EXCUSED"), value: sum.EXCUSED, color: "#8b80ff" }, { label: t("att.status.ABSENT"), value: sum.ABSENT, color: "#ff8574" }, { label: t("dash.classes.notMarked"), value: sum.open, color: "#4b5a52" }]} />
+              </Panel>
+              <Panel title={t("dash.classes.every")} subtitle={t("dash.classes.every.sub")} right={<Link href="/attendance" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+                <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {d.attendanceByClass!.map((r, i) => {
+                    const done = r.status === "FINALISED";
+                    const pct = done && r.students > 0 ? Math.round((r.counts.PRESENT / r.students) * 100) : 0;
+                    return (
+                      <li key={i} className={`rounded-xl border bg-canvas/60 p-3.5 ${done ? "border-ok/30" : r.status === "DRAFT" ? "border-warn/40" : "border-line"}`}>
+                        <div className="flex items-start justify-between gap-2"><div><p className="text-lg font-semibold leading-tight text-heading">{r.className}{r.streamName ? ` ${r.streamName}` : ""}</p><p className="text-xs text-muted">{t("dash.classes.students", { n: r.students })}</p></div><Pill tone={done ? "ok" : r.status === "DRAFT" ? "warn" : "neutral"}>{t(`dash.registers.${r.status}` as "dash.registers.DRAFT")}</Pill></div>
+                        <div className="mt-3 flex items-center justify-between text-sm"><span className="text-ok">{done ? `${r.counts.PRESENT} ${t("att.status.PRESENT").toLowerCase()}` : "—"}</span><span className={r.counts.ABSENT > 0 && done ? "font-semibold text-bad" : "text-muted"}>{done ? `${r.counts.ABSENT} ${t("att.status.ABSENT").toLowerCase()}` : "—"}</span></div>
+                        <div aria-hidden className="mt-2 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full rounded-full bg-ok" style={{ width: `${pct}%` }} /></div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Panel>
+            </div>
+          </DashSection>
+        );
+      })()}
 
-      {d.myRegisters.length > 0 && (
+      {d.myRegisters.length > 0 && !d.attendanceByClass && (
         <ChartCard title={t("dash.registers.title")} subtitle={t("dash.registers.subtitle")} href="/attendance" hrefLabel={t("dash.table.viewAll")} className="mt-5">
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {d.myRegisters.map((r) => (
@@ -182,195 +198,164 @@ export default async function DashboardPage() {
         </ChartCard>
       )}
 
-      {(d.enrollmentByClass || d.pipeline || d.attendanceTrend) && (
-        <div className="grid gap-5 lg:grid-cols-2">
-          {d.enrollmentByClass && (
-            <ChartCard title={t("dash.chart.enrollment")} subtitle={t("dash.chart.enrollment.sub", { total: enrolTotal })} href="/students" hrefLabel={t("dash.chart.enrollment.link")}>
-              {d.enrollmentByClass.length === 0 ? <EmptyChart>{t("dash.chart.enrollment.empty")}</EmptyChart> : (
-                <div className="space-y-5">
-                  <StackedBars points={d.enrollmentByClass.map((b) => ({ key: b.label, label: b.label, parts: { n: b.value } }))} series={[{ key: "n", label: t("dash.kpi.enrolled") }]} every={d.enrollmentByClass.length > 9 ? 2 : 1} label={t("dash.chart.enrollment")} summary={t("dash.chart.enrollment.summary")} />
-                  {d.gender && (d.gender.MALE ?? 0) + (d.gender.FEMALE ?? 0) > 0 && <div className="border-t border-line pt-4"><Donut label={t("dash.chart.gender")} summary={t("dash.chart.gender")} segments={[{ label: t("student.female"), value: d.gender.FEMALE ?? 0, tone: "brand" }, { label: t("student.male"), value: d.gender.MALE ?? 0, tone: "sun" }]} /></div>}
-                </div>
-              )}
-            </ChartCard>
-          )}
-          {d.pipeline && (
-            <ChartCard title={t("dash.chart.pipeline")} subtitle={t("dash.chart.pipeline.sub", { total: pipelineTotal })} href="/admissions" hrefLabel={t("dash.chart.pipeline.link")}>
-              {pipelineTotal === 0 ? <EmptyChart>{t("dash.chart.pipeline.empty")}</EmptyChart> : <BarList items={d.pipeline.map((p) => ({ ...p, label: t(`adm.status.${p.label}` as "adm.status.APPLIED") }))} label={t("dash.chart.pipeline")} summary={t("dash.chart.pipeline.summary")} />}
-            </ChartCard>
-          )}
-          {d.attendanceTrend && (
-            <ChartCard title={t("dash.chart.attendance")} subtitle={t("dash.chart.attendance.sub")} href="/attendance/reports" hrefLabel={t("dash.chart.attendance.link")} className="lg:col-span-2">
-              {d.attendanceTrend.length === 0 ? <EmptyChart>{t("dash.chart.attendance.empty")}</EmptyChart> : <TrendChart points={d.attendanceTrend} label={t("dash.chart.attendance")} summary={t("dash.chart.attendance.summary", { days: d.attendanceTrend.length })} formatDate={fmtDay} />}
-            </ChartCard>
-          )}
-        </div>
-      )}
-
-      </DashSection>
-
-      {(d.recentApplications || d.activity) && (
-        <DashSection id="latest" title={t("dash.sec.latest")} subtitle={t("dash.sec.latest.sub")}>
-        <div className="grid gap-5 xl:grid-cols-2">
-          {d.recentApplications && (
-            <section aria-labelledby="recent-apps" className="min-w-0">
-              <div className="mb-3 flex items-center justify-between"><h2 id="recent-apps" className="text-base font-semibold">{t("dash.table.applications")}</h2><Link href="/admissions" className="text-sm font-medium text-brand-700 hover:underline">{t("dash.table.viewAll")}</Link></div>
-              {d.recentApplications.length === 0 ? <EmptyState>{t("dash.table.applications.empty")}</EmptyState> : (
-                <DataTable head={[t("adm.applicant"), t("adm.classApplied"), t("common.status"), t("adm.appliedOn")]}>
-                  {d.recentApplications.map((a) => (
-                    <tr key={a.id} className="hover:bg-canvas">
-                      <Td><Link href={`/admissions/${a.id}`} className="font-medium text-brand-700 hover:underline">{a.firstName} {a.lastName}</Link>{a.source === "ONLINE" && <span className="ml-2 align-middle"><Badge tone="brand">{t("adm.online")}</Badge></span>}<p className="text-xs text-muted">{a.applicationNo}</p></Td>
-                      <Td>{a.className ?? "—"}</Td>
-                      <Td><Badge tone={STATUS_TONE[a.status]}>{t(`adm.status.${a.status}` as "adm.status.APPLIED")}</Badge></Td>
-                      <Td className="whitespace-nowrap text-muted">{displayDate(a.createdAt, locale)}</Td>
-                    </tr>
+      {(byGender || attDaily || d.attendanceByClass || absent) && (
+        <DashSection id="students" title={t("dash.sec.students")} subtitle={t("dash.sec.students.sub")}>
+          <div className="grid gap-5 lg:grid-cols-2">
+            {byGender && (
+              <Panel title={t("dash.chart.enrollment")} subtitle={t("dash.chart.enrollment.sub", { total: byGender.reduce((n, c) => n + c.female + c.male, 0) })} right={<Link href="/students" className="text-sm font-semibold text-link hover:underline">{t("dash.chart.enrollment.link")}</Link>}>
+                {byGender.length === 0 ? <EmptyLine>{t("dash.chart.enrollment.empty")}</EmptyLine> : <StackedBars points={byGender.map((c) => ({ key: c.classId, label: c.name, parts: { female: c.female, male: c.male } }))} series={[{ key: "female", label: t("student.female") }, { key: "male", label: t("student.male"), color: "#e0a100" }]} every={byGender.length > 9 ? 2 : 1} label={t("dash.chart.enrollment")} summary={t("dash.chart.enrollment.summary")} />}
+              </Panel>
+            )}
+            {attDaily && (
+              <Panel title={t("dash.chart.attendance")} subtitle={t("dash.chart.attendance.sub")} right={<Link href="/attendance/reports" className="text-sm font-semibold text-link hover:underline">{t("dash.chart.attendance.link")}</Link>}>
+                {attDaily.every((p) => Object.keys(p.parts).length === 0) ? <EmptyLine>{t("dash.chart.attendance.empty")}</EmptyLine> : <StackedBars points={attDaily.map((p) => ({ key: p.date, label: fmtDay(p.date), parts: p.parts }))} series={[{ key: "PRESENT", label: t("att.status.PRESENT") }, { key: "LATE", label: t("att.status.LATE"), color: "#e0a100" }, { key: "EXCUSED", label: t("att.status.EXCUSED"), color: "#4f46e5" }, { key: "ABSENT", label: t("att.status.ABSENT"), color: "#e5604d" }]} label={t("dash.chart.attendance")} summary={t("dash.chart.attendance.sub")} />}
+              </Panel>
+            )}
+            {absent && (
+              <Panel title={t("dash.absent.title")} subtitle={absent.total === 0 ? t("dash.absent.none") : t("dash.absent.sub", { n: absent.total })}>
+                <DashTable empty={absent.rows.length === 0 ? t("dash.absent.none") : undefined} min="24rem" head={[{ label: t("learn.student") }, { label: t("learn.class") }, { label: t("dash.absent.note") }]}>
+                  {absent.rows.map((r) => (
+                    <tr key={r.studentId}><Cell><Link href={`/students/${r.studentId}`} className="font-semibold text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Cell><Cell>{r.className}</Cell><Cell className="text-muted">{r.note ?? "—"}</Cell></tr>
                   ))}
-                </DataTable>
-              )}
-            </section>
-          )}
-          {d.activity && (
-            <section aria-labelledby="recent-activity" className="min-w-0">
-              <div className="mb-3 flex items-center justify-between"><h2 id="recent-activity" className="text-base font-semibold">{t("dash.table.activity")}</h2><Link href="/audit" className="text-sm font-medium text-brand-700 hover:underline">{t("dash.table.viewAll")}</Link></div>
-              {d.activity.length === 0 ? <EmptyState>{t("dash.table.activity.empty")}</EmptyState> : (
-                <DataTable head={[t("audit.when"), t("audit.who"), t("audit.record")]}>
-                  {d.activity.map((a) => {
-                    const href = entityHref(a.entityType, a.entityId);
-                    return (
-                      <tr key={a.id}>
-                        <Td className="whitespace-nowrap text-muted">{displayDateTime(a.createdAt, school.timezone, locale)}</Td>
-                        <Td>{a.actorName ?? t("audit.system")}</Td>
-                        <Td>{href ? <Link href={href} className="text-brand-700 hover:underline">{a.summary ?? a.action}</Link> : (a.summary ?? a.action)}<p className="text-xs text-muted"><code>{a.action}</code></p></Td>
-                      </tr>
-                    );
-                  })}
-                </DataTable>
-              )}
-            </section>
-          )}
-        </div>
-        </DashSection>
-      )}
-
-      {act && (
-        <DashSection id="activity" title={t("dash.sec.activity")} subtitle={t("dash.sec.activity.sub")}>
-          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <li><KpiCard icon={Users} label={t("dash.act.signedInToday")} value={act.signedInToday} caption={t("dash.act.signedInToday.cap")} pill={{ text: t("dash.pill.live"), tone: "ok" }} /></li>
-            <li><KpiCard icon={Activity} label={t("dash.act.actions14")} value={act.actions14.toLocaleString()} caption={t("dash.act.actions14.cap")} pill={{ text: t("dash.pill.activity"), tone: "info" }} /></li>
-            <li><KpiCard icon={LogIn} label={t("dash.act.signIns14")} value={act.signIns14.toLocaleString()} caption={t("dash.act.signIns14.cap")} pill={{ text: t("dash.pill.signIns"), tone: "info" }} /></li>
-            <li><KpiCard icon={ShieldAlert} label={t("dash.act.failed24")} value={sec?.failed24 ?? act.failed24} caption={t("dash.act.failed24.cap")} pill={((sec?.failed24 ?? act.failed24) === 0 ? { text: t("dash.pill.normal"), tone: "ok" } : (sec?.failed24 ?? act.failed24) <= 5 ? { text: t("dash.pill.watch"), tone: "warn" } : { text: t("dash.pill.alert"), tone: "bad" })} /></li>
-          </ul>
-
-          <div className="mt-5 grid gap-5 lg:grid-cols-2">
-            <Panel title={t("dash.act.signInsPerDay")} subtitle={t("dash.act.signInsPerDay.sub")}>
-              <StackedBars points={act.signInsByRole.days.map((p) => ({ key: p.date, label: fmtDay(p.date), parts: p.parts }))} series={act.signInsByRole.series.map((r) => ({ key: r, label: r }))} label={t("dash.act.signInsPerDay")} summary={t("dash.act.signInsPerDay.sub")} />
-            </Panel>
-            <Panel title={t("dash.act.actionsPerDay")} subtitle={t("dash.act.actionsPerDay.sub")}>
-              <StackedBars points={act.actionsByKind.map((p) => ({ key: p.date, label: fmtDay(p.date), parts: p.parts }))} series={[{ key: "staff", label: t("dash.act.kind.staff") }, { key: "family", label: t("dash.act.kind.family") }, { key: "visitor", label: t("dash.act.kind.visitor") }]} label={t("dash.act.actionsPerDay")} summary={t("dash.act.actionsPerDay.sub")} />
-            </Panel>
-            <Panel title={t("dash.act.busiest")} subtitle={act.peakHour === null ? t("dash.act.busiest.none") : t("dash.act.busiest.sub", { hour: `${String(act.peakHour).padStart(2, "0")}:00` })}>
-              <StackedBars points={act.hours.map((n, h) => ({ key: String(h), label: `${h}h`, parts: { n } }))} series={[{ key: "n", label: t("dash.act.actions14") }]} every={3} label={t("dash.act.busiest")} summary={t("dash.act.busiest")} />
-            </Panel>
-            <Panel title={t("dash.act.where")} subtitle={t("dash.act.where.sub")}>
-              {act.areas.length === 0 ? <EmptyLine>{t("dash.act.none")}</EmptyLine> : <HBars items={act.areas} label={t("dash.act.where")} summary={t("dash.act.where.sub")} />}
-            </Panel>
-          </div>
-
-          <div className="mt-5 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-            <Panel title={t("dash.act.recent")} subtitle={t("dash.act.recent.sub")} className="overflow-hidden">
-              {act.recentSignIns.length === 0 ? <EmptyLine>{t("dash.act.none")}</EmptyLine> : (
-                <div className="-mx-5 overflow-x-auto">
-                  <table className="w-full min-w-[34rem] text-sm">
-                    <thead><tr className="border-y border-line text-left text-[11px] font-bold uppercase tracking-[.12em] text-muted"><th className="px-5 py-2.5">{t("dash.act.person")}</th><th className="px-3 py-2.5">{t("dash.act.device")}</th><th className="px-3 py-2.5">{t("dash.act.from")}</th><th className="px-5 py-2.5 text-right">{t("audit.when")}</th></tr></thead>
-                    <tbody className="divide-y divide-line">
-                      {act.recentSignIns.map((r, i) => (
-                        <tr key={i}>
-                          <td className="px-5 py-3"><PersonCell name={r.name} sub={r.role} /></td>
-                          <td className="px-3 py-3 text-ink/80">{r.device.label}</td>
-                          <td className="px-3 py-3 font-mono text-xs text-muted">{r.ip ?? "—"}</td>
-                          <td className="whitespace-nowrap px-5 py-3 text-right text-muted">{ago(r.at)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Panel>
-            <div className="space-y-5">
-              <Panel title={t("dash.act.online")} subtitle={t("dash.act.online.sub")} right={<span className="rounded-md bg-canvas px-2 py-0.5 text-xs font-semibold tabular-nums text-muted">{act.online.length}</span>}>
-                {act.online.length === 0 ? <p className="text-sm text-muted">{t("dash.act.online.none")}</p> : <ul className="space-y-3">{act.online.slice(0, 6).map((o, i) => <li key={i}><PersonCell name={o.name} sub={o.role} /></li>)}</ul>}
+                </DashTable>
               </Panel>
-              <Panel title={t("dash.act.mostActive")} subtitle={t("dash.act.mostActive.sub")}>
-                {act.mostActive.length === 0 ? <EmptyLine>{t("dash.act.none")}</EmptyLine> : <HBars items={act.mostActive.map((m) => ({ label: m.name, value: m.count }))} label={t("dash.act.mostActive")} summary={t("dash.act.mostActive.sub")} tone="#14a3b8" />}
-              </Panel>
-              <Panel title={t("dash.act.notUsing")} subtitle={t("dash.act.notUsing.sub")}>
-                {act.inactive.length === 0 ? <p className="text-sm text-muted">{t("dash.act.notUsing.none")}</p> : (
-                  <ul className="space-y-2.5 text-sm">{act.inactive.map((u, i) => <li key={i} className="flex items-center justify-between gap-3"><span className="min-w-0 truncate"><span className="font-semibold text-ink">{u.name}</span> <span className="text-muted">· {u.role}</span></span>{u.lastLoginAt ? <span className="shrink-0 text-muted">{ago(u.lastLoginAt)}</span> : <Pill tone="warn">{t("dash.act.never")}</Pill>}</li>)}</ul>
-                )}
-                {act.portalNeverSignedIn > 0 && <p className="mt-3 border-t border-line pt-3 text-xs text-muted">{t("dash.act.portalNever", { n: act.portalNeverSignedIn })}</p>}
-              </Panel>
-            </div>
+            )}
           </div>
         </DashSection>
       )}
 
-      {sec && (
-        <DashSection id="security" title={t("dash.sec.security")} subtitle={t("dash.sec.security.sub")}>
-          <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-            <Panel title={t("dash.sec2.perDay")} subtitle={t("dash.sec2.perDay.sub", { n: sec.failed14 })}>
-              <StackedBars points={sec.perDay.map((p) => ({ key: p.date, label: fmtDay(p.date), parts: p.parts }))} series={[{ key: "failed", label: t("dash.sec2.failed"), color: "#e0a100" }]} label={t("dash.sec2.perDay")} summary={t("dash.sec2.perDay.sub", { n: sec.failed14 })} />
+      {d.finance && (
+        <DashSection id="fees" title={t("dash.sec.fees")} subtitle={t("dash.finance.sub", { term: d.finance.term.name })}>
+          <section aria-label={t("dash.money.title")} className="mb-5 rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-card)]">
+            <div className="flex flex-wrap items-end justify-between gap-3"><p className="text-[11px] font-bold uppercase tracking-[.2em] text-ok">● {t("dash.money.title")}</p><Link href="/finance" className="text-sm font-semibold text-link hover:underline">{t("dash.money.report")} ↗</Link></div>
+            <p className="mt-2 flex flex-wrap items-baseline gap-3"><span className="text-4xl font-semibold tabular-nums text-heading sm:text-5xl">{money(d.finance.collected)}</span>{d.finance.ratePct !== null && <Pill tone={d.finance.ratePct >= 70 ? "ok" : "warn"}>{d.finance.ratePct}% {t("dash.money.ofBilled")}</Pill>}</p>
+            <p className="mt-1 text-sm text-muted">{t("dash.money.sub")}</p>
+            {d.finance.billed > 0 && (
+              <div className="mt-4"><div aria-hidden className="flex h-2.5 overflow-hidden rounded-full bg-line"><div className="h-full bg-ok" style={{ width: `${Math.min(100, (d.finance.collected / d.finance.billed) * 100)}%` }} /><div className="h-full bg-warn" style={{ width: `${Math.max(0, 100 - (d.finance.collected / d.finance.billed) * 100)}%` }} /></div>
+                <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted"><span><span className="mr-1.5 inline-block size-2 rounded-full bg-ok" />{t("dash.money.received")} <strong className="text-ink">{money(d.finance.collected)}</strong></span><span><span className="mr-1.5 inline-block size-2 rounded-full bg-warn" />{t("dash.money.notYet")} <strong className="text-ink">{money(d.finance.outstanding)}</strong></span></p></div>
+            )}
+            <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
+              {([["billed", d.finance.billed, "text-ink"], ["outstanding", d.finance.outstanding, d.finance.outstanding > 0 ? "text-sun" : "text-ok"], ["overdue", d.finance.overdue, d.finance.overdue > 0 ? "text-bad" : "text-ok"], ["credit", d.finance.credit, "text-ink"], ["expenses", d.finance.expenses, "text-ink"]] as const).map(([k, v, c]) => <div key={k} className="bg-surface p-4"><dt className="text-xs text-muted">{t(`dash.money.${k}`)}</dt><dd className={`mt-1 text-xl font-semibold tabular-nums ${c}`}>{money(v)}</dd></div>)}
+            </dl>
+          </section>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Panel title={t("dash.finance.chart")} subtitle={t("dash.finance.chart.sub", { total: money(d.finance.trend.reduce((n, p) => n + p.cents, 0)) })} right={<Link href="/finance" className="text-sm font-semibold text-link hover:underline">{t("dash.kpi.open")}</Link>}>
+              {d.finance.trend.every((p) => p.cents === 0) ? <EmptyLine>{t("dash.finance.noPayments")}</EmptyLine> : <StackedBars points={d.finance.trend.map((p) => ({ key: p.date, label: fmtDay(p.date), parts: { n: p.cents / 100 } }))} series={[{ key: "n", label: t("dash.kpi.collected") }]} every={4} format={(n) => (n >= 1_000_000 ? `${Math.round(n / 100_000) / 10}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n))} label={t("dash.finance.chart")} summary={t("dash.finance.chart.sub", { total: money(d.finance.trend.reduce((n, p) => n + p.cents, 0)) })} />}
             </Panel>
-            <Panel title={t("dash.sec2.latest")} subtitle={t("dash.sec2.latest.sub")}>
-              {sec.latest.length === 0 ? <EmptyLine>{t("dash.sec2.none")}</EmptyLine> : (
-                <ul className="divide-y divide-line">
-                  {sec.latest.map((l, i) => <li key={i} className="py-2.5 first:pt-0 last:pb-0"><p className="break-all font-medium text-ink">{l.identifier}{l.repeats > 1 && <span className="ml-2 rounded bg-canvas px-1.5 py-0.5 text-xs font-semibold text-muted">×{l.repeats}</span>}</p><p className="text-xs text-muted">{ago(l.at)} · <span className="font-mono">{l.ip ?? "—"}</span></p></li>)}
-                </ul>
-              )}
+            <Panel title={t("dash.fees.byMethod")} subtitle={t("dash.fees.byMethod.sub")}>
+              {!byMethod || byMethod.length === 0 ? <EmptyLine>{t("dash.finance.noPayments")}</EmptyLine> : <HBars items={byMethod.map((m) => ({ label: t(`fin.method.${m.method}` as "fin.method.CASH"), value: m.cents }))} format={(c) => money(c)} label={t("dash.fees.byMethod")} summary={t("dash.fees.byMethod.sub")} tone="#14a3b8" />}
             </Panel>
-          </div>
-          <div className="mt-5 grid gap-5 lg:grid-cols-2">
-            <Panel title={t("dash.sec2.byAddress")} subtitle={t("dash.sec2.byAddress.sub")} className="overflow-hidden">
-              {sec.byAddress.length === 0 ? <EmptyLine>{t("dash.sec2.none")}</EmptyLine> : (
-                <div className="-mx-5 overflow-x-auto"><table className="w-full min-w-[26rem] text-sm"><thead><tr className="border-y border-line text-left text-[11px] font-bold uppercase tracking-[.12em] text-muted"><th className="px-5 py-2.5">{t("dash.act.from")}</th><th className="px-3 py-2.5 text-right">{t("dash.sec2.tries")}</th><th className="px-3 py-2.5 text-right">{t("dash.sec2.accounts")}</th><th className="px-5 py-2.5 text-right">{t("dash.sec2.last")}</th></tr></thead>
-                  <tbody className="divide-y divide-line">{sec.byAddress.map((a) => <tr key={a.ip}><td className="px-5 py-2.5 font-mono text-xs">{a.ip}</td><td className="px-3 py-2.5 text-right tabular-nums">{a.tries}</td><td className="px-3 py-2.5 text-right tabular-nums">{a.accounts}</td><td className="whitespace-nowrap px-5 py-2.5 text-right text-muted">{ago(a.last)}</td></tr>)}</tbody></table></div>
-              )}
+            {byClass && (
+              <Panel title={t("dash.fees.byClass")} subtitle={t("dash.fees.byClass.sub")} className="lg:col-span-2" right={<Link href="/finance/reports" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+                <DashTable empty={byClass.length === 0 ? t("dash.fees.byClass.none") : undefined} min="34rem" head={[{ label: t("learn.class") }, { label: t("dash.attToday.students"), right: true }, { label: t("fin.billed"), right: true }, { label: t("dash.fees.received"), right: true }, { label: t("dash.kpi.outstanding"), right: true }, { label: "%", right: true }]}>
+                  {byClass.map((r) => (
+                    <tr key={r.classId}><Cell className="font-semibold text-ink">{r.className}</Cell><Cell right>{r.students}</Cell><Cell right>{money(r.billed)}</Cell><Cell right>{money(r.paid)}</Cell><Cell right className={r.outstanding > 0 ? "text-bad" : ""}>{money(r.outstanding)}</Cell><Cell right>{r.ratePct === null ? "—" : `${r.ratePct}%`}</Cell></tr>
+                  ))}
+                </DashTable>
+              </Panel>
+            )}
+            <Panel title={t("dash.finance.arrears")} subtitle={t("dash.fees.arrears.sub")} right={<Link href="/finance/reports" className="text-sm font-semibold text-link hover:underline">{t("dash.finance.allArrears")}</Link>}>
+              <DashTable empty={d.finance.topArrears.length === 0 ? t("fin.reports.noArrears") : undefined} min="26rem" head={[{ label: t("learn.student") }, { label: t("learn.class") }, { label: t("dash.kpi.outstanding"), right: true }]}>
+                {d.finance.topArrears.map((a) => (
+                  <tr key={a.studentId}><Cell><Link href={`/finance/students/${a.studentId}`} className="font-semibold text-link hover:underline">{a.name}</Link><span className="block text-xs text-muted">{a.admissionNo}</span></Cell><Cell>{a.className ?? "—"}</Cell><Cell right>{money(a.outstanding)}{a.overdue > 0 && <span className="block text-xs text-bad">{t("dash.finance.overdueAmount", { amount: money(a.overdue) })}</span>}</Cell></tr>
+                ))}
+              </DashTable>
             </Panel>
-            <section className={`flex items-center gap-4 rounded-2xl border p-5 ${sec.yourFailed24 === 0 ? "border-ok/30 bg-ok/10" : "border-warn/30 bg-warn/10"}`}>
-              <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${sec.yourFailed24 === 0 ? "bg-ok/15 text-ok" : "bg-warn/15 text-warn"}`}>{sec.yourFailed24 === 0 ? <CheckCircle2 className="size-5" aria-hidden /> : <AlertTriangle className="size-5" aria-hidden />}</span>
-              <div><h3 className="font-semibold text-ink">{t("dash.sec2.yours")}</h3><p className="text-sm text-muted">{sec.yourFailed24 === 0 ? t("dash.sec2.yours.ok") : t("dash.sec2.yours.bad", { n: sec.yourFailed24 })}</p></div>
-            </section>
+            {payments && (
+              <Panel title={t("dash.fees.recent")} subtitle={t("dash.fees.recent.sub")} className="lg:col-span-2" right={<Link href="/finance/payments" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+                <DashTable empty={payments.length === 0 ? t("dash.finance.noPayments") : undefined} min="36rem" head={[{ label: t("audit.when") }, { label: t("learn.student") }, { label: t("fin.method") }, { label: t("dash.fees.receipt") }, { label: t("fin.amount"), right: true }]}>
+                  {payments.map((p) => (
+                    <tr key={p.id}><Cell className="whitespace-nowrap text-muted">{displayDate(p.receivedOn, locale)}</Cell><Cell><Link href={`/finance/students/${p.studentId}`} className="font-semibold text-link hover:underline">{p.name}</Link><span className="block text-xs text-muted">{p.admissionNo}</span></Cell><Cell>{t(`fin.method.${p.method}` as "fin.method.CASH")}</Cell><Cell className="font-mono text-xs text-muted">{p.receipt ?? "—"}</Cell><Cell right className="font-semibold">{money(p.cents)}</Cell></tr>
+                  ))}
+                </DashTable>
+              </Panel>
+            )}
           </div>
         </DashSection>
       )}
 
-      {sys && (
-        <>
-          <DashSection id="system" eyebrow={t("dash.sec.systemEyebrow")} title={t("dash.sec.system")} subtitle={t("dash.sec.system.sub")}>
-            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <li><KpiCard icon={Bug} label={t("dash.sys.errors")} value={sys.errors24} caption={t("dash.sys.errors.cap")} pill={sys.errors24 === 0 ? { text: t("dash.pill.normal"), tone: "ok" } : { text: t("dash.pill.watch"), tone: "warn" }} /></li>
-              <li><KpiCard icon={Timer} label={t("dash.sys.jobs")} value={`${sys.jobsGood} ${t("dash.sys.of")} ${sys.jobs.length}`} caption={t("dash.sys.jobs.cap")} pill={sys.jobsGood === sys.jobs.length ? { text: t("dash.pill.ok"), tone: "ok" } : { text: t("dash.pill.late"), tone: "bad" }} /></li>
-              <li><KpiCard icon={AlertTriangle} label={t("dash.sys.lastError")} value={sys.lastError ? ago(sys.lastError.at) : t("dash.sys.none")} caption={sys.lastError ? `${sys.lastError.name}: ${sys.lastError.message}`.slice(0, 90) : t("dash.sys.lastError.none")} pill={sys.lastError ? { text: t("dash.pill.seen"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
-              <li><KpiCard icon={DatabaseBackup} label={t("dash.sys.backup")} value={sys.backup.lastSuccessAt ? ago(sys.backup.lastSuccessAt) : t("dash.sys.none")} caption={t("dash.sys.backup.cap")} href="/settings/backups" openLabel={t("dash.kpi.open")} pill={sys.backup.level === "ok" ? { text: t("dash.pill.ok"), tone: "ok" } : sys.backup.level === "warn" ? { text: t("dash.pill.late"), tone: "warn" } : { text: t("dash.pill.alert"), tone: "bad" }} /></li>
-            </ul>
-            <div className="mt-4 rounded-2xl border border-line bg-surface p-5 text-sm shadow-[var(--shadow-card)]">
-              <p className="font-semibold text-ink">{t("dash.sys.jobList")}</p>
-              <ul className="mt-2 divide-y divide-line">{sys.jobs.map((j) => <li key={j.name} className="flex items-center justify-between gap-3 py-2"><span>{j.label}</span><span className="flex items-center gap-3 text-muted">{j.lastAt ? ago(j.lastAt) : t("dash.sys.neverRan")}<Pill tone={j.ok && j.onTime ? "ok" : "bad"}>{j.ok && j.onTime ? t("dash.pill.ok") : t("dash.pill.late")}</Pill></span></li>)}</ul>
-            </div>
-          </DashSection>
+      {(d.exams || d.pipeline || d.recentApplications) && (
+        <DashSection id="results" title={t("dash.sec.results")} subtitle={t("dash.sec.results.sub")}>
+          <div className="grid gap-5 lg:grid-cols-2">
+            {d.exams && (
+              <Panel title={t("dash.exams.title")} subtitle={t("dash.exams.sub", { term: d.exams.term.name, total: d.exams.total })} right={<Link href="/marks" className="text-sm font-semibold text-link hover:underline">{t("dash.kpi.open")}</Link>}>
+                {d.exams.total === 0 ? <EmptyLine>{t("dash.exams.none")}</EmptyLine> : <HBars items={(["DRAFT", "RETURNED", "SUBMITTED", "APPROVED", "LOCKED"] as const).map((k) => ({ label: t(`marks.status.${k}`), value: d.exams!.byStatus[k] }))} label={t("dash.exams.title")} summary={t("dash.exams.summary")} tone="#4f46e5" />}
+              </Panel>
+            )}
+            {d.pipeline && (
+              <Panel title={t("dash.chart.pipeline")} subtitle={t("dash.chart.pipeline.sub", { total: pipelineTotal })} right={<Link href="/admissions" className="text-sm font-semibold text-link hover:underline">{t("dash.chart.pipeline.link")}</Link>}>
+                {pipelineTotal === 0 ? <EmptyLine>{t("dash.chart.pipeline.empty")}</EmptyLine> : <HBars items={d.pipeline.map((p) => ({ label: t(`adm.status.${p.label}` as "adm.status.APPLIED"), value: p.value }))} label={t("dash.chart.pipeline")} summary={t("dash.chart.pipeline.summary")} />}
+              </Panel>
+            )}
+            {d.exams && d.exams.mine.length > 0 && (
+              <Panel title={t("dash.exams.mine")} subtitle={t("dash.exams.mine.sub")}>
+                <DashTable min="28rem" head={[{ label: t("learn.subject") }, { label: t("learn.class") }, { label: t("dash.exams.progress"), right: true }, { label: t("common.status") }]}>
+                  {d.exams.mine.map((m) => <tr key={m.id}><Cell><Link href={`/marks/${m.id}`} className="font-semibold text-link hover:underline">{m.subjectName}</Link><span className="block text-xs text-muted">{m.examName}</span></Cell><Cell>{m.className}{m.streamName ? ` ${m.streamName}` : ""}</Cell><Cell right>{m.entered}/{m.roster}</Cell><Cell>{m.overdue ? <Pill tone="bad">{t("marks.overdue")}</Pill> : <Pill tone={m.status === "RETURNED" ? "warn" : "neutral"}>{t(`marks.status.${m.status}` as "marks.status.DRAFT")}</Pill>}</Cell></tr>)}
+                </DashTable>
+              </Panel>
+            )}
+            {d.recentApplications && (
+              <Panel title={t("dash.table.applications")} right={<Link href="/admissions" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+                <DashTable empty={d.recentApplications.length === 0 ? t("dash.table.applications.empty") : undefined} min="28rem" head={[{ label: t("adm.applicant") }, { label: t("adm.classApplied") }, { label: t("common.status") }, { label: t("adm.appliedOn") }]}>
+                  {d.recentApplications.map((a) => (
+                    <tr key={a.id}><Cell><Link href={`/admissions/${a.id}`} className="font-semibold text-link hover:underline">{a.firstName} {a.lastName}</Link><span className="block text-xs text-muted">{a.applicationNo}{a.source === "ONLINE" ? ` · ${t("adm.online")}` : ""}</span></Cell><Cell>{a.className ?? "—"}</Cell><Cell><Badge tone={STATUS_TONE[a.status]}>{t(`adm.status.${a.status}` as "adm.status.APPLIED")}</Badge></Cell><Cell className="whitespace-nowrap text-muted">{displayDate(a.createdAt, locale)}</Cell></tr>
+                  ))}
+                </DashTable>
+              </Panel>
+            )}
+          </div>
+        </DashSection>
+      )}
 
-          <DashSection id="speed" title={t("dash.sec.speed")} subtitle={t("dash.sec.speed.sub")}>
-            <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-              <Panel title={t("dash.speed.title")} subtitle={t("dash.speed.sub")}>
-                <ul className="divide-y divide-line text-sm">{sys.speed.map((q) => <li key={q.label} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"><span>{t(`dash.speed.${q.label}` as "dash.speed.title")}</span><span className="flex items-center gap-3"><span className="font-semibold tabular-nums">{q.ms} ms</span><Pill tone={q.level}>{q.level === "ok" ? t("dash.speed.fast") : q.level === "warn" ? t("dash.speed.slowish") : t("dash.speed.slow")}</Pill></span></li>)}</ul>
+      {(homework || behaviour) && (
+        <DashSection id="learning" title={t("dash.sec.learning")} subtitle={t("dash.sec.learning.sub")}>
+          <div className="grid gap-5 lg:grid-cols-2">
+            {homework && (
+              <Panel title={t("dash.hw.title")} subtitle={t("dash.hw.sub", { open: homework.open, overdue: homework.overdue })} right={<Link href="/assignments" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+                <DashTable empty={homework.rows.length === 0 ? t("learn.asg.none") : undefined} min="32rem" head={[{ label: t("learn.title") }, { label: t("learn.class") }, { label: t("learn.asg.due") }, { label: t("learn.asg.handedIn"), right: true }]}>
+                  {homework.rows.map((r) => <tr key={r.id}><Cell><Link href={`/assignments/${r.id}`} className="font-semibold text-link hover:underline">{r.title}</Link><span className="block text-xs text-muted">{r.subjectName}</span></Cell><Cell>{r.className}{r.streamName ? ` ${r.streamName}` : ""}</Cell><Cell className={`whitespace-nowrap ${r.overdue ? "text-bad" : "text-muted"}`}>{displayDate(r.dueAt, locale)}</Cell><Cell right>{r.handedIn}/{r.roster}</Cell></tr>)}
+                </DashTable>
               </Panel>
-              <Panel title={t("dash.size.title")} subtitle={t("dash.size.sub")}>
-                <p className="text-3xl font-semibold tabular-nums text-ink">{bytes(sys.dbBytes)}</p>
-                <p className="mb-4 text-sm text-muted">{t("dash.size.files", { n: sys.files.count, size: bytes(sys.files.bytes) })}</p>
-                <HBars items={sys.tables.map((x) => ({ label: `${x.name} · ${x.rows.toLocaleString()}`, value: x.bytes }))} label={t("dash.size.tables")} summary={t("dash.size.tables")} tone="#4f46e5" format={bytes} />
+            )}
+            {behaviour && (
+              <Panel title={t("dash.bh.title")} subtitle={t("dash.bh.sub", { n: behaviour.total })} right={<Link href="/behaviour" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+                {behaviour.total === 0 ? <EmptyLine>{t("learn.bh.none")}</EmptyLine> : <StackedBars points={behaviour.days.map((p) => ({ key: p.date, label: fmtDay(p.date), parts: p.parts }))} series={[{ key: "POSITIVE", label: t("learn.bh.type.POSITIVE") }, { key: "CONCERN", label: t("learn.bh.type.CONCERN"), color: "#e0a100" }, { key: "INCIDENT", label: t("learn.bh.type.INCIDENT"), color: "#e5604d" }]} label={t("dash.bh.title")} summary={t("dash.bh.sub", { n: behaviour.total })} />}
               </Panel>
-            </div>
-          </DashSection>
-        </>
+            )}
+          </div>
+        </DashSection>
+      )}
+
+      {(events || staffRoles) && (
+        <DashSection id="calendar" title={t("dash.sec.calendar")} subtitle={t("dash.sec.calendar.sub")}>
+          <div className="grid gap-5 lg:grid-cols-2">
+            {events && (
+              <Panel title={t("dash.events.title")} subtitle={t("dash.events.sub")} right={<Link href="/school-calendar" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+                <DashTable empty={events.length === 0 ? t("dash.events.none") : undefined} min="24rem" head={[{ label: t("learn.date") }, { label: t("dash.events.what") }, { label: t("dash.events.where") }]}>
+                  {events.map((e) => <tr key={e.id}><Cell className="whitespace-nowrap font-semibold text-ink">{displayDate(new Date(`${e.from}T00:00:00Z`), locale)}</Cell><Cell>{locale === "SW" && e.titleSw ? e.titleSw : e.title}{e.category && <span className="block text-xs text-muted">{e.category}</span>}</Cell><Cell className="text-muted">{e.location ?? "—"}</Cell></tr>)}
+                </DashTable>
+              </Panel>
+            )}
+            {staffRoles && (
+              <Panel title={t("dash.staff.title")} subtitle={t("dash.staff.sub")} right={<Link href="/users" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+                {staffRoles.length === 0 ? <EmptyLine>{t("dash.staff.none")}</EmptyLine> : <HBars items={staffRoles} label={t("dash.staff.title")} summary={t("dash.staff.sub")} tone="#a066d9" />}
+              </Panel>
+            )}
+          </div>
+        </DashSection>
+      )}
+
+      {d.activity && (
+        <DashSection id="latest" title={t("dash.sec.latest")} subtitle={t("dash.sec.latest.sub")}>
+          <Panel title={t("dash.table.activity")} right={<Link href="/audit" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+            <DashTable empty={d.activity.length === 0 ? t("dash.table.activity.empty") : undefined} min="34rem" head={[{ label: t("audit.when") }, { label: t("audit.who") }, { label: t("audit.record") }]}>
+              {d.activity.map((a) => {
+                const href = entityHref(a.entityType, a.entityId);
+                return <tr key={a.id}><Cell className="whitespace-nowrap text-muted">{displayDateTime(a.createdAt, school.timezone, locale)}</Cell><Cell className="font-semibold text-ink">{a.actorName ?? t("audit.system")}</Cell><Cell>{href ? <Link href={href} className="text-link hover:underline">{a.summary ?? a.action}</Link> : (a.summary ?? a.action)}<span className="block font-mono text-xs text-muted">{a.action}</span></Cell></tr>;
+              })}
+            </DashTable>
+          </Panel>
+        </DashSection>
       )}
     </>
   );

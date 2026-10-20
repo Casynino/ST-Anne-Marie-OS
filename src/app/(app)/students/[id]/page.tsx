@@ -99,7 +99,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                         {canManageGuardians && (
                           <>
                             <details className="w-full">
-                              <summary className="min-h-9 cursor-pointer py-1 text-sm font-medium text-brand-700">{t("common.edit")}</summary>
+                              <summary className="min-h-9 cursor-pointer py-1 text-sm font-medium text-link">{t("common.edit")}</summary>
                               <div className="mt-2 grid gap-4 md:grid-cols-2">
                                 <ActionForm action={A.updateRelationshipAction} submitLabel={t("common.save")} className="space-y-3">
                                   <input type="hidden" name="studentId" value={s.id} /><input type="hidden" name="guardianId" value={g.guardianId} />
@@ -135,7 +135,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                 ))}
                 {canManageGuardians && (
                   <details>
-                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("student.link")}</summary>
+                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("student.link")}</summary>
                     <ActionForm action={A.linkGuardianAction} submitLabel={t("student.link")} className="mt-2 space-y-3">
                       <input type="hidden" name="studentId" value={s.id} />
                       <GuardianFields prefix="" labels={labels} canSearch={labels.canSearch} />
@@ -165,7 +165,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                 {docs.map((d) => (
                   <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <span className="min-w-0 break-words"><strong>{d.fileName}</strong> <span className="text-muted">· {t(`doc.type.${d.docType as "OTHER"}`)}</span></span>
-                    <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-3 font-medium text-brand-700 hover:bg-canvas">{t("doc.download")}</a>
+                    <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 font-medium text-link hover:bg-canvas">{t("doc.download")}</a>
                   </li>
                 ))}
               </ul>
@@ -176,12 +176,12 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         <div className="space-y-5">
           {canSeeAttendance && (
             <Card title={t("att.title")}>
-              <Link href={`/attendance/reports?view=student&studentId=${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">{t("att.reports")}</Link>
+              <Link href={`/attendance/reports?view=student&studentId=${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-link hover:underline">{t("att.reports")}</Link>
             </Card>
           )}
           {ctx.permissions.has("fees.read") && (
             <Card title={t("fin.title")}>
-              <Link href={`/finance/students/${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">{t("fin.student.statement")}</Link>
+              <Link href={`/finance/students/${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-link hover:underline">{t("fin.student.statement")}</Link>
             </Card>
           )}
           {canEnroll && placementOptions.length > 0 && (
@@ -249,7 +249,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
           {s.siblings.length > 0 && (
             <Card title={t("student.profile.siblings")}>
               <ul className="space-y-1 text-sm">
-                {s.siblings.map((x) => <li key={x.id}><Link href={`/students/${x.id}`} className="text-brand-700 hover:underline">{x.firstName} {x.lastName}</Link> <span className="text-muted">· {x.admissionNo}</span></li>)}
+                {s.siblings.map((x) => <li key={x.id}><Link href={`/students/${x.id}`} className="text-link hover:underline">{x.firstName} {x.lastName}</Link> <span className="text-muted">· {x.admissionNo}</span></li>)}
               </ul>
             </Card>
           )}

@@ -32,7 +32,7 @@ export default async function StudentFeesPage({ params }: { params: Promise<{ id
     <>
       <PageHeader title={name} subtitle={`${s.admissionNo} · ${t("fin.student.statement")}`} actions={<>
         {hasAny(ctx, ["payment.record"]) && <Link href={`/finance/payments/new?studentId=${s.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("fin.payments.record")}</Link>}
-        {hasAny(ctx, ["student.read"]) && <Link href={`/students/${s.id}`} className="text-sm font-medium text-brand-800 hover:underline">{t("fin.student.profile")}</Link>}
+        {hasAny(ctx, ["student.read"]) && <Link href={`/students/${s.id}`} className="text-sm font-medium text-link hover:underline">{t("fin.student.profile")}</Link>}
       </>} />
       <FinanceNav ctx={ctx} t={t} current="/finance" unmatched={unmatched} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -48,7 +48,7 @@ export default async function StudentFeesPage({ params }: { params: Promise<{ id
           <DataTable head={[t("fin.pdf.invoiceNo"), t("fin.pdf.due"), t("fin.total"), t("fin.paid"), t("fin.outstanding"), t("marks.status")]}>
             {d.invoices.map((i) => (
               <tr key={i.id} className={i.status === "VOID" ? "text-muted" : undefined}>
-                <Td><Link href={`/finance/invoices/${i.id}`} className="font-medium text-brand-800 hover:underline">{i.number}</Link></Td>
+                <Td><Link href={`/finance/invoices/${i.id}`} className="font-medium text-link hover:underline">{i.number}</Link></Td>
                 <Td className="whitespace-nowrap">{displayDate(i.dueDate, ctx.locale)}</Td>
                 <Td className="tabular-nums">{money(i.total)}</Td>
                 <Td className="tabular-nums">{i.balance ? money(i.balance.paid) : "—"}</Td>
@@ -66,7 +66,7 @@ export default async function StudentFeesPage({ params }: { params: Promise<{ id
             {d.payments.map((p) => (
               <tr key={p.id} className={p.status === "REVERSED" ? "text-muted" : undefined}>
                 <Td className="whitespace-nowrap">{displayDate(p.receivedOn, ctx.locale)}</Td>
-                <Td><Link href={`/finance/payments/${p.id}`} className="font-medium text-brand-800 hover:underline">{p.receipt?.number ?? "—"}</Link></Td>
+                <Td><Link href={`/finance/payments/${p.id}`} className="font-medium text-link hover:underline">{p.receipt?.number ?? "—"}</Link></Td>
                 <Td>{tDynamic(t, "fin.method", p.method)}</Td>
                 <Td className="text-xs">{p.reference ?? "—"}</Td>
                 <Td className={`tabular-nums ${p.status === "REVERSED" ? "line-through" : "font-medium"}`}>{money(centsOf(p.amount))}</Td>
@@ -98,7 +98,7 @@ export default async function StudentFeesPage({ params }: { params: Promise<{ id
             </ul>
           )}
           {hasAny(ctx, ["fees.discount"]) && current.year && (
-            <details className="mt-4 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer text-sm font-medium text-brand-800">{t("fin.discounts.grant")}</summary>
+            <details className="mt-4 border-t border-line pt-3"><summary className="min-h-11 cursor-pointer text-sm font-medium text-link">{t("fin.discounts.grant")}</summary>
               <ActionForm action={grantDiscountAction} submitLabel={t("fin.discounts.grant")} className="mt-3 space-y-3">
                 <input type="hidden" name="studentId" value={s.id} />
                 <input type="hidden" name="academicYearId" value={current.year.id} />

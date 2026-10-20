@@ -5,7 +5,7 @@
 @theme {
   /* Typefaces: one display serif (self-hosted by next/font, swap) + the system UI stack for text. */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+  --font-display: var(--font-crimson), ui-serif, Georgia, "Times New Roman", serif;
 
   /* Brand green, anchored on the school emblem (#028051). Replace the ramp if an official style guide differs. */
   --color-brand-50: #eaf7f1;
@@ -26,6 +26,12 @@
   --color-sun-50: #fbf9d6;
   --color-indigo: #2c2aac;
   --color-indigo-50: #ecebfa;
+
+  /* Semantic colours that change with the theme (links, headings, soft tints). The staff area and family portal flip them in dark mode. */
+  --color-link: #026a43;
+  --color-heading: #083d2a;
+  --color-tint: #eaf7f1;
+  --color-tint-2: #d1efe1;
 
   /* Surfaces and text */
   --color-cream: #fbf8f1;
@@ -51,6 +57,31 @@
 }
 
 html { color-scheme: light; }
+
+.site-root { font-family: var(--font-atkinson), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+
+/* ── Signed-in areas (staff, family portal): Fira Sans, and a dark theme that swaps only the semantic tokens above. ── */
+.app-root { font-family: var(--font-fira), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --font-display: var(--font-fira), ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.theme-night {
+  color-scheme: dark;
+  --color-canvas: #09100c; --color-surface: #121b16; --color-ink: #e8f0ea; --color-muted: #93a79b; --color-line: #22302a;
+  --color-link: #6fd9a8; --color-heading: #f2f8f4; --color-tint: rgb(15 148 98 / .16); --color-tint-2: rgb(15 148 98 / .28);
+  --color-ok: #4ade9a; --color-warn: #f3b94c; --color-bad: #ff8574;
+  --color-green-50: rgb(74 222 154 / .12); --color-green-200: rgb(74 222 154 / .32);
+  --color-amber-50: rgb(243 185 76 / .12); --color-amber-200: rgb(243 185 76 / .32);
+  --color-red-50: rgb(255 133 116 / .12); --color-red-200: rgb(255 133 116 / .32);
+  --shadow-card: 0 1px 0 rgb(255 255 255 / .03) inset, 0 12px 28px -16px rgb(0 0 0 / .7);
+  --shadow-lift: 0 1px 0 rgb(255 255 255 / .05) inset, 0 22px 44px -18px rgb(0 0 0 / .8);
+}
+@media print { .theme-night { color-scheme: light; --color-canvas: #f3f6f4; --color-surface: #fff; --color-ink: #10231a; --color-muted: #51615a; --color-line: #dfe6e0; --color-link: #026a43; --color-heading: #083d2a; --color-tint: #eaf7f1; --color-tint-2: #d1efe1; --color-ok: #17794a; --color-warn: #a35f00; --color-bad: #b42318; } }
+
+/* Soft category colours (homework, timetable, quick links): pastel on light, tinted glass on dark. */
+.tone { background: var(--t-bg); color: var(--t-fg); }
+.tone-sky { --t-bg: #dff3fb; --t-fg: #0b4f66; } .tone-mint { --t-bg: #dcf4e4; --t-fg: #145232; } .tone-butter { --t-bg: #fbf3c4; --t-fg: #6b5c00; }
+.tone-blush { --t-bg: #fde7e4; --t-fg: #8a2c1f; } .tone-lav { --t-bg: #e6e4fb; --t-fg: #27258f; } .tone-peach { --t-bg: #fdebd6; --t-fg: #8a4b0f; }
+.theme-night .tone-sky { --t-bg: rgb(56 189 248 / .14); --t-fg: #8fd8f5; } .theme-night .tone-mint { --t-bg: rgb(74 222 154 / .14); --t-fg: #8ee9b9; }
+.theme-night .tone-butter { --t-bg: rgb(243 205 76 / .14); --t-fg: #f1d676; } .theme-night .tone-blush { --t-bg: rgb(255 133 116 / .14); --t-fg: #ffa89b; }
+.theme-night .tone-lav { --t-bg: rgb(139 128 255 / .16); --t-fg: #b9b3ff; } .theme-night .tone-peach { --t-bg: rgb(255 170 90 / .14); --t-fg: #ffc48a; }
 body { background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); -webkit-text-size-adjust: 100%; }
 :focus-visible { outline: 2px solid var(--color-brand-600); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

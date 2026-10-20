@@ -25,7 +25,7 @@ export default async function AcademicsPage({ searchParams }: { searchParams: Pr
       <PageHeader title={t("academics.title")} />
       <nav aria-label="Academics sections" className="mb-5 flex gap-1 overflow-x-auto border-b border-line">
         {TABS.map((k) => (
-          <Link key={k} href={`/academic-setup?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`-mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${tab === k ? "border-brand-700 text-brand-800" : "border-transparent text-muted hover:text-ink"}`}>
+          <Link key={k} href={`/academic-setup?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`-mb-px whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${tab === k ? "border-brand-700 text-link" : "border-transparent text-muted hover:text-ink"}`}>
             {labels[k]}
           </Link>
         ))}
@@ -74,7 +74,7 @@ async function YearsTab({ canManage, ctx }: { canManage: boolean; ctx: Ctx }) {
           </ul>
           {canManage && (
             <details className="mt-3">
-              <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("academics.term.add")}</summary>
+              <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("academics.term.add")}</summary>
               <ActionForm action={A.createTermAction} submitLabel={t("common.add")} className="mt-2 grid gap-3 sm:grid-cols-5 sm:items-end">
                 <input type="hidden" name="academicYearId" value={y.id} />
                 <Field name="name" label={t("academics.term")} placeholder="Term 1" required />
@@ -128,7 +128,7 @@ async function ClassesTab({ canManage, ctx }: { canManage: boolean; ctx: Ctx }) 
                   <Field name="nameSw" label={t("academics.class.nameSw")} optionalLabel={t("common.optional")} />
                 </ActionForm>
                 <details>
-                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("academics.class.bulk")}</summary>
+                  <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("academics.class.bulk")}</summary>
                   <ActionForm action={A.bulkClassesAction} submitLabel={t("common.add")} className="mt-2 space-y-3">
                     <Field name="levelId" label={t("academics.level")} type="select" options={levelOptions} placeholder={t("common.select")} required />
                     <Field name="names" label={t("student.class")} type="textarea" rows={5} placeholder={"Standard I\nStandard II\nStandard III"} required />
@@ -154,7 +154,7 @@ async function ClassesTab({ canManage, ctx }: { canManage: boolean; ctx: Ctx }) 
                     <span className="text-sm text-muted">{t("student.stream")}:</span>
                     {c.streams.length === 0 && <span className="text-sm text-muted">—</span>}
                     {c.streams.map((s) => (
-                      <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-800">
+                      <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-tint px-3 py-1 text-sm text-link">
                         {s.name}
                         {canManage && <ActionForm action={A.deleteStreamAction} submitLabel="×" inline className="inline" confirm={t("common.confirmAction")}><input type="hidden" name="id" value={s.id} /></ActionForm>}
                       </span>
@@ -167,7 +167,7 @@ async function ClassesTab({ canManage, ctx }: { canManage: boolean; ctx: Ctx }) 
                     </ActionForm>
                   )}
                   <details className="mt-3">
-                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("academics.class.subjects")} ({subjectsByClass.get(c.id)?.length ?? 0})</summary>
+                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("academics.class.subjects")} ({subjectsByClass.get(c.id)?.length ?? 0})</summary>
                     {subjects.length === 0 ? (
                       <p className="text-sm text-muted">{t("academics.noSubjects")}</p>
                     ) : canManage ? (
@@ -206,7 +206,7 @@ async function SubjectsTab({ canManage, ctx }: { canManage: boolean; ctx: Ctx })
       {!subjects.length ? (
         <EmptyState>{t("academics.noSubjects")}</EmptyState>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-line bg-white">
+        <div className="overflow-hidden rounded-xl border border-line bg-surface">
           <ul className="divide-y divide-line">
             {subjects.map((s) => (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
@@ -242,7 +242,7 @@ async function AssignmentsTab({ canAssign, ctx, yearParam }: { canAssign: boolea
       <form method="get" className="flex flex-wrap items-end gap-3">
         <input type="hidden" name="tab" value="assignments" />
         <Field name="year" label={t("academics.selectYear")} type="select" options={years.map((y) => ({ value: y.id, label: y.name }))} defaultValue={year.id} />
-        <button className="min-h-11 rounded-lg border border-line bg-white px-4 text-sm font-medium hover:bg-canvas">{t("common.filter")}</button>
+        <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-medium hover:bg-canvas">{t("common.filter")}</button>
       </form>
 
       {canAssign && (

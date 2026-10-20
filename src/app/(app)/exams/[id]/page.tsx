@@ -43,11 +43,11 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
       <PageHeader
         title={exam.name}
         subtitle={`${term ? `${term.academicYear.name} · ${term.name}` : ""}`}
-        actions={<Link href="/exams" className="text-sm font-medium text-brand-800 hover:underline">{t("exam.back")}</Link>}
+        actions={<Link href="/exams" className="text-sm font-medium text-link hover:underline">{t("exam.back")}</Link>}
       />
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
         {(["DRAFT", "SUBMITTED", "APPROVED", "LOCKED", "RETURNED"] as const).map((s) => (
-          <div key={s} className="rounded-xl border border-line bg-white p-3">
+          <div key={s} className="rounded-xl border border-line bg-surface p-3">
             <p className="text-xs uppercase tracking-wide text-muted">{t(`marks.status.${s}`)}</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">{count(s)}</p>
           </div>
@@ -94,7 +94,7 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
                       <Td className="tabular-nums">{s.entered}/{s.roster}</Td>
                       <Td className="text-right">
                         <span className="inline-flex items-center gap-3">
-                          <Link href={`/marks/${s.id}`} className="text-sm font-medium text-brand-800 hover:underline">{s.canEnter && (s.status === "DRAFT" || s.status === "RETURNED") ? t("marks.enter") : t("common.view")}</Link>
+                          <Link href={`/marks/${s.id}`} className="text-sm font-medium text-link hover:underline">{s.canEnter && (s.status === "DRAFT" || s.status === "RETURNED") ? t("marks.enter") : t("common.view")}</Link>
                           {canManage && s.entered === 0 && esBySub.get(`${s.classId}:${s.subjectId}`) && (
                             <ActionForm action={removeExamSubjectAction} inline tone="danger" submitLabel={t("common.remove")} confirm={t("exam.confirmRemove")}>
                               <input type="hidden" name="examSubjectId" value={esBySub.get(`${s.classId}:${s.subjectId}`)} />

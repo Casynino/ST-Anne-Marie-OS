@@ -17,9 +17,12 @@ import { initialsOf } from "@/lib/site";
 import type { NavGroup } from "@/components/app-shell/icons";
 import { AppSidebar, MobileDrawer } from "@/components/app-shell/sidebar";
 import { Breadcrumbs, GlobalSearch, NotificationBell, UserMenu } from "@/components/app-shell/topbar";
+import { ThemeRoot, getTheme } from "@/components/theme-root";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireContext();
+  const theme = await getTheme();
   if (ctx.userType !== "STAFF") redirect("/family"); // parents and students use the family portal, never the staff area
   const [t, locale, school, academic, logo, unread, newEnquiries, unmatchedPayments, staffAttention, roles, jar] = await Promise.all([
     getT(), getLocale(), getSchoolBasics(ctx.schoolId), getCurrentAcademicContext(ctx.schoolId), getBrandLogo(ctx.schoolId),
@@ -88,19 +91,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const signOut = (
     <SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-bad hover:bg-red-50"><LogOut className="size-4" aria-hidden /> {t("nav.signOut")}</SignOutButton>
   );
-  const drawerFooter = <div className="space-y-3"><LanguageSwitch current={locale} dark /><SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-brand-100 hover:bg-white/10"><LogOut className="size-5" aria-hidden /> {t("nav.signOut")}</SignOutButton></div>;
+  const drawerFooter = <div className="space-y-3"><LanguageSwitch current={locale} dark /><SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-brand-100 hover:bg-surface/10"><LogOut className="size-5" aria-hidden /> {t("nav.signOut")}</SignOutButton></div>;
 
   return (
-    <div className="flex min-h-dvh">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow-lg">{t("site.skip")}</a>
+    <ThemeRoot className="flex min-h-dvh">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:shadow-lg">{t("site.skip")}</a>
       <AppSidebar groups={groups} name={school.name} initials={initials} logo={logoRef} collapsedInitially={jar.get("sam_nav")?.value === "collapsed"} labels={{ collapse: t("nav.collapse"), expand: t("nav.expand") }} />
       <div className="min-w-0 flex-1">
-        <header className="no-print sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-line bg-white/95 px-3 backdrop-blur lg:px-6">
+        <header className="no-print sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-line bg-surface/95 px-3 backdrop-blur lg:px-6">
           <MobileDrawer groups={groups} name={school.name} initials={initials} logo={logoRef} labels={{ menu: t("nav.menu"), close: t("nav.close") }} footer={drawerFooter} />
           <Breadcrumbs labels={crumbLabels} detailsLabel={t("bc.details")} homeLabel={t("nav.dashboard")} />
           {canSearch ? <GlobalSearch action="/students" placeholder={t("search.students")} label={t("search.students")} /> : <span className="flex-1" />}
           <div className="ml-auto flex items-center gap-1">
             {academic.year && <span className="mr-1 hidden items-center rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted xl:inline-flex" title={`${t("dash.year")} / ${t("dash.term")}`}>{academic.year.name}{academic.term ? ` · ${academic.term.name}` : ""}</span>}
+            <ThemeToggle initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} />
             <NotificationBell count={unread} label={t("nav.notifications")} />
             <UserMenu name={ctx.fullName} initials={initialsOf(ctx.fullName).slice(0, 2)} role={roles[0]?.name} passwordLabel={t("auth.changePassword.button")}>
               <div className="px-1"><LanguageSwitch current={locale} /></div>
@@ -110,6 +114,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl px-3 py-5 outline-none sm:px-6 sm:py-7">{children}</main>
       </div>
-    </div>
+    </ThemeRoot>
   );
 }

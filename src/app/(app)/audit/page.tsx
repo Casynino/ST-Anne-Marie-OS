@@ -42,7 +42,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               <Td>
                 {(l.changes || l.reason) && (
                   <details>
-                    <summary className="cursor-pointer text-brand-700">{t("common.view")}</summary>
+                    <summary className="cursor-pointer text-link">{t("common.view")}</summary>
                     {l.reason && <p className="mt-1 text-xs">{t("common.reason")}: {l.reason}</p>}
                     {l.changes ? <pre className="mt-1 max-w-sm overflow-x-auto whitespace-pre-wrap break-words rounded bg-canvas p-2 text-xs">{JSON.stringify(l.changes, null, 1)}</pre> : null}
                   </details>

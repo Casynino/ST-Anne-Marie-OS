@@ -68,7 +68,7 @@ export function OfflinePanel({ userId, locale, timezone, fullName, canTake }: { 
   const fmt = (iso: string) => new Intl.DateTimeFormat(locale === "SW" ? "sw-TZ" : "en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: timezone }).format(new Date(iso));
 
   return (
-    <section className="mb-5 rounded-xl border border-line bg-white p-4" aria-label={t("off.title")}>
+    <section className="mb-5 rounded-xl border border-line bg-surface p-4" aria-label={t("off.title")}>
       <ConnectionLine t={t} online={outbox.online} unsynced={outbox.unsynced} syncing={outbox.syncing} onSync={outbox.sync} />
       {outbox.needsSignIn && <p role="alert" className="mb-3 rounded-lg border border-warn/30 bg-amber-50 px-3 py-2 text-sm text-warn">{t("off.signInAgain")}</p>}
       {outbox.ops.filter((o) => o.state !== "synced").map((op) => (

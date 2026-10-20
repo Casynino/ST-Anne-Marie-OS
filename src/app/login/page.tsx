@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getContext, getLocale, getT } from "@/lib/auth/next";
 import { homeFor } from "@/lib/auth/home";
 import { ActionForm, Field } from "@/components/form";
+import { ThemeRoot } from "@/components/theme-root";
 import { LanguageSwitch } from "@/components/language-switch";
 import { loginAction } from "./actions";
 
@@ -18,12 +19,13 @@ export default async function LoginPage() {
   const school = await db.school.findFirst({ orderBy: { createdAt: "asc" }, select: { name: true } });
 
   return (
+    <ThemeRoot className="min-h-dvh">
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-4 py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-semibold text-brand-800">{school?.name ?? t("app.name")}</h1>
+        <h1 className="text-2xl font-semibold text-link">{school?.name ?? t("app.name")}</h1>
         <p className="mt-1 text-sm text-muted">{t("app.tagline")}</p>
       </div>
-      <div className="rounded-xl border border-line bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-line bg-surface p-6 shadow-sm">
         <h2 className="text-lg font-semibold">{t("auth.signIn.title")}</h2>
         <p className="mb-4 mt-1 text-sm text-muted">{t("auth.signIn.intro")}</p>
         <ActionForm action={loginAction} submitLabel={t("auth.signIn.button")}>
@@ -35,5 +37,6 @@ export default async function LoginPage() {
         <LanguageSwitch current={locale} />
       </div>
     </main>
+    </ThemeRoot>
   );
 }

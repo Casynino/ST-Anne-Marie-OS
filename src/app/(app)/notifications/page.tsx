@@ -21,7 +21,7 @@ export default async function NotificationsPage() {
       ) : (
         <ul className="space-y-2">
           {items.map((n) => (
-            <li key={n.id} className="rounded-xl border border-line bg-white p-4">
+            <li key={n.id} className="rounded-xl border border-line bg-surface p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{n.title} {!n.readAt && <Badge tone="brand">•</Badge>}</p>
                 <span className="text-xs text-muted">{displayDateTime(n.createdAt, school.timezone, ctx.locale)}</span>

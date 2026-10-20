@@ -16,7 +16,7 @@ export function FileInput({ label, hint }: { label: string; hint: string }) {
   return (
     <div>
       <label htmlFor="doc-file" className="mb-1 block text-sm font-medium">{label}</label>
-      <input id="doc-file" name="file" type="file" required accept="application/pdf,image/jpeg,image/png,image/webp" className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-800`} />
+      <input id="doc-file" name="file" type="file" required accept="application/pdf,image/jpeg,image/png,image/webp" className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-2 file:text-sm file:font-medium file:text-link`} />
       <p className="mt-1 text-sm text-muted">{hint}</p>
     </div>
   );

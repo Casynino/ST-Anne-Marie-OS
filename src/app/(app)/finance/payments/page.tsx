@@ -43,7 +43,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
           {data.items.map((p) => (
             <tr key={p.id} className={p.status === "REVERSED" ? "text-muted" : undefined}>
               <Td className="whitespace-nowrap">{displayDate(p.receivedOn, ctx.locale)}</Td>
-              <Td><Link href={`/finance/payments/${p.id}`} className="font-medium text-brand-800 hover:underline">{p.receipt?.number ?? "—"}</Link></Td>
+              <Td><Link href={`/finance/payments/${p.id}`} className="font-medium text-link hover:underline">{p.receipt?.number ?? "—"}</Link></Td>
               <Td><Link href={`/finance/students/${p.studentId}`} className="hover:underline">{p.studentName}</Link><p className="text-xs text-muted">{p.admissionNo}</p></Td>
               <Td>{tDynamic(t, "fin.method", p.method)}{p.source === "PROVIDER" && <p className="text-xs text-muted">{p.provider}</p>}</Td>
               <Td className="text-xs">{p.reference ?? "—"}</Td>

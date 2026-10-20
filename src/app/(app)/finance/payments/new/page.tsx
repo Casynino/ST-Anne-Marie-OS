@@ -26,18 +26,18 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
   const today = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
   return (
     <>
-      <PageHeader title={t("fin.payments.record")} subtitle={t("fin.payments.recordHint")} actions={<Link href="/finance/payments" className="text-sm font-medium text-brand-800 hover:underline">{t("fin.nav.payments")}</Link>} />
+      <PageHeader title={t("fin.payments.record")} subtitle={t("fin.payments.recordHint")} actions={<Link href="/finance/payments" className="text-sm font-medium text-link hover:underline">{t("fin.nav.payments")}</Link>} />
       <FinanceNav ctx={ctx} t={t} current="/finance/payments" unmatched={unmatched} />
       {!student ? (
         <div className="max-w-xl space-y-4">
-          <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-white p-3">
+          <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-3">
             <Field name="q" label={t("fin.payments.findStudent")} defaultValue={sp.q} placeholder={t("fin.payments.findHint")} className="min-w-56 flex-1" required />
             <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("common.search")}</button>
           </form>
           {sp.q && matches.length === 0 && <EmptyState>{t("common.noResults")}</EmptyState>}
           <ul className="space-y-2">
             {matches.map((s) => (
-              <li key={s.id}><Link href={`/finance/payments/new?studentId=${s.id}`} className="flex min-h-14 items-center justify-between rounded-xl border border-line bg-white px-4 hover:border-brand-400"><span className="font-medium">{[s.firstName, s.middleName, s.lastName].filter(Boolean).join(" ")}</span><span className="text-sm text-muted">{s.admissionNo} · {tDynamic(t, "student.status", s.status)}</span></Link></li>
+              <li key={s.id}><Link href={`/finance/payments/new?studentId=${s.id}`} className="flex min-h-14 items-center justify-between rounded-xl border border-line bg-surface px-4 hover:border-brand-400"><span className="font-medium">{[s.firstName, s.middleName, s.lastName].filter(Boolean).join(" ")}</span><span className="text-sm text-muted">{s.admissionNo} · {tDynamic(t, "student.status", s.status)}</span></Link></li>
             ))}
           </ul>
         </div>
@@ -62,7 +62,7 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
               <div className="flex justify-between"><dt className="text-muted">{t("fin.overdue")}</dt><dd className="tabular-nums">{money(fin!.ledger.overdue)}</dd></div>
               <div className="flex justify-between"><dt className="text-muted">{t("fin.credit")}</dt><dd className="tabular-nums">{money(fin!.ledger.credit)}</dd></div>
             </dl>
-            <Link href={`/finance/students/${student.id}`} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-brand-800 hover:underline">{t("fin.student.statement")}</Link>
+            <Link href={`/finance/students/${student.id}`} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-link hover:underline">{t("fin.student.statement")}</Link>
           </Card>
         </div>
       )}

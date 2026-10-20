@@ -34,7 +34,7 @@ export default async function RegisterPage({ params }: { params: Promise<{ id: s
       <PageHeader
         title={`${reg.className}${reg.streamName ? ` · ${reg.streamName}` : ""}`}
         subtitle={`${reg.date} · ${reg.sessionName} · ${reg.status === "FINALISED" ? t("att.finalised") : t("att.draft")}`}
-        actions={<Link href={`/attendance?date=${reg.date}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-3 text-sm font-medium hover:bg-canvas">{t("common.back")}</Link>}
+        actions={<Link href={`/attendance?date=${reg.date}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas">{t("common.back")}</Link>}
       />
       <p className="mb-4 text-sm text-muted">
         {t("att.summary", { present: counts.PRESENT, absent: counts.ABSENT, late: counts.LATE, excused: counts.EXCUSED })}
@@ -50,7 +50,7 @@ export default async function RegisterPage({ params }: { params: Promise<{ id: s
             {reg.canCorrect && (
               <Td>
                 <details>
-                  <summary className="cursor-pointer text-sm font-medium text-brand-700">{t("att.correct")}</summary>
+                  <summary className="cursor-pointer text-sm font-medium text-link">{t("att.correct")}</summary>
                   <ActionForm action={correctAttendanceAction} submitLabel={t("att.correct")} className="mt-2 w-64 max-w-full space-y-2">
                     <input type="hidden" name="attendanceId" value={r.id} />
                     <Field name="status" type="select" label={t("att.correct.to")} required options={STATUSES.filter((s) => s !== r.status).map((s) => ({ value: s, label: t(`att.status.${s}`) }))} />

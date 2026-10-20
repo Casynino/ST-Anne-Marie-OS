@@ -26,7 +26,7 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title={t("learn.plan.title")} subtitle={t("learn.plan.subtitle")} actions={writer ? <div className="flex gap-2"><LinkButton href="/planning/schemes/new" variant="secondary">{t("learn.scheme.new")}</LinkButton><LinkButton href="/planning/lessons/new">{t("learn.lesson.new")}</LinkButton></div> : undefined} />
       <nav aria-label={t("learn.plan.title")} className="mb-4 flex flex-wrap gap-2">
-        {tabs.map((x) => <Link key={x.id} href={`/planning?tab=${x.id}`} aria-current={tab === x.id ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${tab === x.id ? "bg-brand-700 text-white" : "border border-line bg-white hover:bg-canvas"}`}>{x.label}</Link>)}
+        {tabs.map((x) => <Link key={x.id} href={`/planning?tab=${x.id}`} aria-current={tab === x.id ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${tab === x.id ? "bg-brand-700 text-white" : "border border-line bg-surface hover:bg-canvas"}`}>{x.label}</Link>)}
       </nav>
 
       {(tab === "schemes" || tab === "review") && (
@@ -35,12 +35,12 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
           <DataTable head={[t("learn.title"), t("learn.class"), t("learn.subject"), ...(tab === "review" ? [t("learn.teacher")] : []), t("learn.weeks"), t("common.status"), ""]} empty={schemes.length ? undefined : <p className="px-4 py-10 text-center text-sm text-muted">{t("learn.scheme.none")}</p>}>
             {schemes.map((s) => (
               <tr key={s.id}>
-                <Td><Link href={`/planning/schemes/${s.id}`} className="font-medium text-brand-800 hover:underline">{s.title}</Link></Td>
+                <Td><Link href={`/planning/schemes/${s.id}`} className="font-medium text-link hover:underline">{s.title}</Link></Td>
                 <Td>{s.className}</Td><Td>{s.subjectName}</Td>
                 {tab === "review" && <Td>{s.teacherName}</Td>}
                 <Td className="tabular-nums">{s._count.weeks}</Td>
                 <Td><Badge tone={STATUS_TONE[s.status]}>{t(`learn.status.${s.status}`)}</Badge></Td>
-                <Td className="text-right"><Link href={`/planning/schemes/${s.id}`} className="text-sm font-medium text-brand-800 hover:underline">{t("common.view")}</Link></Td>
+                <Td className="text-right"><Link href={`/planning/schemes/${s.id}`} className="text-sm font-medium text-link hover:underline">{t("common.view")}</Link></Td>
               </tr>
             ))}
           </DataTable>
@@ -53,11 +53,11 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
             {lessons.map((p) => (
               <tr key={p.id}>
                 <Td className="whitespace-nowrap">{displayDate(p.lessonDate, ctx.locale)}</Td>
-                <Td><Link href={`/planning/lessons/${p.id}`} className="font-medium text-brand-800 hover:underline">{p.topic}</Link></Td>
+                <Td><Link href={`/planning/lessons/${p.id}`} className="font-medium text-link hover:underline">{p.topic}</Link></Td>
                 <Td>{p.className}</Td><Td>{p.subjectName}</Td>
                 {tab === "review" && <Td>{p.teacherName}</Td>}
                 <Td><Badge tone={STATUS_TONE[p.status]}>{t(`learn.status.${p.status}`)}</Badge></Td>
-                <Td className="text-right"><Link href={`/planning/lessons/${p.id}`} className="text-sm font-medium text-brand-800 hover:underline">{t("common.view")}</Link></Td>
+                <Td className="text-right"><Link href={`/planning/lessons/${p.id}`} className="text-sm font-medium text-link hover:underline">{t("common.view")}</Link></Td>
               </tr>
             ))}
           </DataTable>

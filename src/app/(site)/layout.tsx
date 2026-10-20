@@ -4,6 +4,7 @@ import { baseUrl, getSite, initialsOf, schoolJsonLd, telHref } from "@/lib/site"
 import { LanguageSwitch } from "@/components/language-switch";
 import { SiteHeader, type SiteLink } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
+import { atkinson, crimson } from "@/lib/fonts";
 import { MobileActions } from "@/components/site/mobile-actions";
 import { AnnouncementBar } from "@/components/site/announcement-bar";
 
@@ -23,7 +24,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     { href: "/contact", label: t("site.nav.contact") },
   ];
   return (
-    <div className="min-h-dvh bg-cream text-ink">
+    <div className={`site-root ${crimson.variable} ${atkinson.variable} min-h-dvh bg-cream text-ink`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schoolJsonLd(site)).replace(/</g, "\\u003c") }} />
       <div aria-hidden className="scroll-line" />
       <AnnouncementBar schoolId={site.school.id} t={t} locale={locale} />

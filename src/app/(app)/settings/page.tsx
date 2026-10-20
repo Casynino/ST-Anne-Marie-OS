@@ -21,7 +21,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader title={t("settings.title")} subtitle={canEdit ? undefined : t("settings.readOnly")} actions={ctx.permissions.has("backup.read") ? <LinkButton href="/settings/backups" variant="secondary">{t("backup.title")}</LinkButton> : undefined} />
+      <PageHeader title={t("settings.title")} subtitle={canEdit ? undefined : t("settings.readOnly")} actions={ctx.permissions.has("backup.read") ? <><LinkButton href="/settings/system" variant="secondary">{t("sysh.title")}</LinkButton><LinkButton href="/settings/backups" variant="secondary">{t("backup.title")}</LinkButton></> : undefined} />
       <div className="space-y-5">
         <Card title={t("settings.profile")}>
           <ActionForm action={updateSchoolAction} submitLabel={t("common.save")} hideSubmit={!canEdit}>

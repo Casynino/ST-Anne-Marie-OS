@@ -21,14 +21,14 @@ export default async function FamilyInboxPage() {
       {items.length === 0 ? <EmptyState>{t("fam.inbox.empty")}</EmptyState> : (
         <ul className="space-y-2">
           {items.map((n) => (
-            <li key={n.id} className={`rounded-xl border px-4 py-3 ${n.readAt ? "border-line bg-white" : "border-brand-300 bg-brand-50"}`}>
+            <li key={n.id} className={`rounded-xl border px-4 py-3 ${n.readAt ? "border-line bg-surface" : "border-brand-300 bg-tint"}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <p className={n.readAt ? "font-medium" : "font-bold"}>{n.title}</p>
                 <span className="text-xs text-muted">{displayDateTime(n.createdAt, school.timezone)}</span>
               </div>
               <p className="mt-1 whitespace-pre-line text-sm">{n.body}</p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
-                {n.link && <Link href={n.link} className="text-sm font-semibold text-brand-800 hover:underline">{t("common.view")}</Link>}
+                {n.link && <Link href={n.link} className="text-sm font-semibold text-link hover:underline">{t("common.view")}</Link>}
                 {!n.readAt && <ActionForm action={markReadAction} submitLabel={t("fam.inbox.markRead")} inline className="space-y-0"><input type="hidden" name="id" value={n.id} /></ActionForm>}
               </div>
             </li>

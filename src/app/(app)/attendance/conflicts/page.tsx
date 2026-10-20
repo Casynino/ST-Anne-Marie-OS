@@ -26,7 +26,7 @@ export default async function ConflictsPage({ searchParams }: { searchParams: Pr
       <PageHeader title={t("conf.title")} subtitle={t("conf.intro")} />
       <AttendanceNav ctx={ctx} t={t} current="/attendance/conflicts" conflicts={pending} />
       <p className="mb-3 text-sm">
-        <Link href={showResolved ? "/attendance/conflicts" : "/attendance/conflicts?resolved=1"} className="text-brand-700 hover:underline">
+        <Link href={showResolved ? "/attendance/conflicts" : "/attendance/conflicts?resolved=1"} className="text-link hover:underline">
           {showResolved ? t("common.clear") : t("conf.showResolved")}
         </Link>
       </p>
@@ -86,7 +86,7 @@ function ResolveButtons({ accept, dismiss }: { accept: string; dismiss: string }
   return (
     <>
       <button name="action" value="ACCEPT" className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{accept}</button>
-      <button name="action" value="DISMISS" className="min-h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:bg-canvas">{dismiss}</button>
+      <button name="action" value="DISMISS" className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:bg-canvas">{dismiss}</button>
     </>
   );
 }

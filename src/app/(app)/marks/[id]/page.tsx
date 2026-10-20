@@ -42,7 +42,7 @@ export default async function MarkSheetPage({ params }: { params: Promise<{ id: 
       <PageHeader
         title={`${subjectName} · ${className}${sheet.streamName ? ` ${sheet.streamName}` : ""}`}
         subtitle={`${sheet.exam.name} · ${sheet.termName} · ${t("marks.outOf", { max: sheet.maxMarks })}`}
-        actions={<Link href={hasAny(ctx, ["marks.enter", "marks.enter_any"]) ? "/marks" : `/exams/${sheet.exam.id}`} className="text-sm font-medium text-brand-800 hover:underline">{t("marks.back")}</Link>}
+        actions={<Link href={hasAny(ctx, ["marks.enter", "marks.enter_any"]) ? "/marks" : `/exams/${sheet.exam.id}`} className="text-sm font-medium text-link hover:underline">{t("marks.back")}</Link>}
       />
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <Badge tone={SUBMISSION_TONE[submission.status]}>{t(`marks.status.${submission.status}`)}</Badge>

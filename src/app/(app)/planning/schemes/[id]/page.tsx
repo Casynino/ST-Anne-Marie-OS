@@ -41,11 +41,11 @@ export default async function SchemePage({ params }: { params: Promise<{ id: str
         ) : (
           <ol className="space-y-3">
             {s.weeks.map((w) => (
-              <li key={w.id} className="rounded-2xl border border-line bg-white p-5 shadow-[var(--shadow-card)]">
-                <p className="text-xs font-bold uppercase tracking-wider text-brand-700">{t("learn.week")} {w.weekNo}</p>
-                <h2 className="display mt-1 text-xl text-brand-950">{w.topic}</h2>
+              <li key={w.id} className="rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
+                <p className="text-xs font-bold uppercase tracking-wider text-link">{t("learn.week")} {w.weekNo}</p>
+                <h2 className="display mt-1 text-xl text-heading">{w.topic}</h2>
                 <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-                  {([["objectives", w.objectives], ["activities", w.activities], ["resources", w.resources], ["assessment", w.assessment]] as const).filter(([, v]) => v).map(([k, v]) => <div key={k}><dt className="font-semibold text-brand-900">{t(`learn.${k}`)}</dt><dd className="mt-0.5 whitespace-pre-line text-muted">{v}</dd></div>)}
+                  {([["objectives", w.objectives], ["activities", w.activities], ["resources", w.resources], ["assessment", w.assessment]] as const).filter(([, v]) => v).map(([k, v]) => <div key={k}><dt className="font-semibold text-heading">{t(`learn.${k}`)}</dt><dd className="mt-0.5 whitespace-pre-line text-muted">{v}</dd></div>)}
                 </dl>
               </li>
             ))}

@@ -36,7 +36,7 @@ export default async function RemarksPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title={t("rc.remarks.title")} subtitle={t("rc.remarks.subtitle")} actions={<Link href="/report-cards" className="text-sm font-medium text-brand-800 hover:underline">{t("rc.page.title")}</Link>} />
+      <PageHeader title={t("rc.remarks.title")} subtitle={t("rc.remarks.subtitle")} actions={<Link href="/report-cards" className="text-sm font-medium text-link hover:underline">{t("rc.page.title")}</Link>} />
       <FilterBar t={t} resetHref="/report-cards/remarks">
         <Field name="termId" type="select" label={t("exam.term")} options={terms.map((x) => ({ value: x.id, label: `${x.academicYear.name} · ${x.name}` }))} defaultValue={termId ?? ""} />
         <Field name="classId" type="select" label={t("exam.class")} options={classes.map((c) => ({ value: c.id, label: c.name }))} defaultValue={sp.classId ?? ""} placeholder={t("res.chooseClass")} />
@@ -55,7 +55,7 @@ export default async function RemarksPage({ searchParams }: { searchParams: Prom
           {streamId && <input type="hidden" name="streamId" value={streamId} />}
           <ul className="space-y-3">
             {data.rows.map((r) => (
-              <li key={r.studentId} className="rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)]">
+              <li key={r.studentId} className="rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <p className="font-semibold">{r.name}</p><span className="text-xs text-muted">{r.admissionNo}</span>
                   {r.cardStatus === "PUBLISHED" && <Badge tone="ok">{t("rc.status.PUBLISHED")}</Badge>}

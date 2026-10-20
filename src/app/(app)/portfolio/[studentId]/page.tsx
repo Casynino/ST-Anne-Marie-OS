@@ -13,7 +13,7 @@ import { FileList } from "@/components/learning/file-list";
 import { addPortfolioAction, attachPortfolioFileAction, removePortfolioFileAction, reviewPortfolioAction } from "../actions";
 
 export const metadata: Metadata = { title: "Portfolio" };
-const fileInput = `${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-800`;
+const fileInput = `${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-2 file:text-sm file:font-medium file:text-link`;
 
 export default async function StudentPortfolioPage({ params }: { params: Promise<{ studentId: string }> }) {
   const ctx = await requireContext();
@@ -25,7 +25,7 @@ export default async function StudentPortfolioPage({ params }: { params: Promise
   try { d = await studentPortfolio(ctx, studentId); } catch (e) { if (e instanceof AppError && e.code === "NOT_FOUND") notFound(); throw e; }
   return (
     <>
-      <Link href="/portfolio" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("learn.pf.title")}</Link>
+      <Link href="/portfolio" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("learn.pf.title")}</Link>
       <PageHeader title={d.student.name} subtitle={`${d.student.admissionNo} · ${t("learn.pf.title")}`} />
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-4">
@@ -33,7 +33,7 @@ export default async function StudentPortfolioPage({ params }: { params: Promise
           {d.items.map((i) => (
             <Card key={i.id}>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="display text-xl text-brand-950">{i.title}</h2>
+                <h2 className="display text-xl text-heading">{i.title}</h2>
                 <Badge tone={i.status === "PENDING" ? "warn" : "ok"}>{t(i.status === "PENDING" ? "learn.pf.status.PENDING" : "learn.pf.status.PUBLISHED")}</Badge>
                 {i.createdByStudent && <Badge tone="brand">{t("learn.pf.byStudent")}</Badge>}
                 <span className="ml-auto text-sm text-muted">{displayDate(i.createdAt, ctx.locale)}</span>
@@ -42,7 +42,7 @@ export default async function StudentPortfolioPage({ params }: { params: Promise
               {i.teacherComment && <p className="mt-2 text-sm text-muted"><strong>{t("learn.pf.comment")}:</strong> {i.teacherComment}</p>}
               <div className="mt-3"><FileList files={i.files} remove={(f) => <ActionForm action={removePortfolioFileAction} submitLabel={t("common.remove")} inline tone="danger" className=""><input type="hidden" name="fileId" value={f.id} /></ActionForm>} /></div>
               <details className="mt-3 border-t border-line pt-3">
-                <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-brand-800">{i.status === "PENDING" ? t("learn.pf.review") : t("common.edit")}</summary>
+                <summary className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-link">{i.status === "PENDING" ? t("learn.pf.review") : t("common.edit")}</summary>
                 <div className="mt-3 space-y-4">
                   <ActionForm action={reviewPortfolioAction} hideSubmit className="space-y-3">
                     <input type="hidden" name="id" value={i.id} />

@@ -54,7 +54,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
       <PageHeader
         title={t("rc.page.title")}
         subtitle={t("rc.page.subtitle")}
-        actions={hasAny(ctx, ["remarks.class", "remarks.head"]) && cls ? <Link href={`/report-cards/remarks?${q}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:bg-canvas">{t("rc.remarks.open")}</Link> : undefined}
+        actions={hasAny(ctx, ["remarks.class", "remarks.head"]) && cls ? <Link href={`/report-cards/remarks?${q}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas">{t("rc.remarks.open")}</Link> : undefined}
       />
       <FilterBar t={t} resetHref="/report-cards">
         <Field name="termId" type="select" label={t("exam.term")} options={terms.map((x) => ({ value: x.id, label: `${x.academicYear.name} · ${x.name}` }))} defaultValue={termId ?? ""} />
@@ -81,7 +81,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
             {canGenerate && <ActionForm action={generateCardsAction} submitLabel={t("rc.generate")} className="space-y-0">{hidden}</ActionForm>}
             {canPublish && <ActionForm action={publishCardsAction} submitLabel={t("rc.publish")} className="space-y-0" confirm={t("rc.publish.confirm")}>{hidden}</ActionForm>}
             {data.rows.some((r) => r.card && r.card.status !== "WITHDRAWN") && (
-              <a href={`/api/report-cards/class?${q}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-semibold hover:bg-canvas"><FileDown className="size-4" aria-hidden />{t("rc.printAll")}</a>
+              <a href={`/api/report-cards/class?${q}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas"><FileDown className="size-4" aria-hidden />{t("rc.printAll")}</a>
             )}
           </div>
 
@@ -93,7 +93,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
                 <Td className="tabular-nums">{r.position ?? "—"}</Td>
                 <Td className="text-xs">{t("rc.remarks.class")}: {r.hasClassRemark ? "✓" : "—"} · {t("rc.remarks.head")}: {r.hasHeadRemark ? "✓" : "—"}</Td>
                 <Td>{r.card ? <><Badge tone={TONE[r.card.status]}>{t(`rc.status.${r.card.status}` as never)}</Badge>{r.card.version > 1 && <span className="ml-1 text-xs text-muted">v{r.card.version}</span>}</> : <span className="text-sm text-muted">{t("rc.status.none")}</span>}</Td>
-                <Td className="text-right">{r.card && <Link href={`/report-cards/${r.card.id}`} className="text-sm font-semibold text-brand-800 hover:underline">{t("common.view")}</Link>}</Td>
+                <Td className="text-right">{r.card && <Link href={`/report-cards/${r.card.id}`} className="text-sm font-semibold text-link hover:underline">{t("common.view")}</Link>}</Td>
               </tr>
             ))}
           </DataTable>

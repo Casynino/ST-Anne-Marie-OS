@@ -24,7 +24,7 @@ import { centsOf } from "@/lib/finance/money";
 export type Kpi = { key: string; value: number | string | null; hint?: string; href: string };
 export type Bar = { label: string; value: number; tone?: "brand" | "sun" | "indigo" | "warn" | "bad" | "muted" };
 export type TrendPoint = { date: string; rate: number };
-export type Attention = { key: "conflicts" | "failedNotifications" | "newEnquiries" | "newApplications" | "registersOpen" | "unmatchedPayments" | "refundsPending" | "resultsToApprove" | "marksOverdue" | "messagesWaiting" | "backupStale"; count: number; href: string };
+export type Attention = { area: "attendance" | "admissions" | "finance" | "results" | "messages" | "system"; key: "conflicts" | "failedNotifications" | "newEnquiries" | "newApplications" | "registersOpen" | "unmatchedPayments" | "refundsPending" | "resultsToApprove" | "marksOverdue" | "messagesWaiting" | "backupStale"; count: number; href: string };
 export type CollectionsPoint = { date: string; cents: number };
 export type FinancePanel = {
   term: { id: string; name: string };
@@ -54,7 +54,7 @@ async function todaysAttendance(ctx: AuthContext, today: string) {
       total++;
       if (cell.status === "FINALISED") { finalised++; for (const k of Object.keys(counts) as (keyof typeof counts)[]) counts[k] += cell.counts[k]; }
     }
-    return { rate: attendanceRate(counts, ov.settings), finalised, total, rows: ov.rows };
+    return { rate: attendanceRate(counts, ov.settings), finalised, total, rows: ov.rows, settings: ov.settings };
   } catch {
     return null; // no academic year covers today
   }
@@ -176,18 +176,18 @@ export async function getDashboard(ctx: AuthContext) {
   if (enquiries !== null) kpis.push({ key: "enquiries", value: enquiries, href: "/enquiries" });
 
   const attention: Attention[] = [];
-  if (conflicts) attention.push({ key: "conflicts", count: conflicts, href: "/attendance/conflicts" });
-  if (failed) attention.push({ key: "failedNotifications", count: failed, href: "/attendance/alerts" });
-  if (enquiries) attention.push({ key: "newEnquiries", count: enquiries, href: "/enquiries" });
-  if (counts.APPLIED) attention.push({ key: "newApplications", count: counts.APPLIED, href: "/admissions?status=APPLIED" });
-  if (unmatched) attention.push({ key: "unmatchedPayments", count: unmatched, href: "/finance/reconciliation" });
-  if (refundsPending) attention.push({ key: "refundsPending", count: refundsPending, href: "/finance/refunds" });
-  if (exams?.toApprove) attention.push({ key: "resultsToApprove", count: exams.toApprove, href: "/marks?view=queue" });
-  if (exams?.overdue) attention.push({ key: "marksOverdue", count: exams.overdue, href: "/marks" });
-  if (messagesWaiting) attention.push({ key: "messagesWaiting", count: messagesWaiting, href: "/communication/messages" });
-  if (backups && backups.level !== "ok") attention.push({ key: "backupStale", count: 1, href: "/settings/backups" });
+  if (conflicts) attention.push({ area: "attendance", key: "conflicts", count: conflicts, href: "/attendance/conflicts" });
+  if (failed) attention.push({ area: "attendance", key: "failedNotifications", count: failed, href: "/attendance/alerts" });
+  if (enquiries) attention.push({ area: "admissions", key: "newEnquiries", count: enquiries, href: "/enquiries" });
+  if (counts.APPLIED) attention.push({ area: "admissions", key: "newApplications", count: counts.APPLIED, href: "/admissions?status=APPLIED" });
+  if (unmatched) attention.push({ area: "finance", key: "unmatchedPayments", count: unmatched, href: "/finance/reconciliation" });
+  if (refundsPending) attention.push({ area: "finance", key: "refundsPending", count: refundsPending, href: "/finance/refunds" });
+  if (exams?.toApprove) attention.push({ area: "results", key: "resultsToApprove", count: exams.toApprove, href: "/marks?view=queue" });
+  if (exams?.overdue) attention.push({ area: "results", key: "marksOverdue", count: exams.overdue, href: "/marks" });
+  if (messagesWaiting) attention.push({ area: "messages", key: "messagesWaiting", count: messagesWaiting, href: "/communication/messages" });
+  if (backups && backups.level !== "ok") attention.push({ area: "system", key: "backupStale", count: 1, href: "/settings/backups" });
   const open = attendance ? attendance.total - attendance.finalised : 0;
-  if (attendance && open > 0 && attendance.total > 0) attention.push({ key: "registersOpen", count: open, href: "/attendance" });
+  if (attendance && open > 0 && attendance.total > 0) attention.push({ area: "attendance", key: "registersOpen", count: open, href: "/attendance" });
 
   const myRegisters: MyRegister[] = attendance && can("attendance.take") ? attendance.rows.filter((r) => r.canTake && r.cells[0]).map((r) => ({ sessionId: r.cells[0]!.sessionId, classId: r.classId, className: r.className, streamId: r.streamId, streamName: r.streamName, status: r.cells[0]?.status ?? "NOT_STARTED", students: r.studentCount })) : [];
 
@@ -202,6 +202,12 @@ export async function getDashboard(ctx: AuthContext) {
     gender: byGender ? Object.fromEntries(byGender.map((g) => [g.gender, g._count._all])) as Record<string, number> : null,
     pipeline: pipeline ? (APPLICATION_ORDER.map((s): Bar => ({ label: s, value: counts[s] ?? 0, tone: s === "REJECTED" ? "bad" : s === "WITHDRAWN" ? "muted" : s === "ENROLLED" ? "brand" : s === "ACCEPTED" ? "sun" : "indigo" })) as Bar[]) : null,
     attendanceTrend: trend,
+    attendanceByClass: attendance
+      ? attendance.rows.filter((r) => r.cells[0]).map((r) => {
+          const c = r.cells[0]!;
+          return { className: r.className, streamName: r.streamName, students: r.studentCount, status: c.status, counts: c.counts, rate: c.status === "FINALISED" ? attendanceRate(c.counts, attendance.settings) : null };
+        })
+      : null,
     finance, exams,
     recentApplications: recentApplications?.map((a) => ({ ...a, className: classNames.find((c) => c.id === a.classAppliedId)?.name ?? null })) ?? null,
     activity: activity ?? null,

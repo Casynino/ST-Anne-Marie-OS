@@ -37,7 +37,7 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
           </form>
           {students.length === 0 ? <div className="mt-4"><EmptyState>{t("learn.bh.noStudents")}</EmptyState></div> : (
             <ul className="mt-3 max-h-96 divide-y divide-line overflow-y-auto">
-              {students.map((s) => <li key={s.id}><Link href={`/portfolio/${s.id}`} className="flex min-h-12 items-center justify-between gap-3 py-2 hover:text-brand-800"><span className="font-medium">{s.name}</span><span className="text-sm text-muted">{s.admissionNo}</span></Link></li>)}
+              {students.map((s) => <li key={s.id}><Link href={`/portfolio/${s.id}`} className="flex min-h-12 items-center justify-between gap-3 py-2 hover:text-link"><span className="font-medium">{s.name}</span><span className="text-sm text-muted">{s.admissionNo}</span></Link></li>)}
             </ul>
           )}
         </Card>

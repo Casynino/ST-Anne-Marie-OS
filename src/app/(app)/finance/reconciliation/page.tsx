@@ -28,7 +28,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
       </Card>
       <nav className="mb-4 flex flex-wrap gap-2" aria-label={t("marks.status")}>
         {(["UNMATCHED", "POSTED", "NOT_SUCCESSFUL", "REJECTED"] as const).map((s) => (
-          <a key={s} href={`/finance/reconciliation?status=${s}`} aria-current={status === s ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${status === s ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white hover:bg-canvas"}`}>{t(`fin.event.${s}` as never)}{s === "UNMATCHED" && unmatched > 0 ? ` (${unmatched})` : ""}</a>
+          <a key={s} href={`/finance/reconciliation?status=${s}`} aria-current={status === s ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${status === s ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{t(`fin.event.${s}` as never)}{s === "UNMATCHED" && unmatched > 0 ? ` (${unmatched})` : ""}</a>
         ))}
       </nav>
       {data.items.length === 0 ? <EmptyState>{status === "UNMATCHED" ? t("fin.recon.emptyQueue") : t("fin.recon.empty")}</EmptyState> : (
@@ -41,7 +41,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
               <Td className="text-sm">{e.reference ?? "—"}{e.note && <p className="text-xs text-muted">{e.note}</p>}</Td>
               <Td><Badge tone={TONE[e.status]}>{t(`fin.event.${e.status}` as never)}</Badge></Td>
               <Td>
-                {e.status === "UNMATCHED" && <Link href={`/finance/reconciliation/${e.id}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-brand-800 hover:underline">{t("fin.recon.review")}</Link>}
+                {e.status === "UNMATCHED" && <Link href={`/finance/reconciliation/${e.id}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-link hover:underline">{t("fin.recon.review")}</Link>}
               </Td>
             </tr>
           ))}

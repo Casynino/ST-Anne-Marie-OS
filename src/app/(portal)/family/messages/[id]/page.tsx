@@ -23,7 +23,7 @@ export default async function FamilyThreadPage({ params }: { params: Promise<{ i
   const th = d.thread;
   return (
     <>
-      <Link href="/family/messages" className="mb-3 inline-flex min-h-11 items-center text-sm font-medium text-brand-800 hover:underline">{t("msg.title")}</Link>
+      <Link href="/family/messages" className="mb-3 inline-flex min-h-11 items-center text-sm font-medium text-link hover:underline">{t("msg.title")}</Link>
       <PageHeader title={th.subject} subtitle={`${th.withName} · ${th.studentName}`} actions={th.status === "CLOSED" ? <Badge>{t("msg.closed")}</Badge> : undefined} />
       <div className="space-y-4">
         <MessageList messages={d.messages} t={t} timezone={school.timezone} actions={(m) => !m.mine && !m.hidden ? (

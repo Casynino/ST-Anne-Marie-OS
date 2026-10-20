@@ -53,14 +53,14 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
 
           <section aria-labelledby="students-h">
             <h2 id="students-h" className="mb-3 text-lg font-semibold">{t("learn.asg.students")} <span className="text-sm font-normal text-muted">({handedIn}/{d.students.length})</span></h2>
-            {a.state === "DRAFT" && <p className="rounded-xl border border-line bg-white px-4 py-3 text-sm text-muted">{t("learn.asg.draftNotice")}</p>}
+            {a.state === "DRAFT" && <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-muted">{t("learn.asg.draftNotice")}</p>}
             {a.state !== "DRAFT" && (
               <ul className="space-y-2">
                 {d.students.map((s) => {
                   const sub = s.submission;
                   const status = !sub ? { tone: "neutral" as const, label: t("learn.sub.none") } : sub.state === "GRADED" ? { tone: "ok" as const, label: a.maxScore !== null ? t("learn.sub.markedScore", { score: sub.score ?? 0, max: a.maxScore }) : t("learn.sub.marked") } : sub.state === "RETURNED" ? { tone: "warn" as const, label: t("learn.sub.returned") } : { tone: "brand" as const, label: t("learn.sub.handedIn") };
                   return (
-                    <li key={s.studentId} className="rounded-2xl border border-line bg-white shadow-[var(--shadow-card)]">
+                    <li key={s.studentId} className="rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]">
                       <details>
                         <summary className="flex min-h-14 cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
                           <span className="font-medium">{s.name}</span>
@@ -122,7 +122,7 @@ export default async function AssignmentPage({ params }: { params: Promise<{ id:
                 {idField}
                 <div>
                   <label htmlFor="asg-file" className="mb-1 block text-sm font-medium">{t("learn.asg.file")}</label>
-                  <input id="asg-file" name="file" type="file" required accept="application/pdf,image/jpeg,image/png,image/webp" className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-800`} />
+                  <input id="asg-file" name="file" type="file" required accept="application/pdf,image/jpeg,image/png,image/webp" className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-2 file:text-sm file:font-medium file:text-link`} />
                   <p className="mt-1 text-sm text-muted">{t("learn.asg.fileHint")}</p>
                 </div>
               </ActionForm>

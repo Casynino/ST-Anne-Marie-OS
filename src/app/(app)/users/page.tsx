@@ -27,7 +27,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           {items.map((u) => (
             <tr key={u.id} className="hover:bg-canvas">
               <Td>
-                <Link href={`/users/${u.id}`} className="font-medium text-brand-700 hover:underline">{u.fullName}</Link>
+                <Link href={`/users/${u.id}`} className="font-medium text-link hover:underline">{u.fullName}</Link>
                 <p className="text-xs text-muted">{u.email ?? u.phone}{u.staff?.jobTitle ? ` · ${u.staff.jobTitle}` : ""}</p>
               </Td>
               <Td><div className="flex flex-wrap gap-1">{u.roles.map((r) => <Badge key={r.roleId} tone="brand">{r.role.name}</Badge>)}</div></Td>

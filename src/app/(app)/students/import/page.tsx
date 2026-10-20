@@ -28,7 +28,7 @@ export default async function ImportPage() {
               <li key={k}>{t(k)}</li>
             ))}
           </ul>
-          <a href="/api/import/template" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-brand-700 hover:bg-canvas">
+          <a href="/api/import/template" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-link hover:bg-canvas">
             <Download className="size-4" aria-hidden /> {t("imp.template")}
           </a>
         </Card>
@@ -36,7 +36,7 @@ export default async function ImportPage() {
           <ActionForm action={uploadImportAction} submitLabel={t("imp.upload")} className="space-y-3">
             <div>
               <label htmlFor="import-file" className="mb-1 block text-sm font-medium">{t("imp.file")}</label>
-              <input id="import-file" name="file" type="file" required accept=".csv,text/csv" className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-800`} />
+              <input id="import-file" name="file" type="file" required accept=".csv,text/csv" className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-2 file:text-sm file:font-medium file:text-link`} />
               <p className="mt-1 text-sm text-muted">{t("imp.file.hint")} ({Math.floor(MAX_IMPORT_BYTES / 1_000_000)} MB)</p>
             </div>
           </ActionForm>
@@ -49,7 +49,7 @@ export default async function ImportPage() {
               {batches.map((b) => (
                 <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <span>
-                    <Link href={`/students/import/${b.id}`} className="font-medium text-brand-700 hover:underline">{b.fileName}</Link>
+                    <Link href={`/students/import/${b.id}`} className="font-medium text-link hover:underline">{b.fileName}</Link>
                     <span className="ml-2 text-muted">{displayDateTime(b.createdAt, school.timezone, ctx.locale)}</span>
                   </span>
                   <Badge tone={TONE[b.status]}>{t(`imp.batch.${b.status}`)}</Badge>

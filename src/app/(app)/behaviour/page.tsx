@@ -31,14 +31,14 @@ export default async function BehaviourPage({ searchParams }: { searchParams: Pr
         <Field name="to" type="date" label={t("learn.bh.to")} defaultValue={sp.to ?? ""} />
         <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" name="voided" value="1" defaultChecked={sp.voided === "1"} className="size-5 accent-brand-700" />{t("learn.bh.showVoided")}</label>
       </FilterBar>
-      {rows.length === 0 ? <p className="rounded-2xl border border-line bg-white px-4 py-10 text-center text-sm text-muted">{t("learn.bh.none")}</p> : (
+      {rows.length === 0 ? <p className="rounded-2xl border border-line bg-surface px-4 py-10 text-center text-sm text-muted">{t("learn.bh.none")}</p> : (
         <ul className="space-y-3">
           {rows.map((r) => (
-            <li key={r.id} className={`rounded-2xl border bg-white p-4 shadow-[var(--shadow-card)] ${r.voided ? "border-line opacity-70" : "border-line"}`}>
+            <li key={r.id} className={`rounded-2xl border bg-surface p-4 shadow-[var(--shadow-card)] ${r.voided ? "border-line opacity-70" : "border-line"}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={TONE[r.type]}>{t(`learn.bh.type.${r.type}`)}</Badge>
                 <span className="font-semibold">{r.category}</span>
-                <span className="text-sm text-muted">· <Link href={`/students/${r.studentId}`} className="font-medium text-brand-800 hover:underline">{r.studentName}</Link> ({r.admissionNo}) · {displayDate(r.occurredOn, ctx.locale)} · {r.recordedBy}</span>
+                <span className="text-sm text-muted">· <Link href={`/students/${r.studentId}`} className="font-medium text-link hover:underline">{r.studentName}</Link> ({r.admissionNo}) · {displayDate(r.occurredOn, ctx.locale)} · {r.recordedBy}</span>
                 <span className="ml-auto flex gap-1.5">{r.shared && !r.voided && <Badge tone="brand">{t("learn.bh.shared")}</Badge>}{r.voided && <Badge tone="neutral">{t("learn.bh.voided")}</Badge>}</span>
               </div>
               <p className="mt-2 whitespace-pre-line text-sm">{r.description}</p>

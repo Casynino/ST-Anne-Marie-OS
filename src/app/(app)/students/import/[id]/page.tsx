@@ -31,7 +31,7 @@ export default async function ImportPreviewPage({ params }: { params: Promise<{ 
 
   return (
     <>
-      <PageHeader title={pending ? t("imp.preview.title") : t("imp.done.title")} subtitle={batch.fileName} actions={<Link href="/students/import" className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-3 text-sm font-medium hover:bg-canvas">{t("common.back")}</Link>} />
+      <PageHeader title={pending ? t("imp.preview.title") : t("imp.done.title")} subtitle={batch.fileName} actions={<Link href="/students/import" className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas">{t("common.back")}</Link>} />
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           <Stat label={t("imp.total")} value={s.total} />
@@ -68,7 +68,7 @@ export default async function ImportPreviewPage({ params }: { params: Promise<{ 
         )}
 
         {(s.error + s.duplicate + s.warning > 0 || (batch.status === "IMPORTED" && (s.skipped ?? 0) > 0)) && (
-          <a href={`/api/import/${id}/errors`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-brand-700 hover:bg-canvas">
+          <a href={`/api/import/${id}/errors`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-link hover:bg-canvas">
             <Download className="size-4" aria-hidden /> {t("imp.report")}
           </a>
         )}

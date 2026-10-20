@@ -34,7 +34,7 @@ const TONES = {
   ok: "bg-green-50 text-ok ring-green-200",
   warn: "bg-amber-50 text-warn ring-amber-200",
   bad: "bg-red-50 text-bad ring-red-200",
-  brand: "bg-brand-50 text-brand-800 ring-brand-200",
+  brand: "bg-tint text-link ring-tint-2",
 } as const;
 
 export function Badge({ tone = "neutral", children }: { tone?: keyof typeof TONES; children: ReactNode }) {
@@ -46,7 +46,7 @@ export function LinkButton({ href, children, variant = "primary" }: { href: stri
     <Link
       href={href}
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold ${
-        variant === "primary" ? "bg-brand-700 text-white hover:bg-brand-800" : "border border-line bg-white text-ink hover:bg-canvas"
+        variant === "primary" ? "bg-brand-700 text-white hover:bg-brand-800" : "border border-line bg-surface text-ink hover:bg-canvas"
       }`}
     >
       {children}
@@ -55,12 +55,12 @@ export function LinkButton({ href, children, variant = "primary" }: { href: stri
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border border-dashed border-line bg-white px-4 py-10 text-center text-sm text-muted">{children}</div>;
+  return <div className="rounded-xl border border-dashed border-line bg-surface px-4 py-10 text-center text-sm text-muted">{children}</div>;
 }
 
 export function NoAccess({ t }: { t: Translate }) {
   return (
-    <div className="mx-auto mt-16 max-w-md rounded-xl border border-line bg-white p-8 text-center">
+    <div className="mx-auto mt-16 max-w-md rounded-xl border border-line bg-surface p-8 text-center">
       <Lock className="mx-auto size-8 text-muted" aria-hidden />
       <h1 className="mt-3 text-lg font-semibold">{t("common.noAccess.title")}</h1>
       <p className="mt-1 text-sm text-muted">{t("common.noAccess.body")}</p>
@@ -70,7 +70,7 @@ export function NoAccess({ t }: { t: Translate }) {
 
 export function DataTable({ head, children, empty }: { head: ReactNode[]; children: ReactNode; empty?: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-white shadow-[var(--shadow-card)]">
+    <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]">
       <table className="w-full min-w-[36rem] text-left text-sm">
         <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
           <tr>
@@ -106,12 +106,12 @@ export function Pagination({ page, pageSize, total, basePath, params, t }: { pag
       </span>
       <div className="flex gap-2">
         {page > 1 ? (
-          <Link href={href(page - 1)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line bg-white px-3 text-ink hover:bg-canvas">
+          <Link href={href(page - 1)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line bg-surface px-3 text-ink hover:bg-canvas">
             <ChevronLeft className="size-4" aria-hidden /> {t("common.previous")}
           </Link>
         ) : null}
         {page < pages ? (
-          <Link href={href(page + 1)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line bg-white px-3 text-ink hover:bg-canvas">
+          <Link href={href(page + 1)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line bg-surface px-3 text-ink hover:bg-canvas">
             {t("common.next")} <ChevronRight className="size-4" aria-hidden />
           </Link>
         ) : null}
@@ -122,7 +122,7 @@ export function Pagination({ page, pageSize, total, basePath, params, t }: { pag
 
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
-    <div className="rounded-xl border border-line bg-white p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
       <p className="text-sm text-muted">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
@@ -146,7 +146,7 @@ export function DefList({ items }: { items: { label: string; value: ReactNode }[
 /** Searchable GET filter form (server-rendered, works without JS). */
 export function FilterBar({ children, t, resetHref }: { children: ReactNode; t: Translate; resetHref: string }) {
   return (
-    <form method="get" className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-white p-3">
+    <form method="get" className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-3">
       {children}
       <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("common.filter")}</button>
       <Link href={resetHref} className="inline-flex min-h-11 items-center px-2 text-sm text-muted hover:text-ink">

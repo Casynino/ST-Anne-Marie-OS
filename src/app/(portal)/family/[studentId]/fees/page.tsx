@@ -24,7 +24,7 @@ export default async function ChildFeesPage({ params }: { params: Promise<{ stud
   const d = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), ctx.locale);
   return (
     <>
-      <Link href={`/family/${studentId}`} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{f.child.name}</Link>
+      <Link href={`/family/${studentId}`} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{f.child.name}</Link>
       <PageHeader title={t("fam.fees")} subtitle={`${f.child.name} · ${f.child.admissionNo}`} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label={t("fin.billed")} value={money(f.summary.billed)} />
@@ -32,13 +32,13 @@ export default async function ChildFeesPage({ params }: { params: Promise<{ stud
         <Stat label={t("fin.outstanding")} value={money(f.summary.outstanding)} />
         <Stat label={t("fin.overdue")} value={money(f.summary.overdue)} />
       </div>
-      {f.summary.credit > 0 && <p className="mt-3 rounded-lg border border-line bg-white px-4 py-3 text-sm">{t("fam.fees.credit", { amount: money(f.summary.credit) })}</p>}
+      {f.summary.credit > 0 && <p className="mt-3 rounded-lg border border-line bg-surface px-4 py-3 text-sm">{t("fam.fees.credit", { amount: money(f.summary.credit) })}</p>}
 
       <section className="mt-8"><h2 className="mb-3 text-lg font-semibold">{t("fin.nav.invoices")}</h2>
         {f.invoices.length === 0 ? <EmptyState>{t("fam.fees.noInvoices")}</EmptyState> : (
           <ul className="space-y-3">
             {f.invoices.map((i) => (
-              <li key={i.id} className="rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)]">
+              <li key={i.id} className="rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{i.number} <span className="font-normal text-muted">· {i.termName ?? t("fin.invoices.oneOff")}</span></p>
@@ -59,7 +59,7 @@ export default async function ChildFeesPage({ params }: { params: Promise<{ stud
         {f.payments.length === 0 ? <EmptyState>{t("fam.fees.noPayments")}</EmptyState> : (
           <ul className="space-y-2">
             {f.payments.map((p) => (
-              <li key={p.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white p-3 ${p.status === "REVERSED" ? "opacity-70" : ""}`}>
+              <li key={p.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3 ${p.status === "REVERSED" ? "opacity-70" : ""}`}>
                 <div className="text-sm"><p className={`font-semibold tabular-nums ${p.status === "REVERSED" ? "line-through" : ""}`}>{money(p.amountCents)}</p><p className="text-muted">{d(p.receivedOn)} · {tDynamic(t, "fin.method", p.method)}{p.reference ? ` · ${p.reference}` : ""}</p></div>
                 {p.status === "REVERSED" ? <Badge tone="bad">{t("fin.pay.REVERSED")}</Badge> : p.receiptNumber && <a href={`/api/receipts/${p.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line px-3 text-sm font-semibold hover:bg-canvas"><FileDown className="size-4" aria-hidden />{p.receiptNumber}</a>}
               </li>

@@ -25,7 +25,7 @@ export default async function MarksPage({ searchParams }: { searchParams: Promis
   const rows = view === "queue" ? all.filter((s) => s.status === "SUBMITTED" || s.status === "APPROVED") : sp.status ? all.filter((s) => s.status === sp.status) : all;
 
   const tab = (v: string, label: string) => (
-    <Link key={v} href={`/marks?view=${v}${termId ? `&termId=${termId}` : ""}`} aria-current={view === v ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-medium ${view === v ? "bg-brand-700 text-white" : "border border-line bg-white text-ink hover:bg-canvas"}`}>
+    <Link key={v} href={`/marks?view=${v}${termId ? `&termId=${termId}` : ""}`} aria-current={view === v ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-medium ${view === v ? "bg-brand-700 text-white" : "border border-line bg-surface text-ink hover:bg-canvas"}`}>
       {label}
     </Link>
   );
@@ -58,7 +58,7 @@ export default async function MarksPage({ searchParams }: { searchParams: Promis
               </Td>
               <Td className="tabular-nums">{s.entered}/{s.roster}</Td>
               <Td>{displayDate(s.deadline, ctx.locale)}</Td>
-              <Td className="text-right"><Link href={`/marks/${s.id}`} className="text-sm font-semibold text-brand-800 hover:underline">{s.canEnter && (s.status === "DRAFT" || s.status === "RETURNED") ? t("marks.enter") : view === "queue" ? t("marks.review") : t("common.view")}</Link></Td>
+              <Td className="text-right"><Link href={`/marks/${s.id}`} className="text-sm font-semibold text-link hover:underline">{s.canEnter && (s.status === "DRAFT" || s.status === "RETURNED") ? t("marks.enter") : view === "queue" ? t("marks.review") : t("common.view")}</Link></Td>
             </tr>
           ))}
         </DataTable>

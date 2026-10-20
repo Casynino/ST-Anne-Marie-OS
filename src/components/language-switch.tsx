@@ -10,7 +10,7 @@ export function LanguageSwitch({ current, dark }: { current: Locale; dark?: bool
           name="locale"
           value={l}
           aria-pressed={current === l}
-          className={`min-h-9 min-w-10 rounded-md px-2 ${current === l ? (dark ? "bg-white text-brand-900" : "bg-brand-700 text-white") : dark ? "text-brand-100 hover:bg-brand-800" : "text-muted hover:bg-canvas"}`}
+          className={`min-h-9 min-w-10 rounded-md px-2 ${current === l ? (dark ? "bg-surface text-heading" : "bg-brand-700 text-white") : dark ? "text-brand-100 hover:bg-brand-800" : "text-muted hover:bg-canvas"}`}
         >
           {l === "EN" ? "EN" : "SW"}
         </button>

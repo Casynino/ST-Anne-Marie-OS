@@ -44,7 +44,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
         actions={open && can("admission.create") ? <LinkButton href={`/admissions/${id}/edit`} variant="secondary">{t("adm.edit")}</LinkButton> : undefined}
       />
       <div className="space-y-5">
-        {app.status === "ACCEPTED" && <p className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">{t("adm.acceptedNote")}</p>}
+        {app.status === "ACCEPTED" && <p className="rounded-lg border border-tint-2 bg-tint px-3 py-2 text-sm text-link">{t("adm.acceptedNote")}</p>}
         {app.student && (
           <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-ok">
             {t("adm.studentRecord")}: <Link className="font-semibold underline" href={`/students/${app.student.id}`}>{app.student.admissionNo}</Link>
@@ -138,7 +138,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                     <p className="text-muted">{t(`doc.type.${d.docType as "OTHER"}`)} · {kb(d.sizeBytes)} · {t("doc.uploadedBy", { name: d.uploadedBy })} · {displayDateTime(d.createdAt, school.timezone, ctx.locale)}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-white px-3 font-medium text-brand-700 hover:bg-canvas">{t("doc.download")}</a>
+                    <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 font-medium text-link hover:bg-canvas">{t("doc.download")}</a>
                     {can("document.delete") && (
                       <details>
                         <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-bad">{t("doc.remove")}</summary>

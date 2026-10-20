@@ -9,8 +9,8 @@ const has = (k: string): k is MessageKey => k in en;
 const NO_RETRY = new Set(["ROSTER_CHANGED", "INCOMPLETE", "EMPTY_ROSTER", "FORBIDDEN"]);
 
 const TONE = {
-  queued: "border-line bg-white text-ink",
-  syncing: "border-line bg-white text-ink",
+  queued: "border-line bg-surface text-ink",
+  syncing: "border-line bg-surface text-ink",
   synced: "border-ok/30 bg-green-50 text-ok",
   failed: "border-bad/30 bg-red-50 text-bad",
   conflict: "border-warn/30 bg-amber-50 text-warn",
@@ -46,7 +46,7 @@ export function OpStatus({ op, t, onRetry, onDiscard, showLabel }: { op: QueuedO
             <button
               type="button"
               onClick={() => (op.state === "failed" && !window.confirm(t("off.discard.confirm")) ? undefined : onDiscard())}
-              className="min-h-11 rounded-lg border border-line bg-white px-3 text-sm font-medium text-ink"
+              className="min-h-11 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink"
             >
               {op.state === "failed" ? t("off.discard") : t("common.confirm")}
             </button>

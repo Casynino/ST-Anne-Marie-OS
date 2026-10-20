@@ -32,7 +32,7 @@ function Rows({ rows, max, bands, editable, labels }: { rows: GridRow[]; max: nu
   return (
     <>
       <p className="text-sm text-muted" aria-live="polite">{labels.entered.replace("{done}", String(entered)).replace("{total}", String(rows.length))}</p>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white shadow-[var(--shadow-card)]">
+      <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
             <tr>
@@ -74,7 +74,7 @@ function Rows({ rows, max, bands, editable, labels }: { rows: GridRow[]; max: nu
                       }}
                       aria-label={`${labels.score} — ${r.name}`}
                       aria-invalid={invalid || undefined}
-                      className="block min-h-11 w-full rounded-lg border border-line bg-white px-3 py-2 text-base tabular-nums aria-[invalid=true]:border-bad disabled:bg-canvas"
+                      className="block min-h-11 w-full rounded-lg border border-line bg-surface px-3 py-2 text-base tabular-nums aria-[invalid=true]:border-bad disabled:bg-canvas"
                     />
                   </td>
                   <td className="px-3 py-2 align-top">
@@ -84,7 +84,7 @@ function Rows({ rows, max, bands, editable, labels }: { rows: GridRow[]; max: nu
                       disabled={!editable}
                       onChange={(e) => set(r.studentId, { status: e.target.value as GridRow["status"], ...(e.target.value ? { score: "" } : {}) })}
                       aria-label={`${labels.mode} — ${r.name}`}
-                      className="block min-h-11 w-full rounded-lg border border-line bg-white px-2 py-2 text-base disabled:bg-canvas"
+                      className="block min-h-11 w-full rounded-lg border border-line bg-surface px-2 py-2 text-base disabled:bg-canvas"
                     >
                       <option value="">{labels.scoreMode}</option>
                       <option value="ABSENT">{labels.absent}</option>
@@ -113,7 +113,7 @@ export function MarkGrid({
       <input type="hidden" name="expectedVersion" value={version} key={`v${version}`} />
       <Rows key={`rows${version}`} rows={rows} max={max} bands={bands} editable={editable} labels={labels} />
       {editable ? (
-        <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap gap-2 border-t border-line bg-white/95 px-1 py-3 backdrop-blur">
+        <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap gap-2 border-t border-line bg-surface/95 px-1 py-3 backdrop-blur">
           <SubmitButton intent="save" variant="secondary">{labels.save}</SubmitButton>
           <SubmitButton intent="submit" confirm={labels.confirmSubmit}>{labels.submit}</SubmitButton>
         </div>

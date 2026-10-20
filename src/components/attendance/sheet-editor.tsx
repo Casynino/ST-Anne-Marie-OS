@@ -153,7 +153,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
           {fmtDate(sheet.date, locale)} · {sheet.session.name}
         </span>
         {onClose && (
-          <button type="button" onClick={onClose} className="ml-auto min-h-11 rounded-lg border border-line bg-white px-3 text-sm font-medium hover:bg-canvas">
+          <button type="button" onClick={onClose} className="ml-auto min-h-11 rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas">
             {t("off.back")}
           </button>
         )}
@@ -166,7 +166,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden /> {t("off.signInAgain")}
         </p>
       )}
-      {!outbox.supported && <p className="mb-3 rounded-lg border border-line bg-white px-3 py-2 text-sm text-muted">{t("off.unsupported")}</p>}
+      {!outbox.supported && <p className="mb-3 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-muted">{t("off.unsupported")}</p>}
       {directError && <p role="alert" className="mb-3 rounded-lg border border-bad/30 bg-red-50 px-3 py-2 text-sm text-bad">{t("off.reason.generic", { message: directError })}</p>}
 
       {mine.slice(-2).map((op) => (
@@ -184,7 +184,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
       ))}
 
       {sheet.register?.status === "FINALISED" && (
-        <p className="mb-3 flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm">
+        <p className="mb-3 flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm">
           <Lock className="size-4 shrink-0 text-muted" aria-hidden />
           {t("att.finalisedBy", { name: sheet.register.finalisedByName ?? "—", when: sheet.register.finalisedAt ? new Intl.DateTimeFormat(locale === "SW" ? "sw-TZ" : "en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(sheet.register.finalisedAt)) : "—" })}
         </p>
@@ -193,11 +193,11 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
       {!sheet.canTake && !serverFinal && <p className="mb-3 text-sm text-muted">{t("att.readOnly")}</p>}
 
       {students.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-line bg-white px-4 py-8 text-center text-sm text-muted">{t("att.noStudents")}</p>
+        <p className="rounded-xl border border-dashed border-line bg-surface px-4 py-8 text-center text-sm text-muted">{t("att.noStudents")}</p>
       ) : (
         <>
           {!readOnly && (
-            <button type="button" onClick={markAllPresent} className="mb-3 min-h-12 w-full rounded-xl border border-ok bg-white px-4 text-base font-semibold text-ok hover:bg-green-50 sm:w-auto">
+            <button type="button" onClick={markAllPresent} className="mb-3 min-h-12 w-full rounded-xl border border-ok bg-surface px-4 text-base font-semibold text-ok hover:bg-green-50 sm:w-auto">
               {t("att.markAll")}
             </button>
           )}
@@ -206,7 +206,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
               const m = marks[s.id] ?? { status: null, note: "" };
               const elsewhere = sheet.markedElsewhere.includes(s.id);
               return (
-                <li key={s.id} className="rounded-xl border border-line bg-white p-3">
+                <li key={s.id} className="rounded-xl border border-line bg-surface p-3">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="min-w-0 break-words font-medium">{s.name}</span>
                     <span className="shrink-0 text-xs tabular-nums text-muted">{s.admissionNo}</span>
@@ -230,7 +230,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
                               role="radio"
                               aria-checked={on}
                               onClick={() => setStatus(s.id, st)}
-                              className={`min-h-12 rounded-lg border px-1 text-[13px] font-semibold leading-tight ${on ? STYLE[st] : "border-line bg-white text-ink hover:bg-canvas"}`}
+                              className={`min-h-12 rounded-lg border px-1 text-[13px] font-semibold leading-tight ${on ? STYLE[st] : "border-line bg-surface text-ink hover:bg-canvas"}`}
                             >
                               {t(`att.status.${st}`)}
                             </button>
@@ -256,7 +256,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
           </ul>
 
           {/* Sticky action bar */}
-          <div className="sticky bottom-0 z-10 -mx-3 mt-4 border-t border-line bg-white px-3 py-3 sm:mx-0 sm:rounded-xl sm:border">
+          <div className="sticky bottom-0 z-10 -mx-3 mt-4 border-t border-line bg-surface px-3 py-3 sm:mx-0 sm:rounded-xl sm:border">
             <p className="mb-2 text-sm">
               <strong>{t("att.marked", { marked: markedCount, total: markable.length })}</strong>
               <span className="block text-muted sm:ml-2 sm:inline">{t("att.summary", { present: counts.PRESENT, absent: counts.ABSENT, late: counts.LATE, excused: counts.EXCUSED })}</span>
@@ -272,7 +272,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
             )}
             {!readOnly && !lateMode && (
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" disabled={busy || markedCount === 0} onClick={() => submit("SAVE_DRAFT")} className="min-h-12 rounded-xl border border-brand-700 bg-white px-3 text-base font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50">
+                <button type="button" disabled={busy || markedCount === 0} onClick={() => submit("SAVE_DRAFT")} className="min-h-12 rounded-xl border border-brand-700 bg-surface px-3 text-base font-semibold text-link hover:bg-tint disabled:opacity-50">
                   {t("att.saveDraft")}
                 </button>
                 <button type="button" disabled={busy || unmarked > 0 || markable.length === 0 || sheet.markedElsewhere.length > 0} onClick={() => submit("FINALISE")} className="min-h-12 rounded-xl bg-brand-700 px-3 text-base font-semibold text-white hover:bg-brand-800 disabled:opacity-50">
@@ -296,7 +296,7 @@ export function ConnectionLine({ t, online, unsynced, syncing, onSync }: { t: Re
       </span>
       <span className="text-muted">{unsynced > 0 ? t("off.unsynced", { count: unsynced }) : t("off.allSynced")}</span>
       {unsynced > 0 && (
-        <button type="button" onClick={onSync} disabled={syncing || !online} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line bg-white px-3 text-sm font-medium hover:bg-canvas disabled:opacity-50">
+        <button type="button" onClick={onSync} disabled={syncing || !online} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas disabled:opacity-50">
           <RefreshCw className={`size-4 ${syncing ? "animate-spin" : ""}`} aria-hidden /> {syncing ? t("off.syncing") : t("off.syncNow")}
         </button>
       )}

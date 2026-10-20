@@ -39,7 +39,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
       <PageHeader title={t("learn.tt.title")} subtitle={t("learn.tt.subtitle")} actions={canManage ? <LinkButton href="/timetable/periods" variant="secondary">{t("learn.periods.title")}</LinkButton> : undefined} />
       <nav aria-label={t("learn.tt.title")} className="mb-4 flex gap-2">
         {([["class", t("learn.tt.byClass")], ["teacher", t("learn.tt.byTeacher")]] as const).map(([v, label]) => (
-          <Link key={v} href={qs({ view: v })} aria-current={view === v ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${view === v ? "bg-brand-700 text-white" : "border border-line bg-white text-ink hover:bg-canvas"}`}>{label}</Link>
+          <Link key={v} href={qs({ view: v })} aria-current={view === v ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${view === v ? "bg-brand-700 text-white" : "border border-line bg-surface text-ink hover:bg-canvas"}`}>{label}</Link>
         ))}
       </nav>
       {view === "class" ? (
@@ -56,7 +56,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
       )}
 
       {data.periods.length === 0 ? (
-        <EmptyState>{canManage ? <>{t("learn.tt.noPeriods")} <Link href="/timetable/periods" className="font-semibold text-brand-800 underline">{t("learn.periods.title")}</Link></> : t("learn.tt.noPeriodsReadOnly")}</EmptyState>
+        <EmptyState>{canManage ? <>{t("learn.tt.noPeriods")} <Link href="/timetable/periods" className="font-semibold text-link underline">{t("learn.periods.title")}</Link></> : t("learn.tt.noPeriodsReadOnly")}</EmptyState>
       ) : (
         <div className="space-y-6">
           <TimetableGrid periods={data.periods} lessons={data.lessons} labels={labels} detail={view === "class" ? "teacher" : "class"} cellHref={view === "class" && canManage && cls ? (d, p, l) => `${qs({ view: "class", classId: cls.id, streamId: stream?.id ?? l?.streamId ?? undefined, day: String(d), period: p })}#editor` : undefined} />
@@ -70,7 +70,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
                     <input type="hidden" name="classId" value={cls.id} />
                     <input type="hidden" name="dayOfWeek" value={day} />
                     <input type="hidden" name="periodId" value={slotPeriod.id} />
-                    <p className="text-sm font-semibold text-brand-900 sm:col-span-2">{labels.day[day]} · {slotPeriod.name} ({slotPeriod.startTime}–{slotPeriod.endTime})</p>
+                    <p className="text-sm font-semibold text-heading sm:col-span-2">{labels.day[day]} · {slotPeriod.name} ({slotPeriod.startTime}–{slotPeriod.endTime})</p>
                     <Field name="streamId" type="select" label={t("learn.stream")} placeholder={t("learn.tt.wholeClass")} options={cls.streams.map((s) => ({ value: s.id, label: s.name }))} defaultValue={editing?.streamId ?? stream?.id ?? ""} />
                     <Field name="subjectId" type="select" label={t("learn.subject")} required options={cls.subjects.map((s) => ({ value: s.id, label: s.name }))} defaultValue={editing?.subjectId ?? ""} />
                     <Field name="teacherStaffId" type="select" label={t("learn.teacher")} placeholder={t("learn.tt.noTeacher")} options={opts.teachers.map((x) => ({ value: x.id, label: x.name }))} defaultValue={editing?.teacherStaffId ?? ""} />

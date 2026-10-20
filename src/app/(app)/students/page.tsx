@@ -50,7 +50,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             const enr = s.enrollments[0];
             return (
               <tr key={s.id} className="hover:bg-canvas">
-                <Td><Link href={`/students/${s.id}`} className="font-medium text-brand-700 hover:underline">{s.firstName} {s.middleName ?? ""} {s.lastName}</Link></Td>
+                <Td><Link href={`/students/${s.id}`} className="font-medium text-link hover:underline">{s.firstName} {s.middleName ?? ""} {s.lastName}</Link></Td>
                 <Td className="whitespace-nowrap tabular-nums">{s.admissionNo}</Td>
                 <Td>{enr ? `${enr.class.name}${enr.stream ? ` – ${enr.stream.name}` : ""}` : <span className="text-muted">{t("student.notPlaced")}</span>}</Td>
                 <Td>{s.gender === "MALE" ? t("student.male") : t("student.female")}</Td>

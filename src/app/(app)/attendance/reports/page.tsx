@@ -60,7 +60,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <DataTable head={[t("common.name"), t("student.admissionNo"), ...STATUSES.map((s) => t(`att.status.${s}`)), t("rep.rate")]}>
               {r.rows.map((s) => (
                 <tr key={s.studentId} className={s.low ? "bg-red-50/60" : undefined}>
-                  <Td><Link className="font-medium text-brand-700 hover:underline" href={`/attendance/reports?view=student&studentId=${s.studentId}&from=${from}&to=${to}`}>{s.name}</Link></Td>
+                  <Td><Link className="font-medium text-link hover:underline" href={`/attendance/reports?view=student&studentId=${s.studentId}&from=${from}&to=${to}`}>{s.name}</Link></Td>
                   <Td className="whitespace-nowrap tabular-nums">{s.admissionNo}</Td>
                   <CountsCells c={s.counts} />
                   <Td className="whitespace-nowrap font-medium tabular-nums">{pct(s.rate)} {s.low && <Badge tone="bad">{t("rep.low")}</Badge>}</Td>
@@ -133,12 +133,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <AttendanceNav ctx={ctx} t={t} current="/attendance/reports" />
       <nav className="mb-3 flex flex-wrap gap-2" aria-label={t("rep.title")}>
         {VIEWS.map((v) => (
-          <Link key={v} href={`/attendance/reports?view=${v}`} aria-current={view === v ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium ${view === v ? "bg-brand-100 text-brand-800" : "text-muted hover:bg-white"}`}>
+          <Link key={v} href={`/attendance/reports?view=${v}`} aria-current={view === v ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium ${view === v ? "bg-tint-2 text-link" : "text-muted hover:bg-surface"}`}>
             {t(`rep.view.${v}`)}
           </Link>
         ))}
       </nav>
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-white p-3">
+      <form method="get" className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-3">
         <input type="hidden" name="view" value={view} />
         {view === "class" && <Field name="target" type="select" required label={t("att.class")} defaultValue={sp.target} options={classOptions} placeholder={t("common.select")} />}
         {view === "term" && <Field name="termId" type="select" required label={t("rep.term")} defaultValue={sp.termId ?? terms.find((x) => x.isCurrent)?.id} options={terms.map((x) => ({ value: x.id, label: x.label }))} placeholder={t("common.select")} />}
@@ -158,7 +158,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </form>
 
       {view === "student" && matches.length > 0 && (
-        <ul className="mb-4 divide-y divide-line rounded-xl border border-line bg-white">
+        <ul className="mb-4 divide-y divide-line rounded-xl border border-line bg-surface">
           {matches.slice(0, 8).map((s) => (
             <li key={s.id}>
               <Link className="flex min-h-11 items-center justify-between px-3 text-sm hover:bg-canvas" href={`/attendance/reports?view=student&studentId=${s.id}&from=${from}&to=${to}`}>

@@ -30,7 +30,7 @@ export function GlobalSearch({ action, placeholder, label }: { action: string; p
       <label className="sr-only" htmlFor="global-search">{label}</label>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-        <input id="global-search" name="q" type="search" placeholder={placeholder} className="h-10 w-full rounded-full border border-line bg-canvas pl-9 pr-4 text-sm placeholder:text-muted/80 focus:border-brand-500 focus:bg-white" />
+        <input id="global-search" name="q" type="search" placeholder={placeholder} className="h-10 w-full rounded-full border border-line bg-canvas pl-9 pr-4 text-sm placeholder:text-muted/80 focus:border-brand-500 focus:bg-surface" />
       </div>
     </form>
   );
@@ -65,7 +65,7 @@ export function UserMenu({ name, initials, role, passwordLabel, children }: { na
         <ChevronDown className="hidden size-4 text-muted sm:block" aria-hidden />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-line bg-white p-2 shadow-[var(--shadow-lift)]">
+        <div role="menu" className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-line bg-surface p-2 shadow-[var(--shadow-lift)]">
           <div className="border-b border-line px-3 pb-2 pt-1"><p className="truncate font-semibold">{name}</p>{role && <p className="truncate text-sm text-muted">{role}</p>}</div>
           <Link role="menuitem" href="/change-password" className="mt-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm hover:bg-canvas"><KeyRound className="size-4" aria-hidden />{passwordLabel}</Link>
           <div className="space-y-1 border-t border-line pt-2">{children}</div>

@@ -39,7 +39,7 @@ export default async function RolesPage() {
               {role.description && <p className="mb-3 text-sm text-muted">{role.description}</p>}
               {fixed && <p className="text-sm text-muted">{t("roles.fixed")}</p>}
               <details open={false}>
-                <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{granted.size} / {Object.keys(PERMISSIONS).length}</summary>
+                <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{granted.size} / {Object.keys(PERMISSIONS).length}</summary>
                 <ActionForm action={saveRolePermissionsAction} submitLabel={t("common.save")} hideSubmit={!editable} className="mt-2 space-y-4">
                   <input type="hidden" name="roleId" value={role.id} />
                   {modules.map((m) => (

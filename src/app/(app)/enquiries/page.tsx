@@ -26,7 +26,7 @@ export default async function EnquiriesPage({ searchParams }: { searchParams: Pr
     <>
       <PageHeader title={t("enq.title")} subtitle={t("enq.intro")} />
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        {statuses.map((s) => <div key={s} className="rounded-xl border border-line bg-white p-4"><p className="text-sm text-muted">{t(`enq.status.${s}`)}</p><p className="mt-1 text-2xl font-semibold tabular-nums">{counts[s] ?? 0}</p></div>)}
+        {statuses.map((s) => <div key={s} className="rounded-xl border border-line bg-surface p-4"><p className="text-sm text-muted">{t(`enq.status.${s}`)}</p><p className="mt-1 text-2xl font-semibold tabular-nums">{counts[s] ?? 0}</p></div>)}
       </div>
       <FilterBar t={t} resetHref="/enquiries"><Field name="status" label={t("common.status")} type="select" defaultValue={sp.status} placeholder={t("common.all")} options={statuses.map((s) => ({ value: s, label: t(`enq.status.${s}`) }))} /></FilterBar>
       {items.length === 0 ? <EmptyState>{t("enq.empty")}</EmptyState> : (
@@ -48,7 +48,7 @@ export default async function EnquiriesPage({ searchParams }: { searchParams: Pr
                 <p className="mt-3 whitespace-pre-line text-sm">{e.message}</p>
                 {canManage && (
                   <details className="mt-3">
-                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-brand-700">{t("enq.update")}</summary>
+                    <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("enq.update")}</summary>
                     <ActionForm action={updateEnquiryAction} submitLabel={t("common.save")} className="mt-2 grid gap-3 sm:grid-cols-3 sm:items-end">
                       <input type="hidden" name="id" value={e.id} />
                       <Field name="status" label={t("common.status")} type="select" defaultValue={e.status} options={statuses.map((s) => ({ value: s, label: t(`enq.status.${s}`) }))} required />

@@ -10,9 +10,9 @@ export function FileList({ files, remove }: { files: FileRow[]; remove?: (f: Fil
   return (
     <ul className="space-y-2">
       {files.map((f) => (
-        <li key={f.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white px-3 py-2">
+        <li key={f.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2">
           {f.mimeType.startsWith("image/") ? <ImageIcon className="size-5 shrink-0 text-brand-600" aria-hidden /> : <FileText className="size-5 shrink-0 text-brand-600" aria-hidden />}
-          <a href={`/api/learning/files/${f.id}`} target="_blank" rel="noopener" className="min-w-0 flex-1 truncate text-sm font-medium text-brand-800 hover:underline">{f.fileName}</a>
+          <a href={`/api/learning/files/${f.id}`} target="_blank" rel="noopener" className="min-w-0 flex-1 truncate text-sm font-medium text-link hover:underline">{f.fileName}</a>
           <span className="text-xs text-muted">{size(f.sizeBytes)}</span>
           {remove?.(f)}
         </li>

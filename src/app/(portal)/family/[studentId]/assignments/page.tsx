@@ -27,8 +27,8 @@ export default async function ChildAssignmentsPage({ params }: { params: Promise
       const chip = !s ? (i.overdue ? { tone: "bad" as const, label: t("learn.fam.overdue") } : i.closed ? { tone: "neutral" as const, label: t("learn.fam.closed") } : { tone: "warn" as const, label: t("learn.fam.todo") }) : s.state === "RETURNED" ? { tone: "warn" as const, label: t("learn.sub.returned") } : s.state === "GRADED" ? { tone: "ok" as const, label: i.maxScore !== null && s.score !== null ? t("learn.sub.markedScore", { score: s.score, max: i.maxScore }) : t("learn.sub.marked") } : { tone: "brand" as const, label: t("learn.sub.handedIn") };
       return (
         <li key={i.id}>
-          <Link href={`/family/${studentId}/assignments/${i.id}`} className="flex min-h-20 items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)] hover:border-brand-400">
-            <span className="min-w-0 flex-1"><span className="block text-xs font-bold uppercase tracking-wider text-brand-700">{i.subjectName}</span><span className="block truncate text-base font-semibold">{i.title}</span><span className="block text-sm text-muted">{t("learn.asg.due")}: {displayDateTime(i.dueAt, tz, ctx.locale)}</span></span>
+          <Link href={`/family/${studentId}/assignments/${i.id}`} className="flex min-h-20 items-center gap-3 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)] hover:border-brand-400">
+            <span className="min-w-0 flex-1"><span className="block text-xs font-bold uppercase tracking-wider text-link">{i.subjectName}</span><span className="block truncate text-base font-semibold">{i.title}</span><span className="block text-sm text-muted">{t("learn.asg.due")}: {displayDateTime(i.dueAt, tz, ctx.locale)}</span></span>
             <Badge tone={chip.tone}>{chip.label}</Badge>
             <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />
           </Link>
@@ -37,7 +37,7 @@ export default async function ChildAssignmentsPage({ params }: { params: Promise
     };
     return (
       <>
-        <Link href={`/family/${studentId}`} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{child.name}</Link>
+        <Link href={`/family/${studentId}`} className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{child.name}</Link>
         <PageHeader title={t("learn.fam.homework")} subtitle={child.name} />
         {d.items.length === 0 ? <EmptyState>{t("learn.fam.noHomework")}</EmptyState> : (
           <div className="space-y-8">

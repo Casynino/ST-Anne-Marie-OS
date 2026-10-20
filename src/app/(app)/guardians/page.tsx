@@ -34,7 +34,7 @@ export default async function GuardiansPage({ searchParams }: { searchParams: Pr
               <Td>
                 <ul className="space-y-0.5">
                   {g.students.map((l) => (
-                    <li key={l.studentId}>{canOpenStudents ? <Link className="text-brand-700 hover:underline" href={`/students/${l.studentId}`}>{l.student.firstName} {l.student.lastName}</Link> : `${l.student.firstName} ${l.student.lastName}`} <span className="text-xs text-muted">· {l.student.admissionNo}</span></li>
+                    <li key={l.studentId}>{canOpenStudents ? <Link className="text-link hover:underline" href={`/students/${l.studentId}`}>{l.student.firstName} {l.student.lastName}</Link> : `${l.student.firstName} ${l.student.lastName}`} <span className="text-xs text-muted">· {l.student.admissionNo}</span></li>
                   ))}
                 </ul>
               </Td>

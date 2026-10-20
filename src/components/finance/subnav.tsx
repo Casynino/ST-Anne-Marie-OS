@@ -20,7 +20,7 @@ export function FinanceNav({ ctx, t, current, unmatched = 0 }: { ctx: AuthContex
       <ul className="flex gap-2 whitespace-nowrap">
         {items.map((i) => (
           <li key={i.href}>
-            <Link href={i.href} aria-current={current === i.href ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-medium ${current === i.href ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-white text-ink hover:bg-canvas"}`}>
+            <Link href={i.href} aria-current={current === i.href ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-medium ${current === i.href ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface text-ink hover:bg-canvas"}`}>
               {i.label}
               {"badge" in i && i.badge ? <span className="rounded-full bg-warn px-1.5 text-xs font-semibold text-white">{i.badge}</span> : null}
             </Link>

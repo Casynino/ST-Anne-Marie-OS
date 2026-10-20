@@ -39,7 +39,7 @@ export function OfflineHub() {
   }, []);
 
   if (session === undefined) return <p className="text-sm text-muted">…</p>;
-  if (session === null) return <p className="rounded-xl border border-dashed border-line bg-white px-4 py-8 text-center text-sm text-muted">{makeT("EN")("off.noDownloads")}</p>;
+  if (session === null) return <p className="rounded-xl border border-dashed border-line bg-surface px-4 py-8 text-center text-sm text-muted">{makeT("EN")("off.noDownloads")}</p>;
 
   const today = todayInTimezone(session.timezone);
   const open = sheets.find((s) => s.key === openKey);
@@ -58,13 +58,13 @@ export function OfflineHub() {
         <OpStatus key={op.opId} op={op} t={t} showLabel onRetry={() => outbox.retry(op.opId)} onDiscard={() => outbox.discard(op.opId)} />
       ))}
       {sheets.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-line bg-white px-4 py-8 text-center text-sm text-muted">{t("off.noDownloads")}</p>
+        <p className="rounded-xl border border-dashed border-line bg-surface px-4 py-8 text-center text-sm text-muted">{t("off.noDownloads")}</p>
       ) : (
         <ul className="space-y-2">
           {sheets.map((s) => {
             const stale = s.sheet.date !== today;
             return (
-              <li key={s.key} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white p-3">
+              <li key={s.key} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3">
                 <div className="min-w-0">
                   <p className="font-medium">
                     {s.sheet.class.name}
@@ -84,7 +84,7 @@ export function OfflineHub() {
         </ul>
       )}
       <p className="mt-4 text-sm">
-        <Link href="/attendance" className="text-brand-700 hover:underline">
+        <Link href="/attendance" className="text-link hover:underline">
           {t("att.title")}
         </Link>
       </p>
