@@ -179,6 +179,11 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               <Link href={`/attendance/reports?view=student&studentId=${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">{t("att.reports")}</Link>
             </Card>
           )}
+          {ctx.permissions.has("fees.read") && (
+            <Card title={t("fin.title")}>
+              <Link href={`/finance/students/${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-700 hover:underline">{t("fin.student.statement")}</Link>
+            </Card>
+          )}
           {canEnroll && placementOptions.length > 0 && (
             <Card title={current ? t("student.enrol.move") : t("student.enrol.title")}>
               <ActionForm action={A.enrollStudentAction} submitLabel={t("student.enrol.button")} className="space-y-3">

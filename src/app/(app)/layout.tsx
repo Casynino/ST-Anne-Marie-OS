@@ -9,6 +9,7 @@ import { getBrandLogo } from "@/server/website";
 import { signOutAction } from "@/app/actions-shared";
 import { countMyUnread } from "@/server/notifications";
 import { countNewEnquiries } from "@/server/enquiries";
+import { countUnmatchedEvents } from "@/server/payment-events";
 import { SignOutButton } from "@/components/sign-out-button";
 import { LanguageSwitch } from "@/components/language-switch";
 import { initialsOf } from "@/lib/site";
@@ -19,9 +20,9 @@ import { Breadcrumbs, GlobalSearch, NotificationBell, UserMenu } from "@/compone
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireContext();
   if (ctx.userType !== "STAFF") redirect("/family"); // parents and students use the family portal, never the staff area
-  const [t, locale, school, academic, logo, unread, newEnquiries, roles, jar] = await Promise.all([
+  const [t, locale, school, academic, logo, unread, newEnquiries, unmatchedPayments, roles, jar] = await Promise.all([
     getT(), getLocale(), getSchoolBasics(ctx.schoolId), getCurrentAcademicContext(ctx.schoolId), getBrandLogo(ctx.schoolId),
-    countMyUnread(ctx), countNewEnquiries(ctx),
+    countMyUnread(ctx), countNewEnquiries(ctx), ctx.permissions.has("finance.reconcile") ? countUnmatchedEvents(ctx) : Promise.resolve(0),
     db.role.findMany({ where: { schoolId: ctx.schoolId, key: { in: [...ctx.roleKeys] } }, select: { name: true }, orderBy: { name: "asc" } }),
     cookies(),
   ]);
@@ -45,6 +46,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasAny(ctx, ["grading.manage"]) && { href: "/grading", label: t("nav.grading"), icon: "grading" as const },
   ].filter(Boolean) as NavGroup["items"];
   if (examNav.length) groups.push({ label: t("navgroup.exams"), items: examNav });
+  const financeNav = [
+    hasAny(ctx, ["fees.read", "finance.reports", "expense.read", "finance.reconcile"]) && { href: "/finance", label: t("nav.finance"), icon: "finance" as const, badge: unmatchedPayments },
+  ].filter(Boolean) as NavGroup["items"];
+  if (financeNav.length) groups.push({ label: t("navgroup.finance"), items: financeNav });
   const comms = [
     hasAny(ctx, ["enquiry.read"]) && { href: "/enquiries", label: t("nav.enquiries"), icon: "enquiries" as const, badge: newEnquiries ?? 0 },
     { href: "/notifications", label: t("nav.notifications"), icon: "notifications" as const, badge: unread },
@@ -64,7 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const crumbLabels: Record<string, string> = {
     students: t("nav.students"), admissions: t("nav.admissions"), attendance: t("nav.attendance"), guardians: t("nav.guardians"), "academic-setup": t("nav.academics"),
     users: t("nav.users"), roles: t("nav.roles"), settings: t("nav.settings"), audit: t("nav.audit"), website: t("nav.website"), enquiries: t("nav.enquiries"), notifications: t("nav.notifications"),
-    "report-cards": t("nav.reportCards"), remarks: t("rc.remarks.title"), exams: t("nav.exams"), marks: t("nav.marks"), results: t("nav.results"), grading: t("nav.grading"),
+    "report-cards": t("nav.reportCards"), finance: t("nav.finance"), invoices: t("fin.nav.invoices"), payments: t("fin.nav.payments"), refunds: t("fin.nav.refunds"), reconciliation: t("fin.nav.reconciliation"), fees: t("fin.nav.fees"), expenses: t("fin.nav.expenses"), remarks: t("rc.remarks.title"), exams: t("nav.exams"), marks: t("nav.marks"), results: t("nav.results"), grading: t("nav.grading"),
     new: t("bc.new"), edit: t("common.edit"), import: t("bc.import"), take: t("bc.take"), reports: t("bc.reports"), conflicts: t("bc.conflicts"), alerts: t("bc.alerts"), staff: t("bc.staff"), register: t("bc.register"),
   };
   const canSearch = hasAny(ctx, ["student.read", "student.read_assigned"]);

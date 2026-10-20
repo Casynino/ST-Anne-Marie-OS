@@ -8,6 +8,7 @@ import { sameContent, type ReportSnapshot } from "@/lib/results/report-types";
 import { actorOf, writeAudit } from "@/server/audit";
 import { getAttendanceSettings } from "@/server/attendance";
 import { attendanceRate, emptyCounts } from "@/server/attendance-reports";
+import { clearedStudents } from "@/server/fees";
 import { loadRoster } from "@/server/marks";
 import { computeClassResults } from "@/server/results";
 import { checkbox, optText, optUuid, parse, text, uuid } from "@/lib/validation";
@@ -33,11 +34,12 @@ export async function updateReportCardSettings(ctx: AuthContext, input: unknown)
 }
 
 /**
- * Financial clearance hook. Returns the set of students who are cleared, or null when clearance cannot be
- * determined (the fees module reports through `setClearanceProvider`). Nothing is ever assumed cleared.
+ * Financial clearance hook: the set of students who are cleared. Defaults to the fees module's rule (a student must
+ * have been billed for the term and owe no more than the school's limit); tests and special deployments can replace it.
+ * Nothing is ever assumed cleared.
  */
 type ClearanceProvider = (client: Db | Tx, schoolId: string, termId: string, studentIds: string[]) => Promise<Set<string>>;
-let clearanceProvider: ClearanceProvider | null = null;
+let clearanceProvider: ClearanceProvider | null = clearedStudents;
 export function setClearanceProvider(p: ClearanceProvider | null) { clearanceProvider = p; }
 
 // ───────────────────────── Scope ─────────────────────────

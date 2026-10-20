@@ -30,6 +30,8 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
       {many && <Link href="/family" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand-800 hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("fam.allChildren")}</Link>}
       <PageHeader title={child.name} subtitle={`${child.className ? `${child.className}${child.streamName ? ` ${child.streamName}` : ""}` : t("fam.notPlaced")} · ${child.admissionNo}`} />
 
+      <Link href={`/family/${child.id}/fees`} className="mb-8 flex min-h-16 items-center justify-between rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)] hover:border-brand-400"><span className="font-semibold">{t("fam.fees")}</span><span className="text-sm text-muted">{t("fam.fees.hint")}</span></Link>
+
       <section aria-labelledby="rc-h" className="mb-8">
         <h2 id="rc-h" className="mb-3 text-lg font-semibold">{t("fam.reportCards")}</h2>
         {ov.reportCards.length === 0 ? (

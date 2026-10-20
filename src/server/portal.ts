@@ -4,8 +4,12 @@ import { conflict, forbidden, invalid, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { generateTemporaryPassword, hashPassword } from "@/lib/auth/password";
 import { formatDateOnly } from "@/lib/dates";
+import { centsOf } from "@/lib/finance/money";
 import type { ReportSnapshot } from "@/lib/results/report-types";
 import { actorOf, writeAudit } from "@/server/audit";
+import { loadStudentFinance } from "@/server/balances";
+import { getFeeSettings } from "@/server/fees";
+import type { ReceiptSnapshot } from "@/server/payments";
 import { getAttendanceSettings } from "@/server/attendance";
 import { attendanceRate, emptyCounts } from "@/server/attendance-reports";
 import { optEmailField, optPhoneField, parse } from "@/lib/validation";
@@ -103,6 +107,43 @@ export async function getMyReportCard(ctx: AuthContext, cardId: string) {
 
 export async function recordMyDownload(ctx: AuthContext, cardId: string, name: string) {
   await writeAudit(db, actorOf(ctx), { action: "reportcard.download", entityType: "ReportCard", entityId: cardId, summary: name, changes: { via: "portal" } });
+}
+
+// ───────────────────────── Fees (read-only) ─────────────────────────
+
+/** Fee statement for one of the viewer's children: live invoices with balances, payments and receipts. No internal notes. */
+export async function childFees(ctx: AuthContext, studentId: string) {
+  const child = await childOrThrow(ctx, studentId);
+  const [fin, invoices, payments, settings, school] = await Promise.all([
+    loadStudentFinance(db, ctx.schoolId, studentId),
+    db.invoice.findMany({ where: { schoolId: ctx.schoolId, studentId, status: "ISSUED" }, orderBy: [{ issueDate: "desc" }, { number: "desc" }] }),
+    db.payment.findMany({ where: { schoolId: ctx.schoolId, studentId }, orderBy: [{ receivedOn: "desc" }, { createdAt: "desc" }], include: { receipt: { select: { number: true } } } }),
+    getFeeSettings(db, ctx.schoolId),
+    db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { currency: true } }),
+  ]);
+  const terms = await db.term.findMany({ where: { schoolId: ctx.schoolId, id: { in: invoices.map((i) => i.termId).filter((x): x is string => !!x) } }, select: { id: true, name: true } });
+  const tn = new Map(terms.map((t) => [t.id, t.name]));
+  const l = fin.ledger;
+  return {
+    child, currency: school.currency, paymentInstructions: settings.paymentInstructions,
+    summary: { billed: l.billed, paid: l.applied, outstanding: l.outstanding, overdue: l.overdue, credit: l.credit },
+    invoices: invoices.map((i) => ({ id: i.id, number: i.number, termName: i.termId ? (tn.get(i.termId) ?? null) : null, issueDate: formatDateOnly(i.issueDate), dueDate: formatDateOnly(i.dueDate), balance: l.invoices.get(i.id)! })),
+    payments: payments.map((p) => ({ id: p.id, receivedOn: formatDateOnly(p.receivedOn), amountCents: centsOf(p.amount), method: p.method, reference: p.reference, status: p.status, receiptNumber: p.status === "POSTED" ? (p.receipt?.number ?? null) : null })),
+  };
+}
+
+export async function getMyInvoiceId(ctx: AuthContext, invoiceId: string): Promise<{ id: string; studentId: string }> {
+  const ids = await childIds(ctx);
+  const inv = await db.invoice.findFirst({ where: { id: invoiceId, schoolId: ctx.schoolId, studentId: { in: ids }, status: "ISSUED" }, select: { id: true, studentId: true } });
+  if (!inv) throw notFound("Invoice");
+  return inv;
+}
+
+export async function getMyReceipt(ctx: AuthContext, paymentId: string) {
+  const ids = await childIds(ctx);
+  const p = await db.payment.findFirst({ where: { id: paymentId, schoolId: ctx.schoolId, studentId: { in: ids }, status: "POSTED" }, include: { receipt: true } });
+  if (!p?.receipt) throw notFound("Receipt");
+  return { paymentId: p.id, studentId: p.studentId, snapshot: p.receipt.snapshot as unknown as ReceiptSnapshot };
 }
 
 // ───────────────────────── Account administration (staff, portal.manage) ─────────────────────────

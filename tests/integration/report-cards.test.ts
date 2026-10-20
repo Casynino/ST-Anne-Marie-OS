@@ -169,7 +169,11 @@ describe("regenerate, publish, withdraw", () => {
   it("financial clearance, when required, blocks publishing unless fees confirm it", async () => {
     await db.reportCard.updateMany({ where: { schoolId: school.id }, data: { status: "GENERATED", publishedAt: null, publishedById: null } });
     await rc.updateReportCardSettings(head, { requireFinancialClearance: "on" });
-    expect(await code(rc.publishReportCards(head, target()))).toBe("CONFLICT"); // no fee data available: nothing is assumed cleared
+    const none = await rc.publishReportCards(head, target()); // nobody was billed for the term: nothing is assumed cleared
+    expect(none.published).toBe(0);
+    expect(none.notCleared).toHaveLength(5);
+    rc.setClearanceProvider(null);
+    expect(await code(rc.publishReportCards(head, target()))).toBe("CONFLICT"); // no way to check clearance at all
     rc.setClearanceProvider(async (_c, _s, _t, ids) => new Set(ids.slice(0, 2)));
     const r = await rc.publishReportCards(head, target());
     expect(r.published).toBe(2);

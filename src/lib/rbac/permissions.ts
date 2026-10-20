@@ -82,6 +82,22 @@ export const PERMISSIONS = {
   "reportcard.generate": { module: "exams", description: "Generate report cards from locked results" },
   "reportcard.publish": { module: "exams", description: "Publish report cards to parents and students, or withdraw them" },
   "portal.manage": { module: "guardians", description: "Create, reset and disable parent and student portal accounts" },
+
+  // Fees & finance
+  "fees.read": { module: "finance", description: "View fee structures, invoices, payments, balances and student statements" },
+  "fees.manage": { module: "finance", description: "Set up fee items, fee structures, fee settings and payment instructions" },
+  "fees.discount": { module: "finance", description: "Grant or end scholarships and discounts for students" },
+  "invoice.generate": { module: "finance", description: "Generate term invoices, create one-off invoices and set instalments" },
+  "invoice.adjust": { module: "finance", description: "Add charge or discount adjustment lines to an issued invoice" },
+  "invoice.void": { module: "finance", description: "Void an invoice (with a reason)" },
+  "payment.record": { module: "finance", description: "Record payments received and issue receipts" },
+  "payment.reverse": { module: "finance", description: "Reverse a payment recorded in error (with a reason)" },
+  "refund.request": { module: "finance", description: "Request a refund of unapplied credit and record the payout once approved" },
+  "refund.approve": { module: "finance", description: "Approve or reject refund requests (never your own)" },
+  "expense.read": { module: "finance", description: "View school expenses" },
+  "expense.manage": { module: "finance", description: "Record and void expenses, manage expense categories" },
+  "finance.reports": { module: "finance", description: "View finance dashboards and reports (arrears, collections, expenses) and export them" },
+  "finance.reconcile": { module: "finance", description: "Match or reject mobile-money and bank notifications that could not be matched automatically" },
   "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 

@@ -1,4 +1,5 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFImage } from "pdf-lib";
+import { GREEN, INK, LINE, MUTED, TINT, clean, draw, wrap, type Fonts } from "@/lib/pdf/common";
 import type { ReportSnapshot } from "@/lib/results/report-types";
 
 /** Every visible word comes from the caller (EN/SW). */
@@ -14,50 +15,6 @@ export type PdfLogo = { bytes: Uint8Array; type: "png" | "jpg" };
 
 const A4: [number, number] = [595.28, 841.89];
 const M = 36;
-const GREEN = rgb(0.008, 0.502, 0.318);
-const INK = rgb(0.1, 0.12, 0.11);
-const MUTED = rgb(0.4, 0.43, 0.41);
-const LINE = rgb(0.82, 0.85, 0.83);
-const TINT = rgb(0.94, 0.97, 0.95);
-
-/** Standard PDF fonts only cover Latin-1: anything else is replaced so a stray character never breaks the whole batch. */
-const clean = (s: string) =>
-  s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/…/g, "...").replace(/[^\n\x20-\x7E\xA0-\xFF]/g, "?");
-
-type Fonts = { regular: PDFFont; bold: PDFFont; italic: PDFFont };
-
-function wrap(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const out: string[] = [];
-  for (const para of clean(text).split("\n")) {
-    let line = "";
-    for (const word of para.split(/\s+/).filter(Boolean)) {
-      const next = line ? `${line} ${word}` : word;
-      if (font.widthOfTextAtSize(next, size) <= maxWidth) line = next;
-      else {
-        if (line) out.push(line);
-        // A single very long word is cut so it can never run off the page.
-        let w = word;
-        while (font.widthOfTextAtSize(w, size) > maxWidth && w.length > 1) {
-          let cut = w.length - 1;
-          while (cut > 1 && font.widthOfTextAtSize(w.slice(0, cut), size) > maxWidth) cut--;
-          out.push(w.slice(0, cut));
-          w = w.slice(cut);
-        }
-        line = w;
-      }
-    }
-    out.push(line);
-  }
-  return out;
-}
-
-function draw(page: PDFPage, text: string, x: number, y: number, o: { font: PDFFont; size?: number; color?: ReturnType<typeof rgb>; align?: "left" | "right" | "center"; width?: number }) {
-  const size = o.size ?? 9;
-  const t = clean(text);
-  const w = o.font.widthOfTextAtSize(t, size);
-  const dx = o.align === "right" ? (o.width ?? 0) - w : o.align === "center" ? ((o.width ?? 0) - w) / 2 : 0;
-  page.drawText(t, { x: x + dx, y, size, font: o.font, color: o.color ?? INK });
-}
 
 const fmt = (n: number | null, d: number) => (n === null ? "-" : n.toFixed(d));
 

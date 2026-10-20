@@ -20,7 +20,7 @@ export function pdfLabels(locale: Locale): PdfLabels {
 }
 
 /** PNG/JPEG school logo from the media library or the bundled site folder; null when there is none (WebP is not supported by PDF). */
-async function loadLogo(schoolId: string): Promise<PdfLogo | null> {
+export async function loadLogo(schoolId: string): Promise<PdfLogo | null> {
   try {
     const logo = await getBrandLogo(schoolId);
     if (!logo) return null;

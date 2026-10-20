@@ -128,6 +128,16 @@ model School {
   resultChanges          ResultChange[]
   reportRemarks          ReportRemark[]
   reportCards            ReportCard[]
+  feeItems               FeeItem[]
+  feeStructures          FeeStructure[]
+  studentDiscounts       StudentDiscount[]
+  invoices               Invoice[]
+  payments               Payment[]
+  receipts               Receipt[]
+  refunds                Refund[]
+  expenseCategories      ExpenseCategory[]
+  expenses               Expense[]
+  paymentEvents          PaymentEvent[]
 
   @@map("schools")
 }
@@ -1455,4 +1465,352 @@ model ReportCardRevision {
 
   @@unique([reportCardId, version])
   @@map("report_card_revisions")
+}
+
+// ═════════════════════════ Phase 5: Fees & finance ═════════════════════════
+// Money is DECIMAL(14,2) in the school currency (TZS). Originals are never edited: invoices are voided or adjusted by
+// appended lines, payments are reversed, refunds go through a request/approve/pay workflow. A student's balance is
+// always computed by one service (src/lib/finance/ledger.ts) from invoices, posted payments and active refunds.
+
+enum FeeCategory {
+  TUITION
+  TRANSPORT
+  MEALS
+  BOARDING
+  UNIFORM
+  EXAM
+  ADMISSION
+  OTHER
+}
+
+enum DiscountKind {
+  PERCENT
+  FIXED
+}
+
+enum InvoiceType {
+  TERM_FEES // generated from the fee structure; at most one live invoice per student and term
+  OTHER // one-off charges
+}
+
+enum InvoiceStatus {
+  ISSUED
+  VOID
+}
+
+enum InvoiceLineKind {
+  CHARGE
+  DISCOUNT
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  MOBILE_MONEY
+  OTHER
+}
+
+enum PaymentStatus {
+  POSTED
+  REVERSED
+}
+
+enum PaymentSource {
+  MANUAL
+  PROVIDER
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum PaymentEventStatus {
+  POSTED // verified, matched and recorded as a payment
+  UNMATCHED // verified but could not be matched to exactly one student: waits in the reconciliation queue
+  NOT_SUCCESSFUL // provider reported pending or failed: recorded, nothing posted
+  REJECTED // a person rejected it from the queue
+}
+
+model FeeItem {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  schoolId  String      @db.Uuid
+  name      String
+  nameSw    String?
+  category  FeeCategory @default(TUITION)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+
+  school School             @relation(fields: [schoolId], references: [id])
+  lines  FeeStructureLine[]
+
+  @@unique([schoolId, name])
+  @@map("fee_items")
+}
+
+// What a class (or level, or everyone) is charged in an academic year. One active structure per scope and year
+// (partial unique index in the migration). The most specific scope wins: class, then level, then all.
+model FeeStructure {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  schoolId       String   @db.Uuid
+  academicYearId String   @db.Uuid
+  name           String
+  levelId        String?  @db.Uuid
+  classId        String?  @db.Uuid
+  isActive       Boolean  @default(true)
+  createdById    String   @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  school School             @relation(fields: [schoolId], references: [id])
+  lines  FeeStructureLine[]
+
+  @@index([schoolId, academicYearId])
+  @@map("fee_structures")
+}
+
+// termSequence null = charged every term; N = only in the term with that sequence number (e.g. admission fee in term 1).
+model FeeStructureLine {
+  id           String  @id @default(uuid(7)) @db.Uuid
+  structureId  String  @db.Uuid
+  feeItemId    String  @db.Uuid
+  amount       Decimal @db.Decimal(14, 2)
+  termSequence Int?
+  sortOrder    Int     @default(0)
+
+  structure FeeStructure @relation(fields: [structureId], references: [id], onDelete: Cascade)
+  feeItem   FeeItem      @relation(fields: [feeItemId], references: [id])
+
+  // Real index is NULLS NOT DISTINCT (see migration SQL); declared here so Prisma does not drop it.
+  @@unique([structureId, feeItemId, termSequence], map: "fee_structure_lines_unique")
+  @@map("fee_structure_lines")
+}
+
+// Scholarship or discount for one student in one academic year; applied as DISCOUNT lines when invoices are generated.
+model StudentDiscount {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  schoolId       String       @db.Uuid
+  studentId      String       @db.Uuid
+  academicYearId String       @db.Uuid
+  name           String
+  kind           DiscountKind
+  value          Decimal      @db.Decimal(14, 2)
+  feeItemId      String?      @db.Uuid // null = applies to the whole invoice
+  reason         String
+  isActive       Boolean      @default(true)
+  approvedById   String       @db.Uuid
+  createdAt      DateTime     @default(now())
+  endedAt        DateTime?
+  endedById      String?      @db.Uuid
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, studentId, academicYearId])
+  @@map("student_discounts")
+}
+
+model Invoice {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  schoolId       String        @db.Uuid
+  studentId      String        @db.Uuid
+  academicYearId String        @db.Uuid
+  termId         String?       @db.Uuid
+  classId        String?       @db.Uuid // class at billing time
+  number         String
+  type           InvoiceType   @default(TERM_FEES)
+  status         InvoiceStatus @default(ISSUED)
+  issueDate      DateTime      @db.Date
+  dueDate        DateTime      @db.Date
+  notes          String?
+  createdById    String        @db.Uuid
+  createdAt      DateTime      @default(now())
+  voidedAt       DateTime?
+  voidedById     String?       @db.Uuid
+  voidReason     String?
+
+  school      School              @relation(fields: [schoolId], references: [id])
+  lines       InvoiceLine[]
+  instalments InvoiceInstalment[]
+  payments    Payment[]
+
+  @@unique([schoolId, number])
+  @@index([schoolId, studentId])
+  @@index([schoolId, termId, status])
+  @@map("invoices")
+}
+
+// Append-only (trigger). Corrections add lines; nothing is edited or deleted.
+model InvoiceLine {
+  id          String          @id @default(uuid(7)) @db.Uuid
+  invoiceId   String          @db.Uuid
+  feeItemId   String?         @db.Uuid
+  kind        InvoiceLineKind
+  description String
+  amount      Decimal         @db.Decimal(14, 2)
+  reason      String? // set on lines added after issue (adjustments)
+  createdById String          @db.Uuid
+  createdAt   DateTime        @default(now())
+  sortOrder   Int             @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@map("invoice_lines")
+}
+
+// Payment schedule only; allocation of money is done by the ledger, oldest first.
+model InvoiceInstalment {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  invoiceId String   @db.Uuid
+  sequence  Int
+  dueDate   DateTime @db.Date
+  amount    Decimal  @db.Decimal(14, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([invoiceId, sequence])
+  @@map("invoice_instalments")
+}
+
+model Payment {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  schoolId        String        @db.Uuid
+  studentId       String        @db.Uuid
+  targetInvoiceId String?       @db.Uuid // optional: pay this invoice first; any remainder is applied oldest-first
+  method          PaymentMethod
+  provider        String? // e.g. the mobile-money provider key
+  reference       String? // bank slip number, transaction id
+  amount          Decimal       @db.Decimal(14, 2)
+  receivedOn      DateTime      @db.Date
+  payerName       String?
+  notes           String?
+  status          PaymentStatus @default(POSTED)
+  source          PaymentSource @default(MANUAL)
+  idempotencyKey  String? // client-generated, protects against double submit
+  createdById     String?       @db.Uuid // null for provider-confirmed payments
+  createdAt       DateTime      @default(now())
+  reversedAt      DateTime?
+  reversedById    String?       @db.Uuid
+  reverseReason   String?
+
+  school        School   @relation(fields: [schoolId], references: [id])
+  targetInvoice Invoice? @relation(fields: [targetInvoiceId], references: [id])
+  receipt       Receipt?
+
+  @@index([schoolId, studentId, status])
+  @@index([schoolId, receivedOn])
+  @@map("payments")
+}
+
+// One receipt per payment, numbered. The snapshot is the document; a reversed payment's receipt is marked void, never deleted.
+model Receipt {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  schoolId   String    @db.Uuid
+  paymentId  String    @unique @db.Uuid
+  number     String
+  issuedAt   DateTime  @default(now())
+  issuedById String?   @db.Uuid
+  snapshot   Json
+  voidedAt   DateTime?
+  voidReason String?
+
+  school  School  @relation(fields: [schoolId], references: [id])
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@unique([schoolId, number])
+  @@map("receipts")
+}
+
+// Money returned to a payer. Only unapplied credit can be refunded. Requested by one person, decided by another.
+model Refund {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  schoolId      String        @db.Uuid
+  studentId     String        @db.Uuid
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod
+  reference     String?
+  reason        String
+  status        RefundStatus  @default(REQUESTED)
+  requestedById String        @db.Uuid
+  requestedAt   DateTime      @default(now())
+  decidedById   String?       @db.Uuid
+  decidedAt     DateTime?
+  decisionNote  String?
+  paidAt        DateTime?
+  paidById      String?       @db.Uuid
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, studentId])
+  @@index([schoolId, status])
+  @@map("refunds")
+}
+
+model ExpenseCategory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  school   School    @relation(fields: [schoolId], references: [id])
+  expenses Expense[]
+
+  @@unique([schoolId, name])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  schoolId    String        @db.Uuid
+  categoryId  String        @db.Uuid
+  amount      Decimal       @db.Decimal(14, 2)
+  spentOn     DateTime      @db.Date
+  payee       String
+  description String?
+  method      PaymentMethod
+  reference   String?
+  voided      Boolean       @default(false)
+  voidReason  String?
+  voidedAt    DateTime?
+  voidedById  String?       @db.Uuid
+  createdById String        @db.Uuid
+  createdAt   DateTime      @default(now())
+
+  school   School          @relation(fields: [schoolId], references: [id])
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([schoolId, spentOn])
+  @@map("expenses")
+}
+
+// Every provider notification, stored once (unique per provider event id). Only verified SUCCESS events can create a payment.
+model PaymentEvent {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  schoolId        String             @db.Uuid
+  provider        String
+  providerEventId String
+  providerStatus  String // as reported: SUCCESS | FAILED | PENDING
+  status          PaymentEventStatus
+  amount          Decimal?           @db.Decimal(14, 2)
+  currency        String?
+  reference       String? // the account / bill reference the payer used
+  msisdn          String?
+  occurredAt      DateTime?
+  payloadHash     String
+  payload         Json
+  paymentId       String?            @db.Uuid
+  studentId       String?            @db.Uuid
+  note            String?
+  resolvedById    String?            @db.Uuid
+  receivedAt      DateTime           @default(now())
+  processedAt     DateTime?
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, provider, providerEventId])
+  @@index([schoolId, status])
+  @@map("payment_events")
 }
