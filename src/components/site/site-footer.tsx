@@ -13,7 +13,7 @@ export function SiteFooter({ t, site, links }: { t: Translate; site: PublicSite;
   const intro = site.text.heroSubtitle ?? school.motto;
   return (
     <footer className="relative isolate overflow-hidden text-brand-100">
-      <Wave className="absolute inset-x-0 top-0 rotate-180 text-cream" />
+      <Wave className="absolute inset-x-0 -top-px rotate-180 text-cream" />
       <HeroBackdrop />
       <p aria-hidden className="outline-text-light display pointer-events-none absolute -bottom-6 right-2 -z-10 select-none text-[7rem] leading-none sm:text-[14rem]">{initialsOf(school.name) || "SAM"}</p>
       <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-28 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1.2fr]">

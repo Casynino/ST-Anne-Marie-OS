@@ -47,7 +47,7 @@ export default async function HomePage() {
   return (
     <>
       {/* ───────── Hero ───────── */}
-      <section className="relative isolate overflow-hidden text-white">
+      <section className="relative isolate overflow-x-clip text-white">
         <HeroBackdrop />
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-36 pt-12 sm:px-6 sm:pb-44 sm:pt-20 lg:min-h-[46rem] lg:grid-cols-[1.05fr_0.95fr]">
           <div className="parallax-slow relative z-10">
@@ -84,7 +84,7 @@ export default async function HomePage() {
             {school.motto && <p style={{ "--r": "-3deg" } as React.CSSProperties} className="float-a absolute bottom-[8%] left-[2%] max-w-[46%] rounded-2xl bg-white px-4 py-3 text-sm font-semibold leading-snug text-brand-900 shadow-[var(--shadow-card)]">{school.motto}</p>}
           </div></div>
         </div>
-        <Wave className="absolute inset-x-0 bottom-0 text-cream" />
+        <Wave className="absolute inset-x-0 -bottom-px text-cream" />
       </section>
 
       {/* ───────── Facts (all read from the school's own records) ───────── */}
@@ -219,7 +219,7 @@ export default async function HomePage() {
 
       {/* ───────── School life ───────── */}
       {(gallery.length > 0 || text.schoolLife.length > 0) && (
-        <section className="relative isolate overflow-hidden text-white">
+        <section className="relative isolate overflow-x-clip text-white">
           <HeroBackdrop />
           <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32">
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -235,7 +235,7 @@ export default async function HomePage() {
               </ul>
             )}
           </div>
-          <Wave className="absolute inset-x-0 bottom-0 text-cream" />
+          <Wave className="absolute inset-x-0 -bottom-px text-cream" />
           <div className="h-8 sm:h-14" />
         </section>
       )}
@@ -306,7 +306,7 @@ export default async function HomePage() {
       )}
 
       {/* ───────── Family portal ───────── */}
-      <section className="relative isolate overflow-hidden text-white">
+      <section className="relative isolate overflow-x-clip text-white">
         <HeroBackdrop />
         <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 py-24 sm:px-6 sm:py-32 lg:grid-cols-[1.1fr_0.9fr]">
           <Reveal>
@@ -329,7 +329,7 @@ export default async function HomePage() {
             </div>
           </Reveal>
         </div>
-        <Wave className="absolute inset-x-0 bottom-0 text-cream" />
+        <Wave className="absolute inset-x-0 -bottom-px text-cream" />
         <div className="h-8 sm:h-14" />
       </section>
 

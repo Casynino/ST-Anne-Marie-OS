@@ -2013,6 +2013,7 @@ export const en = {
   "learn.bh.save": "Save record",
   "learn.bh.familyTitle": "Behaviour notes",
   "learn.bh.familyEmpty": "The school has not shared any behaviour notes.",
+  "site.mobile.call": "Call the school",
 } as const;
 
 export type MessageKey = keyof typeof en;

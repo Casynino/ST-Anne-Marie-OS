@@ -2015,4 +2015,5 @@ export const sw: Record<MessageKey, string> = {
   "learn.bh.save": "Hifadhi kumbukumbu",
   "learn.bh.familyTitle": "Taarifa za tabia",
   "learn.bh.familyEmpty": "Shule haijashirikisha taarifa zozote za tabia.",
+  "site.mobile.call": "Piga simu shuleni",
 };

@@ -83,7 +83,7 @@ export async function PageHero({ eyebrow, title, children, crumbs, photo = true 
   const gallery = photo ? ((await getSite())?.images.gallery ?? []) : [];
   const pic = gallery.length ? gallery[hashOf(title) % gallery.length] : undefined;
   return (
-    <header className="relative isolate overflow-hidden text-white">
+    <header className="relative isolate overflow-x-clip text-white">
       <HeroBackdrop />
       <div className={`mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6 sm:pb-32 sm:pt-16 ${pic ? "grid items-center gap-10 md:grid-cols-[1.25fr_0.75fr]" : ""}`}>
         <div>
@@ -111,7 +111,7 @@ export async function PageHero({ eyebrow, title, children, crumbs, photo = true 
           </div>
         )}
       </div>
-      <Wave className="absolute inset-x-0 bottom-0 text-cream" />
+      <Wave className="absolute inset-x-0 -bottom-px text-cream" />
     </header>
   );
 }

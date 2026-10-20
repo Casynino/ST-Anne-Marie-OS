@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { getContext, getLocale, getT } from "@/lib/auth/next";
-import { baseUrl, getSite, initialsOf, schoolJsonLd } from "@/lib/site";
+import { baseUrl, getSite, initialsOf, schoolJsonLd, telHref } from "@/lib/site";
 import { LanguageSwitch } from "@/components/language-switch";
 import { SiteHeader, type SiteLink } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
+import { MobileActions } from "@/components/site/mobile-actions";
 import { AnnouncementBar } from "@/components/site/announcement-bar";
 
 export const metadata: Metadata = { metadataBase: new URL(baseUrl()), robots: { index: true, follow: true } };
@@ -43,6 +44,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       />
       <main id="main">{children}</main>
       <SiteFooter t={t} site={site} links={links} />
+      <MobileActions applyHref="/apply/form" applyLabel={t("site.nav.apply")} phoneHref={site.contact.phone ? telHref(site.contact.phone) : undefined} callLabel={t("site.mobile.call")} />
+      <div aria-hidden className="h-20 bg-brand-950 md:hidden" />
     </div>
   );
 }
