@@ -25,6 +25,13 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: "Head Teacher / Academic Master",
     description: "Oversees academics, students, staff activity.",
     permissions: [
+      "exam.read",
+      "exam.manage",
+      "results.read",
+      "results.approve",
+      "results.lock",
+      "results.unlock",
+      "remarks.head",
       "enquiry.read",
       "enquiry.manage",
       "website.manage",
@@ -55,14 +62,21 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     key: "class_teacher",
     name: "Class Teacher",
     description: "Works with students and parents of assigned classes.",
-    permissions: ["academic.read", "student.read_assigned", "student.guardians.read", "attendance.take", "attendance.read_assigned"],
+    permissions: [
+      "exam.read",
+      "marks.enter",
+      "results.read_assigned",
+      "remarks.class","academic.read", "student.read_assigned", "student.guardians.read", "attendance.take", "attendance.read_assigned"],
   },
   {
     key: "subject_teacher",
     name: "Subject Teacher",
     description: "Teaches assigned subjects and classes.",
     // Add attendance.take for subject teachers if the school records attendance per period.
-    permissions: ["academic.read", "student.read_assigned", "attendance.read_assigned"],
+    permissions: [
+      "exam.read",
+      "marks.enter",
+      "results.read_assigned","academic.read", "student.read_assigned", "attendance.read_assigned"],
   },
   {
     key: "accountant",

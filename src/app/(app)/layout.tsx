@@ -35,6 +35,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasAny(ctx, ["academic.read"]) && { href: "/academic-setup", label: t("nav.academics"), icon: "academics" as const },
   ].filter(Boolean) as NavGroup["items"];
   if (academic_.length) groups.push({ label: t("navgroup.academic"), items: academic_ });
+  const examNav = [
+    hasAny(ctx, ["exam.read"]) && { href: "/exams", label: t("nav.exams"), icon: "exams" as const },
+    hasAny(ctx, ["marks.enter", "marks.enter_any", "results.approve", "results.lock"]) && { href: "/marks", label: t("nav.marks"), icon: "marks" as const },
+    hasAny(ctx, ["results.read", "results.read_assigned"]) && { href: "/results", label: t("nav.results"), icon: "results" as const },
+    hasAny(ctx, ["grading.manage"]) && { href: "/grading", label: t("nav.grading"), icon: "grading" as const },
+  ].filter(Boolean) as NavGroup["items"];
+  if (examNav.length) groups.push({ label: t("navgroup.exams"), items: examNav });
   const comms = [
     hasAny(ctx, ["enquiry.read"]) && { href: "/enquiries", label: t("nav.enquiries"), icon: "enquiries" as const, badge: newEnquiries ?? 0 },
     { href: "/notifications", label: t("nav.notifications"), icon: "notifications" as const, badge: unread },
@@ -54,6 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const crumbLabels: Record<string, string> = {
     students: t("nav.students"), admissions: t("nav.admissions"), attendance: t("nav.attendance"), guardians: t("nav.guardians"), "academic-setup": t("nav.academics"),
     users: t("nav.users"), roles: t("nav.roles"), settings: t("nav.settings"), audit: t("nav.audit"), website: t("nav.website"), enquiries: t("nav.enquiries"), notifications: t("nav.notifications"),
+    exams: t("nav.exams"), marks: t("nav.marks"), results: t("nav.results"), grading: t("nav.grading"),
     new: t("bc.new"), edit: t("common.edit"), import: t("bc.import"), take: t("bc.take"), reports: t("bc.reports"), conflicts: t("bc.conflicts"), alerts: t("bc.alerts"), staff: t("bc.staff"), register: t("bc.register"),
   };
   const canSearch = hasAny(ctx, ["student.read", "student.read_assigned"]);

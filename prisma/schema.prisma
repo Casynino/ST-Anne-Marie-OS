@@ -120,6 +120,12 @@ model School {
   events                 SchoolEvent[]
   enquiries              Enquiry[]
   mediaAssets            MediaAsset[]
+  gradingScales          GradingScale[]
+  exams                  Exam[]
+  examSubjects           ExamSubject[]
+  resultSubmissions      ResultSubmission[]
+  marks                  Mark[]
+  resultChanges          ResultChange[]
 
   @@map("schools")
 }
@@ -1173,4 +1179,200 @@ model MediaAsset {
 
   @@index([schoolId, createdAt])
   @@map("media_assets")
+}
+
+// ═════════════════════════ Phase 3: Examinations & results ═════════════════════════
+
+enum ExamCategory {
+  MONTHLY
+  MIDTERM
+  TERMINAL
+  ANNUAL
+  OTHER
+}
+
+enum MarkStatus {
+  SCORED
+  ABSENT
+  EXEMPT
+}
+
+// Draft -> Submitted -> Approved -> Locked. RETURNED = sent back for correction (also the state after an audited unlock).
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  LOCKED
+  RETURNED
+}
+
+// Configurable grading. Nothing is hard-coded: bands, points and divisions belong to a scale the school owns.
+model GradingScale {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @db.Uuid
+  name          String
+  levelId       String?  @db.Uuid // applies to this academic level; null = any level
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  passMark      Decimal? @db.Decimal(5, 2)
+  divisionBestN Int? // division = sum of the best N subject points
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school    School         @relation(fields: [schoolId], references: [id])
+  bands     GradeBand[]
+  divisions DivisionRule[]
+
+  @@unique([schoolId, name])
+  @@map("grading_scales")
+}
+
+model GradeBand {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  scaleId    String  @db.Uuid
+  grade      String
+  minPercent Decimal @db.Decimal(5, 2)
+  maxPercent Decimal @db.Decimal(5, 2)
+  points     Int?
+  remark     String?
+  sortOrder  Int     @default(0)
+
+  scale GradingScale @relation(fields: [scaleId], references: [id], onDelete: Cascade)
+
+  @@unique([scaleId, grade])
+  @@map("grade_bands")
+}
+
+model DivisionRule {
+  id        String @id @default(uuid(7)) @db.Uuid
+  scaleId   String @db.Uuid
+  division  String
+  minPoints Int
+  maxPoints Int
+  sortOrder Int    @default(0)
+
+  scale GradingScale @relation(fields: [scaleId], references: [id], onDelete: Cascade)
+
+  @@unique([scaleId, division])
+  @@map("division_rules")
+}
+
+model Exam {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  schoolId           String       @db.Uuid
+  academicYearId     String       @db.Uuid
+  termId             String       @db.Uuid
+  name               String
+  category           ExamCategory @default(TERMINAL)
+  examDate           DateTime?    @db.Date
+  maxMarks           Decimal      @default(100) @db.Decimal(6, 2)
+  weight             Decimal      @default(100) @db.Decimal(5, 2) // share of the term subject result
+  submissionDeadline DateTime?    @db.Date
+  gradingScaleId     String?      @db.Uuid
+  createdById        String       @db.Uuid
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  school   School        @relation(fields: [schoolId], references: [id])
+  subjects ExamSubject[]
+
+  @@unique([schoolId, termId, name])
+  @@index([schoolId, termId])
+  @@map("exams")
+}
+
+// A subject examined for one class in one exam; marks are entered against it.
+model ExamSubject {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  examId    String   @db.Uuid
+  classId   String   @db.Uuid
+  subjectId String   @db.Uuid
+  maxMarks  Decimal  @db.Decimal(6, 2)
+  createdAt DateTime @default(now())
+
+  school      School             @relation(fields: [schoolId], references: [id])
+  exam        Exam               @relation(fields: [examId], references: [id], onDelete: Cascade)
+  submissions ResultSubmission[]
+  marks       Mark[]
+
+  @@unique([examId, classId, subjectId])
+  @@index([schoolId, classId])
+  @@map("exam_subjects")
+}
+
+// The unit teachers submit and approvers review: one per exam-subject and stream (stream null = whole class).
+// Uniqueness (NULLS NOT DISTINCT) is in migration SQL and declared here only so Prisma does not drop it.
+model ResultSubmission {
+  id            String           @id @default(uuid(7)) @db.Uuid
+  schoolId      String           @db.Uuid
+  examSubjectId String           @db.Uuid
+  streamId      String?          @db.Uuid
+  status        SubmissionStatus @default(DRAFT)
+  submittedById String?          @db.Uuid
+  submittedAt   DateTime?
+  returnReason  String?
+  approvedById  String?          @db.Uuid
+  approvedAt    DateTime?
+  lockedById    String?          @db.Uuid
+  lockedAt      DateTime?
+  unlockedById  String?          @db.Uuid
+  unlockedAt    DateTime?
+  unlockReason  String?
+  version       Int              @default(1)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  school      School      @relation(fields: [schoolId], references: [id])
+  examSubject ExamSubject @relation(fields: [examSubjectId], references: [id], onDelete: Cascade)
+
+  @@unique([examSubjectId, streamId], map: "result_submissions_unit_unique")
+  @@index([schoolId, status])
+  @@map("result_submissions")
+}
+
+// A missing row means "not entered yet". Absent and exempt are explicit states, never silently zero.
+model Mark {
+  id            String     @id @default(uuid(7)) @db.Uuid
+  schoolId      String     @db.Uuid
+  examSubjectId String     @db.Uuid
+  studentId     String     @db.Uuid
+  status        MarkStatus
+  score         Decimal?   @db.Decimal(6, 2)
+  enteredById   String     @db.Uuid
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  // Snapshot written when the result is locked, so later scale edits never change a locked result.
+  lockedPercent Decimal?   @db.Decimal(5, 2)
+  lockedGrade   String?
+  lockedPoints  Int?
+  lockedScaleId String?    @db.Uuid
+
+  school      School      @relation(fields: [schoolId], references: [id])
+  examSubject ExamSubject @relation(fields: [examSubjectId], references: [id], onDelete: Cascade)
+
+  @@unique([examSubjectId, studentId])
+  @@index([schoolId, studentId])
+  @@map("marks")
+}
+
+// Append-only trail of every change made after marks were first submitted.
+model ResultChange {
+  id            String      @id @default(uuid(7)) @db.Uuid
+  schoolId      String      @db.Uuid
+  examSubjectId String      @db.Uuid
+  studentId     String      @db.Uuid
+  oldStatus     MarkStatus?
+  oldScore      Decimal?    @db.Decimal(6, 2)
+  newStatus     MarkStatus?
+  newScore      Decimal?    @db.Decimal(6, 2)
+  reason        String?
+  changedById   String      @db.Uuid
+  createdAt     DateTime    @default(now())
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, examSubjectId, studentId])
+  @@map("result_changes")
 }

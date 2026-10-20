@@ -1,8 +1,8 @@
-import { Bell, BookOpen, ClipboardCheck, Globe, GraduationCap, Inbox, LayoutDashboard, ScrollText, Settings, ShieldCheck, UserCog, UserPlus, Users } from "lucide-react";
+import { Bell, BookOpen, ClipboardCheck, FileText, Globe, GraduationCap, Inbox, LayoutDashboard, PencilLine, ScrollText, Settings, ShieldCheck, SlidersHorizontal, Table2, UserCog, UserPlus, Users } from "lucide-react";
 
 export const NAV_ICONS = {
   dashboard: LayoutDashboard, attendance: ClipboardCheck, admissions: UserPlus, notifications: Bell, students: GraduationCap, guardians: Users,
-  academics: BookOpen, users: UserCog, roles: ShieldCheck, settings: Settings, audit: ScrollText, website: Globe, enquiries: Inbox,
+  academics: BookOpen, users: UserCog, roles: ShieldCheck, settings: Settings, audit: ScrollText, website: Globe, enquiries: Inbox, exams: FileText, marks: PencilLine, results: Table2, grading: SlidersHorizontal,
 } as const;
 
 export type NavIcon = keyof typeof NAV_ICONS;

@@ -64,6 +64,20 @@ export const PERMISSIONS = {
   "website.manage": { module: "website", description: "Edit the public website content, news and events" },
   "enquiry.read": { module: "website", description: "View enquiries sent through the public contact form" },
   "enquiry.manage": { module: "website", description: "Update enquiry status and notes" },
+
+  // Examinations and results
+  "exam.read": { module: "exams", description: "View examinations and the marks overview" },
+  "exam.manage": { module: "exams", description: "Create examinations and choose the subjects examined per class" },
+  "grading.manage": { module: "exams", description: "Configure grading scales, grade bands and division rules" },
+  "marks.enter": { module: "exams", description: "Enter marks for subjects and classes you are assigned to" },
+  "marks.enter_any": { module: "exams", description: "Enter marks for any subject and class" },
+  "results.read": { module: "exams", description: "View results of all classes" },
+  "results.read_assigned": { module: "exams", description: "View results of classes you teach" },
+  "results.approve": { module: "exams", description: "Approve or return submitted marks" },
+  "results.lock": { module: "exams", description: "Lock approved results" },
+  "results.unlock": { module: "exams", description: "Unlock locked results (reason required, audited)" },
+  "remarks.class": { module: "exams", description: "Write class teacher remarks for report cards" },
+  "remarks.head": { module: "exams", description: "Write head teacher comments for report cards" },
   "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 
