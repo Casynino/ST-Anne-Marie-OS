@@ -1,9 +1,10 @@
-import { Prisma, type DeliveryStatus } from "@/generated/prisma/client";
+import { Prisma, type DeliveryStatus, type NotificationCategory } from "@/generated/prisma/client";
 import { db, type Tx } from "@/lib/db";
 import { notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
-import { makeT } from "@/lib/i18n";
+import { makeT, type Locale } from "@/lib/i18n";
 import { getSmsAdapter } from "@/lib/sms/adapter";
+import { renderText, resolveTemplate } from "@/server/communication";
 
 /*
  * Notification events: a durable outbox. An event is created inside the same transaction that
@@ -72,16 +73,18 @@ export async function cancelAbsenceEvents(tx: Tx, schoolId: string, attendanceId
 const backoffMs = (attempts: number) => Math.min(60, 2 ** attempts) * 60_000;
 
 /**
+ * Times are compared in UTC explicitly: Prisma stores timestamps as UTC without a zone, so a database session in another
+ * time zone (the local one is Africa/Dar_es_Salaam) must not shift scheduled sends or retry delays.
  * Claims up to `limit` due events (lease via nextAttemptAt + SKIP LOCKED, so parallel workers never take
  * the same event) and runs each through the channels. Returns counts for observability.
  */
 export async function processPendingEvents(opts: { schoolId?: string; limit?: number } = {}): Promise<{ claimed: number; processed: number; failed: number }> {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 500);
   const claimed = await db.$queryRaw<{ id: string }[]>`
-    UPDATE notification_events SET attempts = attempts + 1, "nextAttemptAt" = now() + make_interval(mins => ${LEASE_MINUTES}::int)
+    UPDATE notification_events SET attempts = attempts + 1, "nextAttemptAt" = (now() AT TIME ZONE 'UTC') + make_interval(mins => ${LEASE_MINUTES}::int)
     WHERE id IN (
       SELECT id FROM notification_events
-      WHERE status = 'PENDING' AND "nextAttemptAt" <= now() ${opts.schoolId ? Prisma.sql`AND "schoolId" = ${opts.schoolId}::uuid` : Prisma.empty}
+      WHERE status = 'PENDING' AND "nextAttemptAt" <= (now() AT TIME ZONE 'UTC') ${opts.schoolId ? Prisma.sql`AND "schoolId" = ${opts.schoolId}::uuid` : Prisma.empty}
       ORDER BY "createdAt" LIMIT ${limit} FOR UPDATE SKIP LOCKED
     )
     RETURNING id`;
@@ -106,18 +109,39 @@ export async function processPendingEvents(opts: { schoolId?: string; limit?: nu
   return { claimed: claimed.length, processed, failed };
 }
 
+type Rendered = { title: string; inApp: string; sms: string; category: NotificationCategory; link: string | null; sendSms: boolean; sendInApp: boolean };
+
+/** What to tell this guardian, in their language, from the event's stored payload and the school's wording. */
+async function renderEvent(ev: { type: string; schoolId: string; studentId: string; payload: unknown }, locale: Locale): Promise<Rendered> {
+  const t = makeT(locale);
+  const p = ev.payload as Record<string, unknown>;
+  const str = (k: string) => (typeof p[k] === "string" ? (p[k] as string) : "");
+  const vars = { ...((p.vars as Record<string, string> | undefined) ?? {}), student: str("studentName"), school: str("school") } as Record<string, string | number>;
+  const flags = { sendSms: p.sendSms !== false, sendInApp: p.sendInApp !== false };
+  if (ev.type === "ABSENCE") {
+    const v = { student: str("studentName"), date: str("date"), class: str("streamName") ? `${str("className")} ${str("streamName")}` : str("className"), session: str("sessionName") };
+    const custom = await db.messageTemplate.findUnique({ where: { schoolId_key_locale: { schoolId: ev.schoolId, key: "absence", locale } } });
+    return { title: t("notify.absence.title", v), inApp: custom ? renderText(custom.body, v) : t("notify.absence.body", v), sms: custom ? renderText(custom.body, v) : t("notify.absence.sms", v), category: "ABSENCE", link: `/family/${ev.studentId}`, ...flags };
+  }
+  if (ev.type === "RESULTS_READY") {
+    const v = { student: str("studentName"), term: str("term"), school: str("school") };
+    const body = renderText(await resolveTemplate(db, ev.schoolId, "results", locale), v);
+    return { title: t("notify.results.title", v), inApp: body, sms: body, category: "RESULTS", link: `/family/${ev.studentId}`, ...flags };
+  }
+  const body = renderText(locale === "SW" && str("bodySw") ? str("bodySw") : str("bodyEn"), vars);
+  const fees = ev.type === "FEE_REMINDER";
+  return { title: str("title") || t("notify.announcement.title"), inApp: body, sms: body, category: fees ? "FEES" : "ANNOUNCEMENTS", link: fees ? `/family/${ev.studentId}/fees` : null, ...flags };
+}
+
 async function processOne(eventId: string) {
   const ev = await db.notificationEvent.findUnique({ where: { id: eventId }, include: { deliveries: true } });
   if (!ev || ev.status !== "PENDING") return;
-  const payload = ev.payload as unknown as AbsencePayload;
   const guardian = await db.guardian.findFirst({ where: { id: ev.guardianId, schoolId: ev.schoolId }, include: { user: { select: { id: true, locale: true, status: true } } } });
   const school = await db.school.findUniqueOrThrow({ where: { id: ev.schoolId }, select: { defaultLocale: true } });
-  const vars = {
-    student: payload.studentName,
-    date: payload.date,
-    class: payload.streamName ? `${payload.className} ${payload.streamName}` : payload.className,
-    session: payload.sessionName,
-  };
+  const portalUser = guardian?.user && guardian.user.status === "ACTIVE" ? guardian.user : null;
+  const locale: Locale = portalUser?.locale ?? school.defaultLocale;
+  const msg = await renderEvent(ev, locale);
+  const pref = portalUser ? await db.notificationPreference.findUnique({ where: { userId_category: { userId: portalUser.id, category: msg.category } } }) : null;
   const upsertDelivery = (channel: "IN_APP" | "SMS", status: DeliveryStatus, detail?: string, providerRef?: string) =>
     db.notificationDelivery.upsert({
       where: { eventId_channel: { eventId, channel } },
@@ -125,17 +149,14 @@ async function processOne(eventId: string) {
       update: { status, detail, providerRef, attempts: { increment: 1 } },
     });
 
-  // In-app: stored for guardians with a portal account (the portal arrives in Phase 4).
+  // In-app: stored for guardians with a portal account.
   if (!ev.deliveries.some((d) => d.channel === "IN_APP")) {
-    if (guardian?.user && guardian.user.status === "ACTIVE") {
-      const t = makeT(guardian.user.locale);
-      await db.inAppNotification.createMany({
-        data: [{ schoolId: ev.schoolId, eventId, userId: guardian.user.id, title: t("notify.absence.title", vars), body: t("notify.absence.body", vars) }],
-        skipDuplicates: true,
-      });
+    if (!msg.sendInApp) await upsertDelivery("IN_APP", "SKIPPED", "In-app was not selected for this message");
+    else if (!portalUser) await upsertDelivery("IN_APP", "SKIPPED", "Guardian has no portal account");
+    else if (pref && !pref.inAppEnabled) await upsertDelivery("IN_APP", "SKIPPED", "Guardian opted out of in-app messages of this kind");
+    else {
+      await db.inAppNotification.createMany({ data: [{ schoolId: ev.schoolId, eventId, userId: portalUser.id, title: msg.title, body: msg.inApp, link: msg.link }], skipDuplicates: true });
       await upsertDelivery("IN_APP", "STORED");
-    } else {
-      await upsertDelivery("IN_APP", "SKIPPED", "Guardian has no portal account");
     }
   }
 
@@ -143,13 +164,16 @@ async function processOne(eventId: string) {
   const sms = ev.deliveries.find((d) => d.channel === "SMS");
   if (!sms || sms.status === "QUEUED" || sms.status === "FAILED") {
     const adapter = getSmsAdapter();
-    if (!guardian) {
+    if (!msg.sendSms) {
+      await upsertDelivery("SMS", "SKIPPED", "SMS was not selected for this message");
+    } else if (!guardian) {
       await upsertDelivery("SMS", "SKIPPED", "Guardian record no longer exists");
+    } else if (pref && !pref.smsEnabled) {
+      await upsertDelivery("SMS", "SKIPPED", "Guardian opted out of SMS of this kind");
     } else if (!adapter.isConfigured()) {
       await upsertDelivery("SMS", "SKIPPED", "SMS provider not configured");
     } else {
-      const body = makeT(school.defaultLocale)("notify.absence.sms", vars);
-      const res = await adapter.send({ to: guardian.phone, body, reference: eventId });
+      const res = await adapter.send({ to: guardian.phone, body: msg.sms, reference: eventId });
       if (res.status === "SUBMITTED") {
         await upsertDelivery("SMS", "SUBMITTED", "Accepted by provider; not yet confirmed delivered", res.providerRef);
       } else {
@@ -161,6 +185,25 @@ async function processOne(eventId: string) {
   await db.notificationEvent.update({ where: { id: eventId }, data: { status: "PROCESSED", processedAt: new Date(), lastError: null } });
 }
 
+/** Results-ready notices: one per guardian who receives notifications. Safe to call again (deduped per card version). */
+export async function createResultsReadyEvents(tx: Tx, schoolId: string, cards: { id: string; version: number; studentId: string; studentName: string; termName: string }[]): Promise<number> {
+  if (!cards.length) return 0;
+  const school = await tx.school.findUniqueOrThrow({ where: { id: schoolId }, select: { name: true } });
+  const links = await tx.studentGuardian.findMany({ where: { schoolId, studentId: { in: cards.map((c) => c.studentId) }, receivesNotifications: true }, select: { studentId: true, guardianId: true } });
+  const rows = links.flatMap((l) => {
+    const c = cards.find((x) => x.studentId === l.studentId);
+    return c ? [{ schoolId, type: "RESULTS_READY" as const, dedupeKey: `results:${c.id}:v${c.version}:${l.guardianId}`, studentId: l.studentId, guardianId: l.guardianId, payload: { studentName: c.studentName, term: c.termName, school: school.name } as unknown as Prisma.InputJsonValue }] : [];
+  });
+  if (!rows.length) return 0;
+  return (await tx.notificationEvent.createMany({ data: rows, skipDuplicates: true })).count;
+}
+
+/** A submission that no provider report confirmed within a day is "unknown": not delivered, not failed. */
+export async function markStaleSubmissionsUnknown(hours = 24): Promise<number> {
+  const res = await db.notificationDelivery.updateMany({ where: { channel: "SMS", status: "SUBMITTED", updatedAt: { lt: new Date(Date.now() - hours * 3_600_000) } }, data: { status: "UNKNOWN", detail: "No delivery report received from the provider" } });
+  return res.count;
+}
+
 // ───────────────────────── Reads ─────────────────────────
 
 export async function listNotificationEvents(ctx: AuthContext, opts: { status?: string; page?: number } = {}) {
@@ -170,6 +213,7 @@ export async function listNotificationEvents(ctx: AuthContext, opts: { status?: 
   const statuses = ["PENDING", "PROCESSED", "CANCELLED", "FAILED"] as const;
   const where: Prisma.NotificationEventWhereInput = {
     schoolId: ctx.schoolId,
+    type: "ABSENCE", // this list backs the attendance-alerts screen; notices and reminders are under Communication
     ...(opts.status && (statuses as readonly string[]).includes(opts.status) ? { status: opts.status as (typeof statuses)[number] } : {}),
   };
   const [items, total, pending] = await Promise.all([
@@ -197,4 +241,8 @@ export async function countMyUnread(ctx: AuthContext): Promise<number> {
 export async function markNotificationRead(ctx: AuthContext, id: string) {
   const res = await db.inAppNotification.updateMany({ where: { id, schoolId: ctx.schoolId, userId: ctx.userId, readAt: null }, data: { readAt: new Date() } });
   if (!res.count && !(await db.inAppNotification.findFirst({ where: { id, schoolId: ctx.schoolId, userId: ctx.userId } }))) throw notFound("Notification");
+}
+
+export async function markAllNotificationsRead(ctx: AuthContext) {
+  await db.inAppNotification.updateMany({ where: { schoolId: ctx.schoolId, userId: ctx.userId, readAt: null }, data: { readAt: new Date() } });
 }

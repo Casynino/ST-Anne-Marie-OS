@@ -138,6 +138,9 @@ model School {
   expenseCategories      ExpenseCategory[]
   expenses               Expense[]
   paymentEvents          PaymentEvent[]
+  broadcasts             Broadcast[]
+  messageTemplates       MessageTemplate[]
+  messageThreads         MessageThread[]
 
   @@map("schools")
 }
@@ -839,6 +842,9 @@ model StaffAttendance {
 
 enum NotificationEventType {
   ABSENCE
+  ANNOUNCEMENT // a broadcast notice
+  FEE_REMINDER // one per guardian and child, from a fee-reminder broadcast
+  RESULTS_READY // a report card was published
 }
 
 enum NotificationEventStatus {
@@ -875,6 +881,7 @@ model NotificationEvent {
   studentId     String                  @db.Uuid
   guardianId    String                  @db.Uuid
   attendanceId  String?                 @db.Uuid
+  broadcastId   String?                 @db.Uuid
   payload       Json
   status        NotificationEventStatus @default(PENDING)
   attempts      Int                     @default(0)
@@ -884,10 +891,12 @@ model NotificationEvent {
   createdAt     DateTime                @default(now())
 
   school     School                 @relation(fields: [schoolId], references: [id])
+  broadcast  Broadcast?             @relation(fields: [broadcastId], references: [id])
   deliveries NotificationDelivery[]
   inApp      InAppNotification?
 
   @@unique([schoolId, dedupeKey])
+  @@index([broadcastId])
   @@index([status, nextAttemptAt])
   @@index([schoolId, createdAt])
   @@map("notification_events")
@@ -915,15 +924,16 @@ model NotificationDelivery {
 model InAppNotification {
   id        String    @id @default(uuid(7)) @db.Uuid
   schoolId  String    @db.Uuid
-  eventId   String    @unique @db.Uuid
+  eventId   String?   @unique @db.Uuid // null for items that do not come from the outbox (e.g. a new message)
   userId    String    @db.Uuid
   title     String
   body      String
+  link      String?
   readAt    DateTime?
   createdAt DateTime  @default(now())
 
-  school School            @relation(fields: [schoolId], references: [id])
-  event  NotificationEvent @relation(fields: [eventId], references: [id])
+  school School             @relation(fields: [schoolId], references: [id])
+  event  NotificationEvent? @relation(fields: [eventId], references: [id])
 
   @@index([userId, readAt])
   @@map("in_app_notifications")
@@ -1813,4 +1823,129 @@ model PaymentEvent {
   @@unique([schoolId, provider, providerEventId])
   @@index([schoolId, status])
   @@map("payment_events")
+}
+
+// ═════════════════════════ Phase 6: Communication ═════════════════════════
+
+enum BroadcastKind {
+  ANNOUNCEMENT
+  FEE_REMINDER
+}
+
+enum NotificationCategory {
+  ABSENCE
+  FEES
+  RESULTS
+  ANNOUNCEMENTS
+}
+
+enum ThreadStatus {
+  OPEN
+  CLOSED
+}
+
+enum MessageVisibility {
+  VISIBLE
+  HIDDEN // removed by a moderator; the text is kept for the record but not shown to participants
+}
+
+// A notice or reminder sent to guardians. Creating it queues one outbox event per recipient (see NotificationEvent);
+// delivery results are read from those events, never assumed. Cancelling stops events that have not been processed yet.
+model Broadcast {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  schoolId       String        @db.Uuid
+  kind           BroadcastKind
+  title          String
+  bodyEn         String
+  bodySw         String?
+  audience       Json
+  sendSms        Boolean       @default(true)
+  sendInApp      Boolean       @default(true)
+  sendAt         DateTime      @default(now())
+  recipientCount Int           @default(0)
+  createdById    String        @db.Uuid
+  createdAt      DateTime      @default(now())
+  cancelledAt    DateTime?
+  cancelledById  String?       @db.Uuid
+
+  school School              @relation(fields: [schoolId], references: [id])
+  events NotificationEvent[]
+
+  @@index([schoolId, createdAt])
+  @@map("broadcasts")
+}
+
+// Per-user opt-outs by category and channel. No row = everything on.
+model NotificationPreference {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  userId       String               @db.Uuid
+  category     NotificationCategory
+  smsEnabled   Boolean              @default(true)
+  inAppEnabled Boolean              @default(true)
+  updatedAt    DateTime             @updatedAt
+
+  @@unique([userId, category])
+  @@map("notification_preferences")
+}
+
+// School wording for system messages (absence, fees, results), per language. No row = the built-in text.
+model MessageTemplate {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @db.Uuid
+  key         String
+  locale      Locale
+  body        String
+  updatedById String   @db.Uuid
+  updatedAt   DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, key, locale])
+  @@map("message_templates")
+}
+
+// Parent-teacher conversation about one student. staffUserId null = the school office (handled by moderators).
+model MessageThread {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  schoolId       String       @db.Uuid
+  studentId      String       @db.Uuid
+  guardianUserId String       @db.Uuid
+  staffUserId    String?      @db.Uuid
+  subject        String
+  status         ThreadStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+  lastMessageAt  DateTime     @default(now())
+  guardianReadAt DateTime?
+  staffReadAt    DateTime?
+  closedAt       DateTime?
+  closedById     String?      @db.Uuid
+
+  school   School          @relation(fields: [schoolId], references: [id])
+  messages ThreadMessage[]
+
+  @@index([schoolId, lastMessageAt])
+  @@index([guardianUserId])
+  @@index([staffUserId])
+  @@map("message_threads")
+}
+
+model ThreadMessage {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  threadId     String            @db.Uuid
+  senderUserId String            @db.Uuid
+  body         String
+  visibility   MessageVisibility @default(VISIBLE)
+  hiddenById   String?           @db.Uuid
+  hiddenReason String?
+  hiddenAt     DateTime?
+  flaggedById  String?           @db.Uuid
+  flaggedAt    DateTime?
+  flagReason   String?
+  createdAt    DateTime          @default(now())
+
+  thread MessageThread @relation(fields: [threadId], references: [id])
+
+  @@index([threadId, createdAt])
+  @@index([flaggedAt])
+  @@map("thread_messages")
 }

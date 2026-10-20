@@ -9,6 +9,7 @@ import { actorOf, writeAudit } from "@/server/audit";
 import { getAttendanceSettings } from "@/server/attendance";
 import { attendanceRate, emptyCounts } from "@/server/attendance-reports";
 import { clearedStudents } from "@/server/fees";
+import { createResultsReadyEvents } from "@/server/notifications";
 import { loadRoster } from "@/server/marks";
 import { computeClassResults } from "@/server/results";
 import { checkbox, optText, optUuid, parse, text, uuid } from "@/lib/validation";
@@ -254,7 +255,8 @@ export async function publishReportCards(ctx: AuthContext, input: unknown) {
     if (!clearanceProvider) throw conflict("Financial clearance is required before publishing, but fee records are not available. Turn the requirement off or set up fees first.");
     cleared = await clearanceProvider(db, ctx.schoolId, q.termId, cards.map((c) => c.studentId));
   }
-  const out = { published: 0, stale: [] as string[], notCleared: [] as string[] };
+  const out = { published: 0, stale: [] as string[], notCleared: [] as string[], notified: 0 };
+  const announced: { id: string; version: number; studentId: string; studentName: string; termName: string }[] = [];
   const now = new Date();
   await db.$transaction(async (tx) => {
     for (const c of cards) {
@@ -264,7 +266,9 @@ export async function publishReportCards(ctx: AuthContext, input: unknown) {
       if (cleared && !cleared.has(c.studentId)) { out.notCleared.push(stored.student.name); continue; }
       await tx.reportCard.update({ where: { id: c.id }, data: { status: "PUBLISHED", publishedAt: now, publishedById: ctx.userId } });
       out.published++;
+      announced.push({ id: c.id, version: c.version, studentId: c.studentId, studentName: stored.student.name, termName: `${stored.term.name}, ${stored.term.year}` });
     }
+    out.notified = await createResultsReadyEvents(tx, ctx.schoolId, announced);
     await writeAudit(tx, actorOf(ctx), { action: "reportcard.publish", entityType: "SchoolClass", entityId: q.classId, summary: `${built.res.class.name} · ${built.res.term.name}`, changes: { published: out.published, stale: out.stale.length, notCleared: out.notCleared.length } });
   });
   return out;

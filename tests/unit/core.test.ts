@@ -86,3 +86,15 @@ describe("permission catalog", () => {
     }
   });
 });
+
+import { zonedToUtc } from "@/lib/dates";
+describe("zonedToUtc", () => {
+  it("converts a school wall-clock time to a UTC instant", () => {
+    expect(zonedToUtc("2026-10-25T08:00", "Africa/Dar_es_Salaam")?.toISOString()).toBe("2026-10-25T05:00:00.000Z"); // UTC+3
+    expect(zonedToUtc("2026-01-01T00:30", "Africa/Dar_es_Salaam")?.toISOString()).toBe("2025-12-31T21:30:00.000Z");
+    expect(zonedToUtc("2026-07-01T12:00", "UTC")?.toISOString()).toBe("2026-07-01T12:00:00.000Z");
+    expect(zonedToUtc("2026-07-01T12:00", "America/New_York")?.toISOString()).toBe("2026-07-01T16:00:00.000Z"); // daylight time
+    expect(zonedToUtc("not a date", "UTC")).toBeNull();
+    expect(zonedToUtc("2026-07-01", "UTC")).toBeNull();
+  });
+});

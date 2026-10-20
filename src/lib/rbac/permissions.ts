@@ -98,6 +98,15 @@ export const PERMISSIONS = {
   "expense.manage": { module: "finance", description: "Record and void expenses, manage expense categories" },
   "finance.reports": { module: "finance", description: "View finance dashboards and reports (arrears, collections, expenses) and export them" },
   "finance.reconcile": { module: "finance", description: "Match or reject mobile-money and bank notifications that could not be matched automatically" },
+
+  // Communication
+  "comms.read": { module: "communication", description: "View sent announcements and fee reminders and their delivery results" },
+  "comms.send": { module: "communication", description: "Send announcements to parents (SMS and in-app)" },
+  "comms.fee_reminder": { module: "communication", description: "Send fee reminders to parents of students who owe fees" },
+  "comms.manage": { module: "communication", description: "Edit the wording of system messages (absence, fees, results)" },
+  "messages.read": { module: "communication", description: "Read parent-teacher conversations you take part in" },
+  "messages.send": { module: "communication", description: "Write to parents of students you teach and reply to their messages" },
+  "messages.moderate": { module: "communication", description: "See all conversations, handle the school office inbox, hide messages and close conversations" },
   "student.import": { module: "students", description: "Bulk import students from a CSV file" },
 } as const;
 

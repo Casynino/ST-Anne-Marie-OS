@@ -3,6 +3,7 @@
 import { run, str, type ActionState } from "@/lib/action";
 import { makeT } from "@/lib/i18n";
 import * as rc from "@/server/report-cards";
+import { processPendingEvents } from "@/server/notifications";
 
 const target = (i: Record<string, string | string[] | undefined>) => ({ termId: str(i.termId), classId: str(i.classId), streamId: str(i.streamId) || undefined });
 
@@ -17,6 +18,7 @@ export async function generateCardsAction(_: ActionState, form: FormData) {
 export async function publishCardsAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
     const r = await rc.publishReportCards(ctx, target(i));
+    if (r.notified) await processPendingEvents({ schoolId: ctx.schoolId, limit: 200 }).catch(() => undefined); // best effort: the cron route retries
     const t = makeT(ctx.locale);
     return { message: t("rc.published.done", { published: r.published, stale: r.stale.length, notCleared: r.notCleared.length }) };
   });

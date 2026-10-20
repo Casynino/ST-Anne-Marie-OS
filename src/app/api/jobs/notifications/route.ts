@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { jsonError, noStore } from "@/lib/http";
-import { processPendingEvents } from "@/server/notifications";
+import { markStaleSubmissionsUnknown, processPendingEvents } from "@/server/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -14,5 +14,6 @@ export async function GET(request: Request) {
   const b = Buffer.from(secret);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return jsonError(401, "Unauthorized");
   const result = await processPendingEvents({ limit: 200 });
-  return NextResponse.json(result, { headers: noStore });
+  const unknown = await markStaleSubmissionsUnknown();
+  return NextResponse.json({ ...result, markedUnknown: unknown }, { headers: noStore });
 }

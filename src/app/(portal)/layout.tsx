@@ -8,12 +8,21 @@ import { signOutAction } from "@/app/actions-shared";
 import { SignOutButton } from "@/components/sign-out-button";
 import { LanguageSwitch } from "@/components/language-switch";
 import { initialsOf } from "@/lib/site";
+import { countMyUnread } from "@/server/notifications";
+import { countMyUnreadThreads } from "@/server/messaging";
 
 /** Family portal shell: parents and students only. Staff are sent to the staff area. */
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireContext();
   if (ctx.userType === "STAFF") redirect("/dashboard");
-  const [t, locale, school, logo] = await Promise.all([getT(), getLocale(), getSchoolBasics(ctx.schoolId), getBrandLogo(ctx.schoolId)]);
+  const [t, locale, school, logo, unread, unreadThreads] = await Promise.all([getT(), getLocale(), getSchoolBasics(ctx.schoolId), getBrandLogo(ctx.schoolId), countMyUnread(ctx), countMyUnreadThreads(ctx)]);
+  const nav = [
+    { href: "/family", label: t("fam.nav.home"), badge: 0 },
+    { href: "/family/inbox", label: t("fam.inbox"), badge: unread },
+    ...(ctx.userType === "GUARDIAN" ? [{ href: "/family/messages", label: t("msg.title"), badge: unreadThreads }] : []),
+    { href: "/family/calendar", label: t("cal.title"), badge: 0 },
+    { href: "/family/settings", label: t("fam.settings.nav"), badge: 0 },
+  ];
   return (
     <div className="min-h-dvh bg-canvas">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow-lg">{t("site.skip")}</a>
@@ -34,6 +43,13 @@ export default async function PortalLayout({ children }: { children: React.React
             <SignOutButton action={signOutAction} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line px-3 text-sm font-medium hover:bg-canvas"><LogOut className="size-4" aria-hidden /><span className="hidden sm:inline">{t("nav.signOut")}</span></SignOutButton>
           </div>
         </div>
+        <nav aria-label={t("fam.portal")} className="mx-auto max-w-5xl overflow-x-auto px-4 pb-2">
+          <ul className="flex gap-1 whitespace-nowrap text-sm">
+            {nav.map((n) => (
+              <li key={n.href}><Link href={n.href} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 font-medium text-ink hover:bg-canvas">{n.label}{n.badge > 0 && <span className="rounded-full bg-warn px-1.5 text-xs font-semibold text-white">{n.badge}</span>}</Link></li>
+            ))}
+          </ul>
+        </nav>
       </header>
       <main id="main" className="mx-auto max-w-5xl px-4 py-6">{children}</main>
     </div>
