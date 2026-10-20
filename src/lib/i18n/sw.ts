@@ -2309,4 +2309,8 @@ export const sw: Record<MessageKey, string> = {
   "fam.hero.children": "watoto walioungwa kwenye akaunti yako",
   "fam.children.title": "Watoto wako",
   "fam.hw.allDone": "Hakuna kinachosubiri kuwasilishwa",
+  "site.hud.time": "Saa shuleni",
+  "site.hero.pause": "Simamisha picha",
+  "site.hero.play": "Endelea na picha",
+  "site.hero.of": "ya",
 };

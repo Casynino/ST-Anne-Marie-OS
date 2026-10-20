@@ -22,18 +22,18 @@ export default async function AcademicsPage() {
 
       <div className="mx-auto max-w-[100rem] space-y-24 px-4 py-20 sm:px-6">
         {levels.length === 0 ? <p className="text-muted">{t("site.academics.empty")}</p> : (
-          <div className="border-b border-ink">
+          <div className="space-y-6">
             {levels.map((l, i) => (
-              <Reveal key={l.id} className="scroll-mt-28 border-t border-ink md:grid md:grid-cols-[0.8fr_1.4fr]">
-                <div id={l.slug} className="flex min-h-32 items-start gap-5 py-8 md:pr-8">
-                  <span aria-hidden className="pt-2 text-sm font-semibold tabular-nums text-muted">{String(i + 1).padStart(2, "0")}</span>
+              <Reveal key={l.id} className="scroll-mt-28 overflow-hidden rounded-[1.75rem] border border-line bg-surface md:grid md:grid-cols-[0.8fr_1.4fr]">
+                <div id={l.slug} className="flex min-h-32 items-start gap-5 bg-tint p-8">
+                  <span aria-hidden className="pt-2 text-sm font-semibold tabular-nums text-sun">{String(i + 1).padStart(2, "0")}</span>
                   <h2 className="display text-5xl sm:text-6xl">{l.name}</h2>
                 </div>
-                <div className="py-8 md:pl-8">
+                <div className="p-8 sm:p-10">
                   {l.summary ? <p className="text-lg text-ink/85">{l.summary}</p> : <p className="text-muted">{t("site.academics.levelDefault", { name: l.name })}</p>}
-                  {l.focus && <p className="mt-4"><span className="font-semibold text-brand-800">{t("site.programs.focus")}: </span>{l.focus}</p>}
-                  <div className="mt-6"><p className="eyebrow">{t("site.academics.classes")}</p><ul className="mt-3 flex flex-wrap gap-2">{l.classes.map((c) => <li key={c} className="border border-ink px-3 py-1 text-sm font-semibold text-ink">{c}</li>)}</ul></div>
-                  {l.subjects.length > 0 && <div className="mt-6"><p className="eyebrow">{t("site.academics.subjects")}</p><ul className="mt-3 flex flex-wrap gap-2">{l.subjects.map((s) => <li key={s} className="border border-line px-3 py-1 text-sm text-ink/80">{s}</li>)}</ul></div>}
+                  {l.focus && <p className="mt-4"><span className="font-semibold text-heading">{t("site.programs.focus")}: </span>{l.focus}</p>}
+                  <div className="mt-6"><p className="eyebrow">{t("site.academics.classes")}</p><ul className="mt-3 flex flex-wrap gap-2">{l.classes.map((c) => <li key={c} className="rounded-full bg-tint px-3 py-1 text-sm font-semibold text-heading">{c}</li>)}</ul></div>
+                  {l.subjects.length > 0 && <div className="mt-6"><p className="eyebrow">{t("site.academics.subjects")}</p><ul className="mt-3 flex flex-wrap gap-2">{l.subjects.map((s) => <li key={s} className="rounded-full border border-line px-3 py-1 text-sm text-ink/80">{s}</li>)}</ul></div>}
                 </div>
               </Reveal>
             ))}

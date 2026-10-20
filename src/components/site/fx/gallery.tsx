@@ -79,17 +79,17 @@ export function Gallery({ items, labels }: { items: SiteImage[]; labels: { close
         onTouchStart={(e) => (touchX.current = e.touches[0]?.clientX ?? 0)}
         onTouchEnd={(e) => { const dx = (e.changedTouches[0]?.clientX ?? 0) - touchX.current; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); }}
         aria-label={current?.alt || labels.open}
-        className="m-0 size-full max-h-none max-w-none bg-brand-950/95 p-0 backdrop:bg-brand-950"
+        className="m-0 size-full max-h-none max-w-none bg-canvas/95 p-0 backdrop:bg-canvas"
       >
         {current && (
           <div className="relative flex size-full flex-col items-center justify-center p-4 sm:p-10">
             <Image src={current.src} alt={current.alt} width={current.width} height={current.height} sizes="100vw" className="max-h-[82dvh] w-auto max-w-full rounded-xl object-contain" />
             {current.caption && <p className="mt-4 text-center text-sm text-white">{current.caption}</p>}
-            <button type="button" onClick={() => setOpen(null)} aria-label={labels.close} className="absolute right-3 top-3 inline-flex size-12 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:right-6 sm:top-6"><X className="size-6" aria-hidden /></button>
+            <button type="button" onClick={() => setOpen(null)} aria-label={labels.close} className="absolute right-3 top-3 inline-flex size-12 items-center justify-center rounded-full bg-surface/10 text-white hover:bg-surface/20 sm:right-6 sm:top-6"><X className="size-6" aria-hidden /></button>
             {items.length > 1 && (
               <>
-                <button type="button" onClick={() => go(-1)} aria-label={labels.prev} className="absolute left-2 top-1/2 inline-flex size-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:left-6"><ChevronLeft className="size-6" aria-hidden /></button>
-                <button type="button" onClick={() => go(1)} aria-label={labels.next} className="absolute right-2 top-1/2 inline-flex size-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:right-6"><ChevronRight className="size-6" aria-hidden /></button>
+                <button type="button" onClick={() => go(-1)} aria-label={labels.prev} className="absolute left-2 top-1/2 inline-flex size-12 -translate-y-1/2 items-center justify-center rounded-full bg-surface/10 text-white hover:bg-surface/20 sm:left-6"><ChevronLeft className="size-6" aria-hidden /></button>
+                <button type="button" onClick={() => go(1)} aria-label={labels.next} className="absolute right-2 top-1/2 inline-flex size-12 -translate-y-1/2 items-center justify-center rounded-full bg-surface/10 text-white hover:bg-surface/20 sm:right-6"><ChevronRight className="size-6" aria-hidden /></button>
               </>
             )}
           </div>

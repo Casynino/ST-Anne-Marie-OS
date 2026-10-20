@@ -46,7 +46,7 @@ Local only: `stanne_dev` (`DATABASE_URL`) and `stanne_test` (`TEST_DATABASE_URL`
 - Dev-only seed content from the school's Instagram posters is described in `docs/PROGRESS.md` (needs school confirmation before production). Use throw-away databases (`stanne_smoke`, second server with `NEXT_DIST_DIR`) for synthetic data; never put synthetic data in `stanne_dev`.
 
 ## Design system (see `docs/DESIGN.md`)
-- Three looks: public site = "paper and ink" editorial (tokens on `.site-root`: paper/ink, square corners, no shadows; Crimson Pro + Atkinson Hyperlegible; photos as captioned `Print`s, never stock); staff area and family portal = data-dense dark dashboard (Fira Sans; `ThemeRoot` + `.theme-night` semantic tokens, cookie `sam_theme`; never hard-code colours in app screens, use `bg-surface`, `text-ink`, `text-muted`, `border-line`, `text-link`, `tone-*`).
+- Three looks: public site = "night campus" cinematic (tokens on `.site-root`, tone sections `.site-deep` / `.site-paper`; Cormorant Garamond + Inter; full-screen school photos, framer-motion effects in `components/site/fx`, never stock photos); staff area and family portal = data-dense dark dashboard (Fira Sans; `ThemeRoot` + `.theme-night` semantic tokens, cookie `sam_theme`; never hard-code colours in app screens, use `bg-surface`, `text-ink`, `text-muted`, `border-line`, `text-link`, `tone-*`).
 - Home by role: `/dashboard` is the permission-driven school overview; a teacher (no `student.read`) gets `dashboard/teacher.tsx` fed by `src/server/teacher-home.ts`; parents/students get `/family` and `/family/[studentId]` (hero + KPI cards + tables). Monitoring data lives at `/settings/system` and `/settings/backups`, not on the Overview.
 - New UI strings go through `t()` in both `en.ts` and `sw.ts`.
 

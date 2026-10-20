@@ -34,8 +34,8 @@ export default async function SchoolLifePage() {
             <ul className="mt-10 divide-y divide-line border-y border-line">
               {text.schoolLife.map((a, i) => (
                 <Reveal as="li" key={a.title} className="grid gap-2 py-7 sm:grid-cols-[5rem_1fr_1.4fr] sm:gap-6">
-                  <span aria-hidden className="display text-4xl text-brand-600">{String(i + 1).padStart(2, "0")}</span>
-                  <h3 className="display text-2xl text-brand-900">{a.title}</h3>
+                  <span aria-hidden className="display text-4xl text-link">{String(i + 1).padStart(2, "0")}</span>
+                  <h3 className="display text-2xl text-heading">{a.title}</h3>
                   <p className="text-muted">{a.text}</p>
                 </Reveal>
               ))}

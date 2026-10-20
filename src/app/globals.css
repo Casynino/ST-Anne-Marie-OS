@@ -5,7 +5,7 @@
 @theme {
   /* Typefaces: one display serif (self-hosted by next/font, swap) + the system UI stack for text. */
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  --font-display: var(--font-crimson), ui-serif, Georgia, "Times New Roman", serif;
+  --font-display: var(--font-cormorant), ui-serif, Georgia, "Times New Roman", serif;
 
   /* Brand green, anchored on the school emblem (#028051). Replace the ramp if an official style guide differs. */
   --color-brand-50: #eaf7f1;
@@ -58,7 +58,7 @@
 
 html { color-scheme: light; }
 
-.site-root { font-family: var(--font-atkinson), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.site-root { font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 
 /* ── Signed-in areas (staff, family portal): Fira Sans, and a dark theme that swaps only the semantic tokens above. ── */
 .app-root { font-family: var(--font-fira), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --font-display: var(--font-fira), ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
@@ -88,58 +88,82 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
 
 @media print { .no-print { display: none !important; } body { background: #fff; } }
 
-/* ───────────────────────── Public website: paper and ink ─────────────────────────
-   A printed-page look: warm paper, near-black ink, one green, one yellow highlighter. Square corners, hairline rules,
-   no shadows or gradients; photographs are the school's own and sit on the page like prints with captions.
-   The tokens below re-theme every utility used by the public pages (rounded-*, shadow, bg-white, line colours).
-   Motion is short and never blocks reading; it is switched off for prefers-reduced-motion. */
+/* ───────────────────────── Public website: night campus ─────────────────────────
+   Cinematic and premium, in the family of the owner's other sites: near-black green, the school's own photographs full-bleed with a
+   slow drift, a Cormorant display serif, the school's yellow as the single bright accent, glass panels, scroll-linked motion.
+   The semantic tokens below re-theme every utility used by the public pages. Sections can switch tone with .site-paper / .site-deep.
+   All motion is switched off for prefers-reduced-motion. */
 .site-root {
-  --color-cream: #f6f1e4;
-  --color-cream-deep: #ebe3cf;
-  --color-white: #fcfaf3;
-  --color-ink: #16211a;
-  --color-muted: #566057;
-  --color-line: #cfc7b2;
-  --font-display: var(--font-crimson), ui-serif, Georgia, "Times New Roman", serif; /* resolved here, where next/font defines --font-crimson */
-  --radius-sm: 1px; --radius-md: 2px; --radius-lg: 2px; --radius-xl: 2px; --radius-2xl: 2px; --radius-3xl: 2px;
-  --shadow-card: none; --shadow-lift: none;
-  background: var(--color-cream);
+  --font-display: var(--font-cormorant), ui-serif, Georgia, "Times New Roman", serif; /* resolved here, where next/font defines the variable */
+  color-scheme: dark;
+  --color-canvas: #07100b; --color-surface: #0e1b14; --color-ink: #edf3ef; --color-muted: #9db2a6; --color-line: #1d3227;
+  --color-link: #62e2ad; --color-heading: #f8fbf9; --color-tint: rgb(47 211 154 / .10); --color-tint-2: rgb(47 211 154 / .2);
+  --color-cream: #07100b; --color-cream-deep: #0b1711;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / .04) inset, 0 24px 48px -24px rgb(0 0 0 / .7);
+  --shadow-lift: 0 1px 0 rgb(255 255 255 / .06) inset, 0 34px 70px -28px rgb(0 0 0 / .85);
+  background: var(--color-canvas);
   color: var(--color-ink);
+}
+.site-paper {
+  color-scheme: light;
+  --color-canvas: #f4efe2; --color-surface: #fffdf6; --color-ink: #14201a; --color-muted: #55645b; --color-line: #d8d0ba;
+  --color-link: #026a43; --color-heading: #0a2a1c; --color-tint: #e6f2ea; --color-tint-2: #cfe7d8;
+  --shadow-card: 0 1px 2px rgb(8 61 42 / .06), 0 14px 32px -18px rgb(8 61 42 / .25);
+  background: var(--color-canvas); color: var(--color-ink);
+}
+.site-deep {
+  --color-canvas: #0a2217; --color-surface: #11301f; --color-line: #1f4631; --color-tint: rgb(232 220 46 / .08);
+  background: var(--color-canvas);
 }
 
 @layer components {
 .display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; line-height: 1.04; }
-.site-root .display { font-weight: 500; letter-spacing: -0.028em; line-height: .98; }
-.eyebrow { display: inline-flex; align-items: center; gap: .7rem; font-size: .72rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--color-brand-700); }
-.eyebrow::before { content: ""; width: 1.6rem; height: 1px; background: currentColor; }
+.site-root .display { font-weight: 500; letter-spacing: -0.015em; line-height: .96; text-wrap: balance; }
+.eyebrow { display: inline-flex; align-items: center; gap: .75rem; font-size: .7rem; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: var(--color-brand-700); }
+.site-root .eyebrow { color: var(--color-sun); }
+.site-paper .eyebrow { color: var(--color-brand-700); }
+.eyebrow::before { content: ""; width: 2rem; height: 1px; background: currentColor; opacity: .8; }
 .eyebrow-light { color: var(--color-sun); }
-.lead { font-family: var(--font-display); font-size: clamp(1.25rem, 1.08rem + .7vw, 1.65rem); line-height: 1.38; letter-spacing: -0.005em; }
-.mark { background: linear-gradient(transparent 60%, var(--color-sun) 60% 90%, transparent 90%); padding: 0 .06em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-.hatch { background-color: var(--color-cream-deep); background-image: repeating-linear-gradient(135deg, transparent 0 9px, rgb(22 33 26 / .09) 9px 10px); }
-.frame { position: relative; overflow: hidden; background: var(--color-cream-deep); }
-.frame img { transition: transform 900ms var(--ease-out); }
-.frame:hover img, a:hover > .frame img, .group:hover .frame img { transform: scale(1.03); }
-.print img { filter: saturate(.9) contrast(1.03); }
+.lead { font-size: clamp(1.05rem, .98rem + .4vw, 1.3rem); line-height: 1.65; text-wrap: pretty; }
+.glass { background: rgb(255 255 255 / .06); border: 1px solid rgb(255 255 255 / .12); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
+.grain { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); opacity: .07; mix-blend-mode: overlay; pointer-events: none; }
+.frame { position: relative; overflow: hidden; background: var(--color-surface); }
+.frame img { transition: transform 1100ms var(--ease-out); }
+.frame:hover img, a:hover > .frame img, .group:hover .frame img { transform: scale(1.05); }
+.print img { filter: saturate(.95) contrast(1.04); }
+.spot { position: relative; isolation: isolate; }
+.spot::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; opacity: 0; transition: opacity 400ms; background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgb(232 220 46 / .13), transparent 60%); }
+.spot:hover::before { opacity: 1; }
 .rise { animation: rise var(--dur-slow) var(--ease-out) both; }
-.rise-2 { animation: rise var(--dur-slow) 90ms var(--ease-out) both; }
-.rise-3 { animation: rise var(--dur-slow) 180ms var(--ease-out) both; }
-.site-header[data-scrolled="true"] { background: rgb(246 241 228 / .96); border-color: var(--color-ink); }
-@supports (backdrop-filter: blur(1px)) { .site-header[data-scrolled="true"] { backdrop-filter: blur(10px); } }
-.index-row { transition: background-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out); }
+.rise-2 { animation: rise var(--dur-slow) 120ms var(--ease-out) both; }
+.rise-3 { animation: rise var(--dur-slow) 240ms var(--ease-out) both; }
+.hw { display: inline-block; overflow: hidden; vertical-align: bottom; padding: .08em .02em .16em; margin: -.08em -.02em -.16em; }
+.hw > span { display: inline-block; animation: word-up 1000ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms + 200ms); }
+.kb { animation: kenburns 24s ease-in-out infinite alternate; }
+.site-header[data-solid="true"] { background: rgb(7 16 11 / .78); border-color: rgb(255 255 255 / .1); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); }
+.marquee-track { display: flex; width: max-content; animation: marquee 50s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
 .pulse-dot { position: relative; }
 .pulse-dot::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: inherit; animation: ping 2s cubic-bezier(0, 0, .2, 1) infinite; }
+.draw { transform-origin: left center; transition: transform 1400ms var(--ease-out); }
+[data-rv="wait"] .draw { transform: scaleX(0); }
+.index-row { transition: background-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out); }
 }
 
-@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes word-up { from { transform: translateY(112%); } to { transform: none; } }
+@keyframes kenburns { from { transform: scale(1.04) translate3d(0, 0, 0); } to { transform: scale(1.16) translate3d(-2.5%, -1.5%, 0); } }
 @keyframes ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
+@keyframes marquee { to { transform: translateX(-50%); } }
 
 /* Scroll reveal (Reveal component): only below-the-fold blocks are hidden, only after hydration. */
-[data-rv="wait"] { opacity: 0; transform: translateY(18px); }
-[data-rv="in"] { opacity: 1; transform: none; transition: opacity 700ms var(--ease-out) calc(var(--d, 0) * 1ms), transform 700ms var(--ease-out) calc(var(--d, 0) * 1ms); }
+[data-rv="wait"] { opacity: 0; transform: translateY(26px); }
+[data-rv="in"] { opacity: 1; transform: none; transition: opacity 800ms var(--ease-out) calc(var(--d, 0) * 1ms), transform 800ms var(--ease-out) calc(var(--d, 0) * 1ms); }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise, .rise-2, .rise-3, .pulse-dot::after { animation: none !important; }
+  .rise, .rise-2, .rise-3, .marquee-track, .hw > span, .kb, .pulse-dot::after { animation: none !important; }
   [data-rv] { opacity: 1 !important; transform: none !important; transition: none !important; }
-  .frame img, .index-row { transition: none !important; }
+  [data-rv="wait"] .draw { transform: none !important; }
+  .frame img, .index-row, .draw { transition: none !important; }
   .frame:hover img, a:hover > .frame img, .group:hover .frame img { transform: none !important; }
 }

@@ -27,15 +27,15 @@ export default async function AdmissionsPage() {
           <SectionHeading eyebrow={t("site.admissions.processKicker")} title={t("site.how.title")} />
           <ol className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-3">
             {([1, 2, 3] as const).map((n, i) => (
-              <Reveal as="li" key={n} delay={i * 90} className="border-t border-ink pt-4">
-                <span aria-hidden className="display text-7xl text-brand-600">{n}</span>
+              <Reveal as="li" key={n} delay={i * 90} className="border-t border-line pt-4">
+                <span aria-hidden className="display text-7xl text-link">{n}</span>
                 <h3 className="display mt-3 text-3xl">{t(`site.how.${n}.title`)}</h3>
                 <p className="mt-2 max-w-xs text-ink/75">{t(`site.how.${n}.body`)}</p>
               </Reveal>
             ))}
           </ol>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            {open ? <ButtonLink href="/apply/form" arrow>{t("site.hero.apply")}</ButtonLink> : <p className="rounded-2xl bg-sun-50 px-4 py-3 text-sm font-medium text-brand-950">{t("site.hero.closed")}</p>}
+            {open ? <ButtonLink href="/apply/form" arrow>{t("site.hero.apply")}</ButtonLink> : <p className="rounded-2xl bg-sun/10 px-4 py-3 text-sm font-medium text-heading">{t("site.hero.closed")}</p>}
             <ButtonLink href="/apply/track" variant="outline">{t("site.admissions.track")}</ButtonLink>
           </div>
           <p className="mt-4 max-w-2xl text-sm text-muted">{t("site.admissions.disclaimer")}</p>
@@ -44,8 +44,8 @@ export default async function AdmissionsPage() {
         {levels.length > 0 && (
           <section>
             <SectionHeading eyebrow={t("site.programs.kicker")} title={t("site.admissions.levels")} />
-            <ul className="mt-8 grid border-t border-ink sm:grid-cols-2 lg:grid-cols-4">
-              {levels.map((l) => <li key={l.id} className="border-b border-ink/25"><Link href={`/academics#${l.slug}`} className="block px-1 py-5 hover:bg-cream-deep sm:px-4"><p className="display text-3xl">{l.name}</p><p className="mt-1 text-sm text-muted">{l.classes.join(" · ")}</p></Link></li>)}
+            <ul className="mt-8 grid border-t border-line sm:grid-cols-2 lg:grid-cols-4">
+              {levels.map((l) => <li key={l.id} className="border-b border-line"><Link href={`/academics#${l.slug}`} className="block px-1 py-5 hover:bg-surface sm:px-4"><p className="display text-3xl">{l.name}</p><p className="mt-1 text-sm text-muted">{l.classes.join(" · ")}</p></Link></li>)}
             </ul>
           </section>
         )}
@@ -54,14 +54,14 @@ export default async function AdmissionsPage() {
           <section>
             <SectionHeading eyebrow={t("site.admissions.requirementsKicker")} title={t("site.admissions.requirements")} />
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-              {text.requirements.map((r) => <Reveal as="li" key={r} className="flex gap-3 rounded-2xl border border-line bg-white p-4"><Check className="mt-0.5 size-5 shrink-0 text-brand-600" aria-hidden /><span>{r}</span></Reveal>)}
+              {text.requirements.map((r) => <Reveal as="li" key={r} className="flex gap-3 rounded-2xl border border-line bg-surface p-4"><Check className="mt-0.5 size-5 shrink-0 text-link" aria-hidden /><span>{r}</span></Reveal>)}
             </ul>
           </section>
         )}
 
         {text.feesNote && (
-          <section className="rounded-3xl bg-cream-deep p-8 sm:p-10">
-            <h2 className="display text-3xl text-brand-950">{t("site.admissions.fees")}</h2>
+          <section className="rounded-3xl bg-surface p-8 sm:p-10">
+            <h2 className="display text-3xl text-heading">{t("site.admissions.fees")}</h2>
             <p className="mt-4 max-w-3xl whitespace-pre-line text-lg text-ink/85">{text.feesNote}</p>
           </section>
         )}
@@ -69,10 +69,10 @@ export default async function AdmissionsPage() {
         {text.faqs.length > 0 && (
           <section>
             <SectionHeading eyebrow={t("site.admissions.faqKicker")} title={t("site.admissions.faq")} />
-            <div className="mt-8 max-w-3xl divide-y divide-line rounded-3xl border border-line bg-white">
+            <div className="mt-8 max-w-3xl divide-y divide-line rounded-3xl border border-line bg-surface">
               {text.faqs.map((f) => (
                 <details key={f.q} className="group p-5 sm:px-7">
-                  <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold text-brand-900 [&::-webkit-details-marker]:hidden">{f.q}<span aria-hidden className="text-2xl text-brand-600 transition-transform duration-200 group-open:rotate-45">+</span></summary>
+                  <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold text-heading [&::-webkit-details-marker]:hidden">{f.q}<span aria-hidden className="text-2xl text-link transition-transform duration-200 group-open:rotate-45">+</span></summary>
                   <p className="mt-3 whitespace-pre-line leading-relaxed text-muted">{f.a}</p>
                 </details>
               ))}
@@ -83,9 +83,9 @@ export default async function AdmissionsPage() {
         <section className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <SectionHeading eyebrow={t("site.admissions.inquiryKicker")} title={t("site.admissions.inquiry")}>{t("site.admissions.inquiryLead")}</SectionHeading>
-            {contact.phone && <p className="mt-6 text-lg">{t("site.admissions.prefer")} <a className="font-semibold text-brand-700 hover:underline" href={telHref(contact.phone)}>{contact.phone}</a></p>}
+            {contact.phone && <p className="mt-6 text-lg">{t("site.admissions.prefer")} <a className="font-semibold text-link hover:underline" href={telHref(contact.phone)}>{contact.phone}</a></p>}
           </div>
-          <div className="rounded-3xl border border-line bg-white p-6 shadow-[var(--shadow-card)] sm:p-8"><ContactForm t={t} idPrefix="admissions" /></div>
+          <div className="rounded-3xl border border-line bg-surface p-6 shadow-[var(--shadow-card)] sm:p-8"><ContactForm t={t} idPrefix="admissions" /></div>
         </section>
       </div>
     </>

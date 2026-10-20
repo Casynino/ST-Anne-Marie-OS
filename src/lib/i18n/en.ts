@@ -2307,6 +2307,10 @@ export const en = {
   "fam.hero.children": "children linked to your account",
   "fam.children.title": "Your children",
   "fam.hw.allDone": "Nothing waiting to be handed in",
+  "site.hud.time": "Time at school",
+  "site.hero.pause": "Pause the photo slideshow",
+  "site.hero.play": "Play the photo slideshow",
+  "site.hero.of": "of",
 } as const;
 
 export type MessageKey = keyof typeof en;

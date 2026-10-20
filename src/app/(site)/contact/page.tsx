@@ -29,7 +29,7 @@ export default async function ContactPage() {
       <div className="mx-auto grid max-w-[100rem] gap-14 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
           {items.length === 0 ? <p className="text-muted">{t("site.contact.empty")}</p> : (
-            <dl className="divide-y divide-ink/25 border-y border-ink text-lg">
+            <dl className="divide-y divide-line border-y border-line text-lg">
               {items.map((i) => (
                 <div key={i.label + i.value} className="grid gap-1 py-4 sm:grid-cols-[8rem_1fr]">
                   <dt className="pt-1 text-xs font-bold uppercase tracking-[.16em] text-muted">{i.label}</dt>
@@ -40,7 +40,7 @@ export default async function ContactPage() {
           )}
           {c.mapUrl && <div className="mt-6"><ButtonLink href={c.mapUrl} external variant="outline" arrow>{t("site.contact.directions")}</ButtonLink></div>}
         </div>
-        <Reveal className="border border-ink bg-white p-6 sm:p-9"><h2 className="display mb-6 text-4xl">{t("site.form.title")}</h2><ContactForm t={t} idPrefix="contact" /></Reveal>
+        <Reveal className="border border-line bg-surface p-6 sm:p-9"><h2 className="display mb-6 text-4xl">{t("site.form.title")}</h2><ContactForm t={t} idPrefix="contact" /></Reveal>
       </div>
     </>
   );

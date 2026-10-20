@@ -4,7 +4,7 @@ import { baseUrl, getSite, initialsOf, schoolJsonLd, telHref } from "@/lib/site"
 import { LanguageSwitch } from "@/components/language-switch";
 import { SiteHeader, type SiteLink } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
-import { atkinson, crimson } from "@/lib/fonts";
+import { cormorant, inter } from "@/lib/fonts";
 import { MobileActions } from "@/components/site/mobile-actions";
 import { AnnouncementBar } from "@/components/site/announcement-bar";
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = { metadataBase: new URL(baseUrl()), robots: { 
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const [site, t, locale, ctx] = await Promise.all([getSite(), getT(), getLocale(), getContext()]);
-  if (!site) return <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center bg-cream p-6 text-center text-muted">{t("app.name")}</main>;
+  if (!site) return <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center bg-canvas p-6 text-center text-muted">{t("app.name")}</main>;
 
   const links: SiteLink[] = [
     { href: "/", label: t("site.nav.home") },
@@ -24,9 +24,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     { href: "/contact", label: t("site.nav.contact") },
   ];
   return (
-    <div className={`site-root ${crimson.variable} ${atkinson.variable} min-h-dvh bg-cream text-ink`}>
+    <div className={`site-root ${cormorant.variable} ${inter.variable} min-h-dvh bg-canvas text-ink`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schoolJsonLd(site)).replace(/</g, "\\u003c") }} />
-      <AnnouncementBar schoolId={site.school.id} t={t} locale={locale} />
       <SiteHeader
         name={site.school.name}
         initials={initialsOf(site.school.name)}
@@ -40,12 +39,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         menuLabel={t("nav.menu")}
         closeLabel={t("nav.close")}
         skipLabel={t("site.skip")}
-        languageSwitch={<LanguageSwitch current={locale} />}
+        languageSwitch={<LanguageSwitch current={locale} dark />}
+        topSlot={<AnnouncementBar schoolId={site.school.id} t={t} locale={locale} />}
       />
       <main id="main">{children}</main>
       <SiteFooter t={t} site={site} links={links} />
       <MobileActions applyHref="/apply/form" applyLabel={t("site.nav.apply")} phoneHref={site.contact.phone ? telHref(site.contact.phone) : undefined} callLabel={t("site.mobile.call")} />
-      <div aria-hidden className="h-20 bg-ink md:hidden" />
+      <div aria-hidden className="h-20 bg-canvas md:hidden" />
     </div>
   );
 }

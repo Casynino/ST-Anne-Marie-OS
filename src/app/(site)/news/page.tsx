@@ -20,7 +20,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   const category = sp.category?.slice(0, 40);
   const [{ items, total, pageSize }, categories] = await Promise.all([listPublicNews(site.school.id, { page, limit: 9, category }), listNewsCategories(site.school.id)]);
   const covers = await resolveSiteImages(items.map((n) => n.coverImage));
-  const chip = (active: boolean) => `inline-flex min-h-10 items-center border px-4 text-sm font-semibold transition-colors ${active ? "border-ink bg-ink text-cream" : "border-ink/40 text-ink hover:border-ink"}`;
+  const chip = (active: boolean) => `inline-flex min-h-10 items-center rounded-full border px-5 text-sm font-semibold transition-colors ${active ? "border-sun bg-sun text-[#10200f]" : "border-line text-ink/80 hover:border-sun/60 hover:text-white"}`;
 
   return (
     <>
@@ -29,7 +29,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
         <div className="flex flex-wrap items-center gap-2" role="navigation" aria-label={t("site.news.filter")}>
           <Link href="/news" className={chip(!category)} aria-current={!category ? "page" : undefined}>{t("site.news.tabNews")}</Link>
           <Link href="/events" className={chip(false)}>{t("site.news.tabEvents")}</Link>
-          {categories.length > 0 && <span aria-hidden className="mx-2 h-6 w-px bg-ink/30" />}
+          {categories.length > 0 && <span aria-hidden className="mx-2 h-6 w-px bg-surface/30" />}
           {categories.map((c) => <Link key={c} href={`/news?category=${encodeURIComponent(c)}`} className={chip(category === c)} aria-current={category === c ? "page" : undefined}>{c}</Link>)}
         </div>
 

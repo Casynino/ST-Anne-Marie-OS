@@ -24,7 +24,7 @@ export default async function AboutPage() {
       <div className="mx-auto max-w-[100rem] space-y-24 px-4 py-20 sm:px-6">
         {(text.about || aboutPhoto) && (
           <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-            <div>{text.about ? <Reveal><Prose className="first-letter:display first-letter:float-left first-letter:mr-3 first-letter:text-7xl first-letter:leading-[0.9] first-letter:text-brand-700">{text.about}</Prose></Reveal> : <p className="text-muted">{t("site.about.empty")}</p>}</div>
+            <div>{text.about ? <Reveal><Prose className="first-letter:display first-letter:float-left first-letter:mr-3 first-letter:text-7xl first-letter:leading-[0.9] first-letter:text-link">{text.about}</Prose></Reveal> : <p className="text-muted">{t("site.about.empty")}</p>}</div>
             <Reveal className="mx-auto w-full max-w-sm lg:max-w-none">
               {aboutPhoto ? <Print image={aboutPhoto} sizes="(min-width: 1024px) 36vw, 80vw" ratio="aspect-[4/5]" /> : <PhotoSlot label={t("site.photo.pending")} className="aspect-[4/5]" />}
             </Reveal>
@@ -34,7 +34,7 @@ export default async function AboutPage() {
         {statements.length > 0 && (
           <section className="grid gap-6 md:grid-cols-2">
             {statements.map(([k, v], i) => (
-              <Reveal key={k} delay={i * 100} className={`p-8 sm:p-12 ${i === 0 ? "bg-ink text-cream" : "bg-sun text-ink"}`}>
+              <Reveal key={k} delay={i * 100} className={`p-8 sm:p-12 ${i === 0 ? "bg-surface text-white" : "bg-sun text-ink"}`}>
                 <p className="eyebrow !text-current opacity-80">{t(`site.about.${k}`)}</p>
                 <p className="display mt-4 text-2xl leading-snug sm:text-3xl">{v}</p>
               </Reveal>
@@ -56,8 +56,8 @@ export default async function AboutPage() {
             <ol className="mt-10 divide-y divide-line border-y border-line">
               {text.values.map((v, i) => (
                 <Reveal as="li" key={v.title} className="grid gap-2 py-7 sm:grid-cols-[5rem_1fr_1.4fr] sm:items-baseline sm:gap-6">
-                  <span aria-hidden className="display text-4xl text-brand-600">{String(i + 1).padStart(2, "0")}</span>
-                  <h3 className="display text-2xl text-brand-900">{v.title}</h3>
+                  <span aria-hidden className="display text-4xl text-link">{String(i + 1).padStart(2, "0")}</span>
+                  <h3 className="display text-2xl text-heading">{v.title}</h3>
                   <p className="text-muted">{v.text}</p>
                 </Reveal>
               ))}
@@ -76,7 +76,7 @@ export default async function AboutPage() {
           <section>
             <SectionHeading eyebrow={t("site.about.leadershipKicker")} title={t("site.about.leadership")} />
             <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {text.leadership.map((p) => <Reveal as="li" key={p.title} className="rounded-3xl border border-line bg-white p-6"><p className="display text-xl text-brand-900">{p.title}</p>{p.text && <p className="mt-1 text-muted">{p.text}</p>}</Reveal>)}
+              {text.leadership.map((p) => <Reveal as="li" key={p.title} className="rounded-3xl border border-line bg-surface p-6"><p className="display text-xl text-heading">{p.title}</p>{p.text && <p className="mt-1 text-muted">{p.text}</p>}</Reveal>)}
             </ul>
           </section>
         )}

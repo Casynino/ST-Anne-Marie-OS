@@ -33,7 +33,7 @@ export default async function ApplyPage() {
       <PageHero photo={false} eyebrow={t("site.how.kicker")} title={t("apply.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }, { href: "/apply/form", label: t("apply.title") }]}>{t("apply.intro")}</PageHero>
       <div className="mx-auto max-w-[100rem] px-4 py-10 sm:px-6"><div className="max-w-3xl">
         <ActionForm action={submitApplicationAction} submitLabel={t("apply.submit")} className="space-y-8">
-          <fieldset className="space-y-4 border border-ink/60 bg-white p-5 sm:p-7">
+          <fieldset className="space-y-4 border border-line bg-surface p-5 sm:p-7">
             <legend className="display px-2 text-3xl">{t("apply.child")}</legend>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field name="firstName" label={t("student.firstName")} required autoComplete="off" />
@@ -47,7 +47,7 @@ export default async function ApplyPage() {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-4 border border-ink/60 bg-white p-5 sm:p-7">
+          <fieldset className="space-y-4 border border-line bg-surface p-5 sm:p-7">
             <legend className="display px-2 text-3xl">{t("apply.guardian")}</legend>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field name="g1_fullName" label={t("apply.guardian.name")} required />
@@ -57,7 +57,7 @@ export default async function ApplyPage() {
             </div>
           </fieldset>
 
-          <details className="border border-ink/60 bg-white p-5 sm:p-7">
+          <details className="border border-line bg-surface p-5 sm:p-7">
             <summary className="display min-h-11 cursor-pointer text-3xl">{t("apply.guardian2")}</summary>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Field name="g2_fullName" label={t("apply.guardian.name")} />
@@ -71,7 +71,7 @@ export default async function ApplyPage() {
             <label>Website<input type="text" name="website" tabIndex={-1} autoComplete="off" /></label>
           </div>
 
-          <div className="space-y-3 bg-cream-deep p-5">
+          <div className="space-y-3 bg-surface p-5">
             <Field name="consent" type="checkbox" label={t("apply.consent")} required />
             <p className="text-xs text-muted">{t("apply.privacy")}</p>
           </div>
