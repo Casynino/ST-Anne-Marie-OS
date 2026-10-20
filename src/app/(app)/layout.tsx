@@ -3,6 +3,8 @@ import { LogOut } from "lucide-react";
 import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { getSchoolBasics } from "@/server/settings";
 import { signOutAction } from "@/app/actions-shared";
+import { countMyUnread } from "@/server/notifications";
+import { SignOutButton } from "@/components/sign-out-button";
 import { LanguageSwitch } from "@/components/language-switch";
 import { MobileNav, SidebarNav, type NavItem } from "@/components/nav";
 
@@ -12,6 +14,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const school = await getSchoolBasics(ctx.schoolId);
 
   const items: NavItem[] = [{ href: "/", label: t("nav.dashboard"), icon: "dashboard" }];
+  if (hasAny(ctx, ["attendance.read", "attendance.read_assigned", "attendance.take", "attendance.take_any"])) items.push({ href: "/attendance", label: t("nav.attendance"), icon: "attendance" });
+  if (hasAny(ctx, ["admission.read"])) items.push({ href: "/admissions", label: t("nav.admissions"), icon: "admissions" });
   if (hasAny(ctx, ["student.read", "student.read_assigned"])) items.push({ href: "/students", label: t("nav.students"), icon: "students" });
   if (hasAny(ctx, ["guardian.read"])) items.push({ href: "/guardians", label: t("nav.guardians"), icon: "guardians" });
   if (hasAny(ctx, ["academic.read"])) items.push({ href: "/academics", label: t("nav.academics"), icon: "academics" });
@@ -20,12 +24,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (hasAny(ctx, ["school.settings.read"])) items.push({ href: "/settings", label: t("nav.settings"), icon: "settings" });
   if (hasAny(ctx, ["audit.read"])) items.push({ href: "/audit", label: t("nav.audit"), icon: "audit" });
 
+  const unread = await countMyUnread(ctx);
+  if (unread > 0) items.push({ href: "/notifications", label: `${t("nav.notifications")} (${unread})`, icon: "notifications" });
+
   const signOut = (
-    <form action={signOutAction}>
-      <button className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-brand-100 hover:bg-brand-800">
-        <LogOut className="size-5" aria-hidden /> {t("nav.signOut")}
-      </button>
-    </form>
+    <SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-brand-100 hover:bg-brand-800">
+      <LogOut className="size-5" aria-hidden /> {t("nav.signOut")}
+    </SignOutButton>
   );
 
   return (

@@ -185,3 +185,10 @@ export async function schoolReport(ctx: AuthContext, input: unknown) {
   const { from, to } = parse(rangeSchema, input);
   return summaryReport(ctx, from, to);
 }
+
+/** Terms the user can build a report for (any term of the school; scope is applied when the report runs). */
+export async function listReportTerms(ctx: AuthContext) {
+  await rangeScope(ctx, new Date());
+  const terms = await db.term.findMany({ where: { schoolId: ctx.schoolId }, orderBy: [{ startsOn: "desc" }], include: { academicYear: { select: { name: true } } } });
+  return terms.map((t) => ({ id: t.id, label: `${t.academicYear.name} · ${t.name}`, isCurrent: t.isCurrent, startsOn: formatDateOnly(t.startsOn), endsOn: formatDateOnly(t.endsOn) }));
+}

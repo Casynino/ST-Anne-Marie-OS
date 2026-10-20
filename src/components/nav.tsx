@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BookOpen, GraduationCap, LayoutDashboard, Menu, ScrollText, Settings, ShieldCheck, UserCog, Users, X } from "lucide-react";
+import { Bell, BookOpen, ClipboardCheck, GraduationCap, LayoutDashboard, Menu, ScrollText, Settings, ShieldCheck, UserCog, UserPlus, Users, X } from "lucide-react";
 
-const ICONS = { dashboard: LayoutDashboard, students: GraduationCap, guardians: Users, academics: BookOpen, users: UserCog, roles: ShieldCheck, settings: Settings, audit: ScrollText } as const;
+const ICONS = { dashboard: LayoutDashboard, attendance: ClipboardCheck, admissions: UserPlus, notifications: Bell, students: GraduationCap, guardians: Users, academics: BookOpen, users: UserCog, roles: ShieldCheck, settings: Settings, audit: ScrollText } as const;
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
 
 function Links({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {

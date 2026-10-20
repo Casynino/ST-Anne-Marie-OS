@@ -1,6 +1,31 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "st-anne-dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
+    {
+      "name": "st-anne-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "st-anne-smoke",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NEXT_DIST_DIR=.next-smoke",
+        "DATABASE_URL=postgresql://nino@localhost:5432/stanne_smoke",
+        "APP_URL=http://127.0.0.1:3100",
+        "npx",
+        "next",
+        "dev",
+        "-p",
+        "3100",
+        "-H",
+        "127.0.0.1"
+      ],
+      "port": 3100
+    }
   ]
 }

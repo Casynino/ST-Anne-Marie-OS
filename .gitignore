@@ -1,5 +1,6 @@
 node_modules
 .next
+.next-*
 out
 .env
 .env.*
@@ -11,3 +12,4 @@ coverage
 .DS_Store
 .vercel
 uploads
+.data

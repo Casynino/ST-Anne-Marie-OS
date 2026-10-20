@@ -67,6 +67,32 @@ export async function getDeviceId(): Promise<string> {
   return value;
 }
 
+// ───────────────────────── Device session ─────────────────────────
+
+/** Who last used the app on this device (written while online). The offline page has no server-rendered user data. */
+export type DeviceSession = { userId: string; locale: "EN" | "SW"; timezone: string; fullName: string };
+
+export async function saveDeviceSession(s: DeviceSession) {
+  await idb.put(STORES.meta, { key: "session", ...s });
+}
+
+export async function loadDeviceSession(): Promise<DeviceSession | null> {
+  const row = await idb.get<DeviceSession & { key: string }>(STORES.meta, "session");
+  return row ? { userId: row.userId, locale: row.locale, timezone: row.timezone, fullName: row.fullName } : null;
+}
+
+/** Sign-out: personal data (class lists, who was signed in) goes; unsynced operations stay so no work is lost. */
+export async function clearDownloadedSheets() {
+  await idb.clear(STORES.sheets);
+  await idb.delete(STORES.meta, "session");
+}
+
+/** Removes confirmed operations older than `olderThanMs` (they only exist to show "synced" on screen). */
+export async function purgeSynced(userId: string, olderThanMs: number) {
+  const cutoff = Date.now() - olderThanMs;
+  for (const op of await listOps(userId)) if (op.state === "synced" && Date.parse(op.updatedAt) < cutoff) await deleteOp(op.opId);
+}
+
 // ───────────────────────── Sheets ─────────────────────────
 
 export async function saveSheets(userId: string, sheets: DownloadedSheet[], meta: { downloadedAt: string; timezone: string }) {

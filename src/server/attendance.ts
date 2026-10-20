@@ -800,3 +800,40 @@ export async function recordStaffAttendance(ctx: AuthContext, input: unknown) {
     if (changes.length) await writeAudit(tx, actorOf(ctx), { action: "staff_attendance.record", entityType: "StaffAttendance", entityId: formatDateOnly(d.date), summary: `${changes.length} change(s)`, changes: { changes } });
   });
 }
+
+// ───────────────────────── Register detail ─────────────────────────
+
+export async function getRegisterDetail(ctx: AuthContext, registerId: string) {
+  const register = await db.attendanceRegister.findFirst({
+    where: { id: registerId, schoolId: ctx.schoolId },
+    include: { session: { select: { name: true } }, records: true },
+  });
+  if (!register) throw notFound("Register");
+  const scope = await readScope(ctx, register.academicYearId);
+  if (!inScope(scope, register.classId, register.streamId)) throw notFound("Register");
+  const [cls, stream, students, corrections, users] = await Promise.all([
+    db.schoolClass.findFirst({ where: { id: register.classId, schoolId: ctx.schoolId }, select: { name: true } }),
+    register.streamId ? db.stream.findFirst({ where: { id: register.streamId }, select: { name: true } }) : null,
+    db.student.findMany({ where: { schoolId: ctx.schoolId, id: { in: register.records.map((r) => r.studentId) } }, select: { id: true, admissionNo: true, firstName: true, middleName: true, lastName: true } }),
+    db.attendanceCorrection.findMany({ where: { schoolId: ctx.schoolId, attendanceId: { in: register.records.map((r) => r.id) } }, orderBy: { createdAt: "desc" } }),
+    db.user.findMany({ where: { schoolId: ctx.schoolId, id: { in: [register.startedById, register.finalisedById ?? register.startedById] } }, select: { id: true, fullName: true } }),
+  ]);
+  const correctors = await db.user.findMany({ where: { schoolId: ctx.schoolId, id: { in: [...new Set(corrections.map((c) => c.correctedById))] } }, select: { id: true, fullName: true } });
+  const nameOf = new Map(students.map((s) => [s.id, fullName(s)]));
+  return {
+    id: register.id,
+    status: register.status,
+    date: formatDateOnly(register.date),
+    className: cls?.name ?? "",
+    streamName: stream?.name ?? null,
+    sessionName: register.session.name,
+    startedBy: users.find((u) => u.id === register.startedById)?.fullName ?? "",
+    finalisedBy: users.find((u) => u.id === register.finalisedById)?.fullName ?? null,
+    finalisedAt: register.finalisedAt,
+    records: register.records
+      .map((r) => ({ id: r.id, studentId: r.studentId, name: nameOf.get(r.studentId) ?? "", admissionNo: students.find((s) => s.id === r.studentId)?.admissionNo ?? "", status: r.status, note: r.note }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    corrections: corrections.map((c) => ({ id: c.id, student: nameOf.get(c.studentId) ?? "", from: c.fromStatus, to: c.toStatus, reason: c.reason, by: correctors.find((u) => u.id === c.correctedById)?.fullName ?? "", at: c.createdAt })),
+    canCorrect: ctx.permissions.has("attendance.correct") && register.status === "FINALISED",
+  };
+}
