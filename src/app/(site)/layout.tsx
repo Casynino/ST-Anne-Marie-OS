@@ -26,7 +26,6 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   return (
     <div className={`site-root ${crimson.variable} ${atkinson.variable} min-h-dvh bg-cream text-ink`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schoolJsonLd(site)).replace(/</g, "\\u003c") }} />
-      <div aria-hidden className="scroll-line" />
       <AnnouncementBar schoolId={site.school.id} t={t} locale={locale} />
       <SiteHeader
         name={site.school.name}
@@ -46,7 +45,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <main id="main">{children}</main>
       <SiteFooter t={t} site={site} links={links} />
       <MobileActions applyHref="/apply/form" applyLabel={t("site.nav.apply")} phoneHref={site.contact.phone ? telHref(site.contact.phone) : undefined} callLabel={t("site.mobile.call")} />
-      <div aria-hidden className="h-20 bg-brand-950 md:hidden" />
+      <div aria-hidden className="h-20 bg-ink md:hidden" />
     </div>
   );
 }

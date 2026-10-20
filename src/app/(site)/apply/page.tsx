@@ -22,15 +22,15 @@ export default async function AdmissionsPage() {
     <>
       <PageHero eyebrow={t("site.how.kicker")} title={t("site.admissions.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }]}>{text.admissionsIntro ?? t("site.admissions.default")}</PageHero>
 
-      <div className="mx-auto max-w-6xl space-y-24 px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-[100rem] space-y-24 px-4 py-20 sm:px-6">
         <section>
           <SectionHeading eyebrow={t("site.admissions.processKicker")} title={t("site.how.title")} />
-          <ol className="mt-10 grid gap-5 md:grid-cols-3">
+          <ol className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-3">
             {([1, 2, 3] as const).map((n, i) => (
-              <Reveal as="li" key={n} delay={i * 90} className="card-lift relative overflow-hidden rounded-3xl border border-line bg-white p-7 pt-20">
-                <span className="display absolute left-7 top-6 flex size-12 items-center justify-center rounded-full bg-brand-700 text-xl text-white">{n}</span>
-                <h3 className="text-xl font-bold text-brand-900">{t(`site.how.${n}.title`)}</h3>
-                <p className="mt-2 text-muted">{t(`site.how.${n}.body`)}</p>
+              <Reveal as="li" key={n} delay={i * 90} className="border-t border-ink pt-4">
+                <span aria-hidden className="display text-7xl text-brand-600">{n}</span>
+                <h3 className="display mt-3 text-3xl">{t(`site.how.${n}.title`)}</h3>
+                <p className="mt-2 max-w-xs text-ink/75">{t(`site.how.${n}.body`)}</p>
               </Reveal>
             ))}
           </ol>
@@ -44,8 +44,8 @@ export default async function AdmissionsPage() {
         {levels.length > 0 && (
           <section>
             <SectionHeading eyebrow={t("site.programs.kicker")} title={t("site.admissions.levels")} />
-            <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {levels.map((l) => <li key={l.id}><Link href={`/academics#${l.slug}`} className="card-lift block rounded-2xl border border-line bg-white p-5"><p className="display text-xl text-brand-900">{l.name}</p><p className="mt-1 text-sm text-muted">{l.classes.join(" · ")}</p></Link></li>)}
+            <ul className="mt-8 grid border-t border-ink sm:grid-cols-2 lg:grid-cols-4">
+              {levels.map((l) => <li key={l.id} className="border-b border-ink/25"><Link href={`/academics#${l.slug}`} className="block px-1 py-5 hover:bg-cream-deep sm:px-4"><p className="display text-3xl">{l.name}</p><p className="mt-1 text-sm text-muted">{l.classes.join(" · ")}</p></Link></li>)}
             </ul>
           </section>
         )}

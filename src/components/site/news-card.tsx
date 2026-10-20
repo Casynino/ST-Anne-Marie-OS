@@ -6,23 +6,25 @@ import { Photo } from "@/components/site/photo";
 
 type Post = { id: string; slug: string | null; title: string; titleSw: string | null; body: string; bodySw: string | null; excerpt: string | null; category: string | null; publishedAt: Date | null };
 
-/** A published news item. The cover is the school's own image when supplied, otherwise a calm brand tile. */
+/** A published news item, set like an article in a paper: the school's own picture (if any), a dateline, a headline and a few lines. */
 export function NewsCard({ post, cover, locale, featured }: { post: Post; cover?: SiteImage; locale: Locale; featured?: boolean }) {
   const title = locale === "SW" && post.titleSw ? post.titleSw : post.title;
   return (
-    <article className={`card-lift group relative flex h-full flex-col overflow-hidden rounded-3xl border border-line bg-white ${featured ? "md:flex-row" : ""}`}>
-      <div className={`frame ${featured ? "md:w-1/2 md:shrink-0" : ""} ${cover ? "aspect-[16/10]" : featured ? "aspect-[16/6] md:aspect-auto" : "aspect-[16/6]"}`}>
-        {cover ? <Photo image={cover} sizes={featured ? "(min-width: 1024px) 40vw, 100vw" : "(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"} /> : <div aria-hidden className="size-full bg-brand-700"><div className="absolute -right-6 -top-6 size-32 rounded-full bg-brand-600" /><div className="absolute bottom-0 left-5 h-16 w-12 rounded-t-full bg-sun" /></div>}
-      </div>
-      <div className={`flex flex-1 flex-col p-6 ${featured ? "md:justify-center md:p-10" : ""}`}>
-        <p className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
-          {post.category && <span className="rounded-full bg-brand-50 px-2.5 py-1 text-brand-800">{post.category}</span>}
+    <article className={`group relative flex h-full flex-col border-t border-ink pt-4 ${featured ? "md:flex-row md:gap-8" : ""}`}>
+      {cover && (
+        <div className={`frame print mb-4 ${featured ? "aspect-[3/2] md:mb-0 md:w-1/2 md:shrink-0" : "aspect-[3/2]"}`}>
+          <Photo image={cover} sizes={featured ? "(min-width: 1024px) 40vw, 100vw" : "(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"} />
+        </div>
+      )}
+      <div className={`flex flex-1 flex-col ${featured ? "md:justify-center" : ""}`}>
+        <p className="flex flex-wrap items-center gap-x-3 text-xs font-bold uppercase tracking-[.16em] text-muted">
+          {post.category && <span className="text-brand-700">{post.category}</span>}
           <time dateTime={post.publishedAt?.toISOString()}>{displayDate(post.publishedAt, locale)}</time>
         </p>
-        <h3 className={`display mt-3 text-brand-950 ${featured ? "text-3xl md:text-4xl" : "text-2xl"}`}>
-          <Link href={`/news/${post.slug ?? post.id}`} className="after:absolute after:inset-0 hover:text-brand-700">{title}</Link>
+        <h3 className={`display mt-3 text-ink ${featured ? "text-4xl md:text-5xl" : "text-[1.7rem]"}`}>
+          <Link href={`/news/${post.slug ?? post.id}`} className="after:absolute after:inset-0 group-hover:underline decoration-1 underline-offset-4">{title}</Link>
         </h3>
-        <p className="mt-3 line-clamp-3 text-muted">{excerptOf(post, locale)}</p>
+        <p className="mt-3 line-clamp-3 text-ink/75">{excerptOf(post, locale)}</p>
       </div>
     </article>
   );

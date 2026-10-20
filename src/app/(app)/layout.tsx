@@ -112,7 +112,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </UserMenu>
           </div>
         </header>
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl px-3 py-5 outline-none sm:px-6 sm:py-7">{children}</main>
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[112rem] px-3 py-5 outline-none sm:px-6 sm:py-7 xl:px-10">{children}</main>
       </div>
     </ThemeRoot>
   );

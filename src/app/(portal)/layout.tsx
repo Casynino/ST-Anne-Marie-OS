@@ -30,7 +30,7 @@ export default async function PortalLayout({ children }: { children: React.React
     <ThemeRoot className="min-h-dvh">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:shadow-lg">{t("site.skip")}</a>
       <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4">
+        <div className="mx-auto flex h-16 max-w-[96rem] items-center gap-3 px-4">
           <Link href="/family" className="flex min-w-0 items-center gap-3">
             {logo ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -47,7 +47,7 @@ export default async function PortalLayout({ children }: { children: React.React
             <SignOutButton action={signOutAction} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line px-3 text-sm font-medium hover:bg-canvas"><LogOut className="size-4" aria-hidden /><span className="hidden sm:inline">{t("nav.signOut")}</span></SignOutButton>
           </div>
         </div>
-        <nav aria-label={t("fam.portal")} className="mx-auto max-w-5xl overflow-x-auto px-4 pb-2">
+        <nav aria-label={t("fam.portal")} className="mx-auto max-w-[96rem] overflow-x-auto px-4 pb-2">
           <ul className="flex gap-1 whitespace-nowrap text-sm">
             {nav.map((n) => (
               <li key={n.href}><Link href={n.href} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 font-medium text-ink hover:bg-canvas">{n.label}{n.badge > 0 && <span className="rounded-full bg-warn px-1.5 text-xs font-semibold text-white">{n.badge}</span>}</Link></li>
@@ -55,7 +55,7 @@ export default async function PortalLayout({ children }: { children: React.React
           </ul>
         </nav>
       </header>
-      <main id="main" className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <main id="main" className="mx-auto max-w-[96rem] px-4 py-6 sm:px-6 xl:px-8">{children}</main>
     </ThemeRoot>
   );
 }

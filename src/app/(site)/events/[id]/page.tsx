@@ -31,15 +31,15 @@ export default async function EventPage({ params }: Props) {
   return (
     <article>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
-      <header className="bg-cream"><div className="mx-auto max-w-3xl px-4 pb-10 pt-10 sm:px-6 sm:pt-14">
+      <header className="border-t-[3px] border-ink"><div className="mx-auto max-w-3xl px-4 pb-10 pt-10 sm:px-6 sm:pt-14">
         <Link href="/events" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-700 hover:underline"><ArrowLeft className="size-4" aria-hidden /> {t("site.events.back")}</Link>
         {e.category && <p className="mt-6 text-xs font-bold uppercase tracking-wider text-brand-700">{e.category}</p>}
-        <h1 className="display mt-3 text-4xl text-brand-950 sm:text-6xl">{title}</h1>
+        <h1 className="display mt-3 text-[2.6rem] sm:text-7xl">{title}</h1>
         <ul className="mt-6 space-y-2 text-lg">
           <li className="flex items-center gap-3"><CalendarDays className="size-5 text-brand-600" aria-hidden /><span>{displayDate(e.startsOn, locale)}{e.endsOn ? ` – ${displayDate(e.endsOn, locale)}` : ""}</span></li>
           {e.location && <li className="flex items-center gap-3"><MapPin className="size-5 text-brand-600" aria-hidden />{e.location}</li>}
         </ul>
-      </div>{cover && <div className="mx-auto max-w-5xl px-4 sm:px-6"><div className="frame aspect-[16/9] rounded-3xl"><Photo image={cover} sizes="(min-width: 1024px) 64rem, 100vw" priority /></div></div>}</header>
+      </div>{cover && <div className="mx-auto max-w-5xl px-4 sm:px-6"><div className="frame print aspect-[16/9]"><Photo image={cover} sizes="(min-width: 1024px) 64rem, 100vw" priority /></div></div>}</header>
       {description && <div className="mx-auto max-w-3xl whitespace-pre-line px-4 py-12 text-lg leading-[1.8] text-ink/90 sm:px-6">{description}</div>}
     </article>
   );

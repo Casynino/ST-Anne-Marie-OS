@@ -16,12 +16,12 @@ export default async function PrivacyPage() {
   return (
     <>
       <PageHero photo={false} eyebrow={t("site.footer.privacy")} title={t("site.privacy.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/privacy", label: t("site.footer.privacy") }]}>{t("site.privacy.lead", { name: site.school.name })}</PageHero>
-      <div className="mx-auto max-w-3xl space-y-10 px-4 py-16 sm:px-6">
+      <div className="mx-auto max-w-[100rem] px-4 py-16 sm:px-6"><div className="max-w-3xl space-y-10">
         {sections.map((s) => (
-          <section key={s}><h2 className="display text-2xl text-brand-900">{t(`site.privacy.${s}.title`)}</h2><p className="mt-3 text-lg leading-relaxed text-ink/85">{t(`site.privacy.${s}.body`)}</p></section>
+          <section key={s}><h2 className="display border-t border-ink pt-4 text-3xl">{t(`site.privacy.${s}.title`)}</h2><p className="mt-3 text-lg leading-relaxed text-ink/85">{t(`site.privacy.${s}.body`)}</p></section>
         ))}
-        {(site.contact.email || site.contact.phone) && <p className="rounded-2xl bg-cream-deep p-5 text-ink/85">{t("site.privacy.contact")} {site.contact.email ?? site.contact.phone}</p>}
-      </div>
+        {(site.contact.email || site.contact.phone) && <p className="bg-cream-deep p-5 text-ink/85">{t("site.privacy.contact")} {site.contact.email ?? site.contact.phone}</p>}
+      </div></div>
     </>
   );
 }

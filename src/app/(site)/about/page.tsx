@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { getT } from "@/lib/auth/next";
 import { getSite, pageMetadata } from "@/lib/site";
-import { ButtonLink, Eyebrow, PageHero, PhotoSlot, Prose, SectionHeading } from "@/components/site/blocks";
+import { ButtonLink, CtaBand, Eyebrow, PageHero, PhotoSlot, Print, Prose, SectionHeading } from "@/components/site/blocks";
 import { Reveal } from "@/components/site/fx/reveal";
-import { Photo } from "@/components/site/photo";
 import { Gallery } from "@/components/site/fx/gallery";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,12 +21,12 @@ export default async function AboutPage() {
     <>
       <PageHero eyebrow={t("site.about.kicker")} title={t("site.about.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/about", label: t("site.nav.about") }]}>{school.motto}</PageHero>
 
-      <div className="mx-auto max-w-6xl space-y-24 px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-[100rem] space-y-24 px-4 py-20 sm:px-6">
         {(text.about || aboutPhoto) && (
           <section className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
             <div>{text.about ? <Reveal><Prose className="first-letter:display first-letter:float-left first-letter:mr-3 first-letter:text-7xl first-letter:leading-[0.9] first-letter:text-brand-700">{text.about}</Prose></Reveal> : <p className="text-muted">{t("site.about.empty")}</p>}</div>
             <Reveal className="mx-auto w-full max-w-sm lg:max-w-none">
-              {aboutPhoto ? <div className="frame frame-arch aspect-[4/5] shadow-[var(--shadow-card)]"><Photo image={aboutPhoto} sizes="(min-width: 1024px) 36vw, 80vw" /></div> : <PhotoSlot label={t("site.photo.pending")} className="frame-arch aspect-[4/5]" />}
+              {aboutPhoto ? <Print image={aboutPhoto} sizes="(min-width: 1024px) 36vw, 80vw" ratio="aspect-[4/5]" /> : <PhotoSlot label={t("site.photo.pending")} className="aspect-[4/5]" />}
             </Reveal>
           </section>
         )}
@@ -35,7 +34,7 @@ export default async function AboutPage() {
         {statements.length > 0 && (
           <section className="grid gap-6 md:grid-cols-2">
             {statements.map(([k, v], i) => (
-              <Reveal key={k} delay={i * 100} className={`rounded-3xl p-8 sm:p-10 ${i === 0 ? "bg-brand-700 text-white" : "bg-sun text-brand-950"}`}>
+              <Reveal key={k} delay={i * 100} className={`p-8 sm:p-12 ${i === 0 ? "bg-ink text-cream" : "bg-sun text-ink"}`}>
                 <p className="eyebrow !text-current opacity-80">{t(`site.about.${k}`)}</p>
                 <p className="display mt-4 text-2xl leading-snug sm:text-3xl">{v}</p>
               </Reveal>
@@ -57,7 +56,7 @@ export default async function AboutPage() {
             <ol className="mt-10 divide-y divide-line border-y border-line">
               {text.values.map((v, i) => (
                 <Reveal as="li" key={v.title} className="grid gap-2 py-7 sm:grid-cols-[5rem_1fr_1.4fr] sm:items-baseline sm:gap-6">
-                  <span aria-hidden className="display text-4xl text-brand-300">{String(i + 1).padStart(2, "0")}</span>
+                  <span aria-hidden className="display text-4xl text-brand-600">{String(i + 1).padStart(2, "0")}</span>
                   <h3 className="display text-2xl text-brand-900">{v.title}</h3>
                   <p className="text-muted">{v.text}</p>
                 </Reveal>
@@ -89,10 +88,7 @@ export default async function AboutPage() {
           </section>
         )}
 
-        <section className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-cream-deep p-8 sm:p-12">
-          <div><h2 className="display text-3xl text-brand-950">{t("site.cta.title")}</h2>{levels.length > 0 && <p className="mt-2 text-muted">{levels.map((l) => l.name).join(" · ")}</p>}</div>
-          <div className="flex flex-wrap gap-3"><ButtonLink href="/apply" arrow>{t("site.nav.admissions")}</ButtonLink><ButtonLink href="/contact" variant="outline">{t("site.nav.contact")}</ButtonLink></div>
-        </section>
+        <CtaBand title={t("site.cta.title")} actions={<><ButtonLink href="/apply" variant="sun" arrow>{t("site.nav.admissions")}</ButtonLink><ButtonLink href="/contact" variant="ghost">{t("site.nav.contact")}</ButtonLink></>}>{levels.length > 0 ? levels.map((l) => l.name).join(" · ") : null}</CtaBand>
       </div>
     </>
   );

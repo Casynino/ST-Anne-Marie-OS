@@ -1,8 +1,7 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { getT } from "@/lib/auth/next";
 import { getSite, pageMetadata } from "@/lib/site";
-import { ButtonLink, PageHero, SectionHeading } from "@/components/site/blocks";
+import { ButtonLink, CtaBand, PageHero, SectionHeading } from "@/components/site/blocks";
 import { Reveal } from "@/components/site/fx/reveal";
 import { Gallery } from "@/components/site/fx/gallery";
 
@@ -19,7 +18,7 @@ export default async function SchoolLifePage() {
   return (
     <>
       <PageHero eyebrow={t("site.life.kicker")} title={t("site.nav.schoolLife")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/school-life", label: t("site.nav.schoolLife") }]}>{t("site.life.lead")}</PageHero>
-      <div className="mx-auto max-w-6xl space-y-24 px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-[100rem] space-y-24 px-4 py-20 sm:px-6">
         {empty && <p className="text-muted">{t("site.life.empty")}</p>}
 
         {images.gallery.length > 0 && (
@@ -35,7 +34,7 @@ export default async function SchoolLifePage() {
             <ul className="mt-10 divide-y divide-line border-y border-line">
               {text.schoolLife.map((a, i) => (
                 <Reveal as="li" key={a.title} className="grid gap-2 py-7 sm:grid-cols-[5rem_1fr_1.4fr] sm:gap-6">
-                  <span aria-hidden className="display text-4xl text-brand-300">{String(i + 1).padStart(2, "0")}</span>
+                  <span aria-hidden className="display text-4xl text-brand-600">{String(i + 1).padStart(2, "0")}</span>
                   <h3 className="display text-2xl text-brand-900">{a.title}</h3>
                   <p className="text-muted">{a.text}</p>
                 </Reveal>
@@ -44,10 +43,7 @@ export default async function SchoolLifePage() {
           </section>
         )}
 
-        <section className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-cream-deep p-8 sm:p-12">
-          <h2 className="display max-w-lg text-3xl text-brand-950">{t("site.life.more")}</h2>
-          <div className="flex flex-wrap gap-3"><ButtonLink href="/news" arrow>{t("site.nav.newsEvents")}</ButtonLink><Link href="/events" className="inline-flex min-h-12 items-center font-semibold text-brand-700 hover:underline">{t("site.events.all")}</Link></div>
-        </section>
+        <CtaBand title={t("site.life.more")} actions={<><ButtonLink href="/news" variant="sun" arrow>{t("site.nav.newsEvents")}</ButtonLink><ButtonLink href="/events" variant="ghost">{t("site.events.all")}</ButtonLink></>} />
       </div>
     </>
   );

@@ -12,14 +12,14 @@ export async function AnnouncementBar({ schoolId, t, locale }: { schoolId: strin
   const external = /^https:\/\//.test(href);
   const inner = (
     <>
-      <span className="rounded-full bg-sun px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-brand-950">{t("site.bar.label")}</span>
+      <span className="bg-sun px-2 py-0.5 text-[11px] font-bold uppercase tracking-[.14em] text-ink">{t("site.bar.label")}</span>
       <span className="truncate font-medium">{title}</span>
       <ArrowRight className="size-4 shrink-0" aria-hidden />
     </>
   );
-  const cls = "mx-auto flex max-w-6xl items-center justify-center gap-3 px-4 py-2 text-sm text-white hover:bg-brand-800 sm:px-6";
+  const cls = "mx-auto flex max-w-[100rem] items-center justify-center gap-3 px-4 py-2 text-sm text-cream hover:bg-brand-900 sm:px-6";
   return (
-    <div className="bg-brand-700">
+    <div className="bg-ink">
       {external ? <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a> : <Link href={href} className={cls}>{inner}</Link>}
     </div>
   );
