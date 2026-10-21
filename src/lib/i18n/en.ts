@@ -2497,6 +2497,7 @@ export const en = {
   "fam.progress.classAvg": "Class average",
   "fam.progress.change": "Change",
   "site.nav.myPortal": "My portal",
+  "site.nav.logIn": "Log in",
 } as const;
 
 export type MessageKey = keyof typeof en;

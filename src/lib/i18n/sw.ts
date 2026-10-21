@@ -2499,4 +2499,5 @@ export const sw: Record<MessageKey, string> = {
   "fam.progress.classAvg": "Wastani wa darasa",
   "fam.progress.change": "Mabadiliko",
   "site.nav.myPortal": "Lango langu",
+  "site.nav.logIn": "Ingia",
 };

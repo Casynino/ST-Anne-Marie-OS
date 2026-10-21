@@ -16,9 +16,9 @@ export type SiteLink = { href: string; label: string; match?: string[]; items?: 
  * full-screen menu. Menu entries come from the school's own content, so no link leads to an empty page.
  */
 export function SiteHeader({
-  name, initials, motto, logo, links, quickLinks, quickLabel, searchLabel, calendarLabel, applyLabel, applyShortLabel, applyHref, portalLabel, portalHref, menuLabel, closeLabel, skipLabel, languageSwitch, topSlot,
+  name, initials, motto, logo, links, quickLinks, quickLabel, searchLabel, calendarLabel, applyLabel, applyShortLabel, applyHref, portalLabel, portalHref, signedIn, menuLabel, closeLabel, skipLabel, languageSwitch, topSlot,
 }: {
-  name: string; initials: string; motto?: string | null; logo?: SiteImage; links: SiteLink[]; quickLinks: SiteSubLink[]; quickLabel: string; searchLabel: string; calendarLabel: string; applyLabel: string; applyShortLabel: string; applyHref: string; portalLabel: string; portalHref: string; menuLabel: string; closeLabel: string; skipLabel: string; languageSwitch: ReactNode; topSlot?: ReactNode;
+  name: string; initials: string; motto?: string | null; logo?: SiteImage; links: SiteLink[]; quickLinks: SiteSubLink[]; quickLabel: string; searchLabel: string; calendarLabel: string; applyLabel: string; applyShortLabel: string; applyHref: string; portalLabel: string; portalHref: string; signedIn?: boolean; menuLabel: string; closeLabel: string; skipLabel: string; languageSwitch: ReactNode; topSlot?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -78,7 +78,10 @@ export function SiteHeader({
             </div>
             <Link href="/search" aria-label={searchLabel} title={searchLabel} className="inline-flex size-11 items-center justify-center rounded-full text-brand-800 transition-colors hover:bg-tint"><Search className="size-[18px]" aria-hidden /></Link>
             <div className="mx-1">{languageSwitch}</div>
-            <Link href={portalHref} className="ml-1 inline-flex min-h-11 items-center whitespace-nowrap rounded-full border-2 border-brand-700 px-5 text-sm font-bold text-brand-800 transition-colors hover:bg-brand-700 hover:text-white">{portalLabel}</Link>
+            <Link href={portalHref} className="ml-1 inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border-2 border-brand-700 px-5 text-sm font-bold text-brand-800 transition-colors hover:bg-brand-700 hover:text-white">
+              {signedIn && <span aria-hidden className="-ml-2 grid size-7 shrink-0 place-items-center rounded-full bg-brand-700 text-[11px] font-bold text-white">{portalLabel.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")}</span>}
+              <span className="max-w-[11rem] truncate">{portalLabel}</span>
+            </Link>
             <Link href={applyHref} className="ml-2 inline-flex min-h-11 items-center whitespace-nowrap rounded-full bg-sun px-5 text-sm font-bold text-[#10200f] transition-colors hover:bg-sun-600">{applyLabel}</Link>
           </div>
 
