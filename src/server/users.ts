@@ -7,6 +7,7 @@ import { destroyAllSessions } from "@/lib/auth/session";
 import { SUPER_ADMIN_ROLE_KEY } from "@/lib/rbac/roles";
 import { DEPARTMENTS, DEPARTMENT_KEYS, departmentByKey } from "@/lib/rbac/departments";
 import { actorOf, diffFields, writeAudit } from "@/server/audit";
+import { allocateStaffNo, schoolYear } from "@/server/school-ids";
 import { assignableRoles } from "@/server/rbac";
 import { optDateOnly, optEmailField, optPhoneField, optText, parse, text, uuid } from "@/lib/validation";
 
@@ -138,7 +139,8 @@ export async function createStaffUser(ctx: AuthContext, input: unknown) {
           passwordHash,
           mustChangePassword: false,
           roles: { create: data.roleIds.map((roleId) => ({ roleId, assignedById: ctx.userId })) },
-          staff: { create: { schoolId: ctx.schoolId, jobTitle: data.jobTitle, staffNo: data.staffNo, employedOn: data.employedOn } },
+          // The staff ID is given automatically and kept for life (a typed one is accepted only when no number exists yet).
+          staff: { create: { schoolId: ctx.schoolId, jobTitle: data.jobTitle, staffNo: data.staffNo ?? (await allocateStaffNo(tx, ctx.schoolId, await schoolYear(tx, ctx.schoolId))), employedOn: data.employedOn } },
         },
       });
       await writeAudit(tx, actorOf(ctx), {
@@ -195,9 +197,12 @@ export async function updateStaffUser(ctx: AuthContext, userId: string, input: u
         where: { id: userId },
         data: { fullName: data.fullName, email: data.email ?? null, phone: data.phone ?? null, locale: data.locale },
       });
+      // The staff ID never changes once it exists; leaving the box empty keeps it, and a number is only accepted where there is none.
+      const currentNo = existing.staff?.staffNo ?? null;
+      if (currentNo && data.staffNo && data.staffNo !== currentNo) throw invalid("Please correct the highlighted fields.", { staffNo: "The staff ID cannot be changed" });
       await tx.staff.update({
         where: { userId },
-        data: { jobTitle: data.jobTitle ?? null, staffNo: data.staffNo ?? null, employedOn: data.employedOn ?? null },
+        data: { jobTitle: data.jobTitle ?? null, staffNo: currentNo ?? data.staffNo ?? null, employedOn: data.employedOn ?? null },
       });
       if (removed.length) await tx.userRole.deleteMany({ where: { userId, roleId: { in: removed } } });
       if (added.length) await tx.userRole.createMany({ data: added.map((roleId) => ({ userId, roleId, assignedById: ctx.userId })) });

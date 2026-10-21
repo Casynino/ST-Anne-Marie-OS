@@ -1,4 +1,6 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { Readable } from "node:stream";
 import path from "node:path";
 import { assertSafeKey, type FileStorage } from "./types";
 
@@ -22,6 +24,12 @@ export class LocalDiskStorage implements FileStorage {
   }
   async get(key: string): Promise<Buffer> {
     return readFile(this.resolve(key));
+  }
+  async stream(key: string, range?: { start: number; end: number }) {
+    const full = this.resolve(key);
+    const { size } = await stat(full);
+    const body = Readable.toWeb(createReadStream(full, range ? { start: range.start, end: Math.min(range.end, size - 1) } : undefined)) as unknown as ReadableStream<Uint8Array>;
+    return { body, size };
   }
   async delete(key: string): Promise<void> {
     await unlink(this.resolve(key)).catch((e: NodeJS.ErrnoException) => {

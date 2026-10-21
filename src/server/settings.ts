@@ -38,6 +38,37 @@ export async function getAdmissionSettings(client: Db | Tx, schoolId: string): P
   };
 }
 
+export const DEFAULT_STAFF_ID_PATTERN = "{PREFIX}/STF/{YEAR}/{SEQ}";
+
+/** The format of the institutional ID given to every teacher and staff member (key `staff_id`). Students use the admission number format above. */
+export async function getStaffIdSettings(client: Db | Tx, schoolId: string): Promise<AdmissionSettings> {
+  const [row, student] = await Promise.all([
+    client.schoolSetting.findUnique({ where: { schoolId_key: { schoolId, key: "staff_id" } } }),
+    getAdmissionSettings(client, schoolId),
+  ]);
+  const stored = (row?.value ?? {}) as Partial<AdmissionSettings>;
+  return {
+    prefix: stored.prefix ?? student.prefix,
+    pattern: stored.pattern ?? DEFAULT_STAFF_ID_PATTERN,
+    seqPadding: stored.seqPadding ?? 4,
+    resetYearly: stored.resetYearly ?? true,
+  };
+}
+
+export async function updateStaffIdSettings(ctx: AuthContext, input: unknown) {
+  requirePermission(ctx, "schoolid.manage");
+  const data = parse(admissionSchema, input);
+  const before = await getStaffIdSettings(db, ctx.schoolId);
+  await db.$transaction(async (tx) => {
+    await tx.schoolSetting.upsert({
+      where: { schoolId_key: { schoolId: ctx.schoolId, key: "staff_id" } },
+      create: { schoolId: ctx.schoolId, key: "staff_id", value: data, updatedById: ctx.userId },
+      update: { value: data, updatedById: ctx.userId },
+    });
+    await writeAudit(tx, actorOf(ctx), { action: "settings.staff_id_update", entityType: "SchoolSetting", entityId: "staff_id", changes: diffFields(before, data, ["prefix", "pattern", "seqPadding", "resetYearly"]) });
+  });
+}
+
 export async function ensureDefaultSettings(client: Db | Tx, school: { id: string; code: string }) {
   await client.schoolSetting.upsert({
     where: { schoolId_key: { schoolId: school.id, key: "admission" } },

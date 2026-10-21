@@ -159,6 +159,11 @@ model School {
   classTransfers         ClassTransfer[]
   staffCandidates        StaffCandidate[]
 
+  libraryCategories LibraryCategory[]
+  libraryResources  LibraryResource[]
+  librarySessions   LibrarySession[]
+  libraryPins       LibraryPin[]
+
   @@map("schools")
 }
 
@@ -321,6 +326,9 @@ model Staff {
   classTeacherOf   ClassTeacher[]
   subjectTeacherOf SubjectTeacher[]
 
+  libraryGrants   LibraryResourceStaff[]
+  librarySessions LibrarySession[]
+
   @@unique([schoolId, staffNo])
   @@map("staff")
 }
@@ -424,6 +432,8 @@ model SchoolClass {
   classTeachers   ClassTeacher[]
   subjectTeachers SubjectTeacher[]
 
+  libraryResources LibraryResourceClass[]
+
   @@unique([schoolId, name])
   @@index([levelId])
   @@map("classes")
@@ -458,6 +468,8 @@ model Subject {
   school          School           @relation(fields: [schoolId], references: [id])
   classSubjects   ClassSubject[]
   subjectTeachers SubjectTeacher[]
+
+  libraryResources LibraryResourceSubject[]
 
   @@unique([schoolId, code])
   @@map("subjects")
@@ -567,6 +579,9 @@ model Student {
   enrollments       StudentEnrollment[]
   emergencyContacts EmergencyContact[]
   statusHistory     StudentStatusHistory[]
+
+  libraryPin      LibraryPin?
+  librarySessions LibrarySession[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId, status])
@@ -2779,4 +2794,225 @@ model ApplicationDraft {
   @@index([schoolId, userId])
   @@index([schoolId, status])
   @@map("application_drafts")
+}
+
+// ═════════════════════════ Digital Library ═════════════════════════
+// Learning resources for students and staff. A resource has one or more file versions kept in private storage and is served only through a
+// permission-checked route; who may open it follows its audience (public, students, staff, classes, subjects or named staff). People are
+// recognised by the school ID of their student or staff record (never a separate library user list) and a PIN or their account password.
+
+enum LibraryStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum LibraryAudience {
+  PUBLIC // anyone
+  STUDENTS // any verified student (and staff who may read staff material)
+  STAFF // teachers and staff allowed to read staff material (teacher-only guides)
+  CLASSES // students of the listed classes
+  SUBJECTS // students whose class has a listed subject, and the teachers of it
+  RESTRICTED // only the named staff and library managers
+}
+
+enum LibraryEventKind {
+  VIEW
+  DOWNLOAD
+}
+
+enum LibraryOutcome {
+  GRANTED
+  DENIED
+}
+
+enum LibraryPerson {
+  STUDENT
+  STAFF
+  GUARDIAN
+  VISITOR
+}
+
+enum LibraryLevel {
+  FULL // school ID with PIN or password, or a signed-in school account
+  ID_ONLY // school ID alone, valid only for resources the school marked as open to the ID alone
+}
+
+model LibraryCategory {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  name      String
+  nameSw    String?
+  slug      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  school    School            @relation(fields: [schoolId], references: [id])
+  resources LibraryResource[]
+
+  @@unique([schoolId, slug])
+  @@map("library_categories")
+}
+
+model LibraryResource {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  schoolId       String          @db.Uuid
+  title          String
+  description    String?
+  categoryId     String          @db.Uuid
+  language       String          @default("EN") // EN | SW | OTHER
+  author         String?
+  academicYearId String?         @db.Uuid
+  status         LibraryStatus   @default(DRAFT)
+  audience       LibraryAudience @default(STUDENTS)
+  /// Open to the school ID alone, without the PIN. Honoured only while the school's library setting allows it.
+  idOnly         Boolean         @default(false)
+  featured       Boolean         @default(false)
+  /// Not visible or openable before this time (for example exam papers and marking guides until their release).
+  availableFrom  DateTime?
+  copyright      String?
+  coverKey       String?
+  coverMime      String?
+  createdById    String          @db.Uuid
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  submittedAt    DateTime?
+  reviewedById   String?         @db.Uuid
+  reviewedAt     DateTime?
+  reviewNote     String?
+  publishedById  String?         @db.Uuid
+  publishedAt    DateTime?
+  archivedAt     DateTime?
+
+  school   School                   @relation(fields: [schoolId], references: [id])
+  category LibraryCategory          @relation(fields: [categoryId], references: [id])
+  files    LibraryFile[]
+  classes  LibraryResourceClass[]
+  subjects LibraryResourceSubject[]
+  staff    LibraryResourceStaff[]
+  events   LibraryEvent[]
+
+  @@index([schoolId, status, audience])
+  @@index([schoolId, categoryId])
+  @@index([schoolId, createdAt])
+  @@map("library_resources")
+}
+
+model LibraryFile {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  schoolId     String   @db.Uuid
+  resourceId   String   @db.Uuid
+  version      Int
+  isCurrent    Boolean  @default(true)
+  storageKey   String   @unique
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  sha256       String
+  note         String?
+  uploadedById String   @db.Uuid
+  createdAt    DateTime @default(now())
+
+  resource LibraryResource @relation(fields: [resourceId], references: [id])
+
+  @@unique([resourceId, version])
+  @@index([schoolId, resourceId])
+  @@map("library_files")
+}
+
+model LibraryResourceClass {
+  resourceId String @db.Uuid
+  classId    String @db.Uuid
+  schoolId   String @db.Uuid
+
+  resource LibraryResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  class    SchoolClass     @relation(fields: [classId], references: [id])
+
+  @@id([resourceId, classId])
+  @@index([schoolId, classId])
+  @@map("library_resource_classes")
+}
+
+model LibraryResourceSubject {
+  resourceId String @db.Uuid
+  subjectId  String @db.Uuid
+  schoolId   String @db.Uuid
+
+  resource LibraryResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  subject  Subject         @relation(fields: [subjectId], references: [id])
+
+  @@id([resourceId, subjectId])
+  @@index([schoolId, subjectId])
+  @@map("library_resource_subjects")
+}
+
+model LibraryResourceStaff {
+  resourceId String @db.Uuid
+  staffId    String @db.Uuid
+  schoolId   String @db.Uuid
+
+  resource LibraryResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  staff    Staff           @relation(fields: [staffId], references: [id])
+
+  @@id([resourceId, staffId])
+  @@map("library_resource_staff")
+}
+
+/// Who opened what. Append-only. Only GRANTED rows count as use; DENIED rows are kept for the security log and never counted.
+model LibraryEvent {
+  id         String           @id @default(uuid(7)) @db.Uuid
+  schoolId   String           @db.Uuid
+  resourceId String           @db.Uuid
+  fileId     String?          @db.Uuid
+  kind       LibraryEventKind
+  outcome    LibraryOutcome
+  person     LibraryPerson
+  studentId  String?          @db.Uuid
+  staffId    String?          @db.Uuid
+  reason     String?
+  createdAt  DateTime         @default(now())
+
+  resource LibraryResource @relation(fields: [resourceId], references: [id])
+
+  @@index([schoolId, resourceId, outcome, createdAt])
+  @@index([schoolId, createdAt])
+  @@map("library_events")
+}
+
+/// A student's library PIN (stored as a hash, never readable). Set by the school; a student with a school account does not need one.
+model LibraryPin {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  studentId String   @unique @db.Uuid
+  pinHash   String
+  setById   String   @db.Uuid
+  setAt     DateTime @default(now())
+
+  school  School  @relation(fields: [schoolId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@map("library_pins")
+}
+
+/// A browser session opened by entering a school ID. Only the hash of the cookie token is stored.
+model LibrarySession {
+  id        String        @id @default(uuid(7)) @db.Uuid
+  schoolId  String        @db.Uuid
+  tokenHash String        @unique
+  person    LibraryPerson
+  studentId String?       @db.Uuid
+  staffId   String?       @db.Uuid
+  level     LibraryLevel
+  createdAt DateTime      @default(now())
+  expiresAt DateTime
+
+  school  School   @relation(fields: [schoolId], references: [id])
+  student Student? @relation(fields: [studentId], references: [id])
+  staff   Staff?   @relation(fields: [staffId], references: [id])
+
+  @@index([schoolId, expiresAt])
+  @@map("library_sessions")
 }

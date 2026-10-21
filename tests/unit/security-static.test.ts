@@ -12,8 +12,8 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => { const 
 const rel = (p: string) => path.relative(ROOT, p);
 
 describe("every API route authenticates", () => {
-  // A cookie session, the cron bearer secret, or (webhooks) a signature checked by the service.
-  const MARKERS = ["getContext(", "requireContext(", "CRON_SECRET", "processProviderEvent(", "processSmsReport("];
+  // A cookie session, the library viewer (a school account or a verified school ID; a visitor can only ever get public material), the cron bearer secret, or (webhooks) a signature checked by the service.
+  const MARKERS = ["getContext(", "requireContext(", "getLibraryViewer(", "CRON_SECRET", "processProviderEvent(", "processSmsReport("];
   const routes = walk(path.join(ROOT, "src/app/api")).filter((f) => f.endsWith("route.ts"));
   it("finds the routes", () => expect(routes.length).toBeGreaterThan(10));
   for (const f of routes) {

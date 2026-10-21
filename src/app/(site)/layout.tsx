@@ -30,6 +30,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       text.safeguarding && { href: "/about#safeguarding", label: t("site.about.safeguarding") },
     ]) },
     { href: "/academics", label: t("site.nav.academics"), items: sub(levels.map((l) => ({ href: `/academics#${l.slug}`, label: l.name }))) },
+    { href: "/library", label: t("site.nav.library") },
     { href: "/apply", label: t("site.nav.admissions"), items: sub([
       { href: "/apply", label: t("site.admissions.title") },
       text.requirements.length > 0 && { href: "/apply#requirements", label: t("site.nav.requirements") },

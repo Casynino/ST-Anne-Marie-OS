@@ -25,6 +25,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: "Head Teacher / Academic Master",
     description: "Oversees academics, students, staff activity.",
     permissions: [
+      "library.read", "library.review", "library.publish", "library.access_staff", "library.analytics",
       "exam.read",
       "exam.manage",
       "results.read",
@@ -100,6 +101,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: "Class Teacher",
     description: "Works with students and parents of assigned classes.",
     permissions: [
+      "library.read", "library.upload", "library.access_staff",
       "exam.read",
       "marks.enter",
       "results.read_assigned",
@@ -119,6 +121,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     description: "Teaches assigned subjects and classes.",
     // Add attendance.take for subject teachers if the school records attendance per period.
     permissions: [
+      "library.read", "library.upload", "library.access_staff",
       "exam.read",
       "marks.enter",
       "messages.read",
@@ -164,6 +167,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: "Academic Office",
     description: "Runs the academic side: classes and streams, placement, transfers, assessments, results review and academic support.",
     permissions: [
+      "library.read", "library.upload", "library.review", "library.publish", "library.access_staff", "library.analytics", "library.pin",
       "academic.office",
       "academic.read",
       "academic.manage",
@@ -210,6 +214,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
     name: "Registrar / Secretary",
     description: "Admissions, student records and guardians.",
     permissions: [
+      "library.pin",
       "enquiry.read",
       "enquiry.manage",
       "academic.read",

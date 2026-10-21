@@ -10,3 +10,12 @@ export async function updateSchoolAction(_: ActionState, form: FormData) {
 export async function updateAdmissionAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => (await settings.updateAdmissionSettings(ctx, i), { message: makeT(ctx.locale)("common.saved") }));
 }
+export async function updateStaffIdAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => (await settings.updateStaffIdSettings(ctx, i), { message: makeT(ctx.locale)("common.saved") }));
+}
+export async function assignStaffIdsAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx) => {
+    const r = await (await import("@/server/school-ids")).assignMissingStaffIds(ctx);
+    return { message: makeT(ctx.locale)("sid.assigned", { n: String(r.assigned) }) };
+  });
+}

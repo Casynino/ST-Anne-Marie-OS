@@ -9,6 +9,7 @@ import { hashPassword, validatePasswordStrength } from "../src/lib/auth/password
 import { normalizeEmail } from "../src/lib/phone";
 import { ensureSchoolRoles, syncPermissionCatalog } from "../src/server/rbac";
 import { ensureDefaultSettings } from "../src/server/settings";
+import { allocateStaffNo } from "../src/server/school-ids";
 import { SUPER_ADMIN_ROLE_KEY } from "../src/lib/rbac/roles";
 
 async function main() {
@@ -40,7 +41,7 @@ async function main() {
         passwordHash: await hashPassword(password),
         mustChangePassword: false,
         roles: { create: { roleId: role.id } },
-        staff: { create: { schoolId: school.id, jobTitle: "System Administrator" } },
+        staff: { create: { schoolId: school.id, jobTitle: "System Administrator", staffNo: await allocateStaffNo(db, school.id, new Date().getUTCFullYear()) } },
       },
     });
     console.log(`Created first Super Admin: ${email} (must change password at first sign-in).`);

@@ -29,6 +29,9 @@ import * as fees from "../src/server/fees";
 import * as grading from "../src/server/grading";
 import * as interviews from "../src/server/interviews";
 import * as invoices from "../src/server/invoices";
+import * as library from "../src/server/library";
+import * as libraryIds from "../src/server/library-identity";
+import * as schoolIds from "../src/server/school-ids";
 import * as marks from "../src/server/marks";
 import * as offers from "../src/server/admission-offers";
 import * as payments from "../src/server/payments";
@@ -474,6 +477,45 @@ async function main() {
     }
   }
 
+  // ───── 14. Digital library: staff IDs, student PINs and a few sample resources (sample PDFs made on the spot) ─────
+  const libraryDemo: { who: string; id: string; secret: string }[] = [];
+  {
+    await schoolIds.assignMissingStaffIds(admin);
+    const pinned = async (studentId: string, pin: string) => db.libraryPin.upsert({ where: { studentId }, create: { schoolId, studentId, pinHash: await hashPassword(pin), setById: admin.userId }, update: {} });
+    const kid = async (classId: string, streamId?: string) => (await db.student.findFirstOrThrow({ where: { schoolId, enrollments: { some: { academicYearId: year.id, classId, ...(streamId ? { streamId } : {}), status: "ACTIVE" } } }, orderBy: { admissionNo: "asc" }, select: { id: true, admissionNo: true } }));
+    for (const [label, classId, streamId] of [["Form I A student", formI.id, sA.id], ["Standard IV student", std4.id, undefined]] as const) {
+      const k = await kid(classId, streamId);
+      await pinned(k.id, "246810");
+      libraryDemo.push({ who: label, id: k.admissionNo, secret: "PIN 246810" });
+    }
+    for (const c of [pre, std1, std4, std7, formI, form2, form4]) await libraryIds.setStudentPins(admin, { classId: c.id, mode: "missing" });
+    for (const t of [t1, t2]) {
+      const no = (await db.staff.findUniqueOrThrow({ where: { id: t.staffId! } })).staffNo!;
+      libraryDemo.push({ who: t === t1 ? "Teacher (Maths)" : "Teacher (English)", id: no, secret: `password ${PASSWORD}` });
+    }
+    if (!(await db.libraryResource.count({ where: { schoolId } }))) {
+      const cats = await library.listCategories(schoolId);
+      const cat = (name: string) => cats.find((c) => c.name === name)!.id;
+      const math = await subj("MATH"), eng = await subj("ENG"), sci = await subj("SCI");
+      const items: { title: string; description: string; category: string; audience: string; classIds?: string[]; subjectIds?: string[]; featured?: boolean }[] = [
+        { title: "Mathematics notes: fractions", description: "Short class notes on adding, subtracting and comparing fractions, with worked examples.", category: "Class Notes", audience: "CLASSES", classIds: [formI.id], subjectIds: [math.id], featured: true },
+        { title: "English: reading and writing guide", description: "A study guide for reading comprehension and letter writing.", category: "Revision Guides", audience: "STUDENTS", subjectIds: [eng.id], featured: true },
+        { title: "Form I midterm paper (sample)", description: "A practice paper in the format of the midterm test.", category: "Past Papers", audience: "CLASSES", classIds: [formI.id] },
+        { title: "Standard IV science textbook (sample)", description: "Sample chapters for Standard IV science.", category: "Textbooks", audience: "CLASSES", classIds: [std4.id], subjectIds: [sci.id] },
+        { title: "Marking guide: Form I Mathematics", description: "For teachers only. Marking scheme for the Form I Mathematics papers.", category: "Reference Materials", audience: "STAFF", classIds: [formI.id], subjectIds: [math.id] },
+        { title: "How to use the school library", description: "A short guide for students and families.", category: "General Learning Resources", audience: "PUBLIC" },
+      ];
+      for (const it of items) {
+        const r = await library.createResource(t1, { ...it, categoryId: cat(it.category), language: "EN" }, { fileName: `${it.title.replace(/[^A-Za-z0-9]+/g, "-").toLowerCase()}.pdf`, bytes: await samplePdf(it.title) });
+        await library.submitResource(t1, r.id);
+        await library.approveResource(head, r.id);
+        await library.publishResource(head, r.id);
+        if (it.featured) await db.libraryResource.update({ where: { id: r.id }, data: { featured: true } });
+      }
+      log("library resources");
+    }
+  }
+
   console.log(`\nDemo school is ready. Every account below uses the password: ${PASSWORD}`);
   console.table([
     { department: "(owner)", signIn: `admin@${DOMAIN}`, note: "your own admin account, password unchanged" },
@@ -481,6 +523,7 @@ async function main() {
     { department: "Parent", signIn: `parent@${DOMAIN}`, note: "parent of a Form I A student" },
     { department: "Student", signIn: `student@${DOMAIN}`, note: "a Form I A student" },
     { department: "Applicant (paid)", signIn: `applicant1@${DOMAIN}`, note: "applied online and paid the fee" },
+    ...libraryDemo.map((l) => ({ department: "Library", signIn: l.id, note: `${l.who}: ${l.secret}` })),
     { department: "Applicant (not paid)", signIn: `applicant2@${DOMAIN}`, note: "applied online, fee still to pay" },
   ]);
 }

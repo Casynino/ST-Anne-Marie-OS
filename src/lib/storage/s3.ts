@@ -49,12 +49,13 @@ export class S3CompatibleStorage implements FileStorage {
   readonly name = "s3";
   constructor(private readonly cfg: S3Config) {}
 
-  private async request(method: "PUT" | "GET" | "DELETE", key: string, body?: Buffer, contentType?: string): Promise<Response> {
+  private async request(method: "PUT" | "GET" | "DELETE", key: string, body?: Buffer, contentType?: string, range?: { start: number; end: number }): Promise<Response> {
     assertSafeKey(key);
     const url = new URL(`${this.cfg.endpoint.replace(/\/$/, "")}/${this.cfg.bucket}/${key.split("/").map(uriEncode).join("/")}`);
     const payload = body ?? Buffer.alloc(0);
     const headers = signV4({ method, url, region: this.cfg.region, service: "s3", accessKeyId: this.cfg.accessKeyId, secretAccessKey: this.cfg.secretAccessKey, payloadHash: sha256Hex(payload), headers: contentType ? { "content-type": contentType } : undefined });
     delete headers.host; // set by fetch
+    if (range) headers.range = `bytes=${range.start}-${range.end}`; // not part of the signed headers, which S3 allows
     return fetch(url, { method, headers, body: body ? new Uint8Array(body) : undefined });
   }
 
@@ -66,6 +67,12 @@ export class S3CompatibleStorage implements FileStorage {
     const res = await this.request("GET", key);
     if (!res.ok) throw new Error(`Storage download failed (${res.status})`);
     return Buffer.from(await res.arrayBuffer());
+  }
+  async stream(key: string, range?: { start: number; end: number }) {
+    const res = await this.request("GET", key, undefined, undefined, range);
+    if (!res.ok || !res.body) throw new Error(`Storage download failed (${res.status})`);
+    const total = /\/(\d+)$/.exec(res.headers.get("content-range") ?? "")?.[1];
+    return { body: res.body as ReadableStream<Uint8Array>, size: total ? Number(total) : Number(res.headers.get("content-length") ?? 0) };
   }
   async delete(key: string) {
     const res = await this.request("DELETE", key);

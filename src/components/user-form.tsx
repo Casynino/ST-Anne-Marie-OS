@@ -29,7 +29,15 @@ export function UserFields({ t, d = {}, withPassword }: { t: Translate; d?: Defa
       {!withPassword && (
         <>
           <Field name="jobTitle" label={t("users.jobTitle")} defaultValue={d.jobTitle} optionalLabel={t("common.optional")} />
-          <Field name="staffNo" label={t("users.staffNo")} defaultValue={d.staffNo} optionalLabel={t("common.optional")} />
+          {d.staffNo ? (
+            <div>
+              <p className="text-sm font-medium">{t("users.staffNo")}</p>
+              <p className="mt-1 font-mono text-base">{d.staffNo}</p>
+              <p className="text-sm text-muted">{t("users.staffNo.fixed")}</p>
+            </div>
+          ) : (
+            <Field name="staffNo" label={t("users.staffNo")} optionalLabel={t("common.optional")} hint={t("users.staffNo.none")} />
+          )}
           <Field name="employedOn" label={t("users.employedOn")} type="date" defaultValue={d.employedOn ? formatDateOnly(d.employedOn) : undefined} optionalLabel={t("common.optional")} />
           <Field name="locale" label={t("users.language")} type="select" defaultValue={d.locale ?? "EN"} options={[{ value: "EN", label: "English" }, { value: "SW", label: "Kiswahili" }]} />
         </>
