@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useActionState, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronDown } from "lucide-react";
 import type { ActionState } from "@/lib/action";
 import { Badge } from "@/components/ui";
 
@@ -41,7 +41,8 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
     else if (r) setFail({ id, text: r.error });
     return r;
   }, null);
-  const openPanel = (id: string, kind: Kind) => { setDone(null); setFail(null); setPanel((p) => (p && p.id === id && p.kind === kind ? null : { id, kind })); };
+  const openPanel = (id: string, kind: Kind) => { setDone(null); setFail(null); setPanel({ id, kind }); };
+  const closePanel = () => { setPanel(null); setFail(null); };
   const q = labels.quick;
   const all = rows.length > 0 && picked.length === rows.length;
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -131,17 +132,25 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                 <td className="px-2 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
                 <td className="px-2 py-3 text-muted">{r.assignedTo ?? labels.unassigned}</td>
                 <td className="whitespace-nowrap px-2 py-3 text-right">
-                  {r.acts.map((k) => (
-                    <button key={k} type="button" aria-pressed={panel?.id === r.id && panel.kind === k} onClick={() => openPanel(r.id, k)} className={`min-h-9 rounded-md px-1.5 text-sm font-semibold hover:bg-canvas aria-pressed:bg-tint ${k === "DECLINE" ? "text-bad" : "text-link"}`}>
-                      {k === "ACCEPT" ? q.accept : k === "DECLINE" ? q.decline : q.ask}
+                  {r.acts.length > 0 && (
+                    <button type="button" aria-expanded={panel?.id === r.id} onClick={() => (panel?.id === r.id ? closePanel() : openPanel(r.id, r.acts[0]!))} className="group inline-flex min-h-9 items-center gap-1.5 rounded-md border border-line px-3 text-sm font-semibold hover:border-brand-500 aria-expanded:border-brand-500 aria-expanded:bg-tint">
+                      {q.column}<ChevronDown className="size-4 transition-transform group-aria-expanded:rotate-180" aria-hidden />
                     </button>
-                  ))}
+                  )}
                 </td>
               </tr>
               {panel?.id === r.id && (
                 <tr className="bg-tint">
                   <td colSpan={cols} className="px-2 py-3">
-                    <form action={quickForm} className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                      <div role="group" aria-label={q.column} className="inline-flex overflow-hidden rounded-md border border-line bg-surface">
+                        {r.acts.map((k, i) => (
+                          <button key={k} type="button" aria-pressed={panel.kind === k} onClick={() => openPanel(r.id, k)} className={`min-h-9 px-3 font-semibold ${i > 0 ? "border-l border-line" : ""} ${panel.kind === k ? (k === "DECLINE" ? "bg-bad text-white" : "bg-brand-700 text-white") : "text-ink hover:bg-canvas"}`}>
+                            {k === "ACCEPT" ? q.accept : k === "DECLINE" ? q.decline : q.ask}
+                          </button>
+                        ))}
+                      </div>
+                    <form action={quickForm} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
                       <input type="hidden" name="id" value={r.id} />
                       <input type="hidden" name="kind" value={panel.kind} />
                       <span className="font-medium text-ink">
@@ -152,7 +161,7 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                       <button disabled={quickPending} className={`min-h-10 rounded-md px-4 font-semibold text-white disabled:opacity-60 ${panel.kind === "DECLINE" ? "bg-bad hover:opacity-90" : "bg-brand-700 hover:bg-brand-800"}`}>
                         {panel.kind === "ACCEPT" ? q.confirm : panel.kind === "DECLINE" ? q.declineGo : q.askGo}
                       </button>
-                      <button type="button" onClick={() => { setPanel(null); setFail(null); }} className="min-h-10 px-2 text-muted hover:text-ink">{q.cancel}</button>
+                      <button type="button" onClick={closePanel} className="min-h-10 px-2 text-muted hover:text-ink">{q.cancel}</button>
                       <span className="basis-full text-xs text-muted">{panel.kind === "ACCEPT" ? q.acceptAfter : panel.kind === "ASK" ? q.askAfter : ""}</span>
                       {fail?.id === r.id && (
                         <span role="alert" className="basis-full rounded-md border border-bad/30 bg-bad/10 px-3 py-2 text-bad">
@@ -160,6 +169,7 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                         </span>
                       )}
                     </form>
+                    </div>
                   </td>
                 </tr>
               )}

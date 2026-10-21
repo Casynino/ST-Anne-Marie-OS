@@ -3857,7 +3857,7 @@ export const sw: Record<MessageKey, string> = {
   "adm.f.to.short": "Hadi",
   "adm.progress": "Hatua {n} kati ya 5",
   "adm.f.more": "Vichujio zaidi",
-  "adm.col.action": "Hatua ya haraka",
+  "adm.col.action": "Hatua",
   "adm.q.accept": "Kubali",
   "adm.q.decline": "Kataa",
   "adm.q.ask": "Taarifa zaidi",
