@@ -10,6 +10,8 @@ import { acceptedDetail, registeredSummary, type AcceptedDetail } from "@/server
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { ActionForm, Field } from "@/components/form";
 import { Badge, Card, DefList, EmptyState, LinkButton, NoAccess, PageHeader } from "@/components/ui";
+import { JoiningCard } from "@/components/admissions/joining-card";
+import { joiningView } from "@/server/joining";
 import { enrolApplicationAction } from "../../actions";
 import { ConfirmBoxes } from "../../[id]/parts";
 
@@ -51,6 +53,7 @@ export default async function AcceptedPage({ params }: { params: Promise<{ id: s
     throw e;
   }
   const can = (p: Parameters<typeof ctx.permissions.has>[0]) => ctx.permissions.has(p);
+  const joining = await joiningView(ctx, id);
   const app = d.application;
   const ready = d.remaining.length === 0;
   const emergency = app.emergencyContact as { name?: string; phone?: string; relationship?: string } | null;
@@ -71,6 +74,8 @@ export default async function AcceptedPage({ params }: { params: Promise<{ id: s
               ))}
             </ul>
           </Card>
+
+          <JoiningCard v={joining} t={t} locale={ctx.locale} pdfHref={`/api/applications/${id}/joining`} />
 
           <Card title={t("adm.reg.confirmTitle")} actions={can("admission.create") ? <LinkButton href={`/admissions/${id}/edit`} variant="secondary">{t("adm.reg.edit")}</LinkButton> : undefined}>
             <p className="mb-4 text-sm text-muted">{t("adm.reg.confirmSub")}</p>

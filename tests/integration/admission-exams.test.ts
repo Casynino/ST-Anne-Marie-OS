@@ -7,6 +7,7 @@ import { AppError } from "@/lib/errors";
 import type { AuthContext } from "@/lib/auth/context";
 import { todayInTimezone } from "@/lib/dates";
 import { stageHref } from "@/lib/admissions/links";
+import { teachersFor } from "@/lib/admissions/exams";
 import * as academics from "@/server/academics";
 import * as admissions from "@/server/admissions";
 import * as desk from "@/server/admission-desk";
@@ -31,7 +32,7 @@ import { createCurrentYearAcademics, createTestSchool, createTestUser } from "..
 
 let school: Awaited<ReturnType<typeof createTestSchool>>;
 let admin: AuthContext, rehema: AuthContext, academic: AuthContext, finance: AuthContext, outsider: AuthContext;
-let teacherA: AuthContext, teacherB: AuthContext, teacherC: AuthContext;
+let teacherA: AuthContext, teacherB: AuthContext, teacherC: AuthContext, teacherD: AuthContext;
 let setup: Awaited<ReturnType<typeof createCurrentYearAcademics>>;
 let nurseryClassId: string;
 let english: { id: string }, maths: { id: string };
@@ -43,11 +44,11 @@ const PDF = Buffer.concat([Buffer.from("%PDF-1.4\n"), Buffer.alloc(200, 0x20)]);
 const ymd = (offset: number) => { const t = new Date(`${todayInTimezone(zone)}T00:00:00Z`); t.setUTCDate(t.getUTCDate() + offset); return t.toISOString().slice(0, 10); };
 const dayAt = (offset: number) => `${ymd(offset)}T10:00`;
 
-async function setPolicy(o: { fee?: string; approval?: boolean } = {}) {
+async function setPolicy(o: { fee?: string; approval?: boolean; auto?: boolean; pass?: number } = {}) {
   await policy.updateAdmissionPolicy(admin, {
     requireInterview: "on", requiredDocTypes: ["BIRTH_CERTIFICATE"], admissionFee: o.fee ?? "0", requirePaymentBeforeEnrol: "on", offerValidDays: 14, allowDirectRegistration: "on", interviewMinutes: 30,
     [`assessment_${setup.level.id}`]: "BOTH",
-    examSettings: "1", examSubjects: [english.id, maths.id], examMaxMark: 100, ...(o.approval ? { examApproval: "on" } : {}),
+    examSettings: "1", examSubjects: [english.id, maths.id], examMaxMark: 100, ...(o.approval ? { examApproval: "on" } : {}), ...(o.auto ? { examAutoAccept: "on" } : {}), examPassPercent: o.pass ?? 50,
   });
 }
 
@@ -85,6 +86,7 @@ beforeAll(async () => {
   teacherA = (await createTestUser(school.id, ["class_teacher"], { fullName: "Teacher A" })).ctx;
   teacherB = (await createTestUser(school.id, ["subject_teacher"], { fullName: "Teacher B" })).ctx;
   teacherC = (await createTestUser(school.id, ["class_teacher"], { fullName: "Teacher C" })).ctx;
+  teacherD = (await createTestUser(school.id, ["class_teacher"], { fullName: "Teacher D" })).ctx;
   setup = await createCurrentYearAcademics(admin, { streams: [] });
   const nursery = await academics.createLevel(admin, { name: "Nursery", sortOrder: 2 });
   nurseryClassId = (await academics.createClass(admin, { levelId: nursery.id, name: "Nursery A", sortOrder: 2 })).id;
@@ -176,6 +178,45 @@ describe("assigning teachers to the subjects of an interview", () => {
     await expect(db.applicationExamEvent.update({ where: { id: history[0]!.id }, data: { kind: "SAVE" } })).rejects.toThrow(); // append-only
     await exams.assignExam(academic, iv.id, { subjectId: english.id, teacherId: teacherA.userId }); // back to A
     expect(mat.id).toBeTruthy();
+  });
+
+  it("offers and accepts only the teachers of the class the applicant applied for; falls back to teachers of the subject in other classes, then to anyone who may mark", async () => {
+    const { iv } = await interviewed();
+    const levelId = setup.level.id;
+    const other = await academics.createClass(admin, { levelId, name: "Standard II", sortOrder: 9 });
+    const kiswahili = await academics.createSubject(admin, { code: "KIS", name: "Kiswahili" });
+    const history = await academics.createSubject(admin, { code: "HIS", name: "History" });
+    const staffOf = async (c: AuthContext) => (await db.staff.findUniqueOrThrow({ where: { userId: c.userId } })).id;
+    // D teaches English only in ANOTHER class; Kiswahili is taught only in the other class (by D); nobody is recorded for History
+    await db.subjectTeacher.create({ data: { schoolId: school.id, academicYearId: setup.year.id, classId: other.id, subjectId: english.id, staffId: await staffOf(teacherD) } });
+    await db.subjectTeacher.create({ data: { schoolId: school.id, academicYearId: setup.year.id, classId: other.id, subjectId: kiswahili.id, staffId: await staffOf(teacherD) } });
+
+    const ws = await stages.interviewWorkspace(rehema, iv.id);
+    if (ws.mode !== "INTERVIEW" || !ws.setup) throw new Error("expected the workspace with its setup");
+    const records = ws.setup.teachers;
+    expect(ws.setup.appliedClass).toBe("Standard I");
+    // English in Standard I: only the teachers recorded for that class (A), not D (who teaches it elsewhere) and not everybody
+    expect(teachersFor(english.id, records)).toMatchObject({ tier: "CLASS" });
+    expect(teachersFor(english.id, records).ids).toContain(teacherA.userId);
+    expect(teachersFor(english.id, records).ids).not.toContain(teacherD.userId);
+    expect(teachersFor(english.id, records).ids).not.toContain(teacherB.userId);
+    // Kiswahili: nobody in Standard I, so the teachers of it in other classes (D)
+    expect(teachersFor(kiswahili.id, records)).toMatchObject({ tier: "SUBJECT", ids: [teacherD.userId] });
+    // History: nobody recorded, so every teacher who may mark
+    expect(teachersFor(history.id, records).tier).toBe("ANY");
+    expect(teachersFor(history.id, records).ids).toEqual(expect.arrayContaining([teacherA.userId, teacherB.userId, teacherD.userId]));
+
+    // the server applies the same rule
+    const refused = await exams.assignExam(academic, iv.id, { subjectId: english.id, teacherId: teacherD.userId }).then(() => null, (e: AppError) => e);
+    expect(refused?.code).toBe("VALIDATION");
+    expect(JSON.stringify(refused?.fieldErrors)).toMatch(/does not teach English in Standard I/);
+    expect(await code(exams.assignExam(academic, iv.id, { subjectId: kiswahili.id, teacherId: teacherA.userId }))).toBe("VALIDATION");
+    expect((await exams.assignExam(academic, iv.id, { subjectId: kiswahili.id, teacherId: teacherD.userId })).already).toBe(false);
+    expect((await exams.assignExam(academic, iv.id, { subjectId: history.id, teacherId: teacherC.userId })).already).toBe(false);
+    // changing a teacher is one action on the existing assignment (nothing is assigned twice)
+    expect(await db.applicationExam.count({ where: { interviewId: iv.id, subjectId: english.id, status: { not: "CANCELLED" } } })).toBe(0);
+    await exams.assignExam(academic, iv.id, { subjectId: english.id, teacherId: teacherA.userId });
+    expect(await db.applicationExam.count({ where: { interviewId: iv.id, subjectId: english.id, status: { not: "CANCELLED" } } })).toBe(1);
   });
 });
 
@@ -476,6 +517,65 @@ describe("registering an accepted applicant", () => {
     expect(later?.className).toBeNull();
     expect(later?.admissionNo).toBeTruthy();
     expect((await awaitingPlacement(rehema)).map((x) => x.id)).toContain(later!.studentId);
+    await setPolicy();
+  });
+});
+
+describe("accepting by itself on a pass", () => {
+  const submit = async (iv: { id: string }, eng: string, mat: string) => {
+    await exams.saveExamMarks(teacherA, (await taskOf(iv.id, english.id)).id, { mark: eng, submit: "true" });
+    await exams.saveExamMarks(teacherB, (await taskOf(iv.id, maths.id)).id, { mark: mat, submit: "true" });
+  };
+
+  it("accepts when every result is in and the average reaches the pass mark; a lower average, or the setting off, leaves the decision to the office; the marks are never touched", async () => {
+    await setPolicy({ fee: "50000", auto: true, pass: 60 });
+    // 85 and 55 average 70: accepted by itself, and waits for the school fee
+    const pass = await interviewed();
+    await assignBoth(pass.iv);
+    await pastInterview(pass.iv.id);
+    await exams.saveExamMarks(teacherA, (await taskOf(pass.iv.id, english.id)).id, { mark: "85", submit: "true" });
+    expect((await db.application.findUniqueOrThrow({ where: { id: pass.a.id } })).status).toBe("INTERVIEW"); // one subject still to come: nothing yet
+    await exams.saveExamMarks(teacherB, (await taskOf(pass.iv.id, maths.id)).id, { mark: "55", submit: "true" });
+    expect((await db.application.findUniqueOrThrow({ where: { id: pass.a.id } })).status).toBe("ACCEPTED");
+    expect(await db.interview.findUniqueOrThrow({ where: { id: pass.iv.id } })).toMatchObject({ status: "COMPLETED", outcome: "PASSED" });
+    expect((await stages.acceptedList(rehema, "payment")).map((x) => x.id)).toContain(pass.a.id);
+    expect(await db.auditLog.count({ where: { schoolId: school.id, action: "admission.auto_accept", entityId: pass.a.id } })).toBe(1);
+    expect(await db.workflowTask.count({ where: { relatedId: pass.a.id, kind: "DECISION_REVIEW", status: "PENDING" } })).toBe(0);
+    expect(Number((await taskOf(pass.iv.id, english.id)).mark)).toBe(85); // the teachers' marks are untouched
+
+    // 40 and 30 average 35: below the pass mark, so the office decides (nothing is rejected by itself)
+    const low = await interviewed();
+    await assignBoth(low.iv);
+    await pastInterview(low.iv.id);
+    await submit(low.iv, "40", "30");
+    const row = await desk.deskRow(rehema, low.a.id);
+    expect(row.state).toBe("INTERVIEW_SCHEDULED");
+    expect(row.ivStage).toBe("READY");
+    expect(row.examAverage).toBe(35);
+    expect((await exams.examSummaryOf(db, school.id, low.a.id))).toMatchObject({ average: 35, passMark: 60, passed: false });
+    expect(await flow.recordQuickResult(rehema, low.a.id, { outcome: "NOT_PASSED" })).toMatchObject({ passed: false }); // the office can still decide by hand
+
+    // with the setting off a pass waits for the office
+    await setPolicy({ fee: "50000", pass: 60 });
+    const off = await interviewed();
+    await assignBoth(off.iv);
+    await pastInterview(off.iv.id);
+    await submit(off.iv, "90", "90");
+    expect((await db.application.findUniqueOrThrow({ where: { id: off.a.id } })).status).toBe("INTERVIEW");
+    expect((await desk.deskRow(rehema, off.a.id)).ivStage).toBe("READY");
+  });
+
+  it("with approval on, it accepts only after the last approval", async () => {
+    await setPolicy({ fee: "50000", auto: true, pass: 50, approval: true });
+    const { a, iv } = await interviewed();
+    await assignBoth(iv);
+    await pastInterview(iv.id);
+    await submit(iv, "80", "70");
+    expect((await db.application.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("INTERVIEW"); // submitted is not final yet
+    await exams.reviewExam(academic, (await taskOf(iv.id, english.id)).id, { decision: "APPROVE" });
+    expect((await db.application.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("INTERVIEW");
+    await exams.reviewExam(academic, (await taskOf(iv.id, maths.id)).id, { decision: "APPROVE" });
+    expect((await db.application.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("ACCEPTED");
     await setPolicy();
   });
 });

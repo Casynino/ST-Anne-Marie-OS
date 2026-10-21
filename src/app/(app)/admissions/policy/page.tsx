@@ -3,12 +3,13 @@ import { paymentSetup } from "@/server/application-fee";
 import { requireContext, getT } from "@/lib/auth/next";
 import { db } from "@/lib/db";
 import { getAdmissionPolicy } from "@/server/admission-policy";
+import { getJoiningSettings } from "@/server/joining";
 import { DOCUMENT_TYPES } from "@/server/documents";
 import { getSchoolBasics } from "@/server/settings";
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { ActionForm, Field } from "@/components/form";
 import { Card, NoAccess, PageHeader } from "@/components/ui";
-import { updatePolicyAction } from "../actions";
+import { updateJoiningAction, updatePolicyAction } from "../actions";
 
 export const metadata: Metadata = { title: "Admission rules and fees" };
 
@@ -16,7 +17,7 @@ export default async function PolicyPage() {
   const ctx = await requireContext();
   const t = await getT();
   if (!ctx.permissions.has("school.settings.read")) return <NoAccess t={t} />;
-  const [p, school, setup, levels, subjects] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), getSchoolBasics(ctx.schoolId), paymentSetup(ctx.schoolId), db.academicLevel.findMany({ where: { schoolId: ctx.schoolId }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }), db.subject.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } })]);
+  const [p, school, setup, levels, subjects, joining] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), getSchoolBasics(ctx.schoolId), paymentSetup(ctx.schoolId), db.academicLevel.findMany({ where: { schoolId: ctx.schoolId }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }), db.subject.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }), getJoiningSettings(db, ctx.schoolId)]);
   const edit = ctx.permissions.has("school.settings.update");
   return (
     <>
@@ -50,6 +51,8 @@ export default async function PolicyPage() {
               </div>
             )}
             <Field name="examApproval" type="checkbox" label={t("adm.policy.exam.approval")} defaultValue={p.examApproval} />
+            <Field name="examAutoAccept" type="checkbox" label={t("adm.policy.exam.auto")} hint={t("adm.policy.exam.auto.hint")} defaultValue={p.examAutoAccept} />
+            <Field name="examPassPercent" type="number" label={t("adm.policy.exam.pass")} defaultValue={String(p.examPassPercent)} />
             <div className="grid gap-3 sm:grid-cols-2">
               <Field name="examMaxMark" type="number" label={t("adm.policy.exam.max")} defaultValue={String(p.examMaxMark)} />
               <Field name="examOutcomes" label={t("adm.policy.exam.outcomes")} optionalLabel={t("common.optional")} defaultValue={p.examOutcomes.join(", ")} />
@@ -93,6 +96,18 @@ export default async function PolicyPage() {
             <Field name="allowDirectRegistration" type="checkbox" label={t("adm.policy.direct")} defaultValue={p.allowDirectRegistration} />
             <p className="text-sm text-muted">{t("adm.policy.direct.hint")}</p>
           </div>
+        </ActionForm>
+      </Card>
+
+      <Card title={t("join.settings.title")} className="mt-5">
+        <p className="mb-4 max-w-2xl text-sm text-muted">{t("join.settings.hint")}</p>
+        <ActionForm action={updateJoiningAction} submitLabel={edit ? t("common.save") : undefined} hideSubmit={!edit} className="max-w-2xl space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field name="reportingOn" type="date" label={t("join.settings.date")} optionalLabel={t("common.optional")} defaultValue={joining.reportingOn ?? ""} />
+            <Field name="reportingNote" label={t("join.settings.place")} optionalLabel={t("common.optional")} defaultValue={joining.reportingNote} hint={t("join.settings.place.hint")} />
+          </div>
+          <Field name="bringList" type="textarea" rows={6} label={t("join.settings.bring")} optionalLabel={t("common.optional")} defaultValue={joining.bringList.join("\n")} hint={t("join.settings.bring.hint")} />
+          <Field name="notes" type="textarea" rows={3} label={t("join.settings.notes")} optionalLabel={t("common.optional")} defaultValue={joining.notes} />
         </ActionForm>
       </Card>
     </>

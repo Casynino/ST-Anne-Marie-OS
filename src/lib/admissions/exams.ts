@@ -84,3 +84,29 @@ export function validateMark(i: MarkInput): MarkResult {
   if (n > i.max) return { ok: false, field: "mark", message: `The mark cannot be more than ${i.max}` };
   return { ok: true, mark: n, outcome: null };
 }
+
+/**
+ * The applicant's average over their live examinations, as a percentage of each maximum (one decimal). null when there is nothing to average
+ * or any examination has no numeric mark (a non-numeric outcome cannot be averaged, so the office decides by hand).
+ */
+export function examAverage(tasks: readonly { status: ExamStatus; mark: number | null; maxMark: number }[]): number | null {
+  const live = tasks.filter((t) => t.status !== "CANCELLED");
+  if (live.length === 0 || live.some((t) => t.mark === null || t.maxMark <= 0)) return null;
+  const pct = live.reduce((n, t) => n + (t.mark! / t.maxMark) * 100, 0) / live.length;
+  return Math.round(pct * 10) / 10;
+}
+
+export type TeacherRecord = { id: string; inClass: readonly string[]; anywhere: readonly string[] };
+
+/**
+ * Which teachers to offer for a subject: the ones recorded as teaching it in the class the applicant applied for; when the school recorded none
+ * for that class, the ones who teach it anywhere; when it recorded nobody for the subject, every teacher who may mark. The server applies the
+ * same order when it checks an assignment.
+ */
+export function teachersFor(subjectId: string, teachers: readonly TeacherRecord[]): { tier: "CLASS" | "SUBJECT" | "ANY"; ids: string[] } {
+  const here = teachers.filter((t) => t.inClass.includes(subjectId));
+  if (here.length) return { tier: "CLASS", ids: here.map((t) => t.id) };
+  const any = teachers.filter((t) => t.anywhere.includes(subjectId));
+  if (any.length) return { tier: "SUBJECT", ids: any.map((t) => t.id) };
+  return { tier: "ANY", ids: teachers.map((t) => t.id) };
+}

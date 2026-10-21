@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { examLabel, examProgress, examsAllowDecision, interviewStage, isFinal, isOpenForMarks, validateMark } from "@/lib/admissions/exams";
+import { examAverage, examLabel, examProgress, teachersFor, examsAllowDecision, interviewStage, isFinal, isOpenForMarks, validateMark } from "@/lib/admissions/exams";
 import { stageHref } from "@/lib/admissions/links";
 
 const t = (subjectId: string, status: Parameters<typeof isFinal>[0]) => ({ subjectId, status });
@@ -95,5 +95,23 @@ describe("opening a record shows the screen of its own stage", () => {
     expect(stageHref({ id: "a1", state: "INTERVIEW_SCHEDULED", interviewId: "i9" })).toBe("/admissions/interviews/i9");
     expect(stageHref({ id: "a1", state: "AWAITING_DECISION", interviewId: null })).toBe("/admissions/interviews/a1");
     expect(stageHref({ id: "a1", state: "ACCEPTED" })).toBe("/admissions/accepted/a1");
+  });
+});
+
+describe("average of the results", () => {
+  it("is the mean of each mark as a percentage of its own maximum; null when something cannot be averaged", () => {
+    expect(examAverage([{ status: "SUBMITTED", mark: 85, maxMark: 100 }, { status: "SUBMITTED", mark: 25, maxMark: 50 }])).toBe(67.5);
+    expect(examAverage([{ status: "SUBMITTED", mark: 85, maxMark: 100 }, { status: "CANCELLED", mark: null, maxMark: 100 }])).toBe(85);
+    expect(examAverage([{ status: "SUBMITTED", mark: null, maxMark: 100 }])).toBeNull(); // a non-numeric outcome
+    expect(examAverage([])).toBeNull();
+  });
+});
+
+describe("which teachers are offered for a subject", () => {
+  const t = [{ id: "a", inClass: ["eng"], anywhere: ["eng"] }, { id: "d", inClass: [], anywhere: ["eng", "kis"] }, { id: "m", inClass: ["mat"], anywhere: ["mat"] }];
+  it("the teachers of that subject in the class applied for, else of the subject elsewhere, else any teacher who may mark", () => {
+    expect(teachersFor("eng", t)).toEqual({ tier: "CLASS", ids: ["a"] });
+    expect(teachersFor("kis", t)).toEqual({ tier: "SUBJECT", ids: ["d"] });
+    expect(teachersFor("his", t)).toEqual({ tier: "ANY", ids: ["a", "d", "m"] });
   });
 });

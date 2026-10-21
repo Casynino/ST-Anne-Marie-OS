@@ -8,6 +8,8 @@ import { displayDate, displayDateTime } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
 import { AppError } from "@/lib/errors";
 import { getApplicationReview } from "@/server/application-draft";
+import { joiningView } from "@/server/joining";
+import { JoiningCard } from "@/components/admissions/joining-card";
 import { DOCUMENT_TYPES } from "@/server/documents";
 import type { StoredForm } from "@/server/online-application";
 import { ActionForm, Field, inputClass } from "@/components/form";
@@ -44,6 +46,8 @@ export default async function MyApplicationPage({ params }: { params: Promise<{ 
   const t = await getT();
   const a = await getApplicationReview(ctx, id).catch((e) => (e instanceof AppError && e.code === "NOT_FOUND" ? null : Promise.reject(e)));
   if (!a) notFound();
+  // Once the applicant is accepted the family sees what to pay, what to bring and when to report (null until then).
+  const joining = a.publicStatus === "ACCEPTED" || a.publicStatus === "ENROLLED" ? await joiningView(ctx, id).catch((e) => (e instanceof AppError ? null : Promise.reject(e))) : null;
   const f: StoredForm = a.form;
   const money = (c: number) => formatMoney(c, a.currency);
   const awaiting = a.draftStatus === "AWAITING_PAYMENT";
@@ -86,6 +90,7 @@ export default async function MyApplicationPage({ params }: { params: Promise<{ 
       {a.draftStatus !== "CANCELLED" && <Steps t={t} steps={steps} />}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
+          {joining && <JoiningCard v={joining} t={t} locale={ctx.locale} pdfHref={`/api/applications/${id}/joining`} />}
           {a.draftStatus === "SUBMITTED" && a.returned && (
             <Card title={t("apf.returned.title")} className="border-warn/50">
               <p className="text-sm">{t("apf.returned.body")}</p>

@@ -16,6 +16,7 @@ import * as flow from "@/server/admission-flow";
 import { setApplicationsOpen } from "@/server/website";
 import * as offers from "@/server/admission-offers";
 import * as policy from "@/server/admission-policy";
+import * as joiningSettings from "@/server/joining";
 import * as students from "@/server/students";
 import { getCurrentAcademicContext } from "@/server/academics";
 
@@ -282,6 +283,11 @@ export async function placeStudentAction(_: ActionState, form: FormData) {
 }
 export async function updatePolicyAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await policy.updateAdmissionPolicy(ctx, { ...i, requiredDocTypes: form.getAll("requiredDocTypes").map(String), transferDocTypes: form.getAll("transferDocTypes").map(String) }); return saved(ctx); });
+}
+
+/** What the family reads in the joining instructions: the reporting date and place, what to bring, and any notes. */
+export async function updateJoiningAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await joiningSettings.updateJoiningSettings(ctx, i); return saved(ctx); });
 }
 
 // ───────────── Interview days (dates the school sets before families apply) ─────────────

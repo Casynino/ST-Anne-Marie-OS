@@ -76,7 +76,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
     const e = r.exam;
     if (e.state === "NONE") return null;
     const list = e.outstanding.map((o) => `${o.subject} (${o.teacher ?? t("adm.iw.cell.noTeacher")})`).join(", ");
-    if (e.state === "COMPLETE") return t("adm.iw.cell.complete", { total: String(e.total) });
+    if (e.state === "COMPLETE") return `${t("adm.iw.cell.complete", { total: String(e.total) })}${r.examAverage !== null ? ` · ${t("adm.iw.cell.average", { avg: String(r.examAverage) })}` : ""}`;
     if (e.state === "AWAITING_REVIEW") return t("adm.iw.cell.review", { list });
     return e.total > 0 ? t("adm.iw.cell.waiting", { done: String(e.final), total: String(e.total), list }) : t("adm.iw.cell.assign", { list });
   };

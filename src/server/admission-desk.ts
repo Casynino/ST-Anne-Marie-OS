@@ -39,6 +39,8 @@ export type DeskRow = {
   /** The applicant's examinations (teachers, marks, what is outstanding) and where they stand in the interview list. */
   exam: { state: ExamProgressState; total: number; final: number; outstanding: ExamSummary["outstanding"]; lines: { subject: string; teacher: string; status: ExamStatus; mark: number | null; maxMark: number }[] };
   ivStage: InterviewStage | null;
+  /** Average of the final examination results as a percentage, once they are all in (null otherwise). */
+  examAverage: number | null;
   /** For an accepted applicant: waiting for the school fee to be verified, or ready for registration (papers and the rest). */
   after: "payment" | "registration" | null; decidedAt: Date | null;
 };
@@ -103,7 +105,7 @@ async function compute(ctx: AuthContext, where: Prisma.ApplicationWhereInput): P
       interviewId: live?.id ?? null, pendingDocs: myDocs.filter((d) => d.verification === "PENDING").length, afterReview: resolved ? "placement" : "interview",
       completeness: { percent: comp.percent, complete: comp.complete, missing: comp.missing.map((m) => m.key), checked: comp.checked, required: comp.required },
       assignedToId: a.assignedToId, assignedTo: people.find((p) => p.id === a.assignedToId)?.fullName ?? null, attention, interviewRequired: need.interview,
-      exam, ivStage: live ? interviewStage({ interviewAt: live.scheduledAt, now, progress: exam.state }) : state === "AWAITING_DECISION" ? "READY" : null, after, decidedAt: a.decidedAt,
+      exam, examAverage: sum?.average ?? null, ivStage: live ? interviewStage({ interviewAt: live.scheduledAt, now, progress: exam.state }) : state === "AWAITING_DECISION" ? "READY" : null, after, decidedAt: a.decidedAt,
     };
   });
 }

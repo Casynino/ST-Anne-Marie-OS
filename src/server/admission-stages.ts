@@ -117,7 +117,7 @@ export type InterviewWorkspace =
       mode: "INTERVIEW"; applicationId: string; row: DeskRow; exam: ExamSummary;
       interview: { id: string; scheduledAt: Date; durationMinutes: number; location: string | null; method: string | null; status: string; outcome: string | null; kind: string; arrangement: string; cancelReason: string | null };
       applicant: { name: string; applicationNo: string; dateOfBirth: Date; className: string | null };
-      setup: { subjects: { id: string; name: string }[]; requiredSubjectIds: string[]; teachers: { id: string; name: string; teachesSubject: boolean; teaches: string[] }[]; approval: boolean; maxMark: number } | null;
+      setup: { subjects: { id: string; name: string }[]; requiredSubjectIds: string[]; teachers: { id: string; name: string; inClass: string[]; anywhere: string[] }[]; appliedClass: string | null; approval: boolean; maxMark: number } | null;
     };
 
 /**
@@ -145,14 +145,20 @@ export async function interviewWorkspace(ctx: AuthContext, id: string): Promise<
   const canAssign = ctx.permissions.has("admission.exam.assign") && iv.status === "SCHEDULED";
   let setup: Extract<InterviewWorkspace, { mode: "INTERVIEW" }>["setup"] = null;
   if (canAssign) {
+    const year = await db.academicYear.findFirst({ where: { schoolId: ctx.schoolId, isCurrent: true }, select: { id: true } });
     const [subjects, teachers, teaching] = await Promise.all([
       db.subject.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
       eligibleTeachers(ctx),
-      db.subjectTeacher.findMany({ where: { schoolId: ctx.schoolId }, select: { subjectId: true, staff: { select: { userId: true } } } }),
+      db.subjectTeacher.findMany({ where: { schoolId: ctx.schoolId, ...(year ? { academicYearId: year.id } : {}) }, select: { subjectId: true, classId: true, staff: { select: { userId: true } } } }),
     ]);
+    // What each teacher teaches: in the class this applicant applied for (offered first for that subject) and anywhere this year.
     setup = {
-      subjects, requiredSubjectIds: exam.progress.missingSubjectIds, approval: policy.examApproval, maxMark: policy.examMaxMark,
-      teachers: teachers.map((t) => ({ ...t, teaches: teaching.filter((x) => x.staff.userId === t.id).map((x) => x.subjectId) })),
+      subjects, requiredSubjectIds: exam.progress.missingSubjectIds, approval: policy.examApproval, maxMark: policy.examMaxMark, appliedClass: row.className,
+      teachers: teachers.map((t) => ({
+        id: t.id, name: t.name,
+        inClass: [...new Set(teaching.filter((x) => x.staff.userId === t.id && x.classId === row.classAppliedId).map((x) => x.subjectId))],
+        anywhere: [...new Set(teaching.filter((x) => x.staff.userId === t.id).map((x) => x.subjectId))],
+      })),
     };
   }
   return {

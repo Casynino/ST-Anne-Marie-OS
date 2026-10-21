@@ -2,7 +2,7 @@ import { z } from "zod";
 import { db, type Db, type Tx } from "@/lib/db";
 import { conflict, forbidden, invalid, notFound } from "@/lib/errors";
 import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
-import { examLabel, examProgress, examsAllowDecision, isFinal, isOpenForMarks, validateMark, type ExamLabel, type ExamProgress, type ExamStatus } from "@/lib/admissions/exams";
+import { examAverage, examLabel, examProgress, examsAllowDecision, isFinal, isOpenForMarks, validateMark, type ExamLabel, type ExamProgress, type ExamStatus } from "@/lib/admissions/exams";
 import { actorOf, writeAudit } from "@/server/audit";
 import { assessmentFor, getAdmissionPolicy, type AdmissionPolicy } from "@/server/admission-policy";
 import { closeTasks, openTask } from "@/server/workflow";
@@ -25,6 +25,8 @@ export type ExamLine = {
 };
 export type ExamSummary = {
   progress: ExamProgress; lines: ExamLine[]; approval: boolean;
+  /** Once every result is final: the average as a percentage, the school's pass mark, whether the average reaches it (null when it cannot be averaged), and whether the school accepts by itself on a pass. */
+  average: number | null; passMark: number; passed: boolean | null; autoAccept: boolean;
   /** What is still outstanding, by name, so staff can follow up without opening the record. */
   outstanding: { subject: string; teacher: string | null; why: "NOT_ASSIGNED" | "MARKING" | "REVIEW" }[];
 };
@@ -65,7 +67,8 @@ export async function examSummaries(client: Client, schoolId: string, apps: { id
       ...progress.missingSubjectIds.map((id) => ({ subject: subjectName(id), teacher: null, why: "NOT_ASSIGNED" as const })),
       ...lines.filter((l) => !isFinal(l.status, policy.examApproval)).map((l) => ({ subject: l.subject, teacher: l.teacher, why: l.status === "SUBMITTED" ? ("REVIEW" as const) : ("MARKING" as const) })),
     ];
-    out.set(a.id, { progress, lines, approval: policy.examApproval, outstanding });
+    const average = progress.state === "COMPLETE" ? examAverage(mine.map((t) => ({ status: t.status, mark: num(t.mark), maxMark: num(t.maxMark) ?? 100 }))) : null;
+    out.set(a.id, { progress, lines, approval: policy.examApproval, outstanding, average, passMark: policy.examPassPercent, passed: average === null ? null : average >= policy.examPassPercent, autoAccept: policy.examAutoAccept });
   }
   return out;
 }
@@ -130,8 +133,18 @@ export async function assignExam(ctx: AuthContext, interviewId: string, input: u
   if (!teacher || teacher.type !== "STAFF" || teacher.status !== "ACTIVE") throw invalid("Please correct the highlighted fields.", { teacherId: "Choose a teacher with an active staff account" });
   const allowed = await db.user.count({ where: { id: teacher.id, roles: { some: { role: { permissions: { some: { permission: { key: MARK_PERMISSION } } } } } } } });
   if (!allowed) throw invalid("Please correct the highlighted fields.", { teacherId: `${teacher.fullName} cannot mark applicant examinations` });
-  const teachers = await db.subjectTeacher.findMany({ where: { schoolId: ctx.schoolId, subjectId: subject.id }, select: { staffId: true } });
-  if (teachers.length > 0 && !(teacher.staff && teachers.some((x) => x.staffId === teacher.staff!.id))) throw invalid("Please correct the highlighted fields.", { teacherId: `${teacher.fullName} does not teach ${subject.name}` });
+  // Who may mark this subject: the teachers recorded for it in the class the applicant applied for; else those recorded for it anywhere this year; else any teacher who may mark.
+  const [year, appForClass] = await Promise.all([
+    db.academicYear.findFirst({ where: { schoolId: ctx.schoolId, isCurrent: true }, select: { id: true } }),
+    db.application.findFirstOrThrow({ where: { id: iv.applicationId, schoolId: ctx.schoolId }, select: { classAppliedId: true } }),
+  ]);
+  const rows = await db.subjectTeacher.findMany({ where: { schoolId: ctx.schoolId, subjectId: subject.id, ...(year ? { academicYearId: year.id } : {}) }, select: { staffId: true, classId: true } });
+  const here = appForClass.classAppliedId ? rows.filter((r) => r.classId === appForClass.classAppliedId) : [];
+  const allowedRows = here.length ? here : rows;
+  if (allowedRows.length > 0 && !(teacher.staff && allowedRows.some((x) => x.staffId === teacher.staff!.id))) {
+    const where = here.length ? ` in ${(await db.schoolClass.findFirst({ where: { id: appForClass.classAppliedId!, schoolId: ctx.schoolId }, select: { name: true } }))?.name ?? "this class"}` : "";
+    throw invalid("Please correct the highlighted fields.", { teacherId: `${teacher.fullName} does not teach ${subject.name}${where}` });
+  }
   const maxMark = d.maxMark ?? policy.examMaxMark;
 
   return db.$transaction(async (tx) => {
@@ -286,7 +299,7 @@ export async function saveExamMarks(ctx: AuthContext, examId: string, input: unk
   requirePermission(ctx, MARK_PERMISSION);
   const d = parse(markSchema, input);
   const policy = await getAdmissionPolicy(db, ctx.schoolId);
-  return db.$transaction(async (tx) => {
+  const out = await db.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM application_exams WHERE id = ${examId}::uuid AND "schoolId" = ${ctx.schoolId}::uuid FOR UPDATE`;
     if (!rows.length) throw notFound("Examination");
     const e = await tx.applicationExam.findUniqueOrThrow({ where: { id: examId }, include: { interview: { select: { scheduledAt: true, status: true } }, subject: { select: { name: true } }, application: { select: { id: true, applicationNo: true, firstName: true, lastName: true, status: true, classAppliedId: true } } } });
@@ -311,8 +324,11 @@ export async function saveExamMarks(ctx: AuthContext, examId: string, input: unk
     await writeAudit(tx, actorOf(ctx), { action: d.submit ? "admission_exam.submit" : "admission_exam.save", entityType: "ApplicationExam", entityId: e.id, summary: `${e.application.firstName} ${e.application.lastName} (${e.application.applicationNo}) · ${e.subject.name}`, changes: { before, after: { mark, outcome, status } } });
     let complete = false;
     if (d.submit) complete = await afterSubmit(tx, ctx, policy, e.application, e.id, e.interviewId, await tx.applicationExamEvent.count({ where: { examId: e.id, kind: "SUBMIT" } }));
-    return { status, complete };
+    return { status, complete, applicationId: e.application.id };
   });
+  // The marks are saved either way; accepting by itself on a pass is a separate step that never undoes them.
+  if (d.submit && out.complete) await autoAfterResults(ctx.schoolId, out.applicationId, ctx.userId);
+  return { status: out.status, complete: out.complete };
 }
 
 /** After a result is submitted: leave the review task for the Academic Office (when the school wants approval) and tell Admissions when every result is in. */
@@ -340,13 +356,13 @@ export async function reviewExam(ctx: AuthContext, examId: string, input: unknow
   const d = parse(reviewSchema, input);
   if (d.decision === "RETURN" && !d.note) throw invalid("Please correct the highlighted fields.", { note: "Say what the teacher should correct" });
   const policy = await getAdmissionPolicy(db, ctx.schoolId);
-  return db.$transaction(async (tx) => {
+  const out = await db.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM application_exams WHERE id = ${examId}::uuid AND "schoolId" = ${ctx.schoolId}::uuid FOR UPDATE`;
     if (!rows.length) throw notFound("Examination");
     const e = await tx.applicationExam.findUniqueOrThrow({ where: { id: examId }, include: { subject: { select: { name: true } }, application: { select: { id: true, applicationNo: true, firstName: true, lastName: true, status: true, classAppliedId: true } } } });
     const label = `${e.application.firstName} ${e.application.lastName} (${e.application.applicationNo}) · ${e.subject.name}`;
     if (d.decision === "APPROVE") {
-      if (e.status === "APPROVED") return { status: e.status, already: true };
+      if (e.status === "APPROVED") return { status: e.status, already: true, applicationId: e.application.id, approved: false };
       if (e.status !== "SUBMITTED") throw conflict("Only a submitted result can be approved.");
       if (e.submittedById === ctx.userId) throw conflict("A result must be approved by someone other than the teacher who submitted it.");
       await tx.applicationExam.update({ where: { id: e.id }, data: { status: "APPROVED", reviewedAt: new Date(), reviewedById: ctx.userId } });
@@ -354,7 +370,7 @@ export async function reviewExam(ctx: AuthContext, examId: string, input: unknow
       await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: e.application.id, kinds: ["EXAM_REVIEW"], discriminator: e.id, by: ctx.userId, note: "Approved" });
       await writeAudit(tx, actorOf(ctx), { action: "admission_exam.approve", entityType: "ApplicationExam", entityId: e.id, summary: label, changes: { mark: num(e.mark), outcome: e.outcome } });
       await notifyIfComplete(tx, ctx, policy, e.application, e.interviewId);
-      return { status: "APPROVED", already: false };
+      return { status: "APPROVED" as ExamStatus, already: false, applicationId: e.application.id, approved: true };
     }
     if (e.status !== "SUBMITTED" && e.status !== "APPROVED") throw conflict("Only a submitted or approved result can be returned.");
     if (e.application.status === "ACCEPTED" || e.application.status === "ENROLLED" || e.application.status === "REJECTED" || e.application.status === "WITHDRAWN") throw conflict("A decision has already been made on this applicant, so the result cannot be changed.");
@@ -362,6 +378,19 @@ export async function reviewExam(ctx: AuthContext, examId: string, input: unknow
     await tx.applicationExamEvent.create({ data: { schoolId: ctx.schoolId, examId: e.id, kind: "RETURN", byId: ctx.userId, detail: { note: d.note, mark: num(e.mark), outcome: e.outcome, was: e.status } } });
     await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: e.application.id, kinds: ["EXAM_REVIEW"], discriminator: e.id, by: ctx.userId, note: "Returned to the teacher", status: "CANCELLED" });
     await writeAudit(tx, actorOf(ctx), { action: "admission_exam.return", entityType: "ApplicationExam", entityId: e.id, summary: label, changes: { was: e.status, mark: num(e.mark), outcome: e.outcome }, reason: d.note });
-    return { status: "RETURNED", already: false };
+    return { status: "RETURNED" as ExamStatus, already: false, applicationId: e.application.id, approved: false };
   });
+  // The last approval can complete the results: accepting by itself on a pass is a separate step after the approval is saved.
+  if (out.approved && !out.already) await autoAfterResults(ctx.schoolId, out.applicationId, ctx.userId);
+  return { status: out.status, already: out.already };
+}
+
+/** After results are final the school may accept the applicant by itself on a pass (see `admission-auto.ts`). Best effort: a failure here never undoes a saved result. */
+async function autoAfterResults(schoolId: string, applicationId: string, triggeredById: string) {
+  try {
+    const { autoDecideFromExams } = await import("@/server/admission-auto");
+    await autoDecideFromExams(schoolId, applicationId, { userId: triggeredById });
+  } catch (e) {
+    console.error(JSON.stringify({ level: "error", msg: "auto_decision_failed", applicationId, error: e instanceof Error ? e.message : String(e) }));
+  }
 }

@@ -6,11 +6,12 @@ import { AppError } from "@/lib/errors";
 import { displayDate, displayDateTime } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
 import { interviewWorkspace, type InterviewWorkspace } from "@/server/admission-stages";
-import { examLabel } from "@/lib/admissions/exams";
+import { examLabel, teachersFor } from "@/lib/admissions/exams";
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { ActionForm, Field } from "@/components/form";
 import { Badge, Card, DefList, EmptyState, LinkButton, NoAccess, PageHeader } from "@/components/ui";
 import { QuickBar } from "../../quick-actions";
+import { AssignTeacher } from "./assign-teacher";
 import { missingLabels, quickActs, quickLabels } from "../../quick-line";
 import { quickDecisionAction } from "../../actions";
 import { assignExamAction, removeExamAction } from "../../../applicant-exams/actions";
@@ -62,8 +63,14 @@ export default async function InterviewWorkspacePage({ params }: { params: Promi
   const stage = row.ivStage;
   const when = displayDateTime(iv.scheduledAt, school.timezone, ctx.locale);
   const markText = (l: { mark: number | null; outcome: string | null; maxMark: number }) => (l.mark !== null ? `${l.mark} / ${l.maxMark}` : l.outcome ?? "—");
-  const subjectName = new Map((ws.setup?.subjects ?? []).map((x) => [x.id, x.name]));
-  const teacherOptions = (ws.setup?.teachers ?? []).map((x) => ({ value: x.id, label: x.teaches.length ? `${x.name} · ${x.teaches.map((id) => subjectName.get(id)).filter(Boolean).join(", ")}` : x.name }));
+  const teacherLabels = {
+    subject: t("exam.col.subject"), teacher: t("exam.col.teacher"), choose: t("exam.change.choose"), hintClass: t("exam.assign.hintClass"), hintSubject: t("exam.assign.hintSubject"), hintAny: t("exam.assign.hintAny"),
+    noTeachers: t("exam.assign.noTeachers"), max: t("exam.assign.max"), due: t("exam.assign.due"), instructions: t("exam.assign.instructions"), optional: t("common.optional"), select: t("common.select"),
+  };
+  const assigned = new Set(ex.lines.map((l) => l.subjectId));
+  const unassigned = (ws.setup?.subjects ?? []).filter((x) => !assigned.has(x.id));
+  const firstSubject = (ws.setup?.requiredSubjectIds ?? []).find((id) => !assigned.has(id)) ?? unassigned[0]?.id ?? "";
+  const missingRequired = (ws.setup?.requiredSubjectIds ?? []).some((id) => !assigned.has(id));
 
   return (
     <>
@@ -88,6 +95,9 @@ export default async function InterviewWorkspacePage({ params }: { params: Promi
                 {ex.progress.state === "NOT_ASSIGNED" && ex.progress.total === 0 ? t("adm.iw.exams.TO_ASSIGN") : t(`adm.iw.exams.${ex.progress.state}` as "adm.iw.exams.COMPLETE", { done: String(ex.progress.final), total: String(Math.max(ex.progress.total, ex.progress.final)) })}
               </p>
             )}
+            {ex.average !== null && (
+              <p className="mt-2 text-sm" role="status"><span className="font-medium">{t("adm.iw.average", { avg: String(ex.average), pass: String(ex.passMark) })}</span> · {ex.passed ? (ex.autoAccept ? t("adm.iw.average.passStuck") : t("adm.iw.average.pass")) : t("adm.iw.average.below")}</p>
+            )}
             {ex.outstanding.length > 0 && (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
                 {ex.outstanding.map((o) => <li key={o.subject}>{o.why === "NOT_ASSIGNED" ? t("adm.iw.out.notAssigned", { subject: o.subject }) : o.why === "REVIEW" ? t("adm.iw.out.review", { subject: o.subject }) : t("adm.iw.out.marking", { subject: o.subject, teacher: o.teacher ?? "" })}</li>)}
@@ -98,30 +108,49 @@ export default async function InterviewWorkspacePage({ params }: { params: Promi
           <Card title={t("adm.iw.exams")}>
             {ex.lines.length === 0 ? <p className="text-sm text-muted">{t("adm.iw.exams.none")}</p> : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[34rem] text-left text-sm">
-                  <thead className="border-b border-line text-xs uppercase tracking-wide text-muted"><tr><th className="py-2 pr-3 font-medium">{t("exam.col.subject")}</th><th className="py-2 pr-3 font-medium">{t("exam.col.teacher")}</th><th className="py-2 pr-3 font-medium">{t("common.status")}</th><th className="py-2 pr-3 font-medium">{t("exam.col.mark")}</th><th className="py-2 font-medium" /></tr></thead>
-                  <tbody className="divide-y divide-line">
-                    {ex.lines.map((l) => (
-                      <tr key={l.id}>
-                        <td className="py-2.5 pr-3 font-medium">{l.subject}</td>
-                        <td className="py-2.5 pr-3">{l.teacher}</td>
-                        <td className="py-2.5 pr-3"><Badge tone={TONE[label(l.status)]}>{t(`exam.st.${label(l.status)}` as "exam.st.SUBMITTED")}</Badge></td>
-                        <td className="py-2.5 pr-3 tabular-nums">{l.status === "SUBMITTED" || l.status === "APPROVED" ? markText(l) : "—"}</td>
-                        <td className="py-2.5 text-right">
-                          {can("admission.exam.assign") && iv.status === "SCHEDULED" && (l.status === "ASSIGNED" || l.status === "DRAFT" || l.status === "RETURNED") && (
-                            <details className="inline-block text-left">
+                <div className="hidden grid-cols-[1.2fr_1.2fr_1fr_0.6fr] gap-x-4 border-b border-line pb-2 text-xs uppercase tracking-wide text-muted sm:grid">
+                  <span>{t("exam.col.subject")}</span><span>{t("exam.col.teacher")}</span><span>{t("common.status")}</span><span>{t("exam.col.mark")}</span>
+                </div>
+                <ul className="divide-y divide-line">
+                  {ex.lines.map((l) => {
+                    const open = can("admission.exam.assign") && iv.status === "SCHEDULED" && (l.status === "ASSIGNED" || l.status === "DRAFT" || l.status === "RETURNED");
+                    const pick = ws.setup ? teachersFor(l.subjectId, ws.setup.teachers) : null;
+                    const others = pick ? pick.ids.filter((id) => id !== l.teacherId).length : 0;
+                    return (
+                      <li key={l.id} className="py-3 text-sm">
+                        <div className="grid gap-x-4 gap-y-1 sm:grid-cols-[1.2fr_1.2fr_1fr_0.6fr] sm:items-center">
+                          <span className="font-medium">{l.subject}</span>
+                          <span>{l.teacher}</span>
+                          <span><Badge tone={TONE[label(l.status)]}>{t(`exam.st.${label(l.status)}` as "exam.st.SUBMITTED")}</Badge></span>
+                          <span className="tabular-nums">{l.status === "SUBMITTED" || l.status === "APPROVED" ? markText(l) : "—"}</span>
+                        </div>
+                        {open && (
+                          <div className="mt-2 flex flex-wrap items-start gap-x-6 gap-y-2">
+                            {ws.setup && (
+                              <details>
+                                <summary className="cursor-pointer text-sm font-medium text-link">{t("exam.change")}</summary>
+                                <div className="mt-2 w-full max-w-md rounded-lg border border-line bg-canvas p-3">
+                                  {others === 0 ? <p className="text-sm text-muted">{pick?.tier === "CLASS" ? t("exam.change.only", { teacher: l.teacher, subject: l.subject, class: ws.setup.appliedClass ?? "" }) : pick?.tier === "SUBJECT" ? t("exam.change.onlySubject", { teacher: l.teacher, subject: l.subject }) : t("exam.assign.noTeachers")}</p> : (
+                                    <AssignTeacher action={assignExamAction} interviewId={iv.id} subjects={ws.setup.subjects} teachers={ws.setup.teachers} initialSubjectId={l.subjectId} fixedSubject currentTeacherId={l.teacherId} appliedClass={ws.setup.appliedClass} submitLabel={t("exam.change.go")} labels={teacherLabels} />
+                                  )}
+                                </div>
+                              </details>
+                            )}
+                            <details>
                               <summary className="cursor-pointer text-sm font-medium text-link">{t("exam.remove")}</summary>
-                              <ActionForm action={removeExamAction} submitLabel={t("exam.remove")} tone="danger" className="mt-2 w-64 space-y-2">
-                                <input type="hidden" name="examId" value={l.id} />
-                                <Field name="reason" label={t("exam.remove.reason")} required />
-                              </ActionForm>
+                              <div className="mt-2 w-full max-w-md rounded-lg border border-line bg-canvas p-3">
+                                <ActionForm action={removeExamAction} submitLabel={t("exam.remove")} tone="danger" className="space-y-2">
+                                  <input type="hidden" name="examId" value={l.id} />
+                                  <Field name="reason" label={t("exam.remove.reason")} required />
+                                </ActionForm>
+                              </div>
                             </details>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
                 {ex.lines.some((l) => (l.status === "SUBMITTED" || l.status === "APPROVED") && l.comment) && (
                   <ul className="mt-3 space-y-1 border-t border-line pt-3 text-sm text-muted">
                     {ex.lines.filter((l) => (l.status === "SUBMITTED" || l.status === "APPROVED") && l.comment).map((l) => <li key={l.id}><span className="font-medium text-ink">{l.subject}:</span> {l.comment}</li>)}
@@ -129,20 +158,23 @@ export default async function InterviewWorkspacePage({ params }: { params: Promi
                 )}
               </div>
             )}
-            {ws.setup && (
-              <div className="mt-5 border-t border-line pt-4">
-                <h3 className="mb-1 text-sm font-semibold">{t("exam.assign.title")}</h3>
-                <p className="mb-3 text-sm text-muted">{t("exam.assign.hint")}</p>
-                <ActionForm action={assignExamAction} submitLabel={t("exam.assign.go")} className="grid gap-3 sm:grid-cols-2">
-                  <input type="hidden" name="interviewId" value={iv.id} />
-                  <Field name="subjectId" type="select" label={t("exam.col.subject")} options={ws.setup.subjects.map((s) => ({ value: s.id, label: s.name }))} defaultValue={ws.setup.requiredSubjectIds[0] ?? ""} placeholder={t("common.select")} required />
-                  <Field name="teacherId" type="select" label={t("exam.col.teacher")} options={teacherOptions} placeholder={t("common.select")} required hint={ws.setup.teachers.length === 0 ? t("exam.assign.noTeachers") : t("exam.assign.teachersHint")} />
-                  <Field name="maxMark" type="number" label={t("exam.assign.max")} defaultValue={String(ws.setup.maxMark)} />
-                  <Field name="dueOn" type="date" label={t("exam.assign.due")} optionalLabel={t("common.optional")} />
-                  <div className="sm:col-span-2"><Field name="instructions" type="textarea" rows={2} label={t("exam.assign.instructions")} optionalLabel={t("common.optional")} /></div>
-                </ActionForm>
-              </div>
-            )}
+            {ws.setup && unassigned.length > 0 && (() => {
+              const form = (
+                <AssignTeacher action={assignExamAction} interviewId={iv.id} subjects={unassigned} teachers={ws.setup.teachers} initialSubjectId={firstSubject} appliedClass={ws.setup.appliedClass} maxMark={ws.setup.maxMark} extras submitLabel={t("exam.assign.go")} labels={teacherLabels} />
+              );
+              return missingRequired ? (
+                <div className="mt-5 border-t border-line pt-4">
+                  <h3 className="mb-1 text-sm font-semibold">{t("exam.assign.title")}</h3>
+                  <p className="mb-3 text-sm text-muted">{t("exam.assign.hint")}</p>
+                  {form}
+                </div>
+              ) : (
+                <details className="mt-5 border-t border-line pt-4">
+                  <summary className="cursor-pointer text-sm font-medium text-link">{t("exam.add.another")}</summary>
+                  <div className="mt-3">{form}</div>
+                </details>
+              );
+            })()}
           </Card>
         </div>
 
