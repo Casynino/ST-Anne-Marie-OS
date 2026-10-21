@@ -54,7 +54,7 @@ export const en = {
   "common.noAccess.body": "Ask the school administrator if you need this permission.",
   "common.copyOnce": "Copy this password now. It is shown only once.",
   "common.tempPassword": "Temporary password",
-  "common.tempPassword.note": "The user must choose a new password at first sign-in.",
+  "common.tempPassword.note": "Give it to the person. They can change it later from their account menu.",
   "common.confirmAction": "Are you sure?",
 
   "auth.signIn.title": "Sign in",
@@ -3181,6 +3181,19 @@ export const en = {
   "apply.upload.hint": "Use the application number and the guardian phone number given on the application. The school office checks every document.",
   "apply.upload.button": "Upload",
   "apply.upload.done": "Thank you. The document was received and the school office will check it.",
+  "dept.admin": "Administration",
+  "dept.head": "Head Teacher",
+  "dept.admissions": "Admissions Office",
+  "dept.academic": "Academic Office",
+  "dept.finance": "Finance",
+  "dept.teaching": "Teacher",
+  "users.department": "Department",
+  "users.department.choose": "Choose a department",
+  "users.department.keep": "Keep as it is",
+  "users.department.hint": "The department decides what this person can open.",
+  "users.password": "Password",
+  "users.newPassword": "New password",
+  "users.password.hint": "At least 10 characters, with letters and numbers. Give it to the person; they can change it later.",
 } as const;
 
 export type MessageKey = keyof typeof en;

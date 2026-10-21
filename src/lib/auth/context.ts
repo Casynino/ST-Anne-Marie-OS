@@ -56,7 +56,8 @@ export async function buildAuthContext(userId: string, meta: RequestMeta = NO_ME
     branchId: user.branchId,
     fullName: user.fullName,
     locale: user.locale,
-    mustChangePassword: user.mustChangePassword,
+    // Nobody is forced to change a password at sign-in (decided by the school); the column is kept but no longer enforced.
+    mustChangePassword: false,
     staffId: user.staff?.id ?? null,
     roleKeys: user.roles.map((ur) => ur.role.key),
     permissions,

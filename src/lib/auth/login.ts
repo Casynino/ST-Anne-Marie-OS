@@ -67,5 +67,5 @@ export async function authenticate(identifierInput: string, password: string, me
     entityId: user.id,
     summary: user.fullName,
   });
-  return { ...session, userId: user.id, userType: user.type, mustChangePassword: user.mustChangePassword };
+  return { ...session, userId: user.id, userType: user.type, mustChangePassword: false };
 }

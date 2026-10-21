@@ -6,10 +6,9 @@ import * as users from "@/server/users";
 
 export async function createUserAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
-    const { user, temporaryPassword } = await users.createStaffUser(ctx, i);
-    const t = makeT(ctx.locale);
-    // Show the one-time password on the form instead of redirecting, so the admin can hand it over.
-    return { message: `${t("users.created")}: ${user.fullName}`, data: { temporaryPassword, temporaryPasswordLabel: t("common.tempPassword"), temporaryPasswordNote: `${t("common.copyOnce")} ${t("common.tempPassword.note")}` } };
+    const { user } = await users.createStaffUser(ctx, i);
+    // The administrator chose the password, so it is not shown again; the person signs in with it.
+    return { message: `${makeT(ctx.locale)("users.created")}: ${user.fullName}` };
   });
 }
 
@@ -29,8 +28,7 @@ export async function setUserStatusAction(_: ActionState, form: FormData) {
 
 export async function resetPasswordAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
-    const { temporaryPassword } = await users.resetUserPassword(ctx, str(i.id));
-    const t = makeT(ctx.locale);
-    return { message: t("users.reset.done"), data: { temporaryPassword, temporaryPasswordLabel: t("common.tempPassword"), temporaryPasswordNote: `${t("common.copyOnce")} ${t("common.tempPassword.note")}` } };
+    await users.resetUserPassword(ctx, str(i.id), str(i.password));
+    return { message: makeT(ctx.locale)("users.reset.done") };
   });
 }

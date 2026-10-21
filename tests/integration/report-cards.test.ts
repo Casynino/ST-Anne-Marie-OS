@@ -208,7 +208,7 @@ describe("family portal", () => {
     expect(r.temporaryPassword.length).toBeGreaterThanOrEqual(10);
     expect(await code(portal.createGuardianAccount(registrar, guardian.id))).toBe("CONFLICT");
     const g = await db.guardian.findUniqueOrThrow({ where: { id: guardian.id }, include: { user: true } });
-    expect(g.user).toMatchObject({ type: "GUARDIAN", mustChangePassword: true, status: "ACTIVE" });
+    expect(g.user).toMatchObject({ type: "GUARDIAN", mustChangePassword: false, status: "ACTIVE" });
     expect(await verifyPassword(r.temporaryPassword, g.user!.passwordHash)).toBe(true);
     parentCtx = await buildAuthContext(g.userId!);
     expect(parentCtx.userType).toBe("GUARDIAN");
@@ -270,7 +270,7 @@ describe("family portal", () => {
     expect((await portal.getMyReportCard(studentCtx, kidCard.id)).id).toBe(kidCard.id);
   });
 
-  it("disabling an account ends access; reset forces a new password and ends sessions", async () => {
+  it("disabling an account ends access; reset sets a new password and ends sessions", async () => {
     const g = await db.guardian.findFirstOrThrow({ where: { students: { some: { studentId: kidsA[1]!.id } } } });
     const userId = g.userId!;
     await db.session.create({ data: { userId, tokenHash: `t-${n}-${Math.random()}`, expiresAt: new Date(Date.now() + 3600_000) } });

@@ -5,6 +5,7 @@ import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { generateTemporaryPassword, hashPassword, validatePasswordStrength, verifyPassword } from "@/lib/auth/password";
 import { destroyAllSessions } from "@/lib/auth/session";
 import { SUPER_ADMIN_ROLE_KEY } from "@/lib/rbac/roles";
+import { DEPARTMENTS, DEPARTMENT_KEYS, departmentByKey } from "@/lib/rbac/departments";
 import { actorOf, diffFields, writeAudit } from "@/server/audit";
 import { assignableRoles } from "@/server/rbac";
 import { optDateOnly, optEmailField, optPhoneField, optText, parse, text, uuid } from "@/lib/validation";
@@ -19,8 +20,29 @@ const userSchema = z
     employedOn: optDateOnly(),
     locale: z.enum(["EN", "SW"]).default("EN"),
     roleIds: z.array(uuid()).default([]),
+    /** The simple way to pick access: a department stands for one standard role. */
+    department: z.preprocess((v) => (v === "" ? undefined : v), z.enum(DEPARTMENT_KEYS).optional()),
+    /** Set by the administrator when the account is made (or reset). Left out = a random one is generated and shown once. */
+    password: z.string().max(128).optional(),
   })
   .refine((v) => v.email || v.phone, { path: ["email"], message: "Provide an email address or a phone number" });
+
+/** The role behind a chosen department (looked up in this school), added to any roles given directly. */
+async function withDepartmentRole(ctx: AuthContext, department: string | undefined, roleIds: string[]) {
+  const dept = department ? departmentByKey(department) : undefined;
+  if (!dept) return roleIds;
+  const role = await db.role.findFirst({ where: { schoolId: ctx.schoolId, key: dept.roleKey }, select: { id: true } });
+  if (!role) throw invalid("Please correct the highlighted fields.", { department: "This department is not set up in this school" });
+  return roleIds.includes(role.id) ? roleIds : [...roleIds, role.id];
+}
+
+/** The password the administrator typed (checked for strength) or, when none was typed, a random one. */
+function chosenPassword(typed: string | undefined, field = "password") {
+  if (typed === undefined || typed === "") return generateTemporaryPassword();
+  const weak = validatePasswordStrength(typed);
+  if (weak) throw invalid("Please correct the highlighted fields.", { [field]: weak });
+  return typed;
+}
 
 const asArray = (v: unknown) => (Array.isArray(v) ? v : v === undefined ? [] : [v]);
 
@@ -96,8 +118,9 @@ async function assertCanManageTarget(ctx: AuthContext, targetUserId: string) {
 export async function createStaffUser(ctx: AuthContext, input: unknown) {
   requirePermission(ctx, "user.create");
   const data = parse(userSchema, { ...(input as object), roleIds: asArray((input as Record<string, unknown>)?.roleIds) });
+  data.roleIds = await withDepartmentRole(ctx, data.department, data.roleIds);
   await assertRolesAssignable(ctx, data.roleIds);
-  const temporaryPassword = generateTemporaryPassword();
+  const temporaryPassword = chosenPassword(data.password);
   const passwordHash = await hashPassword(temporaryPassword);
 
   try {
@@ -113,7 +136,7 @@ export async function createStaffUser(ctx: AuthContext, input: unknown) {
           phone: data.phone,
           locale: data.locale,
           passwordHash,
-          mustChangePassword: true,
+          mustChangePassword: false,
           roles: { create: data.roleIds.map((roleId) => ({ roleId, assignedById: ctx.userId })) },
           staff: { create: { schoolId: ctx.schoolId, jobTitle: data.jobTitle, staffNo: data.staffNo, employedOn: data.employedOn } },
         },
@@ -135,10 +158,22 @@ export async function createStaffUser(ctx: AuthContext, input: unknown) {
 
 export async function updateStaffUser(ctx: AuthContext, userId: string, input: unknown) {
   requirePermission(ctx, "user.update");
-  const raw = { ...(input as Record<string, unknown>), roleIds: asArray((input as Record<string, unknown>)?.roleIds) };
+  const given = input as Record<string, unknown>;
+  const raw = { ...given, roleIds: asArray(given?.roleIds) };
   const data = parse(userSchema, raw);
   const existing = await loadStaffUser(ctx.schoolId, userId);
   await assertCanManageTarget(ctx, userId);
+  if (given?.roleIds === undefined && !data.department) {
+    // The simple form sends neither roles nor a department: access stays as it is.
+    data.roleIds = existing.roles.map((r) => r.roleId);
+  } else if (data.department) {
+    // A department replaces the person's department role only; any custom role they hold is kept.
+    const standard = new Set(DEPARTMENTS.map((d) => d.roleKey));
+    const chosen = departmentByKey(data.department)!;
+    const alreadyThere = existing.roles.some((r) => r.role.key === chosen.roleKey);
+    const keep = existing.roles.filter((r) => !standard.has(r.role.key as never)).map((r) => r.roleId);
+    data.roleIds = alreadyThere ? existing.roles.map((r) => r.roleId) : await withDepartmentRole(ctx, data.department, [...new Set([...keep, ...data.roleIds])]);
+  }
 
   const currentRoleIds = existing.roles.map((r) => r.roleId);
   const added = data.roleIds.filter((id) => !currentRoleIds.includes(id));
@@ -206,15 +241,15 @@ export async function setUserStatus(ctx: AuthContext, userId: string, status: "A
   });
 }
 
-/** Admin-initiated reset: returns a one-time temporary password; the user must change it at next sign-in. */
-export async function resetUserPassword(ctx: AuthContext, userId: string) {
+/** Admin-initiated reset: sets the password the administrator typed (or a random one shown once). The person can keep it or change it later. */
+export async function resetUserPassword(ctx: AuthContext, userId: string, password?: string) {
   requirePermission(ctx, "user.reset_password");
   const user = await loadStaffUser(ctx.schoolId, userId);
   await assertCanManageTarget(ctx, userId);
-  const temporaryPassword = generateTemporaryPassword();
+  const temporaryPassword = chosenPassword(password);
   const passwordHash = await hashPassword(temporaryPassword);
   await db.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: true, passwordChangedAt: new Date() } });
+    await tx.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() } });
     await tx.session.deleteMany({ where: { userId } });
     await writeAudit(tx, actorOf(ctx), { action: "user.reset_password", entityType: "User", entityId: userId, summary: user.fullName });
   });

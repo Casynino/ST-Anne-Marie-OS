@@ -38,7 +38,7 @@ async function main() {
         fullName: name,
         email,
         passwordHash: await hashPassword(password),
-        mustChangePassword: true,
+        mustChangePassword: false,
         roles: { create: { roleId: role.id } },
         staff: { create: { schoolId: school.id, jobTitle: "System Administrator" } },
       },

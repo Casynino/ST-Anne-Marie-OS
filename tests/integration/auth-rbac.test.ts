@@ -114,6 +114,7 @@ describe("roles & permissions", () => {
     const superRole = await db.role.findUniqueOrThrow({ where: { schoolId_key: { schoolId: s.id, key: "super_admin" } } });
 
     await expectCode(users.createStaffUser(hrCtx, { fullName: "Sneaky", email: "sneaky@x.example", roleIds: [superRole.id] }), "FORBIDDEN");
+    await expectCode(users.createStaffUser(hrCtx, { fullName: "Sneaky Two", email: "sneaky2@x.example", department: "admin", password: "Sunrise2026ok" }), "FORBIDDEN"); // a department cannot be used to escalate
     await expectCode(setRolePermissions(hrCtx, superRole.id, []), "FORBIDDEN"); // no role.manage
     await expectCode(setRolePermissions(admin, superRole.id, []), "FORBIDDEN"); // super admin role is fixed
   });
@@ -170,26 +171,45 @@ describe("roles & permissions", () => {
     );
   });
 
-  it("creating a user returns a one-time temporary password that works and forces a change; reset kills sessions", async () => {
+  it("creating a user with a department and a password works with no forced change; reset kills sessions", async () => {
     const s = await createTestSchool();
     const { ctx: admin } = await createTestUser(s.id, ["super_admin"]);
-    const role = await db.role.findUniqueOrThrow({ where: { schoolId_key: { schoolId: s.id, key: "class_teacher" } } });
     const email = `t1-${uniq()}@school.example`;
     const phone = `07${Math.floor(10000000 + Math.random() * 89999999)}`;
-    const { user, temporaryPassword } = await users.createStaffUser(admin, { fullName: "Teacher One", email: email.toUpperCase(), phone, roleIds: role.id });
-    expect(user.mustChangePassword).toBe(true);
+    const password = "Sunrise2026ok";
+    const { user } = await users.createStaffUser(admin, { fullName: "Teacher One", email: email.toUpperCase(), phone, department: "teaching", password });
+    expect(user.mustChangePassword).toBe(false);
     expect(user.email).toBe(email);
-    const login = await authenticate(email, temporaryPassword, { ip: "10.9.0.1", userAgent: "t" });
-    expect(login.mustChangePassword).toBe(true);
+    const roles = await db.userRole.findMany({ where: { userId: user.id }, include: { role: true } });
+    expect(roles.map((r) => r.role.key)).toEqual(["class_teacher"]);
+    const login = await authenticate(email, password, { ip: "10.9.0.1", userAgent: "t" });
+    expect(login.mustChangePassword).toBe(false);
+    expect((await buildAuthContext(user.id)).mustChangePassword).toBe(false);
 
-    const reset = await users.resetUserPassword(admin, user.id);
+    // The administrator types the new password on reset; sessions end and nobody is forced to change it.
+    await expectCode(users.resetUserPassword(admin, user.id, "short"), "VALIDATION");
+    const reset = await users.resetUserPassword(admin, user.id, "Another2026pass");
+    expect(reset.temporaryPassword).toBe("Another2026pass");
     expect(await resolveSession(login.token)).toBeNull();
-    await expectCode(authenticate(email, temporaryPassword, { ip: "10.9.0.2", userAgent: "t" }), "UNAUTHENTICATED");
-    await authenticate(email, reset.temporaryPassword, { ip: "10.9.0.3", userAgent: "t" });
+    await expectCode(authenticate(email, password, { ip: "10.9.0.2", userAgent: "t" }), "UNAUTHENTICATED");
+    const again = await authenticate(email, "Another2026pass", { ip: "10.9.0.3", userAgent: "t" });
+    expect(again.mustChangePassword).toBe(false);
+
+    // A weak typed password is refused, and a blank one still gets a generated password.
+    await expectCode(users.createStaffUser(admin, { fullName: "Weak", email: `w-${uniq()}@school.example`, department: "finance", password: "abc" }), "VALIDATION");
+    const generated = await users.createStaffUser(admin, { fullName: "Gen", email: `g-${uniq()}@school.example`, department: "finance" });
+    expect(generated.temporaryPassword.length).toBeGreaterThanOrEqual(10);
+
+    // Changing the department swaps the department role only; saving the form without one keeps access as it is.
+    await users.updateStaffUser(admin, user.id, { fullName: "Teacher One", email, phone, department: "finance" });
+    expect((await db.userRole.findMany({ where: { userId: user.id }, include: { role: true } })).map((r) => r.role.key)).toEqual(["accountant"]);
+    await users.updateStaffUser(admin, user.id, { fullName: "Teacher One", email, phone });
+    expect((await db.userRole.findMany({ where: { userId: user.id }, include: { role: true } })).map((r) => r.role.key)).toEqual(["accountant"]);
 
     const audits = await db.auditLog.findMany({ where: { schoolId: s.id, entityId: user.id } });
     expect(audits.map((a) => a.action)).toEqual(expect.arrayContaining(["user.create", "user.reset_password"]));
-    expect(JSON.stringify(audits)).not.toContain(temporaryPassword); // secrets never reach the audit log
+    expect(JSON.stringify(audits)).not.toContain(password); // secrets never reach the audit log
+    expect(JSON.stringify(audits)).not.toContain("Another2026pass");
   });
 
   it("rejects duplicate emails with a field error", async () => {

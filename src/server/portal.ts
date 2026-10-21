@@ -215,7 +215,7 @@ export async function createGuardianAccount(ctx: AuthContext, guardianId: string
     await db.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          schoolId: ctx.schoolId, type: "GUARDIAN", fullName: g.fullName, email: d.email ?? g.email?.toLowerCase() ?? null, phone: d.phone ?? g.phone, passwordHash, mustChangePassword: true,
+          schoolId: ctx.schoolId, type: "GUARDIAN", fullName: g.fullName, email: d.email ?? g.email?.toLowerCase() ?? null, phone: d.phone ?? g.phone, passwordHash, mustChangePassword: false,
           roles: { create: [{ roleId: role.id, assignedById: ctx.userId }] },
         },
       });
@@ -244,7 +244,7 @@ export async function createStudentAccount(ctx: AuthContext, studentId: string, 
   try {
     await db.$transaction(async (tx) => {
       const user = await tx.user.create({
-        data: { schoolId: ctx.schoolId, type: "STUDENT", fullName, email: d.email ?? null, phone: d.phone ?? null, passwordHash, mustChangePassword: true, roles: { create: [{ roleId: role.id, assignedById: ctx.userId }] } },
+        data: { schoolId: ctx.schoolId, type: "STUDENT", fullName, email: d.email ?? null, phone: d.phone ?? null, passwordHash, mustChangePassword: false, roles: { create: [{ roleId: role.id, assignedById: ctx.userId }] } },
       });
       await tx.student.update({ where: { id: s.id }, data: { userId: user.id } });
       await writeAudit(tx, actorOf(ctx), { action: "portal.student_account_create", entityType: "Student", entityId: s.id, summary: fullName, changes: { userId: user.id } });
@@ -267,7 +267,7 @@ export async function resetPortalPassword(ctx: AuthContext, userId: string) {
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
   await db.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: true, passwordChangedAt: new Date() } });
+    await tx.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: false, passwordChangedAt: new Date() } });
     await tx.session.deleteMany({ where: { userId } });
     await writeAudit(tx, actorOf(ctx), { action: "portal.reset_password", entityType: "User", entityId: userId, summary: user.fullName });
   });

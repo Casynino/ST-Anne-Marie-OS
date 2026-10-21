@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireContext, getT, getLocale } from "@/lib/auth/next";
 import { getStaffUser } from "@/server/users";
-import { assignableRoles } from "@/server/rbac";
 import { AppError } from "@/lib/errors";
 import { displayDateTime } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
@@ -10,6 +9,7 @@ import { ActionForm, Field } from "@/components/form";
 import { UserFields } from "@/components/user-form";
 import { Badge, Card, NoAccess, PageHeader } from "@/components/ui";
 import { SUPER_ADMIN_ROLE_KEY } from "@/lib/rbac/roles";
+import { departmentOfRoleKeys } from "@/lib/rbac/departments";
 import { resetPasswordAction, setUserStatusAction, updateUserAction } from "../actions";
 
 export const metadata: Metadata = { title: "Staff member" };
@@ -22,10 +22,8 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
   if (!ctx.permissions.has("user.read")) return <NoAccess t={t} />;
   const user = await getStaffUser(ctx, id).catch((e) => (e instanceof AppError && e.code === "NOT_FOUND" ? null : Promise.reject(e)));
   if (!user) notFound();
-  const [assignable, school] = await Promise.all([assignableRoles(ctx), getSchoolBasics(ctx.schoolId)]);
-  // Show roles already held (even if the actor could not assign them) so nothing disappears silently.
-  const heldIds = user.roles.map((r) => r.roleId);
-  const roleOptions = [...assignable, ...user.roles.map((r) => r.role).filter((r) => !assignable.some((a) => a.id === r.id))];
+  const school = await getSchoolBasics(ctx.schoolId);
+  const department = departmentOfRoleKeys(user.roles.map((r) => r.role.key));
   const targetIsAdmin = user.roles.some((r) => r.role.key === SUPER_ADMIN_ROLE_KEY);
   const mayManageTarget = !targetIsAdmin || ctx.roleKeys.includes(SUPER_ADMIN_ROLE_KEY);
   const self = user.id === ctx.userId;
@@ -38,7 +36,7 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
           {ctx.permissions.has("user.update") && mayManageTarget ? (
             <ActionForm action={updateUserAction} submitLabel={t("common.save")}>
               <input type="hidden" name="id" value={user.id} />
-              <UserFields t={t} d={{ ...user, jobTitle: user.staff?.jobTitle, staffNo: user.staff?.staffNo, employedOn: user.staff?.employedOn }} roles={roleOptions} selectedRoleIds={heldIds} />
+              <UserFields t={t} d={{ ...user, department: department?.key, jobTitle: user.staff?.jobTitle, staffNo: user.staff?.staffNo, employedOn: user.staff?.employedOn }} />
             </ActionForm>
           ) : (
             <dl className="space-y-2 text-sm">
@@ -51,7 +49,10 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
         <div className="space-y-5">
           {ctx.permissions.has("user.reset_password") && mayManageTarget && (
             <Card title={t("users.resetPassword")}>
-              <ActionForm action={resetPasswordAction} submitLabel={t("users.resetPassword")} confirm={t("common.confirmAction")}><input type="hidden" name="id" value={user.id} /></ActionForm>
+              <ActionForm action={resetPasswordAction} submitLabel={t("users.resetPassword")} confirm={t("common.confirmAction")}>
+                <input type="hidden" name="id" value={user.id} />
+                <Field name="password" label={t("users.newPassword")} autoComplete="off" required hint={t("users.password.hint")} />
+              </ActionForm>
             </Card>
           )}
           {ctx.permissions.has("user.suspend") && mayManageTarget && !self && (
