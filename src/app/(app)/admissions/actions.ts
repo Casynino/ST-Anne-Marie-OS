@@ -207,14 +207,28 @@ export async function quickDecisionAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
     const id = str(i.id);
     const t = makeT(ctx.locale);
+    // Where an accepted applicant ended up, in words: Class placement when enrolled at once, otherwise still in the Accepted list (with the reason).
+    const where = (r: { landing?: flow.Landing; note?: string }) =>
+      r.landing === "placement" ? t("adm.q.done.toPlacement") : r.landing === "approval" ? t("adm.accept.pending") : r.landing === "accepted" ? t("adm.q.done.toAcceptedNote", { note: r.note ?? "" }).trim() : r.landing === "blocked" ? t("adm.q.done.blocked", { note: r.note ?? "" }).trim() : null;
     switch (str(i.kind)) {
       case "REVIEW": {
-        const r = await flow.acceptReview(ctx, id, { papersChecked: str(i.papersChecked) === "on" });
-        return { message: t(r.already ? "adm.q.done.already" : r.state === "ACCEPTED" ? "adm.q.done.toAccepted" : r.state === "AWAITING_DECISION" ? "adm.q.done.toDecision" : "adm.q.done.toInterview") };
+        const r = await flow.acceptReview(ctx, id, { papersChecked: str(i.papersChecked) === "on", scheduledAt: str(i.slot) || str(i.scheduledAt) || undefined });
+        return { message: r.already ? t("adm.q.done.already") : where(r) ?? t(r.state === "AWAITING_DECISION" ? "adm.q.done.toDecision" : "adm.q.done.toInterview") };
       }
       case "ACCEPT": {
-        const r = await offers.acceptApplication(ctx, id, {});
-        return { message: t(r.already ? "adm.accept.already" : r.status === "PENDING_APPROVAL" ? "adm.accept.pending" : "adm.q.done.toAccepted") };
+        const r = await flow.acceptAndEnrol(ctx, id, { strict: true });
+        return { message: where(r) ?? t("adm.q.done.toAcceptedNote", { note: "" }).trim() };
+      }
+      case "ENROL":
+        await flow.enrolNow(ctx, id);
+        return { message: t("adm.q.done.enrolled") };
+      case "BACK": {
+        const r = await flow.sendBack(ctx, id, str(i.note) || undefined);
+        return { message: t(r.told === "account" ? "adm.q.done.sentBack" : "adm.q.done.sentBackPhone") };
+      }
+      case "REOPEN": {
+        const r = await flow.receivedAgain(ctx, id);
+        return { message: t(r.already ? "adm.q.done.already" : "adm.q.done.reopened") };
       }
       case "DECLINE":
         await admissions.transitionApplication(ctx, id, { to: "REJECTED", reason: i.reason });
@@ -222,9 +236,10 @@ export async function quickDecisionAction(_: ActionState, form: FormData) {
       case "DATE":
         await flow.giveInterviewDate(ctx, id, str(i.slot) || str(i.scheduledAt));
         return { message: t("adm.q.done.date") };
-      case "RESULT":
-        await flow.recordQuickResult(ctx, id, { outcome: str(i.outcome), note: str(i.note) || undefined });
-        return { message: t("adm.q.done.result") };
+      case "RESULT": {
+        const r = await flow.recordQuickResult(ctx, id, { outcome: str(i.outcome), note: str(i.note) || undefined, papersChecked: str(i.papersChecked) === "on" });
+        return { message: !r.passed ? t("adm.q.done.resultNot") : where(r) ?? t("adm.q.done.resultPassed") };
+      }
       default:
         throw new AppError("VALIDATION", "Choose what to do with this application.");
     }
@@ -276,14 +291,14 @@ export async function updatePolicyAction(_: ActionState, form: FormData) {
 // ───────────── Interview days (dates the school sets before families apply) ─────────────
 export async function addInterviewDayAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
-    await interviewDays.addInterviewDay(ctx, { on: i.on, time: i.time, venue: i.venue, from: i.from, until: i.until, capacity: i.capacity });
-    return { message: makeT(ctx.locale)("adm.days.added") };
+    await interviewDays.addInterviewDay(ctx, { name: i.name, classIds: i.classIds, on: i.on, time: i.time, venue: i.venue, from: i.from, until: i.until, capacity: i.capacity });
+    return { message: makeT(ctx.locale)("adm.win.added") };
   });
 }
 export async function removeInterviewDayAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
     await interviewDays.removeInterviewDay(ctx, str(i.id));
-    return { message: makeT(ctx.locale)("adm.days.removed") };
+    return { message: makeT(ctx.locale)("adm.win.removed") };
   });
 }
 export async function setApplicationsOpenAction(_: ActionState, form: FormData) {

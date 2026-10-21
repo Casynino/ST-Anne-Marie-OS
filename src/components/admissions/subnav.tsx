@@ -8,9 +8,9 @@ export function AdmissionsNav({ ctx, t, current, badges = {} }: { ctx: AuthConte
   const items = [
     { href: "/admissions", label: t("adm.nav.applications"), show: has("admission.read") },
     { href: "/admissions?stage=interview", label: t("adm.nav.stageInterview"), show: has("admission.read") },
-    { href: "/admissions?stage=accepted", label: t("adm.nav.stageAccepted"), show: has("admission.read") },
-    { href: "/admissions/interviews", label: t("adm.nav.calendar"), show: has("admission.read") || has("admission.interview.manage") },
     { href: "/admissions/placement", label: t("adm.nav.placement"), show: has("student.enroll") || has("admission.read") },
+    { href: "/admissions/windows", label: t("adm.nav.windows"), show: has("admission.read") || has("admission.interview.manage") },
+    { href: "/admissions/interviews", label: t("adm.nav.calendar"), show: has("admission.read") || has("admission.interview.manage") },
     { href: "/admissions/reports", label: t("adm.nav.reports"), show: has("admission.read") },
     { href: "/admissions/policy", label: t("adm.nav.policy"), show: has("school.settings.read") },
   ].filter((i) => i.show);

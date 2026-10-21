@@ -52,7 +52,8 @@ export type WebsiteSettings = {
   gallery?: { path: string; caption?: string }[];
 } & Partial<Record<(typeof SHARED_TEXT)[number] | (typeof SHARED_URLS)[number] | (typeof SHARED_IMAGES)[number], string>>;
 
-const EMPTY: WebsiteSettings = { en: {}, sw: {}, applicationsOpen: false };
+// Online applications are received at any time unless the office pauses them (families can apply inside a window or outside it).
+const EMPTY: WebsiteSettings = { en: {}, sw: {}, applicationsOpen: true };
 
 const emptyToUndefined = (v: unknown) => (v === "" || v === null ? undefined : v);
 const imageRef = () => z.preprocess(emptyToUndefined, z.string().trim().max(200).refine(isImageRef, "Choose an image from the list, or use a path such as /site/logo.png").optional());

@@ -35,7 +35,7 @@ const Option = ({ label, children }: { label: string; children: ReactNode }) => 
  */
 export function DeskCard(p: {
   t: Translate; id: string; name: string; row: DeskRow; status: string; reviewStatus: string; reviewNote: string | null; reviewedAt: Date | null; reviewerName: string | null;
-  interviewWaivedReason: string | null; open: boolean; can: Can; reviewers: { id: string; fullName: string }[]; interviewers: { id: string; fullName: string }[]; defaultMinutes: number;
+  interviewWaivedReason: string | null; open: boolean; can: Can; interviewers: { id: string; fullName: string }[]; defaultMinutes: number;
   ready: AcceptanceReadiness; checklistOpen: { docType: string }[]; offerStatus: string | null; account: { requiredCents: number } | null; currency: string;
   notices: { id: string; kind: string; status: string; createdAt: Date }[]; locale: "EN" | "SW"; timezone: string; slots: { local: string; label: string }[];
 }) {
@@ -67,18 +67,6 @@ export function DeskCard(p: {
           <div>
             <dt className="text-muted">{t("adm.desk.interview")}</dt>
             <dd className="mt-1 font-medium">{t(`adm.ivs.${row.interview}`)}{row.interviewAt ? ` · ${displayDateTime(row.interviewAt, p.timezone, p.locale)}` : ""}</dd>
-          </div>
-          <div>
-            <dt className="text-muted">{t("adm.desk.owner")}</dt>
-            <dd className="mt-1 font-medium">{row.assignedTo ?? t("adm.unassigned")}</dd>
-            {p.open && can("admission.review") && p.reviewers.length > 0 && (
-              <dd className="mt-1">
-                <ActionForm key={row.assignedToId ?? "none"} action={A.assignApplicationAction} submitLabel={t("adm.desk.assign.go")} inline className="flex flex-wrap items-end gap-2">
-                  {hid("id", id)}
-                  <Field name="assigneeId" type="select" label={t("adm.desk.assign")} defaultValue={row.assignedToId ?? ""} placeholder={t("adm.unassigned")} options={p.reviewers.map((r) => ({ value: r.id, label: r.fullName }))} />
-                </ActionForm>
-              </dd>
-            )}
           </div>
         </dl>
 

@@ -12,7 +12,7 @@ import { DOCUMENT_TYPES } from "@/server/documents";
 import type { StoredForm } from "@/server/online-application";
 import { ActionForm, Field, inputClass } from "@/components/form";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
-import { cancelApplicationAction, confirmApplicationAction, removeApplicationFileAction, sandboxPayAction, uploadApplicationFileAction } from "../actions";
+import { cancelApplicationAction, confirmApplicationAction, removeApplicationFileAction, resubmitApplicationAction, sandboxPayAction, uploadApplicationFileAction } from "../actions";
 
 export const metadata: Metadata = { title: "Application" };
 
@@ -86,6 +86,21 @@ export default async function MyApplicationPage({ params }: { params: Promise<{ 
       {a.draftStatus !== "CANCELLED" && <Steps t={t} steps={steps} />}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
+          {a.draftStatus === "SUBMITTED" && a.returned && (
+            <Card title={t("apf.returned.title")} className="border-warn/50">
+              <p className="text-sm">{t("apf.returned.body")}</p>
+              {a.returned.note && <p className="mt-3 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm"><span className="font-semibold">{t("apf.returned.asked")}</span> {a.returned.note}</p>}
+              <div className="mt-4 space-y-4">
+                {a.checklist.photo.required && !a.checklist.photo.present && <div><p className="mb-1 text-sm font-medium">{t("apf.photo.title")}</p>{uploadForm("PASSPORT_PHOTO", t("apf.photo.add"), "image/jpeg,image/png,image/webp")}</div>}
+                {a.checklist.papers.filter((p) => !p.present).map((p) => (
+                  <div key={p.docType}><p className="mb-1 text-sm font-medium">{t(`doc.type.${p.docType}` as "doc.type.OTHER")}</p>{uploadForm(p.docType, t("apf.paper.add"), "application/pdf,image/jpeg,image/png,image/webp")}</div>
+                ))}
+                <div><p className="mb-1 text-sm font-medium">{t("apf.papers.other")}</p>{uploadForm("OTHER", t("apf.paper.add"), "application/pdf,image/jpeg,image/png,image/webp")}</div>
+                {a.documents.length > 0 && <ul className="divide-y divide-line">{a.documents.map(fileRow)}</ul>}
+                <ActionForm action={resubmitApplicationAction} submitLabel={t("apf.returned.send")} className="space-y-2"><input type="hidden" name="id" value={a.id} /></ActionForm>
+              </div>
+            </Card>
+          )}
           {a.draftStatus === "SUBMITTED" && (
             <Card title={t("apf.done.title")}>
               <p className="text-sm">{t("apf.done.body", { number: a.applicationNo ?? "" })}</p>

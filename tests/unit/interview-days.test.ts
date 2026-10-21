@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { cleanDays, dayOpenOn, pickDay, type InterviewDay } from "@/lib/admissions/interview-days";
+import { cleanDays, coversClass, dayOpenOn, pickDay, type InterviewDay } from "@/lib/admissions/interview-days";
 
-const day = (id: string, on: string, extra: Partial<InterviewDay> = {}): InterviewDay => ({ id, on, time: "09:00", venue: "", from: "", until: "", capacity: 0, ...extra });
+const day = (id: string, on: string, extra: Partial<InterviewDay> = {}): InterviewDay => ({ id, name: id, classIds: [], on, time: "09:00", venue: "", from: "", until: "", capacity: 0, ...extra });
 
 describe("interview days", () => {
   it("reads only well-formed stored days and keeps them in date order", () => {
@@ -30,5 +30,17 @@ describe("interview days", () => {
     expect(pickDay([day("a", "2026-11-05", { capacity: 1 })], "2026-11-01", { a: 1 })).toBeNull();
     expect(pickDay([day("c", "2026-11-20", { from: "2026-11-10" })], "2026-11-01", {})).toBeNull(); // outside the window
     expect(pickDay([], "2026-11-01", {})).toBeNull();
+  });
+
+  it("a window covers the classes it names, or every class when it names none; an application is placed in the earliest open window for its class", () => {
+    expect(coversClass(day("a", "2026-11-05"), "c1")).toBe(true);
+    expect(coversClass(day("a", "2026-11-05", { classIds: ["c1"] }), "c1")).toBe(true);
+    expect(coversClass(day("a", "2026-11-05", { classIds: ["c1"] }), "c2")).toBe(false);
+    expect(coversClass(day("a", "2026-11-05", { classIds: ["c1"] }), null)).toBe(false);
+    const days = [day("form1", "2026-11-05", { classIds: ["c1"] }), day("std1", "2026-11-12", { classIds: ["c2"] }), day("any", "2026-11-20")];
+    expect(pickDay(days, "2026-11-01", {}, "c1")?.id).toBe("form1");
+    expect(pickDay(days, "2026-11-01", {}, "c2")?.id).toBe("std1");
+    expect(pickDay(days, "2026-11-01", {}, "c3")?.id).toBe("any");
+    expect(cleanDays([{ id: "x", on: "2026-11-05", time: "09:00", name: "Form I", classIds: ["c1", 5] }])[0]).toMatchObject({ name: "Form I", classIds: ["c1"] });
   });
 });

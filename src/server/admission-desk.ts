@@ -21,7 +21,7 @@ export const INTERVIEW_STATES = ["SCHEDULED", "COMPLETED", "WAIVED", "NOT_REQUIR
 export type AttentionReason = "OLD_UNREVIEWED" | "RESULT_MISSING" | "DOCS_TO_CHECK";
 const OLD_DAYS = 3;
 export const PAGE_SIZE = 25;
-export const STAGE_NAMES = ["review", "interview", "accepted"] as const;
+export const STAGE_NAMES = ["review", "interview"] as const;
 
 export type DeskFilters = { q?: string; state?: string; classId?: string; from?: string; to?: string; interview?: string; assigned?: string; source?: string; attention?: boolean; stage?: string };
 
@@ -32,7 +32,7 @@ export type DeskRow = {
   completeness: { percent: number; complete: boolean; missing: string[]; checked: number; required: number };
   assignedToId: string | null; assignedTo: string | null; attention: AttentionReason[]; interviewRequired: boolean;
   /** The live interview (its id), papers still to check, and where an accepted review leads: the interview list, or straight to accepted when nothing is required. */
-  interviewId: string | null; pendingDocs: number; afterReview: "interview" | "accepted";
+  interviewId: string | null; pendingDocs: number; afterReview: "interview" | "placement";
 };
 
 const OPEN = ["APPLIED", "INTERVIEW", "ACCEPTED"] as const;
@@ -67,7 +67,7 @@ async function compute(ctx: AuthContext, where: Prisma.ApplicationWhereInput): P
     const checklist = docChecklist(requiredDocsFor(policy, a.entryType), myDocs.map((d) => ({ id: d.id, docType: d.docType, verification: d.verification })));
     const comp = open ? completeness({ checklist, hasClass: !!a.classAppliedId, hasContact: !!g?.phone }) : { percent: 100, complete: true, missing: [], checked: 0, required: 0 };
     const resolved = assessmentResolved({ needInterview: need.interview, needExam: need.exam, interviewDone: doneI, examDone: doneE, interviewWaived: !!a.interviewWaivedAt });
-    const state = workflowState({ status: a.status, review: a.reviewStatus, liveInterview: !!live, assessmentResolved: resolved });
+    const state = workflowState({ status: a.status, review: a.reviewStatus, liveInterview: !!live, assessmentResolved: resolved, interviewHeld: doneI || doneE });
     const attention: AttentionReason[] = [];
     if (open && a.status !== "ACCEPTED") {
       if ((state === "NEW" || state === "UNDER_REVIEW") && now - a.createdAt.getTime() > OLD_DAYS * 86_400_000) attention.push("OLD_UNREVIEWED");
@@ -78,20 +78,20 @@ async function compute(ctx: AuthContext, where: Prisma.ApplicationWhereInput): P
       id: a.id, applicationNo: a.applicationNo, name: [a.firstName, a.middleName, a.lastName].filter(Boolean).join(" "), classAppliedId: a.classAppliedId, className: cls?.name ?? null,
       guardianName: g?.fullName ?? null, guardianPhone: g?.phone ?? null, submittedAt: a.createdAt, source: a.source, state,
       interview: interviewState({ live: !!live, completed: doneI, waived: !!a.interviewWaivedAt, required: need.interview }), interviewAt: live?.scheduledAt ?? null,
-      interviewId: live?.id ?? null, pendingDocs: myDocs.filter((d) => d.verification === "PENDING").length, afterReview: resolved ? "accepted" : "interview",
+      interviewId: live?.id ?? null, pendingDocs: myDocs.filter((d) => d.verification === "PENDING").length, afterReview: resolved ? "placement" : "interview",
       completeness: { percent: comp.percent, complete: comp.complete, missing: comp.missing.map((m) => m.key), checked: comp.checked, required: comp.required },
       assignedToId: a.assignedToId, assignedTo: people.find((p) => p.id === a.assignedToId)?.fullName ?? null, attention, interviewRequired: need.interview,
     };
   });
 }
 
-export type DeskCounts = Record<WorkflowState, number> & { total: number; awaitingInterview: number; attention: number; closed: number; stages: Record<"review" | "interview" | "accepted", number> };
+export type DeskCounts = Record<WorkflowState, number> & { total: number; awaitingInterview: number; attention: number; closed: number; stages: Record<"review" | "interview", number> };
 
 function countRows(rows: DeskRow[]): DeskCounts {
   const c = Object.fromEntries(WORKFLOW_STATES.map((s) => [s, rows.filter((r) => r.state === s).length])) as Record<WorkflowState, number>;
   const closed = c.REJECTED + c.WITHDRAWN;
   // "total" is the working list: an application that is finished (rejected, withdrawn or enrolled) leaves it; it is still found under its own status, or by searching.
-  const stages = { review: rows.filter((r) => stageOf(r.state) === "review").length, interview: rows.filter((r) => stageOf(r.state) === "interview").length, accepted: c.ACCEPTED };
+  const stages = { review: rows.filter((r) => stageOf(r.state) === "review").length, interview: rows.filter((r) => stageOf(r.state) === "interview").length };
   return { ...c, stages, total: rows.length - closed - c.ENROLLED, awaitingInterview: rows.filter((r) => r.state === "REVIEWED" && r.interview === "TO_ARRANGE").length, attention: rows.filter((r) => r.attention.length > 0).length, closed };
 }
 

@@ -1,19 +1,25 @@
 /*
- * Interview days: dates the school has already set for interviews, before any family applies. An application that is received while a day is
- * open (and has room) is placed on that day at once; one received outside every window waits, and the office gives it a date later.
- * Pure rules only, so they can be tested without a database. Dates are "YYYY-MM-DD" in the school's time zone, times are "HH:MM".
+ * Application windows: the office opens a window for the classes it is taking applications for, with the dates it is open and the interview
+ * date already set. An application for one of those classes received while the window is open (and has room) is placed on its interview at
+ * once; one received at any other time waits under review, and the office gives it a date when it accepts it. (In the code a window is an
+ * "InterviewDay": the window with its interview.) Pure rules only, so they can be tested without a database. Dates are "YYYY-MM-DD" in the
+ * school's time zone, times are "HH:MM".
  */
 
 export type InterviewDay = {
   id: string;
+  /** What the window is called, for example "Form I intake". */
+  name: string;
+  /** The classes it is for (empty = every class). */
+  classIds: string[];
   /** The day of the interview. */
   on: string;
   time: string;
   /** Where it takes place (may be empty). */
   venue: string;
-  /** Applications received from this date are placed on the day (empty = from the start). */
+  /** The window opens on this date (empty = already open). */
   from: string;
-  /** ...until this date (empty = until the day itself). */
+  /** ...and closes after this date (empty = open until the interview day itself). */
   until: string;
   /** How many applicants fit (0 = no limit). */
   capacity: number;
@@ -28,10 +34,12 @@ export function cleanDays(raw: unknown): InterviewDay[] {
   const out: InterviewDay[] = [];
   for (const r of raw as Record<string, unknown>[]) {
     if (!r || typeof r !== "object") continue;
-    const { id, on, time, venue, from, until, capacity } = r as Record<string, unknown>;
+    const { id, name, classIds, on, time, venue, from, until, capacity } = r as Record<string, unknown>;
     if (typeof id !== "string" || typeof on !== "string" || !DATE.test(on) || typeof time !== "string" || !TIME.test(time)) continue;
     out.push({
       id, on, time,
+      name: typeof name === "string" ? name : "",
+      classIds: Array.isArray(classIds) ? classIds.filter((x): x is string => typeof x === "string") : [],
       venue: typeof venue === "string" ? venue : "",
       from: typeof from === "string" && DATE.test(from) ? from : "",
       until: typeof until === "string" && DATE.test(until) ? until : "",
@@ -41,7 +49,10 @@ export function cleanDays(raw: unknown): InterviewDay[] {
   return out.sort((a, b) => `${a.on}T${a.time}`.localeCompare(`${b.on}T${b.time}`));
 }
 
-/** Whether an application received on `today` belongs to this day's window (the day itself has not passed). */
+/** Whether the window covers this class (a window with no classes covers every class). */
+export const coversClass = (d: InterviewDay, classId: string | null | undefined) => d.classIds.length === 0 || (!!classId && d.classIds.includes(classId));
+
+/** Whether the window is open on `today` (the interview day itself has not passed). */
 export function dayOpenOn(d: InterviewDay, today: string): boolean {
   if (d.on < today) return false;
   if (d.from && today < d.from) return false;
@@ -50,9 +61,9 @@ export function dayOpenOn(d: InterviewDay, today: string): boolean {
 }
 
 /**
- * The day an application received today is placed on: the earliest day whose window includes today and that still has room.
- * `placed` is how many applicants each day already has. Returns null when there is none (the office gives a date later).
+ * The window an application for `classId` received today is placed in: the earliest open window for that class that still has room.
+ * `placed` is how many applicants each window already has. Returns null when there is none (the office gives a date when it accepts it).
  */
-export function pickDay(days: InterviewDay[], today: string, placed: Record<string, number>): InterviewDay | null {
-  return days.find((d) => dayOpenOn(d, today) && (d.capacity === 0 || (placed[d.id] ?? 0) < d.capacity)) ?? null;
+export function pickDay(days: InterviewDay[], today: string, placed: Record<string, number>, classId?: string | null): InterviewDay | null {
+  return days.find((d) => coversClass(d, classId) && dayOpenOn(d, today) && (d.capacity === 0 || (placed[d.id] ?? 0) < d.capacity)) ?? null;
 }

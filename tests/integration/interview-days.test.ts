@@ -44,6 +44,11 @@ async function paid() {
   return { draftId: r.draftId, applicationId: draft.applicationId! };
 }
 const liveInterview = (applicationId: string) => db.interview.findFirst({ where: { applicationId, status: "SCHEDULED" } });
+async function createCurrentYearAcademicsClass() {
+  const level = await db.academicLevel.findFirstOrThrow({ where: { schoolId: school.id } });
+  const c = await db.schoolClass.create({ data: { schoolId: school.id, levelId: level.id, name: `Other ${n++}`, sortOrder: 99 } });
+  return c.id;
+}
 async function clearDays() { for (const d of await days.listInterviewDays(admin)) await days.removeInterviewDay(admin, d.id); }
 
 beforeAll(async () => {
@@ -62,14 +67,14 @@ afterAll(() => setStorageForTests(undefined));
 
 describe("setting interview days", () => {
   it("is for people who manage interviews; a day that has passed, a bad window or the same day twice is refused", async () => {
-    expect(await code(days.addInterviewDay(teacher, { on: ymd(20), time: "09:00" }))).toBe("FORBIDDEN");
-    expect(await code(days.addInterviewDay(accountant, { on: ymd(20), time: "09:00" }))).toBe("FORBIDDEN");
-    expect(await code(days.addInterviewDay(rehema, { on: ymd(-1), time: "09:00" }))).toBe("VALIDATION");
-    expect(await code(days.addInterviewDay(rehema, { on: ymd(10), time: "9am" }))).toBe("VALIDATION");
-    expect(await code(days.addInterviewDay(rehema, { on: ymd(10), time: "09:00", from: ymd(5), until: ymd(3) }))).toBe("VALIDATION");
-    expect(await code(days.addInterviewDay(rehema, { on: ymd(10), time: "09:00", until: ymd(11) }))).toBe("VALIDATION"); // applications must arrive by the day itself
-    await days.addInterviewDay(rehema, { on: ymd(25), time: "09:00", venue: "Main hall" });
-    expect(await code(days.addInterviewDay(rehema, { on: ymd(25), time: "09:00", venue: "Main hall" }))).toBe("CONFLICT");
+    expect(await code(days.addInterviewDay(teacher, { name: "Intake", on: ymd(20), time: "09:00" }))).toBe("FORBIDDEN");
+    expect(await code(days.addInterviewDay(accountant, { name: "Intake", on: ymd(20), time: "09:00" }))).toBe("FORBIDDEN");
+    expect(await code(days.addInterviewDay(rehema, { name: "Intake", on: ymd(-1), time: "09:00" }))).toBe("VALIDATION");
+    expect(await code(days.addInterviewDay(rehema, { name: "Intake", on: ymd(10), time: "9am" }))).toBe("VALIDATION");
+    expect(await code(days.addInterviewDay(rehema, { name: "Intake", on: ymd(10), time: "09:00", from: ymd(5), until: ymd(3) }))).toBe("VALIDATION");
+    expect(await code(days.addInterviewDay(rehema, { name: "Intake", on: ymd(10), time: "09:00", until: ymd(11) }))).toBe("VALIDATION"); // applications must arrive by the day itself
+    await days.addInterviewDay(rehema, { name: "Intake", on: ymd(25), time: "09:00", venue: "Main hall" });
+    expect(await code(days.addInterviewDay(rehema, { name: "Intake", on: ymd(25), time: "09:00", venue: "Main hall" }))).toBe("CONFLICT");
     expect((await days.listInterviewDays(teacher.permissions.has("admission.read") ? teacher : admin)).length).toBeGreaterThanOrEqual(1);
     await clearDays();
     expect(await days.listInterviewDays(admin)).toHaveLength(0);
@@ -79,14 +84,15 @@ describe("setting interview days", () => {
 describe("placing a paid application on an interview day", () => {
   it("places it at once, tells the family (by phone when there is no account), shows it on the desk and on the printed form", async () => {
     await clearDays();
-    await days.addInterviewDay(rehema, { on: ymd(14), time: "10:30", venue: "Main hall" });
+    await days.addInterviewDay(rehema, { name: "Intake", on: ymd(14), time: "10:30", venue: "Main hall" });
     const a = await paid();
     const iv = await liveInterview(a.applicationId);
     expect(iv).toMatchObject({ kind: "INTERVIEW", arrangement: "DAY", createdById: null, location: "Main hall" });
     expect((await db.application.findUniqueOrThrow({ where: { id: a.applicationId } })).status).toBe("INTERVIEW");
-    // it comes with its date but is still under review: the date shows in the Interview column and the application stays in the review list
-    const row = (await desk.loadDesk(rehema, {}, 1)).rows.find((r) => r.id === a.applicationId);
-    expect(row).toMatchObject({ state: "NEW", interview: "SCHEDULED" });
+    // it comes with its date, so it goes straight to the interview list
+    const row = (await desk.loadDesk(rehema, { stage: "interview" }, 1)).rows.find((r) => r.id === a.applicationId);
+    expect(row).toMatchObject({ state: "INTERVIEW_SCHEDULED", interview: "SCHEDULED" });
+    expect((await desk.loadDesk(rehema, {}, 1)).rows.map((r) => r.id)).not.toContain(a.applicationId);
     expect(row?.interviewAt?.getTime()).toBe(iv!.scheduledAt.getTime());
     const notes = await db.applicationNotice.findMany({ where: { applicationId: a.applicationId } });
     expect(notes.map((x) => [x.kind, x.status])).toEqual([["INTERVIEW", "NO_ACCOUNT"]]);
@@ -98,7 +104,7 @@ describe("placing a paid application on an interview day", () => {
 
   it("when the places are full the next application waits, and the office can still give it a date from the day list", async () => {
     await clearDays();
-    await days.addInterviewDay(rehema, { on: ymd(16), time: "09:00", capacity: 1 });
+    await days.addInterviewDay(rehema, { name: "Intake", on: ymd(16), time: "09:00", capacity: 1 });
     const first = await paid();
     const second = await paid();
     expect(await liveInterview(first.applicationId)).not.toBeNull();
@@ -110,10 +116,10 @@ describe("placing a paid application on an interview day", () => {
 
   it("an application received outside every window waits; so does one when the school does not ask for an interview", async () => {
     await clearDays();
-    await days.addInterviewDay(rehema, { on: ymd(18), time: "09:00", from: ymd(3), until: ymd(10) });
+    await days.addInterviewDay(rehema, { name: "Intake", on: ymd(18), time: "09:00", from: ymd(3), until: ymd(10) });
     expect(await liveInterview((await paid()).applicationId)).toBeNull(); // today is before the window opens
     await clearDays();
-    await days.addInterviewDay(rehema, { on: ymd(18), time: "09:00" });
+    await days.addInterviewDay(rehema, { name: "Intake", on: ymd(18), time: "09:00" });
     await policy.updateAdmissionPolicy(admin, { ...POLICY, requireInterview: undefined, applicationFee: "10000" });
     expect(await liveInterview((await paid()).applicationId)).toBeNull();
     await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000" });
@@ -122,7 +128,7 @@ describe("placing a paid application on an interview day", () => {
 
   it("removing a day keeps the interviews of those already placed on it", async () => {
     await clearDays();
-    const d = await days.addInterviewDay(rehema, { on: ymd(21), time: "09:00" });
+    const d = await days.addInterviewDay(rehema, { name: "Intake", on: ymd(21), time: "09:00" });
     const a = await paid();
     await days.removeInterviewDay(rehema, d.id);
     expect(await liveInterview(a.applicationId)).not.toBeNull();
@@ -144,17 +150,33 @@ describe("the application window and what families are told before they apply", 
     expect(await db.auditLog.count({ where: { schoolId: school.id, action: { in: ["admission.window_open", "admission.window_close"] } } })).toBe(2);
   });
 
-  it("the form can tell a family the interview date it would get, only while a day is open with room, and only when the school asks for an interview", async () => {
+  it("the site and the forms list the windows that are open now, with the classes, the closing date and the interview, and only when the school asks for an interview", async () => {
     await clearDays();
-    expect(await days.openInterviewDayNotice(school.id)).toBeNull();
-    await days.addInterviewDay(rehema, { on: ymd(30), time: "08:30", venue: "Hall B", capacity: 1 });
-    expect(await days.openInterviewDayNotice(school.id)).toMatchObject({ on: ymd(30), time: "08:30", venue: "Hall B" });
-    await paid(); // the one place is taken
-    expect(await days.openInterviewDayNotice(school.id)).toBeNull();
+    expect(await days.openWindows(school.id)).toEqual([]);
+    const formI = await db.schoolClass.findFirstOrThrow({ where: { schoolId: school.id, id: setup.cls.id } });
+    await days.addInterviewDay(rehema, { name: "Form I intake", classIds: [setup.cls.id], on: ymd(30), time: "08:30", venue: "Hall B", from: ymd(-1), until: ymd(20), capacity: 1 });
+    await days.addInterviewDay(rehema, { name: "Later window", on: ymd(40), time: "09:00", from: ymd(10), until: ymd(30) }); // not open yet
+    const open = await days.openWindows(school.id);
+    expect(open).toHaveLength(1);
+    expect(open[0]).toMatchObject({ name: "Form I intake", classNames: [formI.name], closesOn: ymd(20), on: ymd(30), time: "08:30", venue: "Hall B", full: false });
+    await paid(); // the one place is taken: the window still shows, marked full, so a family knows it will wait for a date
+    expect((await days.openWindows(school.id))[0]?.full).toBe(true);
     await clearDays();
-    await days.addInterviewDay(rehema, { on: ymd(30), time: "08:30" });
+    await days.addInterviewDay(rehema, { name: "Any class", on: ymd(30), time: "08:30" });
     await policy.updateAdmissionPolicy(admin, { ...POLICY, requireInterview: undefined, applicationFee: "10000" });
-    expect(await days.openInterviewDayNotice(school.id)).toBeNull();
+    expect(await days.openWindows(school.id)).toEqual([]);
     await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000" });
+  });
+
+  it("a window is for its classes: an application for another class is not placed on it and waits for the office", async () => {
+    await clearDays();
+    const other = await createCurrentYearAcademicsClass();
+    await days.addInterviewDay(rehema, { name: "Other class only", classIds: [other], on: ymd(22), time: "10:00" });
+    expect(await liveInterview((await paid()).applicationId)).toBeNull(); // the applicant's class is not covered
+    await days.addInterviewDay(rehema, { name: "Our class", classIds: [setup.cls.id], on: ymd(23), time: "10:00" });
+    const a = await paid();
+    expect((await liveInterview(a.applicationId))?.scheduledAt.toISOString()).toContain(ymd(23));
+    expect(await code(days.addInterviewDay(rehema, { name: "Foreign class", classIds: ["00000000-0000-4000-8000-000000000000"], on: ymd(24), time: "10:00" }))).toBe("VALIDATION");
+    expect(await code(days.addInterviewDay(rehema, { name: "", on: ymd(24), time: "10:00" }))).toBe("VALIDATION");
   });
 });

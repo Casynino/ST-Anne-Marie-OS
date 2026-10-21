@@ -16,7 +16,7 @@ import { interviewsOfApplication, listInterviewers, upcomingInterviewSlots } fro
 import { Printer } from "lucide-react";
 import { deskRow } from "@/server/admission-desk";
 import { acceptanceReadiness } from "@/server/admission-offers";
-import { listReviewers } from "@/server/admission-review";
+import { } from "@/server/admission-review";
 import { noticesOf } from "@/server/application-notices";
 import { classOccupancy } from "@/server/admission-queues";
 import { ActionForm, Field } from "@/components/form";
@@ -48,7 +48,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const can = (p: Parameters<typeof ctx.permissions.has>[0]) => ctx.permissions.has(p);
   const now = Date.now();
 
-  const [policy, docs, ivs, interviewers, acct, docsReady, gate, allClasses, occupancy, exceptionUser, row, ready, reviewers, notices, slotRows, feeDraft] = await Promise.all([
+  const [policy, docs, ivs, interviewers, acct, docsReady, gate, allClasses, occupancy, exceptionUser, row, ready, notices, slotRows, feeDraft] = await Promise.all([
     getAdmissionPolicy(db, ctx.schoolId),
     can("document.read") ? listDocuments(ctx, { applicationId: id }) : [],
     interviewsOfApplication(ctx, id),
@@ -61,7 +61,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     app.docsExceptionById ? db.user.findFirst({ where: { id: app.docsExceptionById, schoolId: ctx.schoolId }, select: { fullName: true } }) : null,
     deskRow(ctx, id),
     acceptanceReadiness(db, ctx.schoolId, app),
-    listReviewers(ctx),
+    
     noticesOf(db, ctx.schoolId, id),
     can("admission.interview.manage") ? upcomingInterviewSlots(ctx) : [],
     db.applicationDraft.findUnique({ where: { applicationId: id }, select: { id: true, paidAt: true, receiptNo: true } }),
@@ -100,7 +100,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
         <div className="space-y-5">
           <DeskCard
             t={t} id={id} name={`${app.firstName} ${app.lastName}`} row={row} status={app.status} reviewStatus={app.reviewStatus} reviewNote={app.reviewNote} reviewedAt={app.reviewedAt} reviewerName={reviewer?.fullName ?? null}
-            interviewWaivedReason={app.interviewWaivedReason} open={open} can={can} reviewers={reviewers} interviewers={interviewers} defaultMinutes={policy.interviewMinutes} ready={ready}
+            interviewWaivedReason={app.interviewWaivedReason} open={open} can={can} interviewers={interviewers} defaultMinutes={policy.interviewMinutes} ready={ready}
             checklistOpen={docsReady.checklist.filter((c) => c.state !== "VERIFIED" && !app.docsExceptionAt)} offerStatus={offer?.status ?? null} account={acct.account ? { requiredCents: acct.account.requiredCents } : null}
             currency={school.currency} notices={notices} locale={ctx.locale} timezone={school.timezone}
             slots={slotRows.map((x) => ({ local: x.local, label: t("adm.slot.label", { when: x.when, n: x.count }) }))}

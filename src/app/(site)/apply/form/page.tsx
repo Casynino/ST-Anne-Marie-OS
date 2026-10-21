@@ -13,8 +13,8 @@ import { ActionForm, Field, FileField } from "@/components/form";
 import { EntryTypeProvider, WhenTransfer } from "@/components/site/entry-type";
 import { ButtonLink, PageHero } from "@/components/site/blocks";
 import { submitApplicationAction } from "../actions";
-import { displayDateTime } from "@/lib/dates";
-import { openInterviewDayNotice } from "@/server/interview-days";
+import { openWindows } from "@/server/interview-days";
+import { OpenWindows } from "@/components/site/open-windows";
 
 export const metadata: Metadata = { title: "Apply online" };
 
@@ -32,7 +32,7 @@ export default async function ApplyPage() {
       </>
     );
   }
-  const [fee, me, policy, openDay] = await Promise.all([applicationFeeInfo(site.school.id), getContext(), getAdmissionPolicy(db, site.school.id), openInterviewDayNotice(site.school.id)]);
+  const [fee, me, policy, windows] = await Promise.all([applicationFeeInfo(site.school.id), getContext(), getAdmissionPolicy(db, site.school.id), openWindows(site.school.id)]);
   // With a fee but no way for families to pay it yet, the form is not offered (an application could never be completed).
   if (fee.feeCents > 0 && !fee.ready) {
     return (
@@ -52,14 +52,7 @@ export default async function ApplyPage() {
     <>
       <PageHero photo={false} eyebrow={t("site.how.kicker")} title={t("apply.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/apply", label: t("site.nav.admissions") }, { href: "/apply/form", label: t("apply.title") }]}>{t("apply.intro")}</PageHero>
       <div className="mx-auto max-w-[100rem] px-4 py-10 sm:px-6"><div className="max-w-3xl">
-        {openDay && (
-          <div className="mb-8 border border-line bg-surface p-5 sm:p-7">
-            <p className="text-sm font-semibold uppercase tracking-wide text-muted">{t("apply.interview.label")}</p>
-            <p className="display mt-1 text-3xl text-heading">{displayDateTime(openDay.startsAt, site.school.timezone, locale)}</p>
-            {openDay.venue && <p className="mt-1 text-sm font-medium">{openDay.venue}</p>}
-            <p className="mt-2 text-sm text-muted">{t("apply.interview.body")}</p>
-          </div>
-        )}
+        <div className="mb-8"><OpenWindows windows={windows} t={t} locale={locale} timezone={site.school.timezone} /></div>
         {fee.feeCents > 0 && (
           <div className="mb-8 border border-line bg-surface p-5 sm:p-7">
             <p className="text-sm font-semibold uppercase tracking-wide text-muted">{t("apply.fee.label")}</p>

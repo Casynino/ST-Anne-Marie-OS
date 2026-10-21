@@ -1,11 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Check } from "lucide-react";
-import { getT } from "@/lib/auth/next";
+import { getLocale, getT } from "@/lib/auth/next";
 import { getSite, pageMetadata, telHref } from "@/lib/site";
 import { ButtonLink, PageHero, SectionHeading } from "@/components/site/blocks";
 import { Reveal } from "@/components/site/fx/reveal";
 import { ContactForm } from "@/components/site/contact-form";
+import { OpenWindows } from "@/components/site/open-windows";
+import { openWindows } from "@/server/interview-days";
 
 export async function generateMetadata(): Promise<Metadata> {
   const [site, t] = await Promise.all([getSite(), getT()]);
@@ -13,10 +15,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AdmissionsPage() {
-  const [site, t] = await Promise.all([getSite(), getT()]);
+  const [site, t, locale] = await Promise.all([getSite(), getT(), getLocale()]);
   if (!site) return null;
   const { text, settings, levels, contact } = site;
   const open = settings.applicationsOpen;
+  const windows = open ? await openWindows(site.school.id) : [];
 
   return (
     <>
@@ -40,6 +43,8 @@ export default async function AdmissionsPage() {
           </div>
           <p className="mt-4 max-w-2xl text-sm text-muted">{t("site.admissions.disclaimer")}</p>
         </section>
+
+        {open && <OpenWindows windows={windows} t={t} locale={locale} timezone={site.school.timezone} />}
 
         {levels.length > 0 && (
           <section>

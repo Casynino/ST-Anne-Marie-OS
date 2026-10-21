@@ -2,20 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Ban, CalendarPlus, Check, ClipboardCheck, Eye } from "lucide-react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
+import { AlertTriangle, Ban, CalendarPlus, Check, ClipboardCheck, Eye, Inbox, Undo2, UserPlus } from "lucide-react";
 import type { ActionState } from "@/lib/action";
 import { Badge, EmptyState } from "@/components/ui";
 
 export type DeskLine = {
   id: string; applicationNo: string; name: string; className: string | null; guardian: string | null; phone: string | null; submitted: string; online: boolean;
-  state: string; stateLabel: string; stateTone: "neutral" | "ok" | "warn" | "bad" | "brand"; step: number; stepLabel: string; className2: string; acts: { kind: Kind; why: string | null }[]; afterReview: "interview" | "accepted"; pendingDocs: number;
-  interviewLabel: string; interviewDetail: string | null; percent: number; missing: string[]; assignedTo: string | null; attention: string[];
+  state: string; stateLabel: string; stateTone: "neutral" | "ok" | "warn" | "bad" | "brand"; step: number; stepLabel: string; className2: string; classId: string | null; acts: { kind: Kind; why: string | null }[]; afterReview: "interview" | "placement"; pendingDocs: number;
+  interviewLabel: string; interviewDetail: string | null; percent: number; missing: string[]; attention: string[];
 };
-type Mode = "START_REVIEW" | "MARK_REVIEWED" | "ASSIGN";
-type Kind = "REVIEW" | "ACCEPT" | "DECLINE" | "DATE" | "RESULT";
-export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "date" | "result" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel" | "reviewQ" | "reviewToInterview" | "reviewToAccepted" | "papersChecked" | "dateQ" | "dateSlot" | "dateOther" | "dateWhen" | "dateGo" | "resultQ" | "resultPassed" | "resultNot" | "resultNote" | "resultGo", string>;
-export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "assigned" | "status" | "online" | "selectAll" | "start" | "review" | "assign" | "assignTo" | "go" | "cancel" | "dismiss" | "never" | "unassigned" | "choose", string>
+type Mode = "START_REVIEW" | "MARK_REVIEWED";
+type Kind = "REVIEW" | "ACCEPT" | "DECLINE" | "DATE" | "RESULT" | "ENROL" | "BACK" | "REOPEN";
+export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "date" | "result" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel" | "reviewQ" | "reviewToInterview" | "reviewToAccepted" | "papersChecked" | "dateQ" | "dateSlot" | "dateOther" | "dateWhen" | "dateGo" | "resultQ" | "resultPassed" | "resultNot" | "resultNote" | "resultGo" | "resultHint" | "enrol" | "enrolQ" | "enrolAfter" | "enrolGo" | "back" | "backQ" | "backNote" | "backDefault" | "backAfter" | "backGo" | "reopen" | "reopenQ" | "reopenAfter" | "reopenGo", string>;
+export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "status" | "online" | "selectAll" | "start" | "review" | "go" | "cancel" | "dismiss" | "never", string>
   & { quick: QuickLabels; selected: string; selectRow: string; confirm: Record<Mode, string>; done: string; unchanged: string; failed: string };
 
 /**
@@ -23,8 +23,8 @@ export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted"
  * (start the review, mark as reviewed, give to a reviewer). A consequential action asks first, and afterwards the result says what was
  * done, what needed nothing and what could not be done and why. Accepting is never offered here.
  */
-export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, action, quick, empty, slots }: {
-  empty: string; slots: { value: string; label: string }[]; rows: DeskLine[]; labels: DeskLabels; reviewers: { id: string; fullName: string }[]; canVerify: boolean; canAssign: boolean;
+export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots }: {
+  empty: string; slots: { value: string; label: string; classIds: string[] | null }[]; rows: DeskLine[]; labels: DeskLabels; canVerify: boolean;
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
   quick: (prev: ActionState, form: FormData) => Promise<ActionState>;
 }) {
@@ -35,6 +35,7 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
   // Accept and Decline sit on the row of the application; each asks in a pop-up first, and the server applies the same rules as the full page.
   const [ask, setAsk] = useState<{ row: DeskLine; kind: Kind } | null>(null);
   const [slot, setSlot] = useState("");
+  const [result, setResult] = useState("");
   const [done, setDone] = useState<{ name: string; text: string } | null>(null);
   const [fail, setFail] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -46,7 +47,7 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
     return r;
   }, null);
   const q = labels.quick;
-  const openAsk = (r: DeskLine, kind: Kind) => { setDone(null); setFail(null); setSlot(slots[0]?.value ?? ""); setAsk({ row: r, kind }); };
+  const openAsk = (r: DeskLine, kind: Kind) => { setDone(null); setFail(null); setSlot((slots.find((x) => x.classIds && (x.classIds.length === 0 || (r.classId !== null && x.classIds.includes(r.classId)))) ?? slots[0])?.value ?? ""); setResult(""); setAsk({ row: r, kind }); };
   const closeAsk = () => { setAsk(null); setFail(null); };
   useEffect(() => {
     const d = dialog.current;
@@ -58,7 +59,28 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const outcome = state?.ok && state.data ? state.data : null;
   const problems: { no: string; reason: string }[] = outcome?.problems ? JSON.parse(outcome.problems) : [];
-  const selectable = canVerify || canAssign;
+  const selectable = canVerify;
+
+  // The interview date: one of the days the school set, or another date and time. Used when giving a date and when accepting an application under review.
+  const dateFields = (
+    <div className="space-y-3 text-sm">
+      {slots.length > 0 && (
+        <label className="block">
+          <span className="font-medium">{q.dateSlot}</span>
+          <select name="slot" defaultValue={slot} onChange={(e) => setSlot(e.target.value)} className="mt-1 block min-h-11 w-full rounded-md border border-line bg-surface px-3">
+            {slots.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+            <option value="">{q.dateOther}</option>
+          </select>
+        </label>
+      )}
+      {(slots.length === 0 || slot === "") && (
+        <label className="block">
+          <span className="font-medium">{q.dateWhen}</span>
+          <input type="datetime-local" name="scheduledAt" required className="mt-1 block min-h-11 w-full rounded-md border border-line bg-surface px-3" />
+        </label>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -87,18 +109,11 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
             <>
               {canVerify && <button type="button" onClick={() => setMode("START_REVIEW")} className="min-h-10 rounded-md border border-line px-3 font-semibold hover:border-brand-500">{labels.start}</button>}
               {canVerify && <button type="button" onClick={() => setMode("MARK_REVIEWED")} className="min-h-10 rounded-md border border-line px-3 font-semibold hover:border-brand-500">{labels.review}</button>}
-              {canAssign && <button type="button" onClick={() => setMode("ASSIGN")} className="min-h-10 rounded-md border border-line px-3 font-semibold hover:border-brand-500">{labels.assign}</button>}
               <span className="ml-auto text-xs text-muted">{labels.never}</span>
             </>
           ) : (
             <>
               <span className="basis-full text-ink sm:basis-auto">{labels.confirm[mode].replace("{n}", String(picked.length))}</span>
-              {mode === "ASSIGN" && (
-                <select name="assigneeId" required defaultValue="" aria-label={labels.assignTo} className="min-h-10 rounded-md border border-line bg-surface px-2">
-                  <option value="" disabled>{labels.choose}</option>
-                  {reviewers.map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
-                </select>
-              )}
               <button disabled={pending} className="min-h-10 rounded-md bg-brand-700 px-4 font-semibold text-white hover:bg-brand-800 disabled:opacity-60">{labels.go}</button>
               <button type="button" onClick={() => setMode(null)} className="min-h-10 px-2 text-muted hover:text-ink">{labels.cancel}</button>
             </>
@@ -112,7 +127,7 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
           <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
             <tr>
               {selectable && <th scope="col" className="w-10 px-1.5 py-3"><input type="checkbox" aria-label={labels.selectAll} checked={all} onChange={() => setPicked(all ? [] : rows.map((r) => r.id))} className="size-4 accent-brand-600" /></th>}
-              {[labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, labels.assigned, q.column].map((h, i) => <th key={i} scope="col" className="px-1.5 py-3 font-medium">{h}</th>)}
+              {[labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, q.column].map((h, i) => <th key={i} scope="col" className="px-1.5 py-3 font-medium">{h}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -143,15 +158,14 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                 <td className="px-1.5 py-3"><span className="block">{r.interviewLabel}</span>{r.interviewDetail && <span className="block whitespace-nowrap text-xs text-muted">{r.interviewDetail}</span>}</td>
                 <td className="whitespace-nowrap px-1.5 py-3">{r.className ?? "—"}</td>
                 <td className="px-1.5 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
-                <td className="px-1.5 py-3 text-muted">{r.assignedTo ?? labels.unassigned}</td>
                 <td className="whitespace-nowrap px-1.5 py-3">
                   <span className="inline-flex items-center gap-1.5">
                     <Link href={`/admissions/${r.id}`} aria-label={`${q.view}: ${r.name}`} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-brand-500 hover:bg-tint"><Eye className="size-3.5 text-link" aria-hidden />{q.view}</Link>
                     {r.acts.map((a) => {
-                      const text = a.kind === "DECLINE" ? q.decline : a.kind === "DATE" ? q.date : a.kind === "RESULT" ? q.result : q.accept;
-                      const Icon = a.kind === "DECLINE" ? Ban : a.kind === "DATE" ? CalendarPlus : a.kind === "RESULT" ? ClipboardCheck : Check;
-                      const tone = a.kind === "DECLINE" ? "text-bad" : a.kind === "DATE" || a.kind === "RESULT" ? "text-link" : "text-ok";
-                      const hover = a.kind === "DECLINE" ? "hover:border-bad/60 hover:bg-bad/10" : a.kind === "DATE" || a.kind === "RESULT" ? "hover:border-brand-500 hover:bg-tint" : "hover:border-ok/60 hover:bg-ok/10";
+                      const text = { DECLINE: q.decline, DATE: q.date, RESULT: q.result, ENROL: q.enrol, BACK: q.back, REOPEN: q.reopen, REVIEW: q.accept, ACCEPT: q.accept }[a.kind];
+                      const Icon = { DECLINE: Ban, DATE: CalendarPlus, RESULT: ClipboardCheck, ENROL: UserPlus, BACK: Undo2, REOPEN: Inbox, REVIEW: Check, ACCEPT: Check }[a.kind];
+                      const tone = a.kind === "DECLINE" ? "text-bad" : a.kind === "REVIEW" || a.kind === "ACCEPT" ? "text-ok" : a.kind === "BACK" ? "text-warn" : "text-link";
+                      const hover = a.kind === "DECLINE" ? "hover:border-bad/60 hover:bg-bad/10" : a.kind === "REVIEW" || a.kind === "ACCEPT" ? "hover:border-ok/60 hover:bg-ok/10" : a.kind === "BACK" ? "hover:border-warn/60 hover:bg-warn/10" : "hover:border-brand-500 hover:bg-tint";
                       return (
                         <span key={a.kind} title={a.why ?? undefined}>
                           <button type="button" disabled={a.why !== null} aria-label={`${text}: ${r.name}`} onClick={() => openAsk(r, a.kind)} className={`group inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors ${hover} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:bg-surface`}>
@@ -171,56 +185,51 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
 
       <dialog ref={dialog} onClose={closeAsk} className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-0 text-ink shadow-[var(--shadow-lift)] backdrop:bg-black/60">
         {ask && (
-          <form action={quickForm} className="space-y-4 p-5">
+          <form onSubmit={(e) => { e.preventDefault(); const data = new FormData(e.currentTarget); startTransition(() => quickForm(data)); }} className="space-y-4 p-5">
             <input type="hidden" name="id" value={ask.row.id} />
             <input type="hidden" name="name" value={ask.row.name} />
             <input type="hidden" name="kind" value={ask.kind} />
             <h2 className="text-lg font-semibold text-heading">
-              {(ask.kind === "REVIEW" ? q.reviewQ : ask.kind === "ACCEPT" ? q.acceptQ : ask.kind === "DECLINE" ? q.declineQ : ask.kind === "DATE" ? q.dateQ : q.resultQ).replace("{name}", ask.row.name).replace("{class}", ask.row.className2)}
+              {({ REVIEW: q.reviewQ, ACCEPT: q.acceptQ, ENROL: q.enrolQ, DECLINE: q.declineQ, DATE: q.dateQ, RESULT: q.resultQ, BACK: q.backQ, REOPEN: q.reopenQ })[ask.kind].replace("{name}", ask.row.name).replace("{class}", ask.row.className2)}
             </h2>
             {ask.kind === "REVIEW" && (
               <>
-                <p className="text-sm text-muted">{ask.row.afterReview === "accepted" ? q.reviewToAccepted : q.reviewToInterview}</p>
+                <p className="text-sm text-muted">{ask.row.afterReview === "placement" ? q.reviewToAccepted : q.reviewToInterview}</p>
+                {ask.row.afterReview === "interview" && dateFields}
                 {ask.row.pendingDocs > 0 && (
                   <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="papersChecked" required className="mt-1 size-4 accent-brand-600" /><span>{q.papersChecked.replace("{n}", String(ask.row.pendingDocs))}</span></label>
                 )}
               </>
             )}
             {ask.kind === "ACCEPT" && <p className="text-sm text-muted">{q.acceptAfter}</p>}
-            {ask.kind === "DECLINE" && <input name="reason" required maxLength={300} autoFocus aria-label={q.declineReason} placeholder={q.declineReason} className="min-h-11 w-full rounded-md border border-line bg-surface px-3" />}
-            {ask.kind === "DATE" && (
-              <div className="space-y-3 text-sm">
-                {slots.length > 0 && (
-                  <label className="block">
-                    <span className="font-medium">{q.dateSlot}</span>
-                    <select name="slot" value={slot} onChange={(e) => setSlot(e.target.value)} className="mt-1 block min-h-11 w-full rounded-md border border-line bg-surface px-3">
-                      {slots.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
-                      <option value="">{q.dateOther}</option>
-                    </select>
-                  </label>
-                )}
-                {(slots.length === 0 || slot === "") && (
-                  <label className="block">
-                    <span className="font-medium">{q.dateWhen}</span>
-                    <input type="datetime-local" name="scheduledAt" required autoFocus className="mt-1 block min-h-11 w-full rounded-md border border-line bg-surface px-3" />
-                  </label>
-                )}
-              </div>
+            {ask.kind === "ENROL" && <p className="text-sm text-muted">{q.enrolAfter}</p>}
+            {ask.kind === "REOPEN" && <p className="text-sm text-muted">{q.reopenAfter}</p>}
+            {ask.kind === "BACK" && (
+              <>
+                <input name="note" required maxLength={500} autoFocus defaultValue={ask.row.missing.length ? q.backDefault.replace("{list}", ask.row.missing.join(", ")) : ""} aria-label={q.backNote} placeholder={q.backNote} className="min-h-11 w-full rounded-md border border-line bg-surface px-3" />
+                <p className="text-xs text-muted">{q.backAfter}</p>
+              </>
             )}
+            {ask.kind === "DECLINE" && <input name="reason" required maxLength={300} autoFocus aria-label={q.declineReason} placeholder={q.declineReason} className="min-h-11 w-full rounded-md border border-line bg-surface px-3" />}
+            {ask.kind === "DATE" && dateFields}
             {ask.kind === "RESULT" && (
               <div className="space-y-3 text-sm">
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-2"><input type="radio" name="outcome" value="PASSED" required className="size-4 accent-brand-600" />{q.resultPassed}</label>
-                  <label className="flex items-center gap-2"><input type="radio" name="outcome" value="NOT_PASSED" className="size-4 accent-brand-600" />{q.resultNot}</label>
+                  <label className="flex items-center gap-2"><input type="radio" name="outcome" value="PASSED" required checked={result === "PASSED"} onChange={() => setResult("PASSED")} className="size-4 accent-brand-600" />{q.resultPassed}</label>
+                  <label className="flex items-center gap-2"><input type="radio" name="outcome" value="NOT_PASSED" checked={result === "NOT_PASSED"} onChange={() => setResult("NOT_PASSED")} className="size-4 accent-brand-600" />{q.resultNot}</label>
                 </div>
+                {result === "PASSED" && ask.row.pendingDocs > 0 && (
+                  <label className="flex items-start gap-2"><input type="checkbox" name="papersChecked" required className="mt-1 size-4 accent-brand-600" /><span>{q.papersChecked.replace("{n}", String(ask.row.pendingDocs))}</span></label>
+                )}
                 <input name="note" maxLength={500} aria-label={q.resultNote} placeholder={q.resultNote} className="min-h-11 w-full rounded-md border border-line bg-surface px-3" />
+                <p className="text-xs text-muted">{q.resultHint}</p>
               </div>
             )}
             {fail && <p role="alert" className="rounded-md border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{fail} <Link href={`/admissions/${ask.row.id}`} className="font-semibold underline">{q.open}</Link></p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={closeAsk} className="min-h-10 rounded-md px-4 text-sm text-muted hover:text-ink">{q.cancel}</button>
               <button disabled={quickPending} className={`min-h-10 rounded-md px-4 text-sm font-semibold text-white disabled:opacity-60 ${ask.kind === "DECLINE" ? "bg-bad hover:opacity-90" : "bg-brand-700 hover:bg-brand-800"}`}>
-                {ask.kind === "DECLINE" ? q.declineGo : ask.kind === "DATE" ? q.dateGo : ask.kind === "RESULT" ? q.resultGo : q.confirm}
+                {({ DECLINE: q.declineGo, DATE: q.dateGo, RESULT: q.resultGo, ENROL: q.enrolGo, BACK: q.backGo, REOPEN: q.reopenGo, REVIEW: q.confirm, ACCEPT: q.confirm })[ask.kind]}
               </button>
             </div>
           </form>

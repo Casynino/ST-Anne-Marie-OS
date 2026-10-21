@@ -5,7 +5,7 @@ import { AppError } from "@/lib/errors";
 import { getRequestMeta } from "@/lib/auth/next";
 import { makeT } from "@/lib/i18n";
 import { cancelMyApplication, sandboxPay } from "@/server/application-fee";
-import { confirmMyApplication, removeMyDocument, updateMyApplication, uploadMyDocument } from "@/server/application-draft";
+import { confirmMyApplication, removeMyDocument, resubmitMyApplication, updateMyApplication, uploadMyDocument } from "@/server/application-draft";
 import { MAX_DOCUMENT_BYTES } from "@/server/documents";
 
 /** Local testing only (refused unless the sandbox is on and the app is not in production): stands in for the provider's confirmation. */
@@ -53,5 +53,12 @@ export async function removeApplicationFileAction(_: ActionState, form: FormData
   return run(form, async (ctx, i) => {
     await removeMyDocument(ctx, str(i.documentId));
     return { message: makeT(ctx.locale)("apf.file.removed") };
+  });
+}
+
+export async function resubmitApplicationAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    await resubmitMyApplication(ctx, str(i.id));
+    return { message: makeT(ctx.locale)("apf.returned.sent") };
   });
 }

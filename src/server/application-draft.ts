@@ -10,6 +10,7 @@ import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES, persistDocument, sniffType } from "
 import type { AuditActor } from "@/server/audit";
 import type { RequestMeta } from "@/lib/auth/context";
 import { assertNoOpenDuplicate, onlineSchema, prepareOnline, toStored, type StoredForm } from "@/server/online-application";
+import { openTask } from "@/server/workflow";
 import { parse } from "@/lib/validation";
 
 /*
@@ -43,8 +44,10 @@ export function checklist(policy: { applicationPhotoRequired: boolean; requiredD
 export async function getApplicationReview(ctx: AuthContext, id: string) {
   const base = await getMyApplication(ctx, id);
   const row = await ownDraft(ctx, id);
+  // The school may have sent a submitted application back: what it asks for, so the family can add it and send the application again.
+  const sentBack = row.applicationId ? await db.application.findFirst({ where: { id: row.applicationId, schoolId: ctx.schoolId, reviewStatus: "RETURNED" }, select: { reviewNote: true, reviewedAt: true } }) : null;
   const [policy, docs] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), liveDocuments(ctx.schoolId, id)]);
-  return { ...base, form: row.payload as unknown as StoredForm, documents: docs, checklist: checklist(policy, docs, (row.payload as unknown as StoredForm).entryType), confirmedAt: row.confirmedAt, photoId: docs.find((d) => d.docType === "PASSPORT_PHOTO")?.id ?? null };
+  return { ...base, returned: sentBack ? { note: sentBack.reviewNote, at: sentBack.reviewedAt } : null, form: row.payload as unknown as StoredForm, documents: docs, checklist: checklist(policy, docs, (row.payload as unknown as StoredForm).entryType), confirmedAt: row.confirmedAt, photoId: docs.find((d) => d.docType === "PASSPORT_PHOTO")?.id ?? null };
 }
 
 /** The family corrects its application before paying. Changing anything takes back the confirmation. */
@@ -157,4 +160,25 @@ export async function saveIncomingFiles(a: { schoolId: string; userId: string | 
       console.error(JSON.stringify({ level: "error", msg: "application_file_save_failed", draftId: a.draftId, docType: f.docType, error: e instanceof Error ? e.message.slice(0, 200) : String(e) }));
     }
   }
+}
+
+/**
+ * The family sends a returned application again, after adding what the school asked for. The application goes back under review (the school's
+ * request stays on its history) and the Admissions Office is asked to look at it again. Only the family's own application, and only when the
+ * school has sent it back.
+ */
+export async function resubmitMyApplication(ctx: AuthContext, id: string) {
+  const row = await ownDraft(ctx, id);
+  if (row.status !== "SUBMITTED" || !row.applicationId) throw conflict("This application has not been sent back to you.");
+  await db.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM applications WHERE id = ${row.applicationId}::uuid AND "schoolId" = ${ctx.schoolId}::uuid FOR UPDATE`;
+    if (!locked.length) throw notFound("Application");
+    const app = await tx.application.findUniqueOrThrow({ where: { id: row.applicationId! } });
+    if (app.reviewStatus !== "RETURNED") throw conflict("The school has not asked for anything more.");
+    if (app.status !== "APPLIED" && app.status !== "INTERVIEW") throw conflict("This application is closed.");
+    await tx.application.update({ where: { id: app.id }, data: { reviewStatus: "PENDING" } });
+    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, fromStatus: app.status, toStatus: app.status, kind: "REVIEW", reason: "Sent again by the family", byUserId: ctx.userId } });
+    await openTask(tx, { schoolId: ctx.schoolId, kind: "APPLICATION_REVIEW", relatedType: "Application", relatedId: app.id, relatedLabel: `${app.firstName} ${app.lastName} (${app.applicationNo})`, sourceEvent: "application.resubmitted", createdById: ctx.userId, discriminator: `again-${Date.now()}` });
+    await writeAudit(tx, actorOf(ctx), { action: "admission.resubmitted", entityType: "Application", entityId: app.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { from: "RETURNED", to: "PENDING" } });
+  });
 }

@@ -535,7 +535,7 @@ async function main() {
   // ───── 16. Admissions: complete applicants, so every step of the three lists can be tried (accept, give a date, record a result, accept again) ─────
   if (!(await db.application.findFirst({ where: { schoolId, firstName: "Neema", lastName: "Kilimo" }, select: { id: true } }))) {
     const walkIn = (first: string, last: string, born: string, classId: string, gender = "FEMALE") =>
-      admissions.createApplication(registrar, { firstName: first, lastName: last, dateOfBirth: born, gender, classAppliedId: classId, guardians: [{ fullName: `Mama ${last}`, phone: phone("0698"), relationship: "MOTHER", isPrimary: "on" }] });
+      admissions.createApplication(registrar, { firstName: first, lastName: last, dateOfBirth: born, gender, classAppliedId: classId, guardians: [{ fullName: `Mama ${last}`, phone: phone("0687"), relationship: "MOTHER", isPrimary: "on" }] }); // its own number series, so no guardian shares a phone with another family
     // the birth certificate is uploaded; "checked" also verifies it and passes the review
     const paper = async (id: string, label: string, mode: "waiting" | "verified" | "reviewed" = "waiting") => {
       const doc = await documents.uploadDocument(registrar, { applicationId: id }, { docType: "BIRTH_CERTIFICATE", fileName: "birth-certificate.pdf", bytes: await samplePdf(`Birth certificate - ${label}`) });
@@ -568,6 +568,9 @@ async function main() {
     await interviews.recordInterviewResult(head, hi.id, { status: "COMPLETED", outcome: "PASSED", score: 88, notes: "Bright and calm", recommendation: "RECOMMEND", recommendationNote: "Suitable for the class applied" }); // passed: Accept
     log("admissions applicants ready to accept");
   }
+
+  // Accepted applicants are enrolled at once (no class yet, so they wait in Class placement): enrol any that are still only accepted.
+  for (const a of await db.application.findMany({ where: { schoolId, status: "ACCEPTED" }, select: { id: true } })) await admissions.enrolApplication(registrar, a.id, {}).catch(() => undefined);
 
   console.log(`\nDemo school is ready. Every account below uses the password: ${PASSWORD}`);
   console.table([
