@@ -19,6 +19,9 @@ import { checkbox, optText, optUuid, parse, text } from "@/lib/validation";
 const OPEN = ["APPLIED", "INTERVIEW"] as const;
 const FUTURE_SLACK_MS = 60_000;
 
+/** A readable date and time in the school's time zone, for the history shown to staff. */
+const when = (d: Date, timeZone: string) => new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(d);
+
 /** "2026-11-02T09:30" in the school's time zone, or a full ISO timestamp, as a UTC instant. */
 function instant(value: string, timezone: string): Date | null {
   const v = value.trim();
@@ -103,7 +106,7 @@ export async function scheduleInterview(ctx: AuthContext, applicationId: string,
     const i = await create(tx, ctx, applicationId, d, start, minutes);
     await tx.application.update({ where: { id: applicationId }, data: { status: "INTERVIEW", interviewOn: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())) } });
     if (app.status !== "INTERVIEW") await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: "INTERVIEW", kind: "STATUS", byUserId: ctx.userId } });
-    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "INTERVIEW", toStatus: "INTERVIEW", kind: "INTERVIEW", reason: `Interview scheduled for ${start.toISOString()}${d.location ? ` at ${d.location}` : ""}`, byUserId: ctx.userId } });
+    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "INTERVIEW", toStatus: "INTERVIEW", kind: "INTERVIEW", reason: `Interview scheduled for ${when(start, school.timezone)}${d.location ? ` at ${d.location}` : ""}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "interview.schedule", entityType: "Interview", entityId: i.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { scheduledAt: start.toISOString(), minutes, location: d.location ?? null, interviewerId: d.interviewerId ?? null } });
     return i;
   });
@@ -134,7 +137,7 @@ export async function rescheduleInterview(ctx: AuthContext, interviewId: string,
     await tx.interview.update({ where: { id: old.id }, data: { status: "CANCELLED", cancelReason: `Rescheduled: ${d.reason}` } });
     const i = await create(tx, ctx, app.id, merged, start, minutes, { rescheduledFromId: old.id });
     await tx.application.update({ where: { id: app.id }, data: { interviewOn: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())) } });
-    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, fromStatus: app.status, toStatus: app.status, kind: "INTERVIEW", reason: `Interview moved to ${start.toISOString()}: ${d.reason}`, byUserId: ctx.userId } });
+    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, fromStatus: app.status, toStatus: app.status, kind: "INTERVIEW", reason: `Interview moved to ${when(start, school.timezone)}: ${d.reason}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "interview.reschedule", entityType: "Interview", entityId: i.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { from: old.scheduledAt.toISOString(), to: start.toISOString(), previousInterviewId: old.id }, reason: d.reason });
     return i;
   });

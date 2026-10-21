@@ -1,3 +1,4 @@
+import { pendingExpenseCount } from "@/server/expenses";
 import { db } from "@/lib/db";
 import type { AuthContext } from "@/lib/auth/context";
 import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
@@ -24,11 +25,13 @@ import { centsOf } from "@/lib/finance/money";
 export type Kpi = { key: string; value: number | string | null; hint?: string; href: string };
 export type Bar = { label: string; value: number; tone?: "brand" | "sun" | "indigo" | "warn" | "bad" | "muted" };
 export type TrendPoint = { date: string; rate: number };
-export type Attention = { area: "attendance" | "admissions" | "finance" | "results" | "messages" | "system"; key: "conflicts" | "failedNotifications" | "newEnquiries" | "newApplications" | "registersOpen" | "unmatchedPayments" | "refundsPending" | "resultsToApprove" | "marksOverdue" | "messagesWaiting" | "backupStale"; count: number; href: string };
+export type Attention = { area: "attendance" | "admissions" | "finance" | "results" | "messages" | "system"; key: "conflicts" | "failedNotifications" | "newEnquiries" | "newApplications" | "registersOpen" | "unmatchedPayments" | "refundsPending" | "resultsToApprove" | "marksOverdue" | "messagesWaiting" | "backupStale" | "expensesPending"; count: number; href: string };
 export type CollectionsPoint = { date: string; cents: number };
 export type FinancePanel = {
   term: { id: string; name: string };
   billed: number; collected: number; outstanding: number; overdue: number; credit: number; expenses: number; ratePct: number | null;
+  received: { today: number; week: number; month: number }; dueSoon: { amount: number; students: number }; admissionFees: { verified: number; pending: number }; netOperating: number;
+  invoices: { total: number; noCharge: number; unpaid: number; partial: number; paid: number };
   trend: CollectionsPoint[];
   topArrears: { studentId: string; name: string; admissionNo: string; className: string | null; overdue: number; outstanding: number }[];
 };
@@ -98,6 +101,7 @@ async function financePanel(ctx: AuthContext, today: Date): Promise<FinancePanel
   const [trend, arrears] = await Promise.all([collectionsTrend(ctx, today, 30), arrearsReport(ctx, { termId: o.term.id })]);
   return {
     term: o.term, billed: o.billed, collected: o.collected, outstanding: o.outstanding, overdue: o.overdue, credit: o.credit, expenses: o.expenses, ratePct: o.collectionRatePct, trend,
+    received: o.received, dueSoon: o.dueSoon, admissionFees: o.admissionFees, netOperating: o.netOperating, invoices: o.invoices,
     topArrears: arrears.rows.slice(0, 5).map((r) => ({ studentId: r.studentId, name: r.name, admissionNo: r.admissionNo, className: r.className, overdue: r.overdue, outstanding: r.outstanding })),
   };
 }
@@ -124,7 +128,7 @@ export async function getDashboard(ctx: AuthContext) {
   const can = (p: string) => ctx.permissions.has(p as never);
   const canStudents = can("student.read") || can("student.read_assigned");
 
-  const [students, attendance, trend, classCounts, pipeline, recentApplications, activity, staff, enquiries, conflicts, failed, byGender, finance, exams, unmatched, refundsPending, messagesWaiting, backups] = await Promise.all([
+  const [students, attendance, trend, classCounts, pipeline, recentApplications, activity, staff, enquiries, conflicts, failed, byGender, finance, exams, unmatched, refundsPending, messagesWaiting, backups, expensesPending] = await Promise.all([
     canStudents ? studentCounts(ctx) : null,
     todaysAttendance(ctx, todayStr),
     attendanceTrend(ctx, today, 14),
@@ -156,6 +160,7 @@ export async function getDashboard(ctx: AuthContext) {
     can("refund.approve") ? db.refund.count({ where: { schoolId: ctx.schoolId, status: "REQUESTED", requestedById: { not: ctx.userId } } }) : null,
     countStaffAttention(ctx),
     can("backup.read") ? backupHealth() : null,
+    can("expense.approve") ? pendingExpenseCount(ctx) : null,
   ]);
 
   const counts = Object.fromEntries((pipeline ?? []).map((p) => [p.status, p._count._all])) as Record<string, number>;
@@ -182,6 +187,7 @@ export async function getDashboard(ctx: AuthContext) {
   if (counts.APPLIED) attention.push({ area: "admissions", key: "newApplications", count: counts.APPLIED, href: "/admissions?status=APPLIED" });
   if (unmatched) attention.push({ area: "finance", key: "unmatchedPayments", count: unmatched, href: "/finance/reconciliation" });
   if (refundsPending) attention.push({ area: "finance", key: "refundsPending", count: refundsPending, href: "/finance/refunds" });
+  if (expensesPending) attention.push({ area: "finance", key: "expensesPending", count: expensesPending, href: "/finance/expenses?approval=PENDING" });
   if (exams?.toApprove) attention.push({ area: "results", key: "resultsToApprove", count: exams.toApprove, href: "/marks?view=queue" });
   if (exams?.overdue) attention.push({ area: "results", key: "marksOverdue", count: exams.overdue, href: "/marks" });
   if (messagesWaiting) attention.push({ area: "messages", key: "messagesWaiting", count: messagesWaiting, href: "/communication/messages" });

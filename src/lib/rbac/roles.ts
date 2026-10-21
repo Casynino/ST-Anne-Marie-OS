@@ -57,6 +57,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       "payment.reverse",
       "refund.approve",
       "expense.read",
+      "expense.approve",
       "finance.reports",
       "enquiry.read",
       "enquiry.manage",

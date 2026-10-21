@@ -26,19 +26,32 @@ export async function financeOverview(ctx: AuthContext, input: unknown = {}) {
   const finance = await loadFinance(db, ctx.schoolId, studentIds, today);
   const ids = new Set(invoices.map((i) => i.id));
   let billed = 0, paid = 0, outstanding = 0, overdue = 0, noCharge = 0, unpaid = 0, partial = 0, settled = 0;
-  for (const f of finance.values()) {
+  // Instalments that fall due in the next two weeks and are not yet paid (the next payment parents should expect to make).
+  const soonLimit = new Date(new Date(`${today}T00:00:00Z`).getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
+  let dueSoonAmount = 0; const dueSoonStudents = new Set<string>();
+  for (const [studentId, f] of finance) {
     for (const [id, b] of f.ledger.invoices) {
       if (!ids.has(id)) continue;
       billed += b.total; paid += b.paid; outstanding += b.outstanding; overdue += b.overdueAmount;
       if (b.state === "NO_CHARGE") noCharge++; else if (b.state === "UNPAID") unpaid++; else if (b.state === "PARTIAL") partial++; else settled++;
+      for (const item of b.schedule) if (item.paid < item.amount && item.dueDate >= today && item.dueDate <= soonLimit) { dueSoonAmount += item.amount - item.paid; dueSoonStudents.add(studentId); }
     }
   }
   const range = { gte: term.startsOn, lte: term.endsOn };
+  const dayMs = 86_400_000;
+  const weekStart = new Date(new Date(`${today}T00:00:00Z`).getTime() - 6 * dayMs);
+  const monthStart = new Date(`${today.slice(0, 8)}01T00:00:00Z`);
+  const sumSince = async (from: Date) => centsOf((await db.payment.aggregate({ where: { schoolId: ctx.schoolId, status: "POSTED", receivedOn: { gte: from, lte: new Date(`${today}T00:00:00Z`) } }, _sum: { amount: true } }))._sum.amount);
+  const [receivedToday, receivedWeek, receivedMonth, admissionVerified, admissionPending] = await Promise.all([
+    sumSince(new Date(`${today}T00:00:00Z`)), sumSince(weekStart), sumSince(monthStart),
+    db.admissionPayment.aggregate({ where: { schoolId: ctx.schoolId, status: "VERIFIED", verifiedAt: { gte: term.startsOn, lt: new Date(term.endsOn.getTime() + dayMs) } }, _sum: { amount: true } }),
+    db.admissionPayment.aggregate({ where: { schoolId: ctx.schoolId, status: "PENDING" }, _sum: { amount: true } }),
+  ]);
   const [collected, byMethod, refundsPaid, expense, credit] = await Promise.all([
     db.payment.aggregate({ where: { schoolId: ctx.schoolId, status: "POSTED", receivedOn: range }, _sum: { amount: true }, _count: true }),
     db.payment.groupBy({ by: ["method"], where: { schoolId: ctx.schoolId, status: "POSTED", receivedOn: range }, _sum: { amount: true } }),
     db.refund.aggregate({ where: { schoolId: ctx.schoolId, status: "PAID", paidAt: { gte: term.startsOn, lt: new Date(term.endsOn.getTime() + 86_400_000) } }, _sum: { amount: true } }),
-    db.expense.aggregate({ where: { schoolId: ctx.schoolId, voided: false, spentOn: range }, _sum: { amount: true } }),
+    db.expense.aggregate({ where: { schoolId: ctx.schoolId, voided: false, approval: "APPROVED", spentOn: range }, _sum: { amount: true } }),
     Promise.resolve([...finance.values()].reduce((n, f) => n + f.ledger.credit, 0)),
   ]);
   const collectedC = centsOf(collected._sum.amount);
@@ -50,6 +63,11 @@ export async function financeOverview(ctx: AuthContext, input: unknown = {}) {
     invoices: { total: invoices.length, noCharge, unpaid, partial, paid: settled },
     collected: collectedC, payments: collected._count, byMethod: byMethod.map((m) => ({ method: m.method, cents: centsOf(m._sum.amount) })),
     refundsPaid: refundsC, expenses: expenseC, net: collectedC - refundsC - expenseC,
+    received: { today: receivedToday, week: receivedWeek, month: receivedMonth },
+    dueSoon: { amount: dueSoonAmount, students: dueSoonStudents.size },
+    // Admission fees are paid by applicants and kept apart from school fees; they join only the cash position below.
+    admissionFees: { verified: centsOf(admissionVerified._sum.amount), pending: centsOf(admissionPending._sum.amount) },
+    netOperating: collectedC + centsOf(admissionVerified._sum.amount) - refundsC - expenseC,
   };
 }
 
@@ -142,7 +160,7 @@ export async function classCollectionReport(ctx: AuthContext, input: unknown) {
 export async function expensesReport(ctx: AuthContext, input: unknown) {
   requirePermission(ctx, "finance.reports");
   const r = parse(rangeSchema, input);
-  const rows = await db.expense.groupBy({ by: ["categoryId"], where: { schoolId: ctx.schoolId, voided: false, spentOn: { gte: r.from, lte: r.to } }, _sum: { amount: true }, _count: true });
+  const rows = await db.expense.groupBy({ by: ["categoryId"], where: { schoolId: ctx.schoolId, voided: false, approval: "APPROVED", spentOn: { gte: r.from, lte: r.to } }, _sum: { amount: true }, _count: true });
   const cats = await db.expenseCategory.findMany({ where: { schoolId: ctx.schoolId, id: { in: rows.map((x) => x.categoryId) } }, select: { id: true, name: true } });
   const out = rows.map((x) => ({ category: cats.find((c) => c.id === x.categoryId)?.name ?? "—", cents: centsOf(x._sum.amount), count: x._count })).sort((a, b) => b.cents - a.cents);
   return { from: formatDateOnly(r.from), to: formatDateOnly(r.to), rows: out, total: out.reduce((n, x) => n + x.cents, 0) };

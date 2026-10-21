@@ -104,6 +104,7 @@ export const PERMISSIONS = {
   "refund.approve": { module: "finance", description: "Approve or reject refund requests (never your own)" },
   "expense.read": { module: "finance", description: "View school expenses" },
   "expense.manage": { module: "finance", description: "Record and void expenses, manage expense categories" },
+  "expense.approve": { module: "finance", description: "Approve or reject expenses that need approval (never your own)" },
   "finance.reports": { module: "finance", description: "View finance dashboards and reports (arrears, collections, expenses) and export them" },
   "finance.reconcile": { module: "finance", description: "Match or reject mobile-money and bank notifications that could not be matched automatically" },
 

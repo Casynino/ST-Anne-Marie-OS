@@ -1929,12 +1929,19 @@ model Refund {
   @@map("refunds")
 }
 
+enum ExpenseApproval {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
 model ExpenseCategory {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  schoolId  String   @db.Uuid
-  name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid(7)) @db.Uuid
+  schoolId         String   @db.Uuid
+  name             String
+  isActive         Boolean  @default(true)
+  requiresApproval Boolean  @default(false) // every expense in this category waits for an approver
+  createdAt        DateTime @default(now())
 
   school   School    @relation(fields: [schoolId], references: [id])
   expenses Expense[]
@@ -1944,21 +1951,26 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id          String        @id @default(uuid(7)) @db.Uuid
-  schoolId    String        @db.Uuid
-  categoryId  String        @db.Uuid
-  amount      Decimal       @db.Decimal(14, 2)
-  spentOn     DateTime      @db.Date
-  payee       String
-  description String?
-  method      PaymentMethod
-  reference   String?
-  voided      Boolean       @default(false)
-  voidReason  String?
-  voidedAt    DateTime?
-  voidedById  String?       @db.Uuid
-  createdById String        @db.Uuid
-  createdAt   DateTime      @default(now())
+  id           String          @id @default(uuid(7)) @db.Uuid
+  schoolId     String          @db.Uuid
+  categoryId   String          @db.Uuid
+  amount       Decimal         @db.Decimal(14, 2)
+  spentOn      DateTime        @db.Date
+  payee        String
+  description  String?
+  method       PaymentMethod
+  reference    String?
+  voided       Boolean         @default(false)
+  voidReason   String?
+  voidedAt     DateTime?
+  voidedById   String?         @db.Uuid
+  createdById  String          @db.Uuid
+  createdAt    DateTime        @default(now())
+  // Approval: expenses the school marks as needing it start PENDING and count in no total until a second person approves them.
+  approval     ExpenseApproval @default(APPROVED)
+  approvedById String?         @db.Uuid
+  approvedAt   DateTime?
+  approvalNote String?
 
   school   School          @relation(fields: [schoolId], references: [id])
   category ExpenseCategory @relation(fields: [categoryId], references: [id])

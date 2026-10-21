@@ -35,7 +35,7 @@ export async function offerLetterDocument(ctx: AuthContext, applicationId: strin
   const name = [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ");
   const fee = centsOf(app.offer.feeAmount);
   const lines = [
-    t("adm.letter.intro", { name, school: school.name, place: cls ? t("adm.letter.place", { class: cls.name, year: year?.name ?? "" }).trim() : "" }).replace(/\s+\./, "."),
+    t("adm.letter.intro", { name, school: school.name, place: cls ? (year ? t("adm.letter.place", { class: cls.name, year: year.name }) : t("adm.letter.placeNoYear", { class: cls.name })) : "" }).replace(/\s+\./, "."),
     "",
     ...(fee > 0 ? [`1. ${t("adm.letter.fee", { fee: formatMoney(fee, school.currency), words: amountInWords(fee, school.currency, locale) })}`] : [`1. ${t("adm.letter.noFee")}`]),
     ...(fee > 0 && settings.paymentInstructions.trim() ? [`2. ${t("adm.letter.how")}`, ...settings.paymentInstructions.trim().split("\n").map((l) => `   ${l}`)] : []),

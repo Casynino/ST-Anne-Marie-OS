@@ -7,10 +7,10 @@ import { Badge, Card, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Pa
 import { ActionForm, Field } from "@/components/form";
 import { FinanceNav } from "@/components/finance/subnav";
 import { financePage } from "../_lib";
-import { createCategoryAction, recordExpenseAction, toggleCategoryAction, voidExpenseAction } from "../actions";
+import { approveExpenseAction, categoryApprovalAction, createCategoryAction, recordExpenseAction, rejectExpenseAction, toggleCategoryAction, voidExpenseAction } from "../actions";
 
 export const metadata: Metadata = { title: "Expenses" };
-type Search = { from?: string; to?: string; categoryId?: string; includeVoid?: string; page?: string };
+type Search = { from?: string; to?: string; categoryId?: string; includeVoid?: string; approval?: string; page?: string };
 
 export default async function ExpensesPage({ searchParams }: { searchParams: Promise<Search> }) {
   const { ctx, t, money, unmatched, timezone } = await financePage();
@@ -19,8 +19,9 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   const clean = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
   const categories = await listExpenseCategories(ctx);
   const categoryId = categories.find((c) => c.id === sp.categoryId)?.id;
-  const data = await listExpenses(ctx, { from: clean(sp.from), to: clean(sp.to), categoryId, includeVoid: sp.includeVoid === "on" ? "on" : "", page: Number(sp.page) || 1 });
+  const data = await listExpenses(ctx, { from: clean(sp.from), to: clean(sp.to), categoryId, includeVoid: sp.includeVoid === "on" ? "on" : "", approval: sp.approval === "PENDING" || sp.approval === "REJECTED" ? sp.approval : "", page: Number(sp.page) || 1 });
   const manage = hasAny(ctx, ["expense.manage"]);
+  const canApprove = hasAny(ctx, ["expense.approve"]);
   const today = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
   return (
     <>
@@ -32,19 +33,28 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
             <Field name="from" type="date" label={t("fin.from")} defaultValue={clean(sp.from)} />
             <Field name="to" type="date" label={t("fin.to")} defaultValue={clean(sp.to)} />
             <Field name="categoryId" type="select" label={t("fin.expenses.category")} options={categories.map((c) => ({ value: c.id, label: c.name }))} defaultValue={categoryId ?? ""} placeholder={t("common.all")} />
+            <Field name="approval" type="select" label={t("fin.expenses.approvalFilter")} options={[{ value: "PENDING", label: t("fin.expenses.approval.PENDING") }, { value: "REJECTED", label: t("fin.expenses.approval.REJECTED") }]} defaultValue={sp.approval ?? ""} placeholder={t("common.all")} />
             <Field name="includeVoid" type="checkbox" label={t("fin.expenses.showVoid")} defaultValue={sp.includeVoid === "on"} />
           </FilterBar>
-          <p className="mb-3 text-sm text-muted">{t("fin.expenses.total", { amount: money(data.totalCents), count: data.total })}</p>
+          <p className="mb-1 text-sm text-muted">{t("fin.expenses.total", { amount: money(data.totalCents), count: data.total })}</p>
+          <p className="mb-3 text-xs text-muted">{t("fin.expenses.approvalHint")}</p>
           {data.items.length === 0 ? <EmptyState>{t("fin.expenses.empty")}</EmptyState> : (
             <DataTable head={[t("fin.pdf.date"), t("fin.expenses.category"), t("fin.expenses.payee"), t("fin.pdf.method"), t("fin.pdf.amount"), ""]}>
               {data.items.map((e) => (
                 <tr key={e.id} className={e.voided ? "text-muted" : undefined}>
                   <Td className="whitespace-nowrap">{displayDate(e.spentOn, ctx.locale)}</Td>
                   <Td>{e.category.name}</Td>
-                  <Td>{e.payee}{e.description && <p className="text-xs text-muted">{e.description}</p>}{e.voided && <p className="text-xs text-bad">{t("fin.state.VOID")}: {e.voidReason}</p>}</Td>
+                  <Td>{e.payee}{e.description && <p className="text-xs text-muted">{e.description}</p>}{e.voided && <p className="text-xs text-bad">{t("fin.state.VOID")}: {e.voidReason}</p>}{e.approval !== "APPROVED" && <p className="mt-1"><Badge tone={e.approval === "PENDING" ? "warn" : "bad"}>{t(`fin.expenses.approval.${e.approval}` as "fin.expenses.approval.PENDING")}</Badge>{e.approvalNote ? <span className="ml-2 text-xs text-muted">{e.approvalNote}</span> : null}</p>}</Td>
                   <Td>{tDynamic(t, "fin.method", e.method)}{e.reference && <p className="text-xs text-muted">{e.reference}</p>}</Td>
                   <Td className={`tabular-nums font-medium ${e.voided ? "line-through" : ""}`}>{money(e.amountCents)}</Td>
-                  <Td>{manage && !e.voided && (
+                  <Td>{canApprove && e.approval === "PENDING" && !e.voided && e.createdById !== ctx.userId && (
+                    <div className="mb-2 flex flex-wrap items-start gap-2">
+                      <ActionForm action={approveExpenseAction} submitLabel={t("fin.expenses.approve")} inline className="space-y-0"><input type="hidden" name="id" value={e.id} /></ActionForm>
+                      <details><summary className="min-h-9 cursor-pointer text-xs text-bad">{t("fin.expenses.reject")}</summary>
+                        <ActionForm action={rejectExpenseAction} submitLabel={t("fin.expenses.reject")} inline tone="danger" className="mt-2 space-y-1"><input type="hidden" name="id" value={e.id} /><Field name="reason" label={t("marks.reason")} required /></ActionForm>
+                      </details>
+                    </div>
+                  )}{manage && !e.voided && (
                     <details><summary className="min-h-9 cursor-pointer text-xs text-bad">{t("fin.expenses.void")}</summary>
                       <ActionForm action={voidExpenseAction} submitLabel={t("fin.expenses.void")} inline tone="danger" confirm={t("fin.expenses.voidConfirm")} className="mt-2 space-y-1"><input type="hidden" name="id" value={e.id} /><Field name="reason" label={t("marks.reason")} required /></ActionForm>
                     </details>
@@ -53,7 +63,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
               ))}
             </DataTable>
           )}
-          <Pagination page={data.page} pageSize={data.pageSize} total={data.total} basePath="/finance/expenses" params={{ from: clean(sp.from), to: clean(sp.to), categoryId, includeVoid: sp.includeVoid }} t={t} />
+          <Pagination page={data.page} pageSize={data.pageSize} total={data.total} basePath="/finance/expenses" params={{ from: clean(sp.from), to: clean(sp.to), categoryId, includeVoid: sp.includeVoid, approval: sp.approval }} t={t} />
         </div>
         <div className="space-y-6">
           {manage && (
@@ -72,7 +82,8 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
           <Card title={t("fin.expenses.categories")}>
             <ul className="divide-y divide-line text-sm">
               {categories.map((c) => (
-                <li key={c.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0"><span className={c.isActive ? "" : "text-muted line-through"}>{c.name} <span className="text-xs text-muted">({c._count.expenses})</span></span>
+                <li key={c.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0"><span className={c.isActive ? "" : "text-muted line-through"}>{c.name} <span className="text-xs text-muted">({c._count.expenses})</span>{c.requiresApproval && <span className="ml-2 align-middle"><Badge tone="warn">{t("fin.expenses.needsApproval")}</Badge></span>}</span>
+                  {manage && <ActionForm action={categoryApprovalAction} submitLabel={c.requiresApproval ? `- ${t("fin.expenses.needsApproval")}` : `+ ${t("fin.expenses.needsApproval")}`} inline className="space-y-0"><input type="hidden" name="id" value={c.id} /><input type="hidden" name="required" value={c.requiresApproval ? "false" : "true"} /></ActionForm>}
                   {manage && <ActionForm action={toggleCategoryAction} submitLabel={c.isActive ? t("common.inactive") : t("common.active")} inline className="space-y-0"><input type="hidden" name="id" value={c.id} /><input type="hidden" name="active" value={c.isActive ? "false" : "true"} /></ActionForm>}</li>
               ))}
             </ul>

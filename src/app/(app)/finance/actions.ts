@@ -108,6 +108,15 @@ export async function toggleCategoryAction(_: ActionState, form: FormData) {
 export async function recordExpenseAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await expenses.recordExpense(ctx, i); return saved(ctx); });
 }
+export async function approveExpenseAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await expenses.approveExpense(ctx, str(i.id)); return saved(ctx); });
+}
+export async function rejectExpenseAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await expenses.rejectExpense(ctx, str(i.id), i); return saved(ctx); });
+}
+export async function categoryApprovalAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await expenses.setExpenseCategoryApproval(ctx, str(i.id), str(i.required) === "true"); return saved(ctx); });
+}
 export async function voidExpenseAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await expenses.voidExpense(ctx, str(i.id), i); return saved(ctx); });
 }

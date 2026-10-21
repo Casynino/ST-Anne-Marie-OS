@@ -11,6 +11,7 @@ import * as expenses from "@/server/expenses";
 import * as events from "@/server/payment-events";
 import { loadStudentFinance } from "@/server/balances";
 import { receiptDocument, receiptPdf } from "@/server/finance-pdf";
+import { expensesReport } from "@/server/finance-reports";
 import { feeSheetDocument, feeSheetPdf } from "@/server/fee-sheet";
 import { signBody } from "@/lib/payments/providers";
 import { createCurrentYearAcademics, createTestSchool, createTestUser, studentInput } from "../helpers";
@@ -499,5 +500,43 @@ describe("the printed fee table", () => {
     const otherAdmin = (await createTestUser(other.id, ["super_admin"])).ctx;
     const otherYear = (await createCurrentYearAcademics(otherAdmin)).year;
     expect(await code(feeSheetDocument(otherAccountant, { yearId: otherYear.id, structureId: mine.id }, "EN"))).toBe("NOT_FOUND");
+  });
+});
+
+describe("expense approval", () => {
+  it("holds expenses the school marked as needing approval, adds up only approved ones, and needs a second person", async () => {
+    const cat = await expenses.createExpenseCategory(accountant, { name: `Capital ${n}` });
+    const plain = await expenses.createExpenseCategory(accountant, { name: `Running ${n}` });
+    await expenses.setExpenseCategoryApproval(accountant, cat.id, true);
+    expect(await code(expenses.setExpenseCategoryApproval(teacher, cat.id, false))).toBe("FORBIDDEN");
+    const held = await expenses.recordExpense(accountant, { categoryId: cat.id, amount: "80000", payee: "Builder", method: "CASH" });
+    expect(held.approval).toBe("PENDING");
+    expect((await expenses.recordExpense(accountant, { categoryId: plain.id, amount: "5000", payee: "Shop", method: "CASH" })).approval).toBe("APPROVED");
+    const before = (await expenses.listExpenses(accountant, {})).totalCents;
+    expect((await expenses.listExpenses(accountant, { approval: "PENDING" })).items.map((e) => e.id)).toContain(held.id);
+    expect(await code(expenses.approveExpense(accountant, held.id))).toBe("FORBIDDEN"); // Finance records, someone else approves
+    expect(await code(expenses.approveExpense(teacher, held.id))).toBe("FORBIDDEN");
+    expect(await expenses.pendingExpenseCount(head)).toBeGreaterThan(0);
+    await expenses.approveExpense(head, held.id);
+    expect((await expenses.listExpenses(accountant, {})).totalCents).toBe(before + tzs(80_000)); // only now counted
+    expect(await code(expenses.approveExpense(head, held.id))).toBe("CONFLICT"); // already decided
+    // the person who recorded it cannot approve it, even with the permission
+    const mine = await expenses.recordExpense(admin, { categoryId: cat.id, amount: "1000", payee: "Self", method: "CASH" });
+    expect(await code(expenses.approveExpense(admin, mine.id))).toBe("CONFLICT");
+    expect(await code(expenses.rejectExpense(head, mine.id, {}))).toBe("VALIDATION");
+    await expenses.rejectExpense(head, mine.id, { reason: "No quotation attached" });
+    expect((await expenses.listExpenses(accountant, {})).totalCents).toBe(before + tzs(80_000)); // rejected never counted
+    expect(JSON.stringify(await db.auditLog.findMany({ where: { schoolId: school.id, entityId: held.id } }))).toContain("expense.approve");
+  });
+
+  it("holds any expense at or above the amount the school sets", async () => {
+    await fees.updateFeeSettings(accountant, { defaultDueDays: 14, clearanceMaxOutstanding: "0", paymentInstructions: "", expenseApprovalAbove: "50000" });
+    const c = await expenses.createExpenseCategory(accountant, { name: `Misc ${n}` });
+    expect((await expenses.recordExpense(accountant, { categoryId: c.id, amount: "49999", payee: "A", method: "CASH" })).approval).toBe("APPROVED");
+    expect((await expenses.recordExpense(accountant, { categoryId: c.id, amount: "50000", payee: "B", method: "CASH" })).approval).toBe("PENDING");
+    await fees.updateFeeSettings(accountant, { defaultDueDays: 14, clearanceMaxOutstanding: "0", paymentInstructions: "" }); // a form without the field keeps it
+    expect((await fees.getFeeSettings(db, school.id)).expenseApprovalAboveCents).toBe(tzs(50_000));
+    await fees.updateFeeSettings(accountant, { defaultDueDays: 14, clearanceMaxOutstanding: "0", paymentInstructions: "", expenseApprovalAbove: "0" });
+    expect((await expenses.recordExpense(accountant, { categoryId: c.id, amount: "900000", payee: "C", method: "CASH" })).approval).toBe("APPROVED");
   });
 });

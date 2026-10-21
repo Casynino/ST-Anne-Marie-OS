@@ -186,25 +186,35 @@ export function StudentsSection({ env }: { env: DashEnv }) {
 export function FeesSection({ env }: { env: DashEnv }) {
   const { t, locale, money, fmtDay, d } = env;
   const { payments, byMethod, byClass } = env.o;
+  const fin = d.finance;
   return (
     <>
-      {d.finance && (
-        <DashSection id="fees" title={t("dash.sec.fees")} subtitle={t("dash.finance.sub", { term: d.finance.term.name })}>
+      {fin && (
+        <DashSection id="fees" title={t("dash.sec.fees")} subtitle={t("dash.finance.sub", { term: fin.term.name })}>
           <section aria-label={t("dash.money.title")} className="mb-5 rounded-2xl border border-line bg-surface p-6 shadow-[var(--shadow-card)]">
             <div className="flex flex-wrap items-end justify-between gap-3"><p className="text-[11px] font-bold uppercase tracking-[.2em] text-ok">● {t("dash.money.title")}</p><Link href="/finance" className="text-sm font-semibold text-link hover:underline">{t("dash.money.report")} ↗</Link></div>
-            <p className="mt-2 flex flex-wrap items-baseline gap-3"><span className="text-4xl font-semibold tabular-nums text-heading sm:text-5xl">{money(d.finance.collected)}</span>{d.finance.ratePct !== null && <Pill tone={d.finance.ratePct >= 70 ? "ok" : "warn"}>{d.finance.ratePct}% {t("dash.money.ofBilled")}</Pill>}</p>
+            <p className="mt-2 flex flex-wrap items-baseline gap-3"><span className="text-4xl font-semibold tabular-nums text-heading sm:text-5xl">{money(fin.collected)}</span>{fin.ratePct !== null && <Pill tone={fin.ratePct >= 70 ? "ok" : "warn"}>{fin.ratePct}% {t("dash.money.ofBilled")}</Pill>}</p>
             <p className="mt-1 text-sm text-muted">{t("dash.money.sub")}</p>
-            {d.finance.billed > 0 && (
-              <div className="mt-4"><div aria-hidden className="flex h-2.5 overflow-hidden rounded-full bg-line"><div className="h-full bg-ok" style={{ width: `${Math.min(100, (d.finance.collected / d.finance.billed) * 100)}%` }} /><div className="h-full bg-warn" style={{ width: `${Math.max(0, 100 - (d.finance.collected / d.finance.billed) * 100)}%` }} /></div>
-                <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted"><span><span className="mr-1.5 inline-block size-2 rounded-full bg-ok" />{t("dash.money.received")} <strong className="text-ink">{money(d.finance.collected)}</strong></span><span><span className="mr-1.5 inline-block size-2 rounded-full bg-warn" />{t("dash.money.notYet")} <strong className="text-ink">{money(d.finance.outstanding)}</strong></span></p></div>
+            {fin.billed > 0 && (
+              <div className="mt-4"><div aria-hidden className="flex h-2.5 overflow-hidden rounded-full bg-line"><div className="h-full bg-ok" style={{ width: `${Math.min(100, (fin.collected / fin.billed) * 100)}%` }} /><div className="h-full bg-warn" style={{ width: `${Math.max(0, 100 - (fin.collected / fin.billed) * 100)}%` }} /></div>
+                <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted"><span><span className="mr-1.5 inline-block size-2 rounded-full bg-ok" />{t("dash.money.received")} <strong className="text-ink">{money(fin.collected)}</strong></span><span><span className="mr-1.5 inline-block size-2 rounded-full bg-warn" />{t("dash.money.notYet")} <strong className="text-ink">{money(fin.outstanding)}</strong></span></p></div>
             )}
             <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
-              {([["billed", d.finance.billed, "text-ink"], ["outstanding", d.finance.outstanding, d.finance.outstanding > 0 ? "text-sun" : "text-ok"], ["overdue", d.finance.overdue, d.finance.overdue > 0 ? "text-bad" : "text-ok"], ["credit", d.finance.credit, "text-ink"], ["expenses", d.finance.expenses, "text-ink"]] as const).map(([k, v, c]) => <div key={k} className="bg-surface p-4"><dt className="text-xs text-muted">{t(`dash.money.${k}`)}</dt><dd className={`mt-1 text-xl font-semibold tabular-nums ${c}`}>{money(v)}</dd></div>)}
+              {([["billed", fin.billed, "text-ink"], ["outstanding", fin.outstanding, fin.outstanding > 0 ? "text-sun" : "text-ok"], ["overdue", fin.overdue, fin.overdue > 0 ? "text-bad" : "text-ok"], ["credit", fin.credit, "text-ink"], ["expenses", fin.expenses, "text-ink"]] as const).map(([k, v, c]) => <div key={k} className="bg-surface p-4"><dt className="text-xs text-muted">{t(`dash.money.${k}`)}</dt><dd className={`mt-1 text-xl font-semibold tabular-nums ${c}`}>{money(v)}</dd></div>)}
             </dl>
+            <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-4 lg:grid-cols-7">
+              {([
+                ["received.today", fin.received.today, "text-ink"], ["received.week", fin.received.week, "text-ink"], ["received.month", fin.received.month, "text-ink"],
+                ["admission", fin.admissionFees.verified, "text-ink"], ["dueSoon", fin.dueSoon.amount, fin.dueSoon.amount > 0 ? "text-sun" : "text-ok"],
+                ["net", fin.netOperating, fin.netOperating < 0 ? "text-bad" : "text-ok"],
+              ] as const).map(([k, v, c]) => <div key={k} className="bg-surface p-4"><dt className="text-xs text-muted">{t(`dash.money.${k}` as "dash.money.net")}</dt><dd className={`mt-1 text-lg font-semibold tabular-nums ${c}`}>{money(v)}</dd>{k === "dueSoon" && <dd className="text-xs text-muted">{t("dash.money.dueSoon.n", { n: fin.dueSoon.students })}</dd>}{k === "admission" && fin.admissionFees.pending > 0 && <dd className="text-xs text-muted">{t("dash.money.admission.pending", { amount: money(fin.admissionFees.pending) })}</dd>}</div>)}
+              <div className="bg-surface p-4"><dt className="text-xs text-muted">{t("dash.money.states")}</dt><dd className="mt-1 text-sm tabular-nums"><span className="text-ok">{fin.invoices.paid}</span> {t("dash.money.state.paid")} · <span className="text-sun">{fin.invoices.partial}</span> {t("dash.money.state.partial")} · <span className="text-bad">{fin.invoices.unpaid}</span> {t("dash.money.state.unpaid")}</dd></div>
+            </dl>
+            <p className="mt-2 text-xs text-muted">{t("dash.money.net.note")}</p>
           </section>
           <div className="grid gap-5 lg:grid-cols-2">
-            <Panel title={t("dash.finance.chart")} subtitle={t("dash.finance.chart.sub", { total: money(d.finance.trend.reduce((n, p) => n + p.cents, 0)) })} right={<Link href="/finance" className="text-sm font-semibold text-link hover:underline">{t("dash.kpi.open")}</Link>}>
-              {d.finance.trend.every((p) => p.cents === 0) ? <EmptyLine>{t("dash.finance.noPayments")}</EmptyLine> : <StackedBars points={d.finance.trend.map((p) => ({ key: p.date, label: fmtDay(p.date), parts: { n: p.cents / 100 } }))} series={[{ key: "n", label: t("dash.kpi.collected") }]} every={4} format={(n) => (n >= 1_000_000 ? `${Math.round(n / 100_000) / 10}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n))} label={t("dash.finance.chart")} summary={t("dash.finance.chart.sub", { total: money(d.finance.trend.reduce((n, p) => n + p.cents, 0)) })} />}
+            <Panel title={t("dash.finance.chart")} subtitle={t("dash.finance.chart.sub", { total: money(fin.trend.reduce((n, p) => n + p.cents, 0)) })} right={<Link href="/finance" className="text-sm font-semibold text-link hover:underline">{t("dash.kpi.open")}</Link>}>
+              {fin.trend.every((p) => p.cents === 0) ? <EmptyLine>{t("dash.finance.noPayments")}</EmptyLine> : <StackedBars points={fin.trend.map((p) => ({ key: p.date, label: fmtDay(p.date), parts: { n: p.cents / 100 } }))} series={[{ key: "n", label: t("dash.kpi.collected") }]} every={4} format={(n) => (n >= 1_000_000 ? `${Math.round(n / 100_000) / 10}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n))} label={t("dash.finance.chart")} summary={t("dash.finance.chart.sub", { total: money(fin.trend.reduce((n, p) => n + p.cents, 0)) })} />}
             </Panel>
             <Panel title={t("dash.fees.byMethod")} subtitle={t("dash.fees.byMethod.sub")}>
               {!byMethod || byMethod.length === 0 ? <EmptyLine>{t("dash.finance.noPayments")}</EmptyLine> : <HBars items={byMethod.map((m) => ({ label: t(`fin.method.${m.method}` as "fin.method.CASH"), value: m.cents }))} format={(c) => money(c)} label={t("dash.fees.byMethod")} summary={t("dash.fees.byMethod.sub")} tone="#14a3b8" />}
@@ -219,8 +229,8 @@ export function FeesSection({ env }: { env: DashEnv }) {
               </Panel>
             )}
             <Panel title={t("dash.finance.arrears")} subtitle={t("dash.fees.arrears.sub")} right={<Link href="/finance/reports" className="text-sm font-semibold text-link hover:underline">{t("dash.finance.allArrears")}</Link>}>
-              <DashTable empty={d.finance.topArrears.length === 0 ? t("fin.reports.noArrears") : undefined} min="26rem" head={[{ label: t("learn.student") }, { label: t("learn.class") }, { label: t("dash.kpi.outstanding"), right: true }]}>
-                {d.finance.topArrears.map((a) => (
+              <DashTable empty={fin.topArrears.length === 0 ? t("fin.reports.noArrears") : undefined} min="26rem" head={[{ label: t("learn.student") }, { label: t("learn.class") }, { label: t("dash.kpi.outstanding"), right: true }]}>
+                {fin.topArrears.map((a) => (
                   <tr key={a.studentId}><Cell><Link href={`/finance/students/${a.studentId}`} className="font-semibold text-link hover:underline">{a.name}</Link><span className="block text-xs text-muted">{a.admissionNo}</span></Cell><Cell>{a.className ?? "—"}</Cell><Cell right>{money(a.outstanding)}{a.overdue > 0 && <span className="block text-xs text-bad">{t("dash.finance.overdueAmount", { amount: money(a.overdue) })}</span>}</Cell></tr>
                 ))}
               </DashTable>
