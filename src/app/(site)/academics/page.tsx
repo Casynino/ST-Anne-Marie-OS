@@ -24,9 +24,9 @@ export default async function AcademicsPage() {
         {levels.length === 0 ? <p className="text-muted">{t("site.academics.empty")}</p> : (
           <div className="space-y-6">
             {levels.map((l, i) => (
-              <Reveal key={l.id} className="scroll-mt-28 overflow-hidden rounded-[1.75rem] border border-line bg-surface md:grid md:grid-cols-[0.8fr_1.4fr]">
+              <Reveal key={l.id} className="scroll-mt-28 card-y overflow-hidden md:grid md:grid-cols-[0.8fr_1.4fr]">
                 <div id={l.slug} className="flex min-h-32 items-start gap-5 bg-tint p-8">
-                  <span aria-hidden className="pt-2 text-sm font-semibold tabular-nums text-sun">{String(i + 1).padStart(2, "0")}</span>
+                  <span aria-hidden className="pt-2 text-sm font-semibold tabular-nums text-brand-600">{String(i + 1).padStart(2, "0")}</span>
                   <h2 className="display text-5xl sm:text-6xl">{l.name}</h2>
                 </div>
                 <div className="p-8 sm:p-10">

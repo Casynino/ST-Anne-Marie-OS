@@ -5,6 +5,7 @@ import { notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import type { Locale } from "@/lib/i18n";
 import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
+import { daysBetween, termWeek } from "@/lib/calendar-grid";
 import { isImageRef, mediaIdOf, slugify } from "@/lib/images";
 import { actorOf, writeAudit } from "@/server/audit";
 import { mediaDimensions } from "@/server/media";
@@ -34,6 +35,7 @@ export const LOCAL_TEXT = {
   heroTitle: 120, heroSubtitle: 240, about: 3000, vision: 600, mission: 900, philosophy: 1500, learningApproach: 1500,
   values: 2000, strengths: 3000, programs: 4000, schoolLife: 3000, academicSupport: 1500, curriculum: 1500, examinations: 1500,
   history: 3000, leadership: 2000, admissionsIntro: 1500, requirements: 2000, faqs: 5000, feesNote: 1500, parentCommunity: 1500,
+  facilities: 2000, safeguarding: 2000, uniform: 1500, transport: 1500, meals: 1500, health: 1500, clubs: 3000,
 } as const;
 export type LocalKey = keyof typeof LOCAL_TEXT;
 export const LOCAL_KEYS = Object.keys(LOCAL_TEXT) as LocalKey[];
@@ -237,6 +239,8 @@ export async function getPublicSite(locale: Locale) {
       history: pick("history"),
       leadership: parsePairs(pick("leadership")),
       schoolLife: parsePairs(pick("schoolLife")),
+      facilities: pick("facilities"), safeguarding: pick("safeguarding"), uniform: pick("uniform"), transport: pick("transport"), meals: pick("meals"), health: pick("health"),
+      clubs: parsePairs(pick("clubs")),
     },
     contact: {
       phone: s.phone ?? school.phone ?? undefined, phone2: s.phone2, email: s.email ?? school.email ?? undefined,
@@ -423,4 +427,32 @@ export async function listPublicEvents(schoolId: string, timezone: string, opts:
 export async function getPublicEvent(schoolId: string, id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   return db.schoolEvent.findFirst({ where: { id, schoolId, isPublic: true } });
+}
+
+/** Public search: published news and public events whose text contains the words typed (case-insensitive). Nothing private is searched. */
+export async function searchPublicSite(schoolId: string, q: string) {
+  const term = q.trim().slice(0, 60);
+  if (term.length < 2) return { news: [], events: [] };
+  const like = { contains: term, mode: "insensitive" as const };
+  const [news, events] = await Promise.all([
+    db.announcement.findMany({ where: { ...publicNewsWhere(schoolId), OR: [{ title: like }, { titleSw: like }, { excerpt: like }, { body: like }, { bodySw: like }, { category: like }] }, orderBy: { publishedAt: "desc" }, take: 10 }),
+    db.schoolEvent.findMany({ where: { schoolId, isPublic: true, OR: [{ title: like }, { titleSw: like }, { description: like }, { descriptionSw: like }, { location: like }, { category: like }] }, orderBy: { startsOn: "desc" }, take: 10 }),
+  ]);
+  return { news, events };
+}
+
+/** Where the school year stands today, for the public home page: the term in progress (week and days left) or the next term to start. */
+export async function publicTermProgress(schoolId: string, timezone: string) {
+  const today = todayInTimezone(timezone);
+  const day = parseDateOnly(today) as Date;
+  const [current, next] = await Promise.all([
+    db.term.findFirst({ where: { schoolId, startsOn: { lte: day }, endsOn: { gte: day } }, include: { academicYear: { select: { name: true } } } }),
+    db.term.findFirst({ where: { schoolId, startsOn: { gt: day } }, orderBy: { startsOn: "asc" }, include: { academicYear: { select: { name: true } } } }),
+  ]);
+  const cur = current && (() => {
+    const from = formatDateOnly(current.startsOn), to = formatDateOnly(current.endsOn);
+    const totalWeeks = Math.max(1, Math.ceil((daysBetween(from, to) + 1) / 7));
+    return { name: current.name, year: current.academicYear.name, startsOn: current.startsOn, endsOn: current.endsOn, week: termWeek(from, to, today) ?? 1, totalWeeks, daysLeft: daysBetween(today, to), pct: Math.min(100, Math.max(0, Math.round(((daysBetween(from, today) + 1) / (daysBetween(from, to) + 1)) * 100))) };
+  })();
+  return { current: cur ?? null, next: next ? { name: next.name, year: next.academicYear.name, startsOn: next.startsOn } : null };
 }

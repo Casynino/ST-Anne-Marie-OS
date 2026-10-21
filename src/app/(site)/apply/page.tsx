@@ -51,7 +51,7 @@ export default async function AdmissionsPage() {
         )}
 
         {text.requirements.length > 0 && (
-          <section>
+          <section id="requirements" className="scroll-mt-28">
             <SectionHeading eyebrow={t("site.admissions.requirementsKicker")} title={t("site.admissions.requirements")} />
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
               {text.requirements.map((r) => <Reveal as="li" key={r} className="flex gap-3 rounded-2xl border border-line bg-surface p-4"><Check className="mt-0.5 size-5 shrink-0 text-link" aria-hidden /><span>{r}</span></Reveal>)}
@@ -60,14 +60,14 @@ export default async function AdmissionsPage() {
         )}
 
         {text.feesNote && (
-          <section className="rounded-3xl bg-surface p-8 sm:p-10">
+          <section id="fees" className="scroll-mt-28 rounded-3xl border border-line bg-surface p-8 sm:p-10">
             <h2 className="display text-3xl text-heading">{t("site.admissions.fees")}</h2>
             <p className="mt-4 max-w-3xl whitespace-pre-line text-lg text-ink/85">{text.feesNote}</p>
           </section>
         )}
 
         {text.faqs.length > 0 && (
-          <section>
+          <section id="faq" className="scroll-mt-28">
             <SectionHeading eyebrow={t("site.admissions.faqKicker")} title={t("site.admissions.faq")} />
             <div className="mt-8 max-w-3xl divide-y divide-line rounded-3xl border border-line bg-surface">
               {text.faqs.map((f) => (

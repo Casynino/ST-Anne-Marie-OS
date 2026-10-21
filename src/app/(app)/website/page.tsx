@@ -48,9 +48,9 @@ export default async function WebsitePage({ searchParams }: { searchParams: Prom
 
 const GROUPS: { title: MessageKey; fields: { key: web.LocalKey; hint?: MessageKey; rows?: number }[] }[] = [
   { title: "website.group.home", fields: [{ key: "heroTitle", hint: "website.heroTitle.hint", rows: 2 }, { key: "heroSubtitle", rows: 2 }, { key: "strengths", hint: "website.pairs.hint", rows: 5 }] },
-  { title: "website.group.about", fields: [{ key: "about", rows: 6 }, { key: "vision", rows: 3 }, { key: "mission", rows: 3 }, { key: "philosophy", rows: 4 }, { key: "values", hint: "website.pairs.hint", rows: 5 }, { key: "history", rows: 5 }, { key: "leadership", hint: "website.leadership.hint", rows: 4 }] },
+  { title: "website.group.about", fields: [{ key: "about", rows: 6 }, { key: "vision", rows: 3 }, { key: "mission", rows: 3 }, { key: "philosophy", rows: 4 }, { key: "values", hint: "website.pairs.hint", rows: 5 }, { key: "history", rows: 5 }, { key: "facilities", rows: 4 }, { key: "safeguarding", rows: 4 }, { key: "leadership", hint: "website.leadership.hint", rows: 4 }] },
   { title: "website.group.academics", fields: [{ key: "programs", hint: "website.programs.hint", rows: 6 }, { key: "learningApproach", rows: 4 }, { key: "curriculum", rows: 4 }, { key: "academicSupport", rows: 3 }, { key: "examinations", rows: 3 }] },
-  { title: "website.group.life", fields: [{ key: "schoolLife", hint: "website.pairs.hint", rows: 6 }, { key: "parentCommunity", rows: 4 }] },
+  { title: "website.group.life", fields: [{ key: "schoolLife", hint: "website.pairs.hint", rows: 6 }, { key: "clubs", hint: "website.pairs.hint", rows: 5 }, { key: "uniform", rows: 3 }, { key: "transport", rows: 3 }, { key: "meals", rows: 3 }, { key: "health", rows: 3 }, { key: "parentCommunity", rows: 4 }] },
   { title: "website.group.admissions", fields: [{ key: "admissionsIntro", rows: 3 }, { key: "requirements", hint: "website.lines.hint", rows: 5 }, { key: "feesNote", rows: 4 }, { key: "faqs", hint: "website.faqs.hint", rows: 8 }] },
 ];
 

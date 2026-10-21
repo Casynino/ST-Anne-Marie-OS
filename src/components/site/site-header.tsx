@@ -4,14 +4,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { CalendarDays, ChevronDown, Search } from "lucide-react";
 import type { SiteImage } from "@/server/website";
 
-export type SiteLink = { href: string; label: string; match?: string[] };
+export type SiteSubLink = { href: string; label: string };
+export type SiteLink = { href: string; label: string; match?: string[]; items?: SiteSubLink[] };
 
+/**
+ * The school's header in two tiers: the identity row (emblem, name, motto; calendar, quick links, search, language, portal, apply) and
+ * a deep-green navigation bar with drop-down menus that stays at the top while scrolling. On phones both collapse into one bar and a
+ * full-screen menu. Menu entries come from the school's own content, so no link leads to an empty page.
+ */
 export function SiteHeader({
-  name, initials, logo, links, applyLabel, applyShortLabel, applyHref, portalLabel, portalHref, menuLabel, closeLabel, skipLabel, languageSwitch, topSlot,
+  name, initials, motto, logo, links, quickLinks, quickLabel, searchLabel, calendarLabel, applyLabel, applyShortLabel, applyHref, portalLabel, portalHref, menuLabel, closeLabel, skipLabel, languageSwitch, topSlot,
 }: {
-  name: string; initials: string; logo?: SiteImage; links: SiteLink[]; applyLabel: string; applyShortLabel: string; applyHref: string; portalLabel: string; portalHref: string; menuLabel: string; closeLabel: string; skipLabel: string; languageSwitch: ReactNode; topSlot?: ReactNode;
+  name: string; initials: string; motto?: string | null; logo?: SiteImage; links: SiteLink[]; quickLinks: SiteSubLink[]; quickLabel: string; searchLabel: string; calendarLabel: string; applyLabel: string; applyShortLabel: string; applyHref: string; portalLabel: string; portalHref: string; menuLabel: string; closeLabel: string; skipLabel: string; languageSwitch: ReactNode; topSlot?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -20,7 +27,7 @@ export function SiteHeader({
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     let raf = 0;
-    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setScrolled(window.scrollY > 24)); };
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setScrolled(window.scrollY > 140)); };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => { window.removeEventListener("scroll", onScroll); cancelAnimationFrame(raf); };
@@ -37,57 +44,100 @@ export function SiteHeader({
     const roots = [l.href, ...(l.match ?? [])];
     return roots.some((r) => (r === "/" ? pathname === "/" : pathname === r || pathname.startsWith(`${r}/`)));
   };
-  const solid = scrolled || open;
+  const mark = logo ? (
+    <Image src={logo.src} alt="" width={64} height={64} priority className="size-12 shrink-0 object-contain xl:size-16" />
+  ) : (
+    <span aria-hidden className="display flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-bold tracking-wide text-white xl:size-16 xl:text-base">{initials}</span>
+  );
 
   return (
-    <header className="site-header fixed inset-x-0 top-0 z-40 border-b border-transparent transition-[background-color,border-color,backdrop-filter] duration-500" data-solid={solid}>
+    <>
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-sun focus:px-4 focus:py-2 focus:text-[#10200f]">{skipLabel}</a>
-      {topSlot && <div className={`grid transition-[grid-template-rows,opacity] duration-500 ${scrolled || open ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"}`}><div className="min-h-0 overflow-hidden">{topSlot}</div></div>}
-      <div className="mx-auto flex h-[4.5rem] max-w-[100rem] items-center gap-4 px-4 sm:px-8">
-        <Link href="/" className="relative z-10 flex min-w-0 shrink-0 items-center gap-3" aria-label={name}>
-          {logo ? (
-            <Image src={logo.src} alt="" width={44} height={44} priority className="size-11 shrink-0 rounded-full bg-white/95 object-contain p-0.5" />
-          ) : (
-            <span aria-hidden className="display flex size-11 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 text-[15px] font-semibold tracking-wide text-white">{initials}</span>
-          )}
-          <span className="display max-w-[8.5rem] text-[1.15rem] font-semibold leading-[1] text-white min-[400px]:max-w-[12rem] sm:max-w-[18rem] sm:text-[1.5rem]">{name}</span>
-        </Link>
+      {topSlot}
 
-        <nav aria-label="Main" className="ml-auto hidden items-center gap-1 xl:flex">
-          {links.map((l) => (
-            <Link key={l.href} href={l.href} aria-current={isActive(l) ? "page" : undefined} className={`relative whitespace-nowrap rounded-full px-3.5 py-2 text-[14px] font-medium transition-colors ${isActive(l) ? "text-sun" : "text-white/75 hover:text-white"}`}>
-              {l.label}
-              <span aria-hidden className={`absolute inset-x-3.5 bottom-0.5 h-px origin-left bg-sun transition-transform duration-500 ${isActive(l) ? "scale-x-100" : "scale-x-0"}`} />
-            </Link>
-          ))}
-        </nav>
+      {/* Identity row: sticky on phones, scrolls away on larger screens (the navigation bar below stays) */}
+      <div className="sticky top-0 z-40 border-b border-line bg-white xl:static">
+        <div className="mx-auto flex h-[4.25rem] max-w-[100rem] items-center gap-4 px-4 sm:px-8 xl:h-28">
+          <Link href="/" className="flex min-w-0 items-center gap-3.5" aria-label={name}>
+            {mark}
+            <span className="min-w-0 leading-tight">
+              <span className="display block truncate text-[1.05rem] font-bold text-heading sm:text-xl xl:text-[1.7rem]">{name}</span>
+              {motto && <span className="hidden text-sm font-medium tracking-wide text-muted sm:block xl:text-[15px]">{motto}</span>}
+            </span>
+          </Link>
 
-        <div className="relative z-10 ml-auto flex items-center gap-2 sm:gap-3 xl:ml-3">
-          <div className="hidden md:block">{languageSwitch}</div>
-          <Link href={portalHref} className="hidden whitespace-nowrap rounded-full border border-white/25 px-4 py-2.5 text-[14px] font-medium text-white transition-colors hover:bg-white/10 lg:inline-flex">{portalLabel}</Link>
-          <Link href={applyHref} className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full bg-sun px-5 text-sm font-semibold text-[#10200f] transition-colors hover:bg-sun-600"><span className="sm:hidden">{applyShortLabel}</span><span className="hidden sm:inline">{applyLabel}</span></Link>
-          <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="site-menu" aria-label={open ? closeLabel : menuLabel} className="glass inline-flex size-11 items-center justify-center rounded-full text-white xl:hidden">
-            <span aria-hidden className="relative block h-3 w-5"><span className={`absolute inset-x-0 h-px bg-current transition-transform duration-300 ${open ? "top-1.5 rotate-45" : "top-0"}`} /><span className={`absolute inset-x-0 top-1.5 h-px bg-current transition-opacity ${open ? "opacity-0" : ""}`} /><span className={`absolute inset-x-0 h-px bg-current transition-transform duration-300 ${open ? "top-1.5 -rotate-45" : "top-3"}`} /></span>
-          </button>
+          <div className="ml-auto hidden items-center gap-1 xl:flex">
+            <Link href="/calendar" className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-[13px] font-bold uppercase tracking-[.08em] text-brand-800 transition-colors hover:bg-tint"><CalendarDays className="size-4" aria-hidden />{calendarLabel}</Link>
+            <div className="group relative">
+              <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold uppercase tracking-[.08em] text-brand-800 transition-colors hover:bg-tint">{quickLabel}<ChevronDown className="size-3.5 transition-transform group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden /></button>
+              <div className="invisible absolute right-0 top-full z-50 w-64 pt-2 opacity-0 transition-[opacity,visibility] duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                <ul className="border-t-4 border-sun bg-white p-2 shadow-[var(--shadow-lift)]">
+                  {quickLinks.map((q) => <li key={q.href}><Link href={q.href} className="flex min-h-11 items-center rounded px-3 text-[15px] font-semibold text-brand-900 transition-colors hover:bg-tint">{q.label}</Link></li>)}
+                </ul>
+              </div>
+            </div>
+            <Link href="/search" aria-label={searchLabel} title={searchLabel} className="inline-flex size-11 items-center justify-center rounded-full text-brand-800 transition-colors hover:bg-tint"><Search className="size-[18px]" aria-hidden /></Link>
+            <div className="mx-1">{languageSwitch}</div>
+            <Link href={portalHref} className="ml-1 inline-flex min-h-11 items-center whitespace-nowrap rounded-full border-2 border-brand-700 px-5 text-sm font-bold text-brand-800 transition-colors hover:bg-brand-700 hover:text-white">{portalLabel}</Link>
+            <Link href={applyHref} className="ml-2 inline-flex min-h-11 items-center whitespace-nowrap rounded-full bg-sun px-5 text-sm font-bold text-[#10200f] transition-colors hover:bg-sun-600">{applyLabel}</Link>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2 xl:hidden">
+            <Link href={applyHref} className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full bg-sun px-4 text-sm font-bold text-[#10200f]"><span className="sm:hidden">{applyShortLabel}</span><span className="hidden sm:inline">{applyLabel}</span></Link>
+            <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="site-menu" aria-label={open ? closeLabel : menuLabel} className="inline-flex size-11 items-center justify-center rounded-full bg-brand-800 text-white">
+              <span aria-hidden className="relative block h-3 w-5"><span className={`absolute inset-x-0 h-0.5 rounded bg-current transition-transform duration-300 ${open ? "top-1 rotate-45" : "top-0"}`} /><span className={`absolute inset-x-0 top-1 h-0.5 rounded bg-current transition-opacity ${open ? "opacity-0" : ""}`} /><span className={`absolute inset-x-0 h-0.5 rounded bg-current transition-transform duration-300 ${open ? "top-1 -rotate-45" : "top-2"}`} /></span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div id="site-menu" className={`fixed inset-x-0 bottom-0 top-[4.5rem] overflow-y-auto bg-[#07100b]/97 transition-[opacity,visibility] duration-500 xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`} inert={!open}>
-        <nav aria-label="Mobile" className="mx-auto max-w-[100rem] px-4 pb-16 pt-6 sm:px-8">
-          <ol>
-            {links.map((l, i) => (
-              <li key={l.href} className="border-b border-white/10" style={{ transitionDelay: open ? `${i * 55}ms` : "0ms" }}>
-                <Link href={l.href} aria-current={isActive(l) ? "page" : undefined} className={`flex min-h-16 items-baseline gap-5 py-3 transition-[transform,opacity] duration-500 ${open ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`} style={{ transitionDelay: open ? `${i * 55 + 120}ms` : "0ms" }}>
-                  <span aria-hidden className="w-7 text-sm tabular-nums text-sun">{String(i + 1).padStart(2, "0")}</span>
-                  <span className={`display text-[2.4rem] ${isActive(l) ? "text-sun" : "text-white"}`}>{l.label}</span>
+      {/* Navigation bar (larger screens): stays at the top while scrolling */}
+      <div className="sticky top-0 z-40 hidden bg-brand-800 shadow-[0_6px_18px_-10px_rgb(0_0_0/.5)] xl:block">
+        <nav aria-label="Main" className="mx-auto flex h-14 max-w-[100rem] items-center px-8">
+          <Link href="/" aria-label={name} className={`shrink-0 overflow-hidden transition-[width,opacity,margin] duration-300 ${scrolled ? "mr-4 w-10 opacity-100" : "mr-0 w-0 opacity-0"}`} tabIndex={scrolled ? 0 : -1}>
+            {logo ? <Image src={logo.src} alt="" width={40} height={40} className="size-10 rounded-full bg-white object-contain" /> : <span aria-hidden className="grid size-10 place-items-center rounded-full bg-white text-xs font-bold text-brand-800">{initials}</span>}
+          </Link>
+          <div className="flex flex-1 items-stretch justify-between self-stretch">
+            {links.map((l) => {
+              const active = isActive(l);
+              const link = (
+                <Link href={l.href} aria-current={active ? "page" : undefined} className={`relative inline-flex h-full items-center gap-1.5 px-4 text-[13px] font-bold uppercase tracking-[.1em] transition-colors ${active ? "text-sun" : "text-white hover:text-sun"}`}>
+                  {l.label}
+                  {l.items && l.items.length > 0 && <ChevronDown className="size-3.5 opacity-70 transition-transform duration-300 group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden />}
+                  <span aria-hidden className={`absolute inset-x-4 bottom-0 h-[3px] origin-left bg-sun transition-transform duration-300 ${active ? "scale-x-100" : "scale-x-0"}`} />
                 </Link>
-              </li>
-            ))}
-            <li><Link href={portalHref} className="flex min-h-16 items-baseline gap-5 py-3"><span aria-hidden className="w-7 text-sm text-sun">→</span><span className="display text-[2.4rem] text-white underline decoration-1 underline-offset-8">{portalLabel}</span></Link></li>
-          </ol>
-          <div className="mt-8 md:hidden">{languageSwitch}</div>
+              );
+              if (!l.items || l.items.length === 0) return <div key={l.href} className="flex">{link}</div>;
+              return (
+                <div key={l.href} className="group relative flex">
+                  {link}
+                  <div className="invisible absolute left-0 top-full z-50 w-72 opacity-0 transition-[opacity,visibility] duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                    <ul className="border-t-4 border-sun bg-white p-2 shadow-[var(--shadow-lift)]">
+                      {l.items.map((i) => <li key={i.href}><Link href={i.href} className="flex min-h-11 items-center rounded px-3 text-[15px] font-semibold text-brand-900 transition-colors hover:bg-tint">{i.label}</Link></li>)}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </nav>
       </div>
-    </header>
+
+      {/* Phone menu */}
+      <div id="site-menu" className={`fixed inset-x-0 bottom-0 top-[4.25rem] z-30 overflow-y-auto bg-white transition-[opacity,visibility] duration-300 xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`} inert={!open}>
+        <nav aria-label="Mobile" className="mx-auto max-w-3xl px-4 pb-16 pt-2 sm:px-8">
+          <ul>
+            {links.map((l) => (
+              <li key={l.href} className="border-b border-line py-3">
+                <Link href={l.href} aria-current={isActive(l) ? "page" : undefined} className={`flex min-h-11 items-center text-xl font-bold ${isActive(l) ? "text-brand-600" : "text-heading"}`}>{l.label}</Link>
+                {l.items && l.items.length > 1 && <ul className="mb-1 flex flex-wrap gap-x-5 gap-y-0.5 pl-1">{l.items.map((i) => <li key={i.href}><Link href={i.href} className="inline-flex min-h-10 items-center text-[15px] font-medium text-muted hover:text-brand-700">{i.label}</Link></li>)}</ul>}
+              </li>
+            ))}
+            {[{ href: "/calendar", label: calendarLabel }, { href: "/search", label: searchLabel }, { href: portalHref, label: portalLabel }].map((q) => <li key={q.href} className="border-b border-line"><Link href={q.href} className="flex min-h-14 items-center text-lg font-bold text-brand-700">{q.label}</Link></li>)}
+          </ul>
+          <div className="mt-6">{languageSwitch}</div>
+        </nav>
+      </div>
+    </>
   );
 }

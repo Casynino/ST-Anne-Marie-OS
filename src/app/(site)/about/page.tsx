@@ -32,9 +32,9 @@ export default async function AboutPage() {
         )}
 
         {statements.length > 0 && (
-          <section className="grid gap-6 md:grid-cols-2">
+          <section id="vision" className="scroll-mt-28 grid gap-6 md:grid-cols-2">
             {statements.map(([k, v], i) => (
-              <Reveal key={k} delay={i * 100} className={`p-8 sm:p-12 ${i === 0 ? "bg-surface text-white" : "bg-sun text-ink"}`}>
+              <Reveal key={k} delay={i * 100} className={`p-8 sm:p-12 ${i === 0 ? "bg-brand-800 text-white" : "bg-sun text-[#10200f]"}`}>
                 <p className="eyebrow !text-current opacity-80">{t(`site.about.${k}`)}</p>
                 <p className="display mt-4 text-2xl leading-snug sm:text-3xl">{v}</p>
               </Reveal>
@@ -51,7 +51,7 @@ export default async function AboutPage() {
         )}
 
         {text.values.length > 0 && (
-          <section>
+          <section id="values" className="scroll-mt-28">
             <SectionHeading eyebrow={t("site.about.valuesKicker")} title={t("site.about.values")} />
             <ol className="mt-10 divide-y divide-line border-y border-line">
               {text.values.map((v, i) => (
@@ -66,18 +66,32 @@ export default async function AboutPage() {
         )}
 
         {text.history && (
-          <section className="grid gap-10 lg:grid-cols-[0.6fr_1.4fr]">
+          <section id="history" className="scroll-mt-28 grid gap-10 lg:grid-cols-[0.6fr_1.4fr]">
             <SectionHeading eyebrow={t("site.about.historyKicker")} title={t("site.about.history")} />
             <Reveal><Prose>{text.history}</Prose></Reveal>
           </section>
         )}
 
         {text.leadership.length > 0 && (
-          <section>
+          <section id="leadership" className="scroll-mt-28">
             <SectionHeading eyebrow={t("site.about.leadershipKicker")} title={t("site.about.leadership")} />
             <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {text.leadership.map((p) => <Reveal as="li" key={p.title} className="rounded-3xl border border-line bg-surface p-6"><p className="display text-xl text-heading">{p.title}</p>{p.text && <p className="mt-1 text-muted">{p.text}</p>}</Reveal>)}
             </ul>
+          </section>
+        )}
+
+        {text.facilities && (
+          <section id="facilities" className="scroll-mt-28 grid gap-10 lg:grid-cols-[0.6fr_1.4fr]">
+            <SectionHeading eyebrow={t("site.life.kicker")} title={t("site.about.facilities")} />
+            <Reveal><Prose>{text.facilities}</Prose></Reveal>
+          </section>
+        )}
+
+        {text.safeguarding && (
+          <section id="safeguarding" className="scroll-mt-28 grid gap-10 lg:grid-cols-[0.6fr_1.4fr]">
+            <SectionHeading eyebrow={t("site.nav.about")} title={t("site.about.safeguarding")} />
+            <Reveal><Prose>{text.safeguarding}</Prose></Reveal>
           </section>
         )}
 

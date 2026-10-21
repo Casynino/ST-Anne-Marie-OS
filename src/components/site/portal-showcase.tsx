@@ -64,15 +64,15 @@ export function PortalShowcase({ eyebrow, title, body, features, primary, second
     <ContainerScroll
       titleComponent={
         <div className="px-2 text-white">
-          <p className="eyebrow eyebrow-light justify-center">{eyebrow}</p>
+          <p className="eyebrow justify-center text-white">{eyebrow}</p>
           <h2 className="display mx-auto mt-5 max-w-3xl text-[2.8rem] text-white sm:text-7xl">{title}</h2>
           <p className="lead mx-auto mt-6 max-w-2xl text-white/70">{body}</p>
           <ul className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-x-5 gap-y-1 text-sm font-semibold uppercase tracking-[.12em] text-white/75">
             {features.map((f) => <li key={f} className="after:ml-5 after:text-white/30 after:content-['/'] last:after:hidden">{f}</li>)}
           </ul>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href={primary.href} className="group inline-flex min-h-12 items-center justify-center gap-2.5 rounded-full bg-sun px-7 text-[15px] font-semibold text-[#10200f] hover:bg-sun-600">{primary.label}<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden /></Link>
-            <Link href={secondary.href} className="glass inline-flex min-h-12 items-center justify-center rounded-full px-7 text-[15px] font-semibold text-white hover:bg-white/15">{secondary.label}</Link>
+            <Link href={primary.href} className="group inline-flex min-h-12 items-center justify-center gap-2.5 rounded-md bg-sun px-6 text-[15px] font-bold text-[#10200f] hover:bg-sun-600">{primary.label}<ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden /></Link>
+            <Link href={secondary.href} className="inline-flex min-h-12 items-center justify-center rounded-md border-2 border-white/70 px-6 text-[15px] font-bold text-white hover:bg-white hover:text-brand-900">{secondary.label}</Link>
           </div>
         </div>
       }
