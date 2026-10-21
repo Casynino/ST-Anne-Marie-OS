@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Ban, Check } from "lucide-react";
 import type { ActionState } from "@/lib/action";
 import { Badge, EmptyState } from "@/components/ui";
 
@@ -139,11 +139,11 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                 <td className="px-2 py-3 text-muted">{r.assignedTo ?? labels.unassigned}</td>
                 <td className="whitespace-nowrap px-2 py-3 text-right">
                   {r.decide !== "none" && (
-                    <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5">
                       <span title={r.decide === "wait" ? r.waitWhy : undefined}>
-                        <button type="button" disabled={r.decide === "wait"} aria-label={`${q.accept}: ${r.name}`} onClick={() => openAsk(r, "ACCEPT")} className="min-h-9 w-[5.5rem] rounded-md border border-brand-500/60 px-3 text-sm font-semibold text-link hover:bg-tint disabled:cursor-not-allowed disabled:border-line disabled:text-muted disabled:opacity-50 disabled:hover:bg-transparent">{q.accept}</button>
+                        <button type="button" disabled={r.decide === "wait"} aria-label={`${q.accept}: ${r.name}`} onClick={() => openAsk(r, "ACCEPT")} className="group inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-ok/60 hover:bg-ok/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:bg-surface"><Check className="size-3.5 text-ok group-disabled:text-muted" aria-hidden />{q.accept}</button>
                       </span>
-                      {r.canDecline && <button type="button" aria-label={`${q.decline}: ${r.name}`} onClick={() => openAsk(r, "DECLINE")} className="min-h-9 w-[5.5rem] rounded-md border border-bad/40 px-3 text-sm font-semibold text-bad hover:bg-bad/10">{q.decline}</button>}
+                      {r.canDecline && <button type="button" aria-label={`${q.decline}: ${r.name}`} onClick={() => openAsk(r, "DECLINE")} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-bad/60 hover:bg-bad/10"><Ban className="size-3.5 text-bad" aria-hidden />{q.decline}</button>}
                     </span>
                   )}
                 </td>
