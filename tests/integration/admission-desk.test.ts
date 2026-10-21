@@ -253,6 +253,21 @@ describe("scenarios 6, 7 and 8: accepting, the admission fee and enrolment", () 
     expect((await notices(a.id)).map((m) => m.kind)).toEqual(["NOT_ACCEPTED"]);
     expect((await row(a.id)).state).toBe("REJECTED");
   });
+
+  it("a rejected application leaves the working list and the All count, and is still found under Closed or by searching", async () => {
+    const a = await newApp();
+    const before = (await desk.loadDesk(rehema, {}, 1)).counts;
+    await admissions.transitionApplication(rehema, a.id, { to: "REJECTED", reason: "No place in this class" });
+    const { applicationNo } = await db.application.findUniqueOrThrow({ where: { id: a.id } });
+    const after = await desk.loadDesk(rehema, {}, 1);
+    expect(after.rows.map((r) => r.id)).not.toContain(a.id);
+    expect(after.counts.total).toBe(before.total - 1);
+    expect(after.counts.closed).toBe(before.closed + 1);
+    expect((await desk.loadDesk(rehema, { state: "CLOSED" }, 1)).rows.map((r) => r.id)).toContain(a.id);
+    expect((await desk.loadDesk(rehema, { q: applicationNo }, 1)).rows.map((r) => r.id)).toContain(a.id);
+    // the export follows the screen
+    expect((await desk.deskTable(rehema, {})).rows.some((r) => r[0] === applicationNo)).toBe(false);
+  });
 });
 
 describe("scenario 9: permissions are enforced on the server", () => {
