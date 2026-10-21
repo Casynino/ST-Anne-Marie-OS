@@ -50,8 +50,8 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
     ...(["NEW", "UNDER_REVIEW", "NEEDS_INFO", "AWAITING_INTERVIEW", "INTERVIEW_SCHEDULED", "AWAITING_DECISION", "ACCEPTED", "ENROLLED", "CLOSED"] as const).map((s) => ({
       key: s, label: t(`adm.tab.${s}`), color: COLOR[s], to: href({ state: s }), on: sp.state === s,
       n: s === "AWAITING_INTERVIEW" ? c.awaitingInterview : s === "CLOSED" ? c.closed : c[s],
-      // closed applications are not part of the working pipeline, so they are not in the bar
-      ...(s === "CLOSED" ? { bar: 0 } : {}),
+      // closed and enrolled applications are not part of the working pipeline, so they are not in the bar
+      ...(s === "CLOSED" || s === "ENROLLED" ? { bar: 0 } : {}),
       // "to interview" is the part of Reviewed that still has no interview, so the bar uses all of Reviewed there and counts nobody twice
       ...(s === "AWAITING_INTERVIEW" ? { bar: c.REVIEWED } : {}),
     })),

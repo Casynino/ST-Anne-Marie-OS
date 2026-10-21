@@ -10,6 +10,7 @@ import { assessmentFor, getAdmissionPolicy } from "@/server/admission-policy";
 import { noticeFamily } from "@/server/application-notices";
 import { reviewBlockers } from "@/server/admission-review";
 import { closeTasks, openTask } from "@/server/workflow";
+import { getInterviewDays } from "@/server/interview-days";
 import { checkbox, optText, optUuid, parse, text } from "@/lib/validation";
 
 /*
@@ -394,5 +395,11 @@ export async function upcomingInterviewSlots(ctx: AuthContext) {
   const school = await db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
   const rows = await db.interview.groupBy({ by: ["scheduledAt"], where: { schoolId: ctx.schoolId, status: "SCHEDULED", kind: "INTERVIEW", scheduledAt: { gt: new Date() } }, _count: { _all: true }, orderBy: { scheduledAt: "asc" }, take: 30 });
   const local = new Intl.DateTimeFormat("sv-SE", { timeZone: school.timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-  return rows.map((r) => ({ at: r.scheduledAt, local: local.format(r.scheduledAt).replace(" ", "T"), when: when(r.scheduledAt, school.timezone), count: r._count._all }));
+  const slots = rows.map((r) => ({ at: r.scheduledAt, local: local.format(r.scheduledAt).replace(" ", "T"), when: when(r.scheduledAt, school.timezone), count: r._count._all }));
+  // The interview days the school has set are offered too, even before anybody is on them, so a waiting applicant can be given one.
+  for (const d of await getInterviewDays(db, ctx.schoolId)) {
+    const at = zonedToUtc(`${d.on}T${d.time}`, school.timezone);
+    if (at && at.getTime() > Date.now() && !slots.some((x) => x.at.getTime() === at.getTime())) slots.push({ at, local: `${d.on}T${d.time}`, when: when(at, school.timezone), count: 0 });
+  }
+  return slots.sort((a, b) => a.at.getTime() - b.at.getTime());
 }

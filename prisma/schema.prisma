@@ -1205,7 +1205,7 @@ model Interview {
   rescheduledFromId  String?           @db.Uuid
   completedAt        DateTime?
   completedById      String?           @db.Uuid
-  createdById        String            @db.Uuid
+  createdById        String?           @db.Uuid // empty when the system placed the applicant on an interview day the school had already set
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 

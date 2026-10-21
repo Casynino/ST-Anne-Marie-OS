@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { notFound } from "@/lib/errors";
-import { requirePermission, type AuthContext } from "@/lib/auth/context";
+import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
 import type { Locale } from "@/lib/i18n";
 import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { daysBetween, termWeek } from "@/lib/calendar-grid";
@@ -116,6 +116,23 @@ export async function updateWebsiteSettings(ctx: AuthContext, input: unknown) {
       update: { value: next as object, updatedById: ctx.userId },
     });
     await writeAudit(tx, actorOf(ctx), { action: "website.settings_update", entityType: "SchoolSetting", entityId: SETTING_KEY, changes: { applicationsOpen: [before.applicationsOpen, next.applicationsOpen] } });
+  });
+}
+
+/** Opens or closes online applications (the application window) without touching any other website setting. */
+export async function setApplicationsOpen(ctx: AuthContext, open: boolean) {
+  requireAnyPermission(ctx, ["website.manage", "admission.window.manage"]);
+  await db.$transaction(async (tx) => {
+    const row = await tx.schoolSetting.findUnique({ where: { schoolId_key: { schoolId: ctx.schoolId, key: SETTING_KEY } } });
+    const before = { ...EMPTY, ...((row?.value ?? {}) as Partial<WebsiteSettings>) };
+    if (before.applicationsOpen === open) return;
+    const value = { ...before, applicationsOpen: open };
+    await tx.schoolSetting.upsert({
+      where: { schoolId_key: { schoolId: ctx.schoolId, key: SETTING_KEY } },
+      create: { schoolId: ctx.schoolId, key: SETTING_KEY, value: value as object, updatedById: ctx.userId },
+      update: { value: value as object, updatedById: ctx.userId },
+    });
+    await writeAudit(tx, actorOf(ctx), { action: open ? "admission.window_open" : "admission.window_close", entityType: "SchoolSetting", entityId: SETTING_KEY, changes: { applicationsOpen: [before.applicationsOpen, open] } });
   });
 }
 

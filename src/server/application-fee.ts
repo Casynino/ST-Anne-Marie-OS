@@ -10,6 +10,7 @@ import { getAdmissionPolicy } from "@/server/admission-policy";
 import { allocateNumber } from "@/server/invoices";
 import { openTask } from "@/server/workflow";
 import { fromStored, insertOnlineApplication, isUniqueViolation, prepareOnline, STATUS_PUBLIC, type StoredForm } from "@/server/online-application";
+import { placeOnInterviewDay } from "@/server/interview-days";
 
 /*
  * The online application fee. A family that applies online gets an account first and the application is saved as a DRAFT with a payment
@@ -88,6 +89,8 @@ export async function confirmApplicationFee(a: { schoolId: string; reference: st
       await tx.applicationDraft.update({ where: { id: draft.id }, data: { status: "SUBMITTED", ...paid, receiptNo, applicationId: app.id } });
       // The photo and papers the family added now belong to the application too, so the Admissions Office finds them with it.
       await tx.document.updateMany({ where: { schoolId: a.schoolId, draftId: draft.id, applicationId: null }, data: { applicationId: app.id } });
+      // A paid application is received now: if the school has an interview day open for it, the applicant is placed on it and the family is told.
+      await placeOnInterviewDay(tx, a.schoolId, app.id, a.meta);
       await writeAudit(tx, actor, { action: "admission.application_fee_paid", entityType: "ApplicationDraft", entityId: draft.id, summary: `${reference} (${app.applicationNo})`, changes: { amountCents: a.amountCents, provider: a.provider, applicationNo: app.applicationNo, receiptNo } });
       return { outcome: "SUBMITTED" as const, draftId: draft.id };
     }, { timeout: 30000 });
@@ -108,12 +111,12 @@ export async function confirmApplicationFee(a: { schoolId: string; reference: st
 
 export type MyApplication = {
   id: string; reference: string; childName: string; className: string | null; draftStatus: "AWAITING_PAYMENT" | "SUBMITTED" | "PAID_HOLD" | "CANCELLED";
-  applicationNo: string | null; publicStatus: string | null; feeCents: number; paid: boolean; paidAt: Date | null; receiptNo: string | null; test: boolean; holdNote: string | null; createdAt: Date;
+  applicationNo: string | null; publicStatus: string | null; interview: { at: Date; venue: string | null } | null; feeCents: number; paid: boolean; paidAt: Date | null; receiptNo: string | null; test: boolean; holdNote: string | null; createdAt: Date;
 };
 
 type DraftRow = NonNullable<Awaited<ReturnType<typeof loadDraftRow>>>;
 async function loadDraftRow(schoolId: string, id: string) {
-  return db.applicationDraft.findFirst({ where: { id, schoolId }, include: { application: { select: { applicationNo: true, status: true } } } });
+  return db.applicationDraft.findFirst({ where: { id, schoolId }, include: { application: { select: { applicationNo: true, status: true, interviews: { where: { status: "SCHEDULED", kind: "INTERVIEW" }, orderBy: { scheduledAt: "asc" }, take: 1, select: { scheduledAt: true, location: true } } } } } });
 }
 
 async function classNames(schoolId: string, ids: string[]) {
@@ -125,7 +128,8 @@ function view(d: DraftRow, classes: Map<string, string>): MyApplication {
   const p = d.payload as unknown as StoredForm;
   return {
     id: d.id, reference: d.reference, childName: [p.firstName, p.middleName, p.lastName].filter(Boolean).join(" "), className: classes.get(p.classAppliedId) ?? null, draftStatus: d.status,
-    applicationNo: d.application?.applicationNo ?? null, publicStatus: d.application ? (STATUS_PUBLIC[d.application.status] ?? "APPLIED") : null, feeCents: centsOf(d.feeAmount), paid: d.paidAt !== null, paidAt: d.paidAt, receiptNo: d.receiptNo,
+    applicationNo: d.application?.applicationNo ?? null, publicStatus: d.application ? (STATUS_PUBLIC[d.application.status] ?? "APPLIED") : null,
+    interview: d.application?.interviews[0] ? { at: d.application.interviews[0].scheduledAt, venue: d.application.interviews[0].location } : null, feeCents: centsOf(d.feeAmount), paid: d.paidAt !== null, paidAt: d.paidAt, receiptNo: d.receiptNo,
     test: d.paymentProvider === "sandbox", holdNote: d.holdNote, createdAt: d.createdAt,
   };
 }
@@ -133,7 +137,7 @@ function view(d: DraftRow, classes: Map<string, string>): MyApplication {
 /** The applications a signed-in family started, newest first. Only their own. */
 export async function myApplications(ctx: AuthContext): Promise<MyApplication[]> {
   if (ctx.userType !== "GUARDIAN") return [];
-  const rows = await db.applicationDraft.findMany({ where: { schoolId: ctx.schoolId, userId: ctx.userId }, orderBy: { createdAt: "desc" }, include: { application: { select: { applicationNo: true, status: true } } } });
+  const rows = await db.applicationDraft.findMany({ where: { schoolId: ctx.schoolId, userId: ctx.userId }, orderBy: { createdAt: "desc" }, include: { application: { select: { applicationNo: true, status: true, interviews: { where: { status: "SCHEDULED", kind: "INTERVIEW" }, orderBy: { scheduledAt: "asc" }, take: 1, select: { scheduledAt: true, location: true } } } } } });
   const classes = await classNames(ctx.schoolId, [...new Set(rows.map((r) => (r.payload as unknown as StoredForm).classAppliedId))]);
   return rows.map((r) => view(r, classes));
 }
@@ -142,8 +146,8 @@ export async function getMyApplication(ctx: AuthContext, id: string) {
   if (ctx.userType !== "GUARDIAN") throw forbidden();
   const row = await loadDraftRow(ctx.schoolId, id);
   if (!row || row.userId !== ctx.userId) throw notFound("Application"); // never reveals someone else's
-  const [classes, setup, school] = await Promise.all([classNames(ctx.schoolId, [(row.payload as unknown as StoredForm).classAppliedId]), paymentSetup(ctx.schoolId), db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { currency: true } })]);
-  return { ...view(row, classes), currency: school.currency, instructions: setup.instructions, ready: setup.ready, sandbox: setup.sandbox };
+  const [classes, setup, school] = await Promise.all([classNames(ctx.schoolId, [(row.payload as unknown as StoredForm).classAppliedId]), paymentSetup(ctx.schoolId), db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { currency: true, timezone: true } })]);
+  return { ...view(row, classes), currency: school.currency, timezone: school.timezone, instructions: setup.instructions, ready: setup.ready, sandbox: setup.sandbox };
 }
 
 export async function cancelMyApplication(ctx: AuthContext, id: string) {

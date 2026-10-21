@@ -245,6 +245,9 @@ describe("scenarios 6, 7 and 8: accepting, the admission fee and enrolment", () 
     expect(await db.student.count({ where: { id: done.studentId! } })).toBe(1);
     expect((await notices(a.id)).map((m) => m.kind)).toContain("ENROLLED");
     expect((await db.admissionPayment.findUniqueOrThrow({ where: { id: payment.id } })).status).toBe("VERIFIED"); // untouched by Admissions
+    // an enrolled applicant has left the working list; it is still found under Enrolled
+    expect((await desk.loadDesk(rehema, {}, 1)).rows.map((r) => r.id)).not.toContain(a.id);
+    expect((await desk.loadDesk(rehema, { state: "ENROLLED" }, 1)).rows.map((r) => r.id)).toContain(a.id);
   });
 
   it("not accepting tells the family neutrally and closes the application", async () => {

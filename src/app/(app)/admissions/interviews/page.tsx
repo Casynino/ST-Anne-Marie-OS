@@ -4,9 +4,12 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { displayDate, displayDateTime, todayInTimezone } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
 import { listInterviewers, listInterviews, type InterviewRow } from "@/server/interviews";
+import { listInterviewDays } from "@/server/interview-days";
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { Badge, Card, EmptyState, FilterBar, NoAccess, PageHeader } from "@/components/ui";
-import { Field } from "@/components/form";
+import { ActionForm, Field } from "@/components/form";
+import { addInterviewDayAction, removeInterviewDayAction, setApplicationsOpenAction } from "../actions";
+import { loadWebsiteSettings } from "@/server/website";
 
 export const metadata: Metadata = { title: "Interviews" };
 const IV_TONE = { SCHEDULED: "brand", COMPLETED: "ok", CANCELLED: "neutral", NO_SHOW: "bad" } as const;
@@ -40,12 +43,16 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
   const from = /^\d{4}-\d{2}-\d{2}$/.test(sp.from ?? "") ? sp.from! : today;
   const toDefault = new Date(new Date(`${from}T00:00:00Z`).getTime() + 14 * 86_400_000).toISOString().slice(0, 10);
   const to = /^\d{4}-\d{2}-\d{2}$/.test(sp.to ?? "") ? sp.to! : toDefault;
-  const [range, waiting, recent, interviewers] = await Promise.all([
+  const [range, waiting, recent, interviewers, interviewDays] = await Promise.all([
     listInterviews(ctx, { from: new Date(`${from}T00:00:00Z`), to: new Date(new Date(`${to}T00:00:00Z`).getTime() + 86_400_000), status: "SCHEDULED", interviewerId: sp.interviewer || undefined }),
     listInterviews(ctx, { to: new Date(), status: "SCHEDULED" }),
     listInterviews(ctx, { from: new Date(Date.now() - 14 * 86_400_000), to: new Date() }),
     listInterviewers(ctx),
+    listInterviewDays(ctx),
   ]);
+  const canSet = ctx.permissions.has("admission.interview.manage");
+  const windowOpen = (await loadWebsiteSettings(ctx.schoolId)).applicationsOpen;
+  const canWindow = ctx.permissions.has("admission.window.manage") || ctx.permissions.has("website.manage");
   const upcoming = range.filter((r) => r.scheduledAt.getTime() >= Date.now() - 3_600_000);
   const dayKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: school.timezone }).format(d);
   const days = [...new Set(upcoming.map((r) => dayKey(r.scheduledAt)))];
@@ -55,6 +62,59 @@ export default async function InterviewsPage({ searchParams }: { searchParams: P
     <>
       <PageHeader title={t("adm.iv.page.title")} subtitle={t("adm.iv.page.sub")} />
       <AdmissionsNav ctx={ctx} t={t} current="/admissions/interviews" />
+      <Card title={t("adm.window.title")} className="mb-5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <Badge tone={windowOpen ? "ok" : "neutral"}>{windowOpen ? t("adm.window.open") : t("adm.window.closedNow")}</Badge>
+          <span className="min-w-0 flex-1 text-muted">{t("adm.window.sub")}</span>
+          {canWindow && (
+            <ActionForm action={setApplicationsOpenAction} submitLabel={windowOpen ? t("adm.window.close") : t("adm.window.openNow")} inline tone="neutral" confirm={windowOpen ? t("adm.window.confirmClose") : undefined}>
+              <input type="hidden" name="open" value={windowOpen ? "0" : "1"} />
+            </ActionForm>
+          )}
+        </div>
+      </Card>
+      <Card title={t("adm.days.title")} className="mb-5">
+        <p className="mb-3 text-sm text-muted">{t("adm.days.sub")}</p>
+        {interviewDays.length === 0 ? (
+          <p className="text-sm text-muted">{t("adm.days.none")}</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {interviewDays.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
+                <span className="min-w-0 flex-1">
+                  <span className="font-semibold">{displayDate(new Date(`${d.on}T00:00:00Z`), ctx.locale)} · {d.time}</span>
+                  {d.venue && <span className="ml-2 text-muted">{d.venue}</span>}
+                  <span className="block text-xs text-muted">
+                    {d.from && d.until ? t("adm.days.window", { from: displayDate(new Date(`${d.from}T00:00:00Z`), ctx.locale), until: displayDate(new Date(`${d.until}T00:00:00Z`), ctx.locale) }) : d.from ? t("adm.days.windowFrom", { from: displayDate(new Date(`${d.from}T00:00:00Z`), ctx.locale) }) : d.until ? t("adm.days.windowUntil", { until: displayDate(new Date(`${d.until}T00:00:00Z`), ctx.locale) }) : t("adm.days.anytime")}
+                  </span>
+                </span>
+                <span className="tabular-nums text-muted">{d.capacity > 0 ? t("adm.days.placedOf", { n: String(d.placed), max: String(d.capacity) }) : t("adm.days.placed", { n: String(d.placed) })}</span>
+                {canSet && (
+                  <ActionForm action={removeInterviewDayAction} submitLabel={t("adm.days.remove")} inline tone="neutral" confirm={t("adm.days.removeNote")}>
+                    <input type="hidden" name="id" value={d.id} />
+                  </ActionForm>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {canSet && (
+          <details className="mt-4 rounded-lg border border-line px-3">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-link">{t("adm.days.add")}</summary>
+            <ActionForm action={addInterviewDayAction} submitLabel={t("adm.days.save")} className="space-y-4 pb-4 pt-1">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field name="on" type="date" label={t("adm.days.on")} required />
+                <Field name="time" type="time" label={t("adm.days.time")} defaultValue="09:00" required />
+                <Field name="venue" label={t("adm.days.venue")} optionalLabel={t("common.optional")} />
+                <Field name="from" type="date" label={t("adm.days.from")} optionalLabel={t("common.optional")} />
+                <Field name="until" type="date" label={t("adm.days.until")} optionalLabel={t("common.optional")} />
+                <Field name="capacity" type="number" min={0} label={t("adm.days.capacity")} optionalLabel={t("common.optional")} />
+              </div>
+              <p className="text-xs text-muted">{t("adm.days.hint")}</p>
+            </ActionForm>
+          </details>
+        )}
+      </Card>
       {waiting.length > 0 && (
         <Card title={`${t("adm.iv.waiting")} (${waiting.length})`} className="mb-5 border-warn/40">
           <div className="divide-y divide-line">{waiting.map((r) => <div key={r.id}><p className="pt-2 text-xs text-muted">{displayDateTime(r.scheduledAt, school.timezone, ctx.locale)}</p><Row r={r} t={t} locale={ctx.locale} timezone={school.timezone} /></div>)}</div>

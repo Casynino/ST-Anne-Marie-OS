@@ -58,6 +58,7 @@ export const PERMISSIONS = {
   "admission.enrol": { module: "admissions", description: "Enrol accepted applicants as students" },
   "admission.documents.verify": { module: "admissions", description: "Verify applicants' documents and return incomplete applications for correction" },
   "admission.interview.manage": { module: "admissions", description: "Schedule, move and cancel interviews and record their results" },
+  "admission.window.manage": { module: "admissions", description: "Open and close online applications (the application window)" },
   "admission.interview.notes": { module: "admissions", description: "Read interview notes (the assigned interviewer can always read their own)" },
   "admission.offer.approve": { module: "admissions", description: "Approve admission offers when the school requires approval" },
   "admission.payment.record": { module: "admissions", description: "Record admission payments received from applicants (Finance)" },

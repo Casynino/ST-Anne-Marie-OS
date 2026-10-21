@@ -16,6 +16,7 @@ import { checkIncomingFiles, saveIncomingFiles, type IncomingFile } from "@/serv
 import { assertNoOpenDuplicate, DUPLICATE_MESSAGE, STATUS_PUBLIC, insertOnlineApplication, isUniqueViolation, onlineSchema, prepareOnline, toStored, type StoredForm } from "@/server/online-application";
 import { loadWebsiteSettings } from "@/server/website";
 import { parse, phoneField } from "@/lib/validation";
+import { placeOnInterviewDay } from "@/server/interview-days";
 
 /*
  * Online applications from the public website. These are UNAUTHENTICATED requests, so every rule is enforced here:
@@ -109,6 +110,7 @@ export async function submitOnlineApplication(schoolId: string, input: Record<st
       if (feeInfo.feeCents === 0) {
         const app = await insertOnlineApplication(tx, school.id, d, prepared, meta);
         if (userId) await tx.applicationDraft.create({ data: { schoolId: school.id, userId, reference: newFeeReference(), payload: stored as object, feeAmount: "0.00", status: "SUBMITTED", applicationId: app.id } });
+        await placeOnInterviewDay(tx, school.id, app.id, meta);
         return { applicationNo: app.applicationNo, ...(userId ? { draftId: (await tx.applicationDraft.findUniqueOrThrow({ where: { applicationId: app.id }, select: { id: true } })).id } : {}), accountCreated: wantsAccount };
       }
 

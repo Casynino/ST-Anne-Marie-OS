@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Check, Download, FileText, Pencil } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
 import type { Translate } from "@/lib/i18n";
-import { displayDate } from "@/lib/dates";
+import { displayDate, displayDateTime } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
 import { AppError } from "@/lib/errors";
 import { getApplicationReview } from "@/server/application-draft";
@@ -90,6 +90,7 @@ export default async function MyApplicationPage({ params }: { params: Promise<{ 
             <Card title={t("apf.done.title")}>
               <p className="text-sm">{t("apf.done.body", { number: a.applicationNo ?? "" })}</p>
               {a.publicStatus && <p className="mt-2 text-sm"><span className="text-muted">{t("apf.done.status")}: </span><strong>{t(`apply.status.${a.publicStatus}` as "apply.status.APPLIED")}</strong></p>}
+              {a.interview && <p className="mt-2 text-sm"><span className="text-muted">{t("apf.done.interview")}: </span><strong>{displayDateTime(a.interview.at, a.timezone, ctx.locale)}{a.interview.venue ? ` · ${a.interview.venue}` : ""}</strong></p>}
               <div className="mt-4 flex flex-wrap gap-3">
                 {dl(`/api/applications/${a.id}/form`, t("apf.download.form"))}
                 {a.paid && dl(`/api/applications/${a.id}/receipt`, t("apf.download.receipt"))}

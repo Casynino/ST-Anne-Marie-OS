@@ -12,6 +12,7 @@ import { confirmApplicationFee, newFeeReference, paymentSetup, type FeeResult } 
 import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES, persistDocument, sniffType } from "@/server/documents";
 import { assertNoOpenDuplicate, DUPLICATE_MESSAGE, insertOnlineApplication, isUniqueViolation, onlineSchema, prepareOnline, toStored, type StoredForm } from "@/server/online-application";
 import { optText, parse } from "@/lib/validation";
+import { placeOnInterviewDay } from "@/server/interview-days";
 
 /*
  * An application filled in at the school office is the SAME application as one filled in online: the same form, the same checks, the same
@@ -54,6 +55,7 @@ export async function createOfficeApplication(ctx: AuthContext, input: Input, fi
       if (feeCents === 0) {
         const app = await insertOnlineApplication(tx, ctx.schoolId, d, prepared, ctx.meta, {}, { createdById: ctx.userId, actor: actorOf(ctx) });
         const draft = await tx.applicationDraft.create({ data: { ...base, feeAmount: "0.00", status: "SUBMITTED", applicationId: app.id } });
+        await placeOnInterviewDay(tx, ctx.schoolId, app.id, ctx.meta);
         return { draftId: draft.id, applicationId: app.id, applicationNo: app.applicationNo, reference: draft.reference };
       }
       const draft = await tx.applicationDraft.create({ data: { ...base, feeAmount: (feeCents / 100).toFixed(2) } });

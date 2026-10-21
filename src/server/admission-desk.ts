@@ -85,8 +85,8 @@ export type DeskCounts = Record<WorkflowState, number> & { total: number; awaiti
 function countRows(rows: DeskRow[]): DeskCounts {
   const c = Object.fromEntries(WORKFLOW_STATES.map((s) => [s, rows.filter((r) => r.state === s).length])) as Record<WorkflowState, number>;
   const closed = c.REJECTED + c.WITHDRAWN;
-  // "total" is the working list: a rejected or withdrawn application leaves it (it is still found under Closed, or by searching).
-  return { ...c, total: rows.length - closed, awaitingInterview: rows.filter((r) => r.state === "REVIEWED" && r.interview === "TO_ARRANGE").length, attention: rows.filter((r) => r.attention.length > 0).length, closed };
+  // "total" is the working list: an application that is finished (rejected, withdrawn or enrolled) leaves it; it is still found under its own status, or by searching.
+  return { ...c, total: rows.length - closed - c.ENROLLED, awaitingInterview: rows.filter((r) => r.state === "REVIEWED" && r.interview === "TO_ARRANGE").length, attention: rows.filter((r) => r.attention.length > 0).length, closed };
 }
 
 function sqlWhere(ctx: AuthContext, f: DeskFilters): Prisma.ApplicationWhereInput {
@@ -117,8 +117,8 @@ export async function deskRow(ctx: AuthContext, id: string): Promise<DeskRow> {
 /** The filters that depend on the worked-out status (the others are applied in the database). */
 function applyDerived(rows: DeskRow[], f: DeskFilters): DeskRow[] {
   let r = rows;
-  // Rejected and withdrawn applications are finished: they leave the working list. They show under the Closed status, or when someone searches by name or number.
-  if (!f.state && !(f.q ?? "").trim()) r = r.filter((x) => x.state !== "REJECTED" && x.state !== "WITHDRAWN");
+  // Rejected, withdrawn and enrolled applications are finished: they leave the working list. They show under their own status, or when someone searches by name or number.
+  if (!f.state && !(f.q ?? "").trim()) r = r.filter((x) => x.state !== "REJECTED" && x.state !== "WITHDRAWN" && x.state !== "ENROLLED");
   if (f.state === "AWAITING_INTERVIEW") r = r.filter((x) => x.state === "REVIEWED" && x.interview === "TO_ARRANGE");
   else if (f.state === "CLOSED") r = r.filter((x) => x.state === "REJECTED" || x.state === "WITHDRAWN");
   else if ((WORKFLOW_STATES as readonly string[]).includes(f.state ?? "")) r = r.filter((x) => x.state === f.state);

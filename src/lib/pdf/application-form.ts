@@ -17,6 +17,8 @@ export type ApplicationFormDoc = {
   emergency: { name: string; relationship: string; phone: string } | null;
   /** What the family added: the kind of each file and its name. */
   files: { label: string; fileName: string }[];
+  /** The interview, once a date is set (set by the school in advance, or given by the office). */
+  interview: { when: string; venue: string | null } | null;
   fee: { amount: string; paidOn: string; reference: string; receiptNo: string; test: boolean } | null;
   /** The fee still to be paid (a form filled in at the office before the family has paid): the amount, the reference to quote and how to pay. */
   pay: { amount: string; reference: string; instructions: string | null } | null;
@@ -25,6 +27,7 @@ export type ApplicationFormDoc = {
 export type ApplicationFormLabels = {
   title: string; applicationNo: string; submitted: string; classApplied: string; child: string; name: string; dateOfBirth: string; gender: string; nationality: string; previousSchool: string; address: string;
   entry: string; transferReason: string; previousAdmissionNo: string; guardians: string; relationship: string; phone: string; email: string; religion: string; birthCert: string; previousClass: string; health: string; occupation: string; emergency: string; guardian2: string; files: string; fee: string; amountPaid: string; paidOn: string; reference: string; receiptNo: string; testNote: string;
+  interview: string; interviewWhen: string; venue: string;
   documents: string; documentsIntro: string; consent: string; keep: string;
   payTitle: string; payAmount: string; payHow: string; payBring: string; notSubmitted: string; signGuardian: string; signOffice: string;
 };
@@ -112,6 +115,13 @@ export async function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Appli
     row(L.name, d.emergency.name);
     row(L.relationship, d.emergency.relationship);
     row(L.phone, d.emergency.phone);
+    y -= 8;
+  }
+
+  if (d.interview) {
+    section(L.interview);
+    row(L.interviewWhen, d.interview.when);
+    row(L.venue, d.interview.venue);
     y -= 8;
   }
 

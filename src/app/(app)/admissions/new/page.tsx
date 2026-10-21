@@ -12,6 +12,9 @@ import { EntryTypeProvider, WhenTransfer } from "@/components/site/entry-type";
 import { NoAccess, PageHeader } from "@/components/ui";
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { createOfficeApplicationAction } from "../actions";
+import { displayDateTime } from "@/lib/dates";
+import { getSchoolBasics } from "@/server/settings";
+import { openInterviewDayNotice } from "@/server/interview-days";
 
 export const metadata: Metadata = { title: "New application" };
 
@@ -23,7 +26,7 @@ export default async function NewApplicationPage() {
   const ctx = await requireContext();
   const [t, locale] = await Promise.all([getT(), getLocale()]);
   if (!ctx.permissions.has("admission.create")) return <NoAccess t={t} />;
-  const [classes, policy, fee] = await Promise.all([listApplyClasses(ctx.schoolId, locale), getAdmissionPolicy(db, ctx.schoolId), applicationFeeInfo(ctx.schoolId)]);
+  const [classes, policy, fee, openDay, school] = await Promise.all([listApplyClasses(ctx.schoolId, locale), getAdmissionPolicy(db, ctx.schoolId), applicationFeeInfo(ctx.schoolId), openInterviewDayNotice(ctx.schoolId), getSchoolBasics(ctx.schoolId)]);
   const classOptions = classes.map((c) => ({ value: c.id, label: `${c.level} — ${c.name}` }));
   const relOptions = RELATIONSHIPS.map((r) => ({ value: r, label: t(`student.rel.${r}` as "student.rel.FATHER") }));
   const paper = (d: string) => <FileField key={d} name={`paper_${d}`} label={t(`doc.type.${d}` as "doc.type.OTHER")} accept="application/pdf,image/jpeg,image/png,image/webp" optionalLabel={t("common.optional")} hint={t("apf.papers.hint")} />;
@@ -32,6 +35,7 @@ export default async function NewApplicationPage() {
       <PageHeader title={t("adm.new")} subtitle={t("adm.new.office")} />
       <AdmissionsNav ctx={ctx} t={t} current="/admissions/new" />
       <div className="max-w-4xl">
+        {openDay && <p className="mb-4 rounded-lg border border-line bg-surface px-4 py-3 text-sm">{t("adm.days.formNote", { date: displayDateTime(openDay.startsAt, school.timezone, ctx.locale), venue: openDay.venue ? ` · ${openDay.venue}` : "" })}</p>}
         {fee.feeCents > 0 && <p className="mb-4 rounded-lg border border-tint-2 bg-tint px-4 py-3 text-sm font-medium text-link">{t("adm.new.fee", { amount: formatMoney(fee.feeCents, fee.currency) })}</p>}
         <ActionForm action={createOfficeApplicationAction} submitLabel={fee.feeCents > 0 ? t("adm.new.saveFee") : t("adm.new.submit")} className="space-y-6">
           <EntryTypeProvider defaultKind="NEW">

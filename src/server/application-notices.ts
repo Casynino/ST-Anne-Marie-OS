@@ -40,7 +40,7 @@ function text(kind: NoticeKind, name: string, v: NoticeVars, locale: "EN" | "SW"
 /** Tells the family once. Returns what happened so the caller can show it. Safe to call again with the same key (nothing is repeated). */
 export async function noticeFamily(
   tx: Tx,
-  ctx: { schoolId: string; userId: string },
+  ctx: { schoolId: string; userId: string | null },
   app: { id: string; firstName: string; lastName: string },
   n: { kind: NoticeKind; key: string; vars?: NoticeVars },
 ): Promise<"SENT_IN_APP" | "NO_ACCOUNT" | "ALREADY"> {

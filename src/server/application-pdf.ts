@@ -23,6 +23,7 @@ async function schoolOf(schoolId: string) {
 
 
 type Source = {
+  applicationId: string | null;
   p: StoredForm; applicationNo: string | null; reference: string | null; at: Date; docsWhere: { draftId: string } | { applicationId: string };
   draft: Awaited<ReturnType<typeof draftForDownload>> | null;
 };
@@ -35,7 +36,7 @@ async function formSource(ctx: AuthContext, id: string): Promise<Source> {
     const submitted = draft.status === "SUBMITTED" && !!draft.application;
     const officeUnpaid = ctx.userType === "STAFF" && draft.channel === "OFFICE" && draft.status === "AWAITING_PAYMENT";
     if (!submitted && !officeUnpaid) throw conflict("The application form is available once the application has been submitted.");
-    return { p: draft.payload as unknown as StoredForm, applicationNo: draft.application?.applicationNo ?? null, reference: draft.reference, at: draft.paidAt ?? draft.createdAt, docsWhere: { draftId: draft.id }, draft };
+    return { applicationId: draft.applicationId ?? null, p: draft.payload as unknown as StoredForm, applicationNo: draft.application?.applicationNo ?? null, reference: draft.reference, at: draft.paidAt ?? draft.createdAt, docsWhere: { draftId: draft.id }, draft };
   }
   if (ctx.userType !== "STAFF") throw notFound("Application");
   requireAnyPermission(ctx, ["admission.read"]);
@@ -53,8 +54,8 @@ async function formSource(ctx: AuthContext, id: string): Promise<Source> {
     g2_fullName: g[1]?.fullName, g2_phone: g[1]?.phone, g2_email: g[1]?.email, g2_occupation: g[1]?.occupation, g2_relationship: g[1]?.relationship as StoredForm["g2_relationship"],
     ec_name: ec?.name, ec_phone: ec?.phone, ec_relationship: ec?.relationship, consent: true,
   } as StoredForm;
-  const linked = await db.applicationDraft.findUnique({ where: { applicationId: app.id }, include: { application: { select: { applicationNo: true, status: true } } } });
-  return { p, applicationNo: app.applicationNo, reference: linked?.reference ?? null, at: linked?.paidAt ?? app.createdAt, docsWhere: { applicationId: app.id }, draft: linked };
+  const linked = await db.applicationDraft.findUnique({ where: { applicationId: app.id }, include: { application: { select: { applicationNo: true, status: true, interviews: { where: { status: "SCHEDULED", kind: "INTERVIEW" }, orderBy: { scheduledAt: "asc" }, take: 1, select: { scheduledAt: true, location: true } } } } } });
+  return { applicationId: app.id, p, applicationNo: app.applicationNo, reference: linked?.reference ?? null, at: linked?.paidAt ?? app.createdAt, docsWhere: { applicationId: app.id }, draft: linked };
 }
 
 /** The application as entered (online by the family, or at the office), with its number and the fee that was paid or is still to pay. Printable before the fee is paid only for applications filled in at the office. */
@@ -72,6 +73,8 @@ export async function applicationFormDocument(ctx: AuthContext, id: string, loca
   // The photo goes onto the form when it is a JPEG or PNG; the file list always names everything that was added.
   const photoDoc = files.find((x) => x.docType === "PASSPORT_PHOTO" && (x.mimeType === "image/jpeg" || x.mimeType === "image/png"));
   const photoBytes = photoDoc ? await getStorage()?.get(photoDoc.storageKey).catch(() => null) : null;
+  const iv = src.applicationId ? await db.interview.findFirst({ where: { schoolId: ctx.schoolId, applicationId: src.applicationId, status: "SCHEDULED", kind: "INTERVIEW" }, orderBy: { scheduledAt: "asc" }, select: { scheduledAt: true, location: true } }) : null;
+  const interview = iv ? { when: new Intl.DateTimeFormat(locale === "SW" ? "sw-TZ" : "en-GB", { timeZone: school.timezone, weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(iv.scheduledAt), venue: iv.location ?? null } : null;
   const rel = (r: string) => t(`student.rel.${r}` as "student.rel.FATHER");
   const owed = draft && draft.status === "AWAITING_PAYMENT" ? await getFeeSettings(db, ctx.schoolId) : null;
   const fee = draft?.paidAt && draft.receiptNo ? { amount: formatMoney(centsOf(draft.paidAmount ?? draft.feeAmount), school.currency), paidOn: longDate(draft.paidAt, locale, school.timezone), reference: draft.reference, receiptNo: draft.receiptNo, test: draft.paymentProvider === "sandbox" } : null;
@@ -86,6 +89,7 @@ export async function applicationFormDocument(ctx: AuthContext, id: string, loca
       { name: p.g1_fullName, relationship: rel(p.g1_relationship), phone: p.g1_phone, email: p.g1_email ?? null, occupation: p.g1_occupation ?? null },
       ...(p.g2_fullName ? [{ name: p.g2_fullName, relationship: p.g2_relationship ? rel(p.g2_relationship) : "", phone: p.g2_phone ?? "", email: p.g2_email ?? null, occupation: p.g2_occupation ?? null }] : []),
     ],
+    interview,
     fee,
     pay: draft && owed ? { amount: formatMoney(centsOf(draft.feeAmount), school.currency), reference: draft.reference, instructions: owed.paymentInstructions.trim() || null } : null,
     documents: policy.requiredDocTypes.map((d) => t(`doc.type.${d}` as "doc.type.BIRTH_CERTIFICATE")),
@@ -100,6 +104,7 @@ export function applicationFormLabels(locale: Locale) {
     entry: t("apply.entry.title"), transferReason: t("apply.transfer.reason"), previousAdmissionNo: t("apply.transfer.admissionNo"),
     religion: t("apf.pdf.religion"), birthCert: t("apf.pdf.birthCert"), previousClass: t("apf.pdf.previousClass"), health: t("apf.pdf.health"), occupation: t("apf.pdf.occupation"), emergency: t("apf.pdf.emergency"), guardian2: t("apf.pdf.guardian2"), files: t("apf.pdf.files"),
     fee: t("apf.pdf.fee"), amountPaid: t("apf.pdf.amountPaid"), paidOn: t("apf.pdf.paidOn"), reference: t("fin.pdf.reference"), receiptNo: t("fin.pdf.receiptNo"), testNote: t("apf.pdf.testNote"),
+    interview: t("apf.pdf.interview"), interviewWhen: t("apf.pdf.interviewWhen"), venue: t("adm.days.venue"),
     documents: t("apf.pdf.documents"), documentsIntro: t("apf.pdf.documentsIntro"), consent: t("apf.pdf.consent"), keep: t("apf.pdf.keep"),
     payTitle: t("apf.pdf.payTitle"), payAmount: t("apf.pdf.payAmount"), payHow: t("apf.pdf.payHow"), payBring: t("apf.pdf.payBring"), notSubmitted: t("apf.pdf.notSubmitted"), signGuardian: t("apf.pdf.signGuardian"), signOffice: t("apf.pdf.signOffice"),
   };

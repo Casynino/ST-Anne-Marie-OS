@@ -11,6 +11,8 @@ import * as desk from "@/server/admission-desk";
 import * as office from "@/server/office-application";
 import type { IncomingFile } from "@/server/application-draft";
 import * as interviews from "@/server/interviews";
+import * as interviewDays from "@/server/interview-days";
+import { setApplicationsOpen } from "@/server/website";
 import * as offers from "@/server/admission-offers";
 import * as policy from "@/server/admission-policy";
 import * as students from "@/server/students";
@@ -258,4 +260,25 @@ export async function placeStudentAction(_: ActionState, form: FormData) {
 }
 export async function updatePolicyAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await policy.updateAdmissionPolicy(ctx, { ...i, requiredDocTypes: form.getAll("requiredDocTypes").map(String), transferDocTypes: form.getAll("transferDocTypes").map(String) }); return saved(ctx); });
+}
+
+// ───────────── Interview days (dates the school sets before families apply) ─────────────
+export async function addInterviewDayAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    await interviewDays.addInterviewDay(ctx, { on: i.on, time: i.time, venue: i.venue, from: i.from, until: i.until, capacity: i.capacity });
+    return { message: makeT(ctx.locale)("adm.days.added") };
+  });
+}
+export async function removeInterviewDayAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    await interviewDays.removeInterviewDay(ctx, str(i.id));
+    return { message: makeT(ctx.locale)("adm.days.removed") };
+  });
+}
+export async function setApplicationsOpenAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const open = str(i.open) === "1";
+    await setApplicationsOpen(ctx, open);
+    return { message: makeT(ctx.locale)(open ? "adm.window.opened" : "adm.window.closed") };
+  });
 }
