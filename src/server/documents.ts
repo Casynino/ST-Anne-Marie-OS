@@ -40,7 +40,7 @@ export function safeFileName(name: string): string {
   return cleaned || "document";
 }
 
-type Owner = { applicationId?: string; studentId?: string };
+type Owner = { applicationId?: string; studentId?: string; draftId?: string };
 
 /** Confirms the owner exists in the user's school and that the user may see it. */
 async function assertOwnerAccess(ctx: AuthContext, owner: Owner): Promise<void> {
@@ -70,7 +70,7 @@ export async function persistDocument(a: { schoolId: string; actor: AuditActor; 
   const storage = getStorage();
   if (!storage) throw invalid("File storage is not configured. Ask the administrator to set it up before uploading documents.");
 
-  const count = await db.document.count({ where: { schoolId: a.schoolId, deletedAt: null, ...(a.owner.applicationId ? { applicationId: a.owner.applicationId } : { studentId: a.owner.studentId }) } });
+  const count = await db.document.count({ where: { schoolId: a.schoolId, deletedAt: null, ...(a.owner.applicationId ? { applicationId: a.owner.applicationId } : a.owner.draftId ? { draftId: a.owner.draftId } : { studentId: a.owner.studentId }) } });
   if (count >= MAX_DOCUMENTS_PER_OWNER) throw conflict(`At most ${MAX_DOCUMENTS_PER_OWNER} documents can be attached. Remove one first.`);
 
   const storageKey = `${a.schoolId}/${new Date().getUTCFullYear()}/${randomUUID()}.${type.ext}`;
@@ -79,7 +79,7 @@ export async function persistDocument(a: { schoolId: string; actor: AuditActor; 
   try {
     return await db.$transaction(async (tx) => {
       const doc = await tx.document.create({
-        data: { schoolId: a.schoolId, applicationId: a.owner.applicationId, studentId: a.owner.studentId, docType: d.docType, fileName: safeFileName(d.fileName), mimeType: type.mime, sizeBytes: bytes.length, sha256, storageKey, uploadedById: a.uploadedById },
+        data: { schoolId: a.schoolId, applicationId: a.owner.applicationId, draftId: a.owner.draftId, studentId: a.owner.studentId, docType: d.docType, fileName: safeFileName(d.fileName), mimeType: type.mime, sizeBytes: bytes.length, sha256, storageKey, uploadedById: a.uploadedById },
       });
       await writeAudit(tx, a.actor, {
         action: "document.upload",

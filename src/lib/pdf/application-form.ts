@@ -10,18 +10,23 @@ import { A4, fonts, header, logoOf, type PdfLogo, type SchoolHeader } from "@/li
 
 export type ApplicationFormDoc = {
   school: SchoolHeader; applicationNo: string; submittedOn: string; className: string | null;
-  child: { name: string; dateOfBirth: string; gender: string; nationality: string | null; previousSchool: string | null; address: string | null };
-  guardians: { name: string; relationship: string; phone: string; email: string | null }[];
+  child: { name: string; dateOfBirth: string; gender: string; nationality: string | null; religion: string | null; birthCertificateNo: string | null; previousSchool: string | null; previousClass: string | null; address: string | null; healthNotes: string | null };
+  /** The child's passport photo when it is a JPEG or PNG (the PDF format cannot embed other picture types). */
+  photo: { bytes: Uint8Array; type: "png" | "jpg" } | null;
+  guardians: { name: string; relationship: string; phone: string; email: string | null; occupation: string | null }[];
+  emergency: { name: string; relationship: string; phone: string } | null;
+  /** What the family added: the kind of each file and its name. */
+  files: { label: string; fileName: string }[];
   fee: { amount: string; paidOn: string; reference: string; receiptNo: string; test: boolean } | null;
   documents: string[];
 };
 export type ApplicationFormLabels = {
   title: string; applicationNo: string; submitted: string; classApplied: string; child: string; name: string; dateOfBirth: string; gender: string; nationality: string; previousSchool: string; address: string;
-  guardians: string; relationship: string; phone: string; email: string; fee: string; amountPaid: string; paidOn: string; reference: string; receiptNo: string; testNote: string;
+  guardians: string; relationship: string; phone: string; email: string; religion: string; birthCert: string; previousClass: string; health: string; occupation: string; emergency: string; guardian2: string; files: string; fee: string; amountPaid: string; paidOn: string; reference: string; receiptNo: string; testNote: string;
   documents: string; documentsIntro: string; consent: string; keep: string;
 };
 
-export function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: ApplicationFormDoc, L: ApplicationFormLabels, logo: PDFImage | null) {
+export async function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: ApplicationFormDoc, L: ApplicationFormLabels, logo: PDFImage | null) {
   const M = 48;
   const W = A4[0] - 2 * M;
   const BOTTOM = 60;
@@ -49,9 +54,9 @@ export function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Application
     page.drawRectangle({ x: M, y, width: W, height: 0.8, color: GREEN });
     y -= 15;
   };
-  const row = (label: string, value: string | null | undefined) => {
+  const row = (label: string, value: string | null | undefined, narrow = 0) => {
     if (!value) return;
-    const lines = wrap(value, f.bold, 10.5, W - 160);
+    const lines = wrap(value, f.bold, 10.5, W - 160 - narrow);
     ensure(16 * lines.length + 2);
     draw(page, label, M, y, { font: f.regular, size: 9.5, color: MUTED });
     lines.forEach((ln, i) => draw(page, ln, M + 160, y - i * 14, { font: f.bold, size: 10.5 }));
@@ -59,24 +64,50 @@ export function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Application
   };
 
   section(L.child);
-  row(L.name, d.child.name);
-  row(L.classApplied, d.className);
-  row(L.dateOfBirth, d.child.dateOfBirth);
-  row(L.gender, d.child.gender);
-  row(L.nationality, d.child.nationality);
-  row(L.previousSchool, d.child.previousSchool);
+  const photoTop = y + 6;
+  let narrow = 0;
+  if (d.photo) {
+    try {
+      const img = d.photo.type === "png" ? await pdf.embedPng(d.photo.bytes) : await pdf.embedJpg(d.photo.bytes);
+      const scale = Math.min(84 / img.width, 108 / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      page.drawRectangle({ x: M + W - 88, y: photoTop - 112, width: 88, height: 112, borderColor: LINE, borderWidth: 0.8 });
+      page.drawImage(img, { x: M + W - 88 + (88 - w) / 2, y: photoTop - 112 + (112 - h) / 2, width: w, height: h });
+      narrow = 100;
+    } catch { /* an unreadable picture is simply left out */ }
+  }
+  row(L.name, d.child.name, narrow);
+  row(L.classApplied, d.className, narrow);
+  row(L.dateOfBirth, d.child.dateOfBirth, narrow);
+  row(L.gender, d.child.gender, narrow);
+  row(L.nationality, d.child.nationality, narrow);
+  row(L.religion, d.child.religion, narrow);
+  row(L.birthCert, d.child.birthCertificateNo, narrow);
+  row(L.previousSchool, d.child.previousSchool, narrow);
+  row(L.previousClass, d.child.previousClass);
   row(L.address, d.child.address);
+  row(L.health, d.child.healthNotes);
+  if (narrow && y > photoTop - 118) y = photoTop - 118; // keep the next section below the photo
   y -= 8;
 
   section(L.guardians);
   d.guardians.forEach((g, i) => {
-    if (i > 0) { page.drawRectangle({ x: M, y: y + 6, width: W, height: 0.5, color: LINE }); y -= 6; }
+    if (i > 0) { page.drawRectangle({ x: M, y: y + 6, width: W, height: 0.5, color: LINE }); y -= 6; draw(page, L.guardian2, M, y, { font: f.italic, size: 9, color: MUTED }); y -= 14; }
     row(L.name, g.name);
     row(L.relationship, g.relationship);
     row(L.phone, g.phone);
     row(L.email, g.email);
+    row(L.occupation, g.occupation);
   });
   y -= 8;
+
+  if (d.emergency) {
+    section(L.emergency);
+    row(L.name, d.emergency.name);
+    row(L.relationship, d.emergency.relationship);
+    row(L.phone, d.emergency.phone);
+    y -= 8;
+  }
 
   if (d.fee) {
     section(L.fee);
@@ -96,6 +127,12 @@ export function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Application
     y -= 8;
   }
 
+  if (d.files.length > 0) {
+    section(L.files);
+    for (const file of d.files) { ensure(15); draw(page, `-  ${file.label}: ${file.fileName}`, M + 8, y, { font: f.regular, size: 10 }); y -= 14; }
+    y -= 8;
+  }
+
   ensure(70);
   wrap(L.consent, f.italic, 9, W).forEach((ln) => { draw(page, ln, M, y, { font: f.italic, size: 9, color: MUTED }); y -= 12; });
   y -= 6;
@@ -105,6 +142,6 @@ export function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Application
 export async function buildApplicationFormPdf(d: ApplicationFormDoc, L: ApplicationFormLabels, logo?: PdfLogo | null): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(clean(`${L.title} ${d.applicationNo}`));
-  renderApplicationForm(pdf, await fonts(pdf), d, L, await logoOf(pdf, logo));
+  await renderApplicationForm(pdf, await fonts(pdf), d, L, await logoOf(pdf, logo));
   return pdf.save();
 }

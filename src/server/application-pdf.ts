@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getStorage } from "@/lib/storage";
 import { conflict } from "@/lib/errors";
 import { makeT, type Locale } from "@/lib/i18n";
 import type { AuthContext } from "@/lib/auth/context";
@@ -25,20 +26,27 @@ export async function applicationFormDocument(ctx: AuthContext, draftId: string,
   if (draft.status !== "SUBMITTED" || !draft.application) throw conflict("The application form is available once the application has been submitted.");
   const t = makeT(locale);
   const p = draft.payload as unknown as StoredForm;
-  const [school, cls, policy] = await Promise.all([
+  const [school, cls, policy, files] = await Promise.all([
     schoolOf(ctx.schoolId),
     db.schoolClass.findFirst({ where: { id: p.classAppliedId, schoolId: ctx.schoolId }, select: { name: true } }),
     getAdmissionPolicy(db, ctx.schoolId),
+    db.document.findMany({ where: { schoolId: ctx.schoolId, draftId: draft.id, deletedAt: null }, orderBy: { createdAt: "asc" }, select: { docType: true, fileName: true, mimeType: true, storageKey: true } }),
   ]);
+  // The photo goes onto the form when it is a JPEG or PNG; the file list always names everything that was added.
+  const photoDoc = files.find((x) => x.docType === "PASSPORT_PHOTO" && (x.mimeType === "image/jpeg" || x.mimeType === "image/png"));
+  const photoBytes = photoDoc ? await getStorage()?.get(photoDoc.storageKey).catch(() => null) : null;
   const rel = (r: string) => t(`student.rel.${r}` as "student.rel.FATHER");
   const fee = draft.paidAt && draft.receiptNo ? { amount: formatMoney(centsOf(draft.paidAmount ?? draft.feeAmount), school.currency), paidOn: longDate(draft.paidAt, locale, school.timezone), reference: draft.reference, receiptNo: draft.receiptNo, test: draft.paymentProvider === "sandbox" } : null;
   return {
     school: { name: school.name, motto: school.motto, address: school.address, phone: school.phone, email: school.email },
     applicationNo: draft.application.applicationNo, submittedOn: longDate(draft.paidAt ?? draft.createdAt, locale, school.timezone), className: cls?.name ?? null,
-    child: { name: [p.firstName, p.middleName, p.lastName].filter(Boolean).join(" "), dateOfBirth: longDate(new Date(p.dateOfBirth), locale, "UTC"), gender: t(p.gender === "MALE" ? "student.male" : "student.female"), nationality: p.nationality ?? null, previousSchool: p.previousSchool ?? null, address: p.address ?? null },
+    child: { name: [p.firstName, p.middleName, p.lastName].filter(Boolean).join(" "), dateOfBirth: longDate(new Date(p.dateOfBirth), locale, "UTC"), gender: t(p.gender === "MALE" ? "student.male" : "student.female"), nationality: p.nationality ?? null, religion: p.religion ?? null, birthCertificateNo: p.birthCertificateNo ?? null, previousSchool: p.previousSchool ?? null, previousClass: p.previousClass ?? null, address: p.address ?? null, healthNotes: p.healthNotes ?? null },
+    photo: photoDoc && photoBytes ? { bytes: new Uint8Array(photoBytes), type: photoDoc.mimeType === "image/png" ? "png" : "jpg" } : null,
+    emergency: p.ec_name && p.ec_phone ? { name: p.ec_name, relationship: p.ec_relationship ?? "", phone: p.ec_phone } : null,
+    files: files.map((x) => ({ label: t(x.docType === "PASSPORT_PHOTO" ? "apf.pdf.photoAdded" : (`doc.type.${x.docType}` as "doc.type.OTHER")), fileName: x.fileName })),
     guardians: [
-      { name: p.g1_fullName, relationship: rel(p.g1_relationship), phone: p.g1_phone, email: p.g1_email ?? null },
-      ...(p.g2_fullName ? [{ name: p.g2_fullName, relationship: p.g2_relationship ? rel(p.g2_relationship) : "", phone: p.g2_phone ?? "", email: null }] : []),
+      { name: p.g1_fullName, relationship: rel(p.g1_relationship), phone: p.g1_phone, email: p.g1_email ?? null, occupation: p.g1_occupation ?? null },
+      ...(p.g2_fullName ? [{ name: p.g2_fullName, relationship: p.g2_relationship ? rel(p.g2_relationship) : "", phone: p.g2_phone ?? "", email: p.g2_email ?? null, occupation: p.g2_occupation ?? null }] : []),
     ],
     fee, documents: policy.requiredDocTypes.map((d) => t(`doc.type.${d}` as "doc.type.BIRTH_CERTIFICATE")),
   };
@@ -49,6 +57,7 @@ export function applicationFormLabels(locale: Locale) {
   return {
     title: t("apf.pdf.title"), applicationNo: t("adm.applicationNo"), submitted: t("apf.pdf.submitted"), classApplied: t("apply.class"), child: t("apply.child"), name: t("apf.pdf.name"), dateOfBirth: t("student.dob"), gender: t("student.gender"),
     nationality: t("student.nationality"), previousSchool: t("student.previousSchool"), address: t("common.address"), guardians: t("apply.guardian"), relationship: t("apply.relationship"), phone: t("common.phone"), email: t("common.email"),
+    religion: t("apf.pdf.religion"), birthCert: t("apf.pdf.birthCert"), previousClass: t("apf.pdf.previousClass"), health: t("apf.pdf.health"), occupation: t("apf.pdf.occupation"), emergency: t("apf.pdf.emergency"), guardian2: t("apf.pdf.guardian2"), files: t("apf.pdf.files"),
     fee: t("apf.pdf.fee"), amountPaid: t("apf.pdf.amountPaid"), paidOn: t("apf.pdf.paidOn"), reference: t("fin.pdf.reference"), receiptNo: t("fin.pdf.receiptNo"), testNote: t("apf.pdf.testNote"),
     documents: t("apf.pdf.documents"), documentsIntro: t("apf.pdf.documentsIntro"), consent: t("apf.pdf.consent"), keep: t("apf.pdf.keep"),
   };

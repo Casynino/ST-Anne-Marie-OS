@@ -26,15 +26,27 @@ export const onlineSchema = z
     gender: z.enum(["MALE", "FEMALE"]),
     classAppliedId: uuid(),
     previousSchool: optText(150),
+    /** The last class the child completed, so the school can place them correctly. */
+    previousClass: optText(60),
     nationality: optText(60),
+    religion: optText(60),
+    birthCertificateNo: optText(40),
     address: optText(300),
+    /** Allergies or health conditions the school should know about. Only people allowed to read medical notes see it. */
+    healthNotes: optText(1000),
     g1_fullName: text(120),
     g1_phone: phoneField(),
     g1_email: optEmailField(),
+    g1_occupation: optText(100),
     g1_relationship: z.enum(RELATIONSHIPS),
     g2_fullName: optText(120),
     g2_phone: optPhoneField(),
+    g2_email: optEmailField(),
+    g2_occupation: optText(100),
     g2_relationship: z.preprocess((v) => (v === "" ? undefined : v), z.enum(RELATIONSHIPS).optional()),
+    ec_name: optText(100),
+    ec_phone: optPhoneField(),
+    ec_relationship: optText(60),
     consent: checkbox(),
     /** Only for a family creating its account while applying. Never stored with the application. */
     password: z.string().max(128).optional(),
@@ -47,6 +59,12 @@ export const onlineSchema = z
       if (!v.g2_fullName) c.addIssue({ code: "custom", path: ["g2_fullName"], message: "Required" });
       if (!v.g2_phone) c.addIssue({ code: "custom", path: ["g2_phone"], message: "Required" });
       if (!v.g2_relationship) c.addIssue({ code: "custom", path: ["g2_relationship"], message: "Required" });
+    }
+    const anyEc = v.ec_name || v.ec_phone || v.ec_relationship;
+    if (anyEc) {
+      if (!v.ec_name) c.addIssue({ code: "custom", path: ["ec_name"], message: "Required" });
+      if (!v.ec_phone) c.addIssue({ code: "custom", path: ["ec_phone"], message: "Required" });
+      if (!v.ec_relationship) c.addIssue({ code: "custom", path: ["ec_relationship"], message: "Required" });
     }
   });
 
@@ -85,16 +103,16 @@ export async function prepareOnline(school: SchoolLite, d: OnlineForm) {
   if (!cls) throw invalid("Please correct the highlighted fields.", { classAppliedId: "Choose a class from the list" });
   const intake = await db.academicYear.findFirst({ where: { schoolId: school.id, endsOn: { gte: today } }, orderBy: { startsOn: "asc" }, select: { id: true } });
   const guardiansRaw = [
-    { fullName: d.g1_fullName, phone: d.g1_phone, email: d.g1_email, relationship: d.g1_relationship, isPrimary: "on", receivesNotifications: "on", isFinanciallyResponsible: "on" },
-    ...(d.g2_fullName ? [{ fullName: d.g2_fullName, phone: d.g2_phone, relationship: d.g2_relationship, receivesNotifications: "on" }] : []),
+    { fullName: d.g1_fullName, phone: d.g1_phone, email: d.g1_email, occupation: d.g1_occupation, relationship: d.g1_relationship, isPrimary: "on", receivesNotifications: "on", isFinanciallyResponsible: "on" },
+    ...(d.g2_fullName ? [{ fullName: d.g2_fullName, phone: d.g2_phone, email: d.g2_email, occupation: d.g2_occupation, relationship: d.g2_relationship, receivesNotifications: "on" }] : []),
   ];
   return { today, classId: cls.id, intakeYearId: intake?.id, guardians: guardiansRaw.map((g) => guardianLinkSchema.parse(g)) };
 }
 export type PreparedOnline = Awaited<ReturnType<typeof prepareOnline>>;
 
 /** Same rules as staff entry, but the answer never says which record matched (no application or admission numbers). */
-export async function assertNoOpenDuplicate(tx: Tx, schoolId: string, d: Pick<OnlineForm, "firstName" | "lastName" | "dateOfBirth">) {
-  const match = { OR: [{ firstName: { equals: d.firstName, mode: "insensitive" as const }, lastName: { equals: d.lastName, mode: "insensitive" as const }, dateOfBirth: d.dateOfBirth }] };
+export async function assertNoOpenDuplicate(tx: Tx, schoolId: string, d: Pick<OnlineForm, "firstName" | "lastName" | "dateOfBirth"> & { birthCertificateNo?: string }) {
+  const match = { OR: [{ firstName: { equals: d.firstName, mode: "insensitive" as const }, lastName: { equals: d.lastName, mode: "insensitive" as const }, dateOfBirth: d.dateOfBirth }, ...(d.birthCertificateNo ? [{ birthCertificateNo: { equals: d.birthCertificateNo, mode: "insensitive" as const } }] : [])] };
   const [openApp, student] = await Promise.all([
     tx.application.findFirst({ where: { schoolId, status: { in: [...OPEN_STATUSES] }, ...match }, select: { id: true } }),
     tx.student.findFirst({ where: { schoolId, ...match }, select: { id: true } }),
@@ -120,7 +138,12 @@ export async function insertOnlineApplication(tx: Tx, schoolId: string, d: Onlin
       classAppliedId: p.classId,
       intakeYearId: p.intakeYearId,
       nationality: d.nationality,
+      religion: d.religion,
+      birthCertificateNo: d.birthCertificateNo,
       previousSchool: d.previousSchool,
+      previousClass: d.previousClass,
+      healthNotes: d.healthNotes,
+      emergencyContact: d.ec_name ? ({ name: d.ec_name, phone: d.ec_phone, relationship: d.ec_relationship } as Prisma.InputJsonValue) : undefined,
       address: d.address,
       guardians: p.guardians as unknown as Prisma.InputJsonValue,
     },

@@ -84,6 +84,8 @@ export async function confirmApplicationFee(a: { schoolId: string; reference: st
       const app = await insertOnlineApplication(tx, a.schoolId, form, prepared, a.meta, { feePaidCents: a.amountCents, feeReference: reference });
       const receiptNo = await allocateNumber(tx, a.schoolId, "APR", year);
       await tx.applicationDraft.update({ where: { id: draft.id }, data: { status: "SUBMITTED", ...paid, receiptNo, applicationId: app.id } });
+      // The photo and papers the family added now belong to the application too, so the Admissions Office finds them with it.
+      await tx.document.updateMany({ where: { schoolId: a.schoolId, draftId: draft.id, applicationId: null }, data: { applicationId: app.id } });
       await writeAudit(tx, actor, { action: "admission.application_fee_paid", entityType: "ApplicationDraft", entityId: draft.id, summary: `${reference} (${app.applicationNo})`, changes: { amountCents: a.amountCents, provider: a.provider, applicationNo: app.applicationNo, receiptNo } });
       return { outcome: "SUBMITTED" as const, draftId: draft.id };
     }, { timeout: 30000 });

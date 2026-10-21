@@ -59,6 +59,8 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const classOptions = classes.map((c) => ({ value: c.id, label: c.name }));
   const offer = acct.offer;
   const live = ivs.find((i) => i.status === "SCHEDULED");
+  const photo = docs.find((d) => d.docType === "PASSPORT_PHOTO");
+  const emergency = app.emergencyContact as { name?: string; phone?: string; relationship?: string } | null;
 
   // Placement choices show how full each class is, so nobody is surprised by a "class is full" message.
   const placementOptions = classes.flatMap((c) => {
@@ -169,6 +171,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
 
         <aside className="space-y-5">
           <Card title={t("adm.details")}>
+            {photo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={`/api/documents/${photo.id}`} alt={t("apf.photo.alt", { name: `${app.firstName} ${app.lastName}` })} className="mb-4 aspect-[3/4] w-28 rounded-xl border border-line object-cover" />
+            )}
             <DefList
               items={[
                 { label: t("student.dob"), value: displayDate(app.dateOfBirth, ctx.locale) },
@@ -180,7 +186,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                 { label: t("student.religion"), value: app.religion },
                 { label: t("student.birthCert"), value: app.birthCertificateNo },
                 { label: t("student.previousSchool"), value: app.previousSchool },
+                { label: t("apply.previousClass"), value: app.previousClass },
                 { label: t("common.address"), value: app.address },
+                { label: t("adm.emergency"), value: emergency ? `${emergency.name} (${emergency.relationship}) ${emergency.phone}` : null },
+                { label: t("adm.health"), value: app.healthNotes },
                 { label: t("adm.assessmentNotes"), value: app.assessmentNotes },
                 { label: t("adm.decision"), value: app.decisionReason },
               ]}
@@ -193,6 +202,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                 <li key={i} className="py-2">
                   <p className="font-medium">{g.fullName ?? "—"} {g.relationship && <span className="font-normal text-muted">· {t(`student.rel.${g.relationship as "FATHER"}`)}</span>}</p>
                   <p className="text-muted">{g.phone ?? ""} {g.email ?? ""}</p>
+                  {g.occupation && <p className="text-muted">{g.occupation}</p>}
                 </li>
               ))}
             </ul>

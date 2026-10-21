@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
@@ -6,6 +9,10 @@ import { authenticate } from "@/lib/auth/login";
 import { buildAuthContext, type AuthContext } from "@/lib/auth/context";
 import { signBody } from "@/lib/payments/providers";
 import * as admissions from "@/server/admissions";
+import * as draft from "@/server/application-draft";
+import * as documents from "@/server/documents";
+import { LocalDiskStorage } from "@/lib/storage/local";
+import { setStorageForTests } from "@/lib/storage";
 import * as fee from "@/server/application-fee";
 import { applicationFormPdf, applicationReceiptPdf } from "@/server/application-pdf";
 import * as policy from "@/server/admission-policy";
@@ -27,8 +34,11 @@ let setup: Awaited<ReturnType<typeof createCurrentYearAcademics>>;
 let n = 710000 + Math.floor(Math.random() * 8_000_000); // phones and emails are unique across the persistent test database
 const code = async (p: Promise<unknown>) => ((await p.then(() => null, (e) => e)) as AppError | null)?.code ?? null;
 const meta = () => ({ ip: `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`, userAgent: "t" });
-const POLICY = { requireInterview: "", requiredDocTypes: [], admissionFee: "0", requirePaymentBeforeEnrol: "on", offerValidDays: 0, allowDirectRegistration: "on", interviewMinutes: 30 };
+const POLICY = { requireInterview: "", requiredDocTypes: [], admissionFee: "0", requirePaymentBeforeEnrol: "on", offerValidDays: 0, allowDirectRegistration: "on", interviewMinutes: 30, applicationPhotoRequired: "on" };
 const PASSWORD = "Sunrise2026ok";
+// A real 1x1 PNG and a minimal PDF, so the file type checks (decided from the bytes) are exercised.
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+const PDF = Buffer.concat([Buffer.from("%PDF-1.4\n"), Buffer.alloc(200, 0x20)]);
 
 function form(extra: Record<string, unknown> = {}) {
   const k = n++;
@@ -54,8 +64,9 @@ beforeAll(async () => {
   await website.updateWebsiteSettings(admin, { applicationsOpen: "on" });
   await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000" });
   delete process.env.PAYMENTS_SANDBOX;
+  setStorageForTests(new LocalDiskStorage(await mkdtemp(path.join(tmpdir(), "sam-apf-"))));
 });
-afterAll(() => { delete process.env.PAYMENTS_SANDBOX; });
+afterAll(() => { delete process.env.PAYMENTS_SANDBOX; setStorageForTests(undefined); });
 
 describe("the fee and the account", () => {
   it("the form is not offered while no way to pay online exists", async () => {
@@ -277,5 +288,120 @@ describe("enrolment", () => {
     expect(guardian.userId).toBe(fam.userId);
     const children = await (await import("@/server/portal")).myChildren(await buildAuthContext(fam.userId));
     expect(children.map((c) => c.id)).toEqual([student.id]);
+  });
+});
+
+describe("review, change, add the photo and papers, confirm", () => {
+  const photoOf = (fam: AuthContext, id: string) => draft.uploadMyDocument(fam, id, { docType: "PASSPORT_PHOTO", fileName: "child.png", bytes: PNG });
+
+  it("shows the full application and what is still missing", async () => {
+    const input = form({ religion: "Christian", birthCertificateNo: "BC-77", previousSchool: "Little Stars", previousClass: "Standard VI", healthNotes: "Allergic to peanuts", g1_occupation: "Nurse", g2_fullName: "Baba Test", g2_phone: `0755${String(n++ % 1_000_000).padStart(6, "0")}`, g2_relationship: "FATHER", ec_name: "Aunt Joy", ec_phone: `0766${String(n++ % 1_000_000).padStart(6, "0")}`, ec_relationship: "Aunt" });
+    const id = (await apply(input)).draftId!;
+    const fam = await familyOf(id);
+    const r = await draft.getApplicationReview(fam, id);
+    expect(r.form).toMatchObject({ religion: "Christian", birthCertificateNo: "BC-77", previousClass: "Standard VI", healthNotes: "Allergic to peanuts", g1_occupation: "Nurse", g2_fullName: "Baba Test", ec_name: "Aunt Joy" });
+    expect(r.checklist).toMatchObject({ complete: false, photo: { required: true, present: false } });
+    expect(r.confirmedAt).toBeNull();
+    expect(await code(draft.getApplicationReview(await familyOf((await apply(form())).draftId!), id))).toBe("NOT_FOUND");
+  });
+
+  it("the family cannot confirm until the photo is added; the photo must be a picture", async () => {
+    const id = (await apply(form())).draftId!;
+    const fam = await familyOf(id);
+    expect(await code(draft.confirmMyApplication(fam, id))).toBe("VALIDATION");
+    expect(await code(draft.uploadMyDocument(fam, id, { docType: "PASSPORT_PHOTO", fileName: "scan.pdf", bytes: PDF }))).toBe("VALIDATION"); // a PDF is not a photo
+    expect(await code(draft.uploadMyDocument(fam, id, { docType: "PASSPORT_PHOTO", fileName: "x.png", bytes: Buffer.from("not a file at all") }))).toBe("VALIDATION");
+    await photoOf(fam, id);
+    expect((await draft.getApplicationReview(fam, id)).checklist.complete).toBe(true);
+    await draft.confirmMyApplication(fam, id);
+    expect((await draftOf(id)).confirmedAt).not.toBeNull();
+  });
+
+  it("a new photo replaces the old one; changing a detail or removing a file takes the confirmation back", async () => {
+    const input = form();
+    const id = (await apply(input)).draftId!;
+    const fam = await familyOf(id);
+    const first = await photoOf(fam, id);
+    const second = await photoOf(fam, id);
+    expect((await draft.getApplicationReview(fam, id)).documents.map((d) => d.id)).toEqual([second.id]);
+    await draft.confirmMyApplication(fam, id);
+    await draft.updateMyApplication(fam, id, { ...input, previousSchool: "New School" });
+    const after = await draft.getApplicationReview(fam, id);
+    expect(after.form.previousSchool).toBe("New School");
+    expect(after.confirmedAt).toBeNull();
+    await draft.confirmMyApplication(fam, id);
+    await draft.removeMyDocument(fam, second.id);
+    expect((await draftOf(id)).confirmedAt).toBeNull();
+    expect((await draft.getApplicationReview(fam, id)).checklist.complete).toBe(false);
+    void first;
+    expect(await code(draft.updateMyApplication(fam, id, { ...input, dateOfBirth: "1990-01-01" }))).toBe("VALIDATION");
+  });
+
+  it("only the family can open, remove or download its files", async () => {
+    const id = (await apply(form())).draftId!;
+    const fam = await familyOf(id);
+    const other = await familyOf((await apply(form())).draftId!);
+    const doc = await photoOf(fam, id);
+    expect((await draft.downloadMyDocument(fam, doc.id)).mimeType).toBe("image/png");
+    expect(await code(draft.downloadMyDocument(other, doc.id))).toBe("NOT_FOUND");
+    expect(await code(draft.removeMyDocument(other, doc.id))).toBe("NOT_FOUND");
+    expect(await code(draft.uploadMyDocument(other, id, { docType: "OTHER", fileName: "a.pdf", bytes: PDF }))).toBe("NOT_FOUND");
+    expect(await code(draft.updateMyApplication(other, id, form()))).toBe("NOT_FOUND");
+    expect(await code(draft.confirmMyApplication(other, id))).toBe("NOT_FOUND");
+  });
+
+  it("the papers the school requires must be added too, and the photo requirement can be switched off", async () => {
+    await policy.updateAdmissionPolicy(admin, { ...POLICY, requiredDocTypes: ["BIRTH_CERTIFICATE"], applicationFee: "10000", applicationPhotoRequired: "" });
+    try {
+      const id = (await apply(form())).draftId!;
+      const fam = await familyOf(id);
+      expect((await draft.getApplicationReview(fam, id)).checklist).toMatchObject({ complete: false, photo: { required: false }, papers: [{ docType: "BIRTH_CERTIFICATE", present: false }] });
+      expect(await code(draft.confirmMyApplication(fam, id))).toBe("VALIDATION");
+      await draft.uploadMyDocument(fam, id, { docType: "BIRTH_CERTIFICATE", fileName: "bc.pdf", bytes: PDF });
+      await draft.confirmMyApplication(fam, id); // no photo needed
+      expect((await draftOf(id)).confirmedAt).not.toBeNull();
+    } finally {
+      await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000", applicationPhotoRequired: "on" });
+    }
+  });
+
+  it("after payment the files belong to the application, staff see them, health notes stay private, and the enrolment carries the contact over", async () => {
+    const input = form({ healthNotes: "Asthma", ec_name: "Uncle Sam", ec_phone: `0777${String(n++ % 1_000_000).padStart(6, "0")}`, ec_relationship: "Uncle" });
+    const id = (await apply(input)).draftId!;
+    const fam = await familyOf(id);
+    await photoOf(fam, id);
+    await draft.uploadMyDocument(fam, id, { docType: "BIRTH_CERTIFICATE", fileName: "bc.pdf", bytes: PDF });
+    await draft.confirmMyApplication(fam, id);
+    expect((await fee.sandboxPay(fam, id, meta())).outcome).toBe("SUBMITTED");
+    const d = await draftOf(id);
+    const docs = await db.document.findMany({ where: { draftId: id, deletedAt: null } });
+    expect(docs).toHaveLength(2);
+    expect(docs.every((x) => x.applicationId === d.applicationId)).toBe(true);
+    expect((await documents.listDocuments(registrar, { applicationId: d.applicationId! })).map((x) => x.docType).sort()).toEqual(["BIRTH_CERTIFICATE", "PASSPORT_PHOTO"]);
+    expect(await code(draft.updateMyApplication(fam, id, input))).toBe("CONFLICT"); // sent: the office owns it now
+    expect(await code(draft.removeMyDocument(fam, docs[0]!.id))).toBe("FORBIDDEN");
+    await draft.uploadMyDocument(fam, id, { docType: "OTHER", fileName: "extra.pdf", bytes: PDF }); // more papers can still be added
+    expect((await db.document.findFirstOrThrow({ where: { draftId: id, fileName: "extra.pdf" } })).applicationId).toBe(d.applicationId);
+    const academic = (await createTestUser(school.id, ["academic_office"])).ctx; // may read applications, not medical notes
+    expect((await admissions.getApplication(academic, d.applicationId!)).healthNotes).toBeNull();
+    expect((await admissions.getApplication(admin, d.applicationId!)).healthNotes).toBe("Asthma");
+    expect(Buffer.from(await applicationFormPdf(fam, id, "EN")).subarray(0, 5).toString()).toBe("%PDF-");
+
+    await admissions.recordAdmissionDecision(registrar, d.applicationId!, { outcome: "ACCEPTED" });
+    const student = await admissions.enrolApplication(admin, d.applicationId!, {}); // the administrator may write medical notes
+    const full = await db.student.findUniqueOrThrow({ where: { id: student.id }, include: { emergencyContacts: true } });
+    expect(full.emergencyContacts.map((c) => c.name)).toEqual(["Uncle Sam"]);
+    expect(full.medicalNotes).toBe("Asthma");
+  });
+
+  it("the registrar, who may write medical notes, carries them over; the application keeps its own copy", async () => {
+    const id = (await apply(form({ healthNotes: "Eczema" }))).draftId!;
+    const fam = await familyOf(id);
+    await fee.sandboxPay(fam, id, meta());
+    const appId = (await draftOf(id)).applicationId!;
+    await admissions.recordAdmissionDecision(registrar, appId, { outcome: "ACCEPTED" });
+    const student = await admissions.enrolApplication(registrar, appId, {});
+    expect((await db.student.findUniqueOrThrow({ where: { id: student.id } })).medicalNotes).toBe("Eczema");
+    expect((await db.application.findUniqueOrThrow({ where: { id: appId } })).healthNotes).toBe("Eczema");
   });
 });

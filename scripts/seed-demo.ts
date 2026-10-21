@@ -434,7 +434,7 @@ async function main() {
     await policy.updateAdmissionPolicy(admin, {
       requireInterview: p.requireInterview ? "on" : "", requiredDocTypes: p.requiredDocTypes, admissionFee: String(p.admissionFeeCents / 100), requirePaymentBeforeEnrol: p.requirePaymentBeforeEnrol ? "on" : "",
       offerValidDays: p.offerValidDays, offerNeedsApproval: p.offerNeedsApproval ? "on" : "", allowDirectRegistration: p.allowDirectRegistration ? "on" : "", interviewMinutes: p.interviewMinutes,
-      paymentNeedsSecondPerson: p.paymentNeedsSecondPerson ? "on" : "", applicationFee: "10000", ...Object.fromEntries(levels.map((l) => [`assessment_${l.id}`, p.assessmentByLevel[l.id] ?? ""])),
+      paymentNeedsSecondPerson: p.paymentNeedsSecondPerson ? "on" : "", applicationFee: "10000", applicationPhotoRequired: p.applicationPhotoRequired ? "on" : "", ...Object.fromEntries(levels.map((l) => [`assessment_${l.id}`, p.assessmentByLevel[l.id] ?? ""])),
     });
     const meta = () => ({ ip: `10.30.${Math.floor(rnd() * 250)}.${Math.floor(rnd() * 250)}`, userAgent: "demo" });
     const family = async (n: number, first: string, last: string, born: string, classId: string) => {

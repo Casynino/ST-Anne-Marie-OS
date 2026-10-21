@@ -282,6 +282,12 @@ export async function enrolApplication(ctx: AuthContext, applicationId: string, 
     birthCertificateNo: snapshot.birthCertificateNo ?? undefined,
     previousSchool: snapshot.previousSchool ?? undefined,
     address: snapshot.address ?? undefined,
+    // What the family told us about an emergency contact comes across; health information only when the person enrolling may write medical notes.
+    emergencyContacts: (() => {
+      const ec = snapshot.emergencyContact as { name?: string; phone?: string; relationship?: string } | null;
+      return ec?.name && ec.phone && ec.relationship ? [{ name: ec.name, relationship: ec.relationship, phone: ec.phone }] : [];
+    })(),
+    medicalNotes: snapshot.healthNotes && ctx.permissions.has("student.medical.update") ? snapshot.healthNotes : undefined,
     admissionDate: d.admissionDate ? formatDateOnly(d.admissionDate) : undefined,
     classId,
     streamId: d.streamId,
@@ -371,7 +377,9 @@ export async function getApplication(ctx: AuthContext, applicationId: string) {
   ]);
   return {
     ...app,
-    guardians: (app.guardians as unknown[]).map((g) => g as { fullName?: string; phone?: string; relationship?: string; email?: string }),
+    // Health information is medical: only people allowed to read medical notes get it.
+    healthNotes: ctx.permissions.has("student.medical.read") ? app.healthNotes : null,
+    guardians: (app.guardians as unknown[]).map((g) => g as { fullName?: string; phone?: string; relationship?: string; email?: string; occupation?: string }),
     className: cls?.name ?? null,
     intakeYear: year?.name ?? null,
     student,

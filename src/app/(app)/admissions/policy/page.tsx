@@ -50,6 +50,7 @@ export default async function PolicyPage() {
           <Field name="applicationFee" label={`${t("adm.policy.appFee")} (${school.currency})`} defaultValue={p.applicationFeeCents / 100} hint={t("adm.policy.appFee.hint")} />
           {p.applicationFeeCents > 0 && !setup.ready && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warn">{t("adm.policy.appFee.notReady")}</p>}
           {setup.sandbox && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warn">{t("adm.policy.appFee.sandbox")}</p>}
+          <Field name="applicationPhotoRequired" type="checkbox" label={t("adm.policy.photo")} defaultValue={p.applicationPhotoRequired} />
           <Field name="admissionFee" label={`${t("adm.policy.fee")} (${school.currency})`} defaultValue={p.admissionFeeCents / 100} hint={t("adm.policy.fee.hint")} />
           <Field name="requirePaymentBeforeEnrol" type="checkbox" label={t("adm.policy.requirePayment")} defaultValue={p.requirePaymentBeforeEnrol} />
           <Field name="paymentNeedsSecondPerson" type="checkbox" label={t("adm.policy.second")} defaultValue={p.paymentNeedsSecondPerson} />

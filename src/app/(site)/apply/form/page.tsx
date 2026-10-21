@@ -6,6 +6,7 @@ import { applicationFeeInfo } from "@/server/application-fee";
 import { getSite } from "@/lib/site";
 import { listApplyClasses } from "@/server/public-applications";
 import { RELATIONSHIPS } from "@/server/guardians";
+import { ApplicationFields } from "@/components/site/application-fields";
 import { ActionForm, Field } from "@/components/form";
 import { ButtonLink, PageHero } from "@/components/site/blocks";
 import { submitApplicationAction } from "../actions";
@@ -54,29 +55,7 @@ export default async function ApplyPage() {
           </div>
         )}
         <ActionForm action={submitApplicationAction} submitLabel={fee.feeCents > 0 ? t("apply.submit.pay") : t("apply.submit")} className="space-y-8">
-          <fieldset className="space-y-4 border border-line bg-surface p-5 sm:p-7">
-            <legend className="display px-2 text-3xl">{t("apply.child")}</legend>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field name="firstName" label={t("student.firstName")} required autoComplete="off" />
-              <Field name="middleName" label={t("student.middleName")} optionalLabel={t("common.optional")} />
-              <Field name="lastName" label={t("student.lastName")} required />
-              <Field name="dateOfBirth" label={t("student.dob")} type="date" required />
-              <Field name="gender" label={t("student.gender")} type="select" options={[{ value: "MALE", label: t("student.male") }, { value: "FEMALE", label: t("student.female") }]} placeholder={t("common.select")} required />
-              <Field name="classAppliedId" label={t("apply.class")} type="select" options={classOptions} placeholder={t("common.select")} required />
-              <Field name="previousSchool" label={t("student.previousSchool")} optionalLabel={t("common.optional")} className="sm:col-span-2" />
-              <Field name="address" label={t("common.address")} optionalLabel={t("common.optional")} />
-            </div>
-          </fieldset>
-
-          <fieldset className="space-y-4 border border-line bg-surface p-5 sm:p-7">
-            <legend className="display px-2 text-3xl">{t("apply.guardian")}</legend>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field name="g1_fullName" label={t("apply.guardian.name")} required />
-              <Field name="g1_relationship" label={t("apply.relationship")} type="select" options={relOptions} placeholder={t("common.select")} required />
-              <Field name="g1_phone" label={t("apply.guardian.phone")} type="tel" hint={t("apply.guardian.phone.hint")} required />
-              <Field name="g1_email" label={t("apply.guardian.email")} type="email" hint={needsAccount ? t("apply.account.emailHint") : undefined} required={needsAccount} optionalLabel={needsAccount ? undefined : t("common.optional")} />
-            </div>
-          </fieldset>
+          <ApplicationFields t={t} classOptions={classOptions} relOptions={relOptions} emailRequired={needsAccount} variant="site" />
 
           {needsAccount ? (
             <fieldset className="space-y-4 border border-line bg-surface p-5 sm:p-7">
@@ -91,15 +70,6 @@ export default async function ApplyPage() {
           ) : (
             <p className="border border-line bg-surface p-5 text-sm">{t("apply.account.signedIn", { name: me!.fullName })}</p>
           )}
-
-          <details className="border border-line bg-surface p-5 sm:p-7">
-            <summary className="display min-h-11 cursor-pointer text-3xl">{t("apply.guardian2")}</summary>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field name="g2_fullName" label={t("apply.guardian.name")} />
-              <Field name="g2_relationship" label={t("apply.relationship")} type="select" options={relOptions} placeholder={t("common.select")} />
-              <Field name="g2_phone" label={t("apply.guardian.phone")} type="tel" />
-            </div>
-          </details>
 
           {/* Honeypot: hidden from people and assistive tech; bots that fill it are ignored. */}
           <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
