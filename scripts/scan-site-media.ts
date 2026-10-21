@@ -5,6 +5,7 @@
  *   hero.(jpg|webp)  hero-2.*  hero-3.*   home page picture composition
  *   about.(jpg|webp)           about picture
  *   gallery/NN-name.*          gallery (up to 12, sorted by file name)
+ *   notices/name.*             the school's own notice posters (admissions etc.), usable as news pictures
  * Optional public/site/meta.json: { "gallery/01-x.jpg": { "alt": "...", "caption": "..." } } gives accessible
  * descriptions and captions. Pixel sizes are read from the files so pages reserve space (no layout shift).
  */
@@ -42,8 +43,9 @@ const media = {
   hero: ["hero", "hero-2", "hero-3"].map(named).filter(Boolean),
   about: named("about"),
   gallery: list(join(ROOT, "gallery")).slice(0, 12).map((f) => describe(`gallery/${f}`)),
+  notices: list(join(ROOT, "notices")).map((f) => describe(`notices/${f}`)),
 };
 
 mkdirSync(join(process.cwd(), "src", "lib"), { recursive: true });
 writeFileSync(OUT, JSON.stringify(media, null, 2) + "\n");
-console.log(`site media: logo=${media.logo ? "yes" : "-"} og=${media.og ? "yes" : "-"} hero=${media.hero.length} about=${media.about ? "yes" : "-"} gallery=${media.gallery.length}`);
+console.log(`site media: logo=${media.logo ? "yes" : "-"} og=${media.og ? "yes" : "-"} hero=${media.hero.length} about=${media.about ? "yes" : "-"} gallery=${media.gallery.length} notices=${media.notices.length}`);

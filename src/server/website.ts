@@ -147,9 +147,9 @@ export function parsePrograms(raw?: string): { name: string; summary: string; fo
 
 export type SiteImage = { src: string; width: number; height: number; alt: string; caption?: string };
 type BundledEntry = { path: string; width: number; height: number; alt?: string; caption?: string };
-type BundledMedia = { logo?: BundledEntry; og?: BundledEntry; hero: BundledEntry[]; about?: BundledEntry; gallery: BundledEntry[] };
+type BundledMedia = { logo?: BundledEntry; og?: BundledEntry; hero: BundledEntry[]; about?: BundledEntry; gallery: BundledEntry[]; notices?: BundledEntry[] };
 const bundled = siteMedia as unknown as BundledMedia;
-const bundledByPath = new Map<string, BundledEntry>([bundled.logo, bundled.og, bundled.about, ...bundled.hero, ...bundled.gallery].filter((e): e is BundledEntry => !!e).map((e) => [e.path, e]));
+const bundledByPath = new Map<string, BundledEntry>([bundled.logo, bundled.og, bundled.about, ...bundled.hero, ...bundled.gallery, ...(bundled.notices ?? [])].filter((e): e is BundledEntry => !!e).map((e) => [e.path, e]));
 
 /** Resolves image references (bundled /site/... or uploaded /media/<id>) to sizes and alt text so pages reserve space. */
 async function resolveImages(refs: { ref: string; caption?: string; alt?: string }[]): Promise<Map<string, SiteImage>> {

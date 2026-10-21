@@ -1,4 +1,9 @@
 {
+  "logo": {
+    "path": "/site/logo.png",
+    "width": 512,
+    "height": 512
+  },
   "hero": [],
   "gallery": [
     {
@@ -36,6 +41,20 @@
       "width": 640,
       "height": 640,
       "alt": "Students sitting at a library desk with shelves of books behind them"
+    }
+  ],
+  "notices": [
+    {
+      "path": "/site/notices/form-five-2026.jpg",
+      "width": 576,
+      "height": 640,
+      "alt": "Poster: Form 5 admission 2026, applications accepted for students with Division I or II in Form Four"
+    },
+    {
+      "path": "/site/notices/pre-form-one-2026.jpg",
+      "width": 512,
+      "height": 640,
+      "alt": "Poster: Pre-Form One course open for 2026, registration from 14 September to 15 December 2026"
     }
   ]
 }

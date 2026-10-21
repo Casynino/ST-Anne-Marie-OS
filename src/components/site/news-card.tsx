@@ -12,7 +12,7 @@ export function NewsCard({ post, cover, locale, featured }: { post: Post; cover?
   return (
     <article className={`group relative flex h-full flex-col overflow-hidden rounded-[1.75rem] border border-line bg-surface transition-[border-color,transform] duration-500 hover:-translate-y-1 hover:border-sun/50 ${featured ? "md:flex-row" : ""}`}>
       {cover && (
-        <div className={`frame aspect-[3/2] ${featured ? "md:aspect-auto md:w-1/2 md:shrink-0" : ""}`}>
+        <div className={`frame ${cover.height > cover.width ? "aspect-[4/5]" : "aspect-[3/2]"} ${featured ? "md:aspect-auto md:w-1/2 md:shrink-0" : ""}`}>
           <Photo image={cover} sizes={featured ? "(min-width: 1024px) 40vw, 100vw" : "(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"} />
         </div>
       )}
