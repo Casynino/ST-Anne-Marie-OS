@@ -7,6 +7,9 @@ import { consumeRateLimit } from "@/lib/rate-limit";
 import { ageOn, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { normalizePhone } from "@/lib/phone";
 import { writeAudit } from "@/server/audit";
+import { admissionAccount } from "@/lib/admissions/rules";
+import { centsOf } from "@/lib/finance/money";
+import { getFeeSettings } from "@/server/fees";
 import { allocateApplicationNo, OPEN_STATUSES } from "@/server/admissions";
 import { guardianLinkSchema, RELATIONSHIPS } from "@/server/guardians";
 import { loadWebsiteSettings } from "@/server/website";
@@ -163,10 +166,32 @@ export async function trackApplication(schoolId: string, input: unknown, meta: R
   const d = parse(trackSchema, input);
   const notFound = invalid("We could not find an application matching those details. Check the number and the phone number given on the application.");
   if (!(await consumeRateLimit(`track:app:${schoolId}:${d.applicationNo}`, 10, WINDOW_DAY))) throw new AppError("RATE_LIMITED", "Too many attempts for this application. Please contact the school office.");
-  const app = await db.application.findUnique({ where: { schoolId_applicationNo: { schoolId, applicationNo: d.applicationNo } }, select: { status: true, createdAt: true, guardians: true, classAppliedId: true, decidedAt: true } });
+  const app = await db.application.findUnique({
+    where: { schoolId_applicationNo: { schoolId, applicationNo: d.applicationNo } },
+    select: {
+      id: true, status: true, createdAt: true, guardians: true, classAppliedId: true, reviewStatus: true, reviewNote: true,
+      interviews: { where: { status: "SCHEDULED" }, select: { scheduledAt: true, location: true, method: true } },
+      offer: { select: { status: true, letterNo: true, feeAmount: true, expiresOn: true, paymentWaivedAt: true } },
+      payments: { select: { status: true, amount: true } },
+    },
+  });
   if (!app) throw notFound;
   const phones = (app.guardians as unknown[]).map((g) => normalizePhone(String((g as { phone?: string }).phone ?? "")));
   if (!phones.includes(d.phone)) throw notFound;
-  const cls = app.classAppliedId ? await db.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId }, select: { name: true } }) : null;
-  return { status: STATUS_PUBLIC[app.status] ?? "APPLIED", submittedOn: app.createdAt, className: cls?.name ?? null };
+  const [cls, school, settings] = await Promise.all([
+    app.classAppliedId ? db.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId }, select: { name: true } }) : null,
+    db.school.findUnique({ where: { id: schoolId }, select: { currency: true, timezone: true } }),
+    getFeeSettings(db, schoolId),
+  ]);
+  // Only what the family needs: the stage, the interview appointment, what to correct, the offer and how the admission payment stands.
+  // Never interview notes or results, a rejection reason, or anything about other applicants.
+  const offer = app.offer?.status === "ISSUED" && app.status === "ACCEPTED" ? app.offer : null;
+  const account = offer ? admissionAccount(centsOf(offer.feeAmount), app.payments.map((p) => ({ status: p.status, amountCents: centsOf(p.amount) })), !!offer.paymentWaivedAt) : null;
+  return {
+    status: STATUS_PUBLIC[app.status] ?? "APPLIED", submittedOn: app.createdAt, className: cls?.name ?? null, currency: school?.currency ?? "TZS", timezone: school?.timezone ?? "Africa/Dar_es_Salaam",
+    interview: app.interviews[0] ? { at: app.interviews[0].scheduledAt, location: app.interviews[0].location, method: app.interviews[0].method } : null,
+    correction: app.reviewStatus === "RETURNED" ? (app.reviewNote ?? "") : null,
+    offer: offer ? { feeCents: centsOf(offer.feeAmount), expiresOn: offer.expiresOn, howToPay: settings.paymentInstructions.trim() || null } : null,
+    payment: account ? { status: account.status, verifiedCents: account.verifiedCents, pendingCents: account.pendingCents, requiredCents: account.requiredCents } : null,
+  };
 }

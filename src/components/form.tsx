@@ -42,7 +42,7 @@ export function ActionForm({
     return (
       <div role="status" className="rounded-2xl border border-ok/30 bg-green-50 p-6">
         <p className="flex items-center gap-2 text-lg font-semibold text-ok"><CheckCircle2 className="size-5" aria-hidden />{successTitle}</p>
-        {done.message && <p className="mt-2 text-ink/80">{done.message}</p>}
+        {done.message && <p className="mt-2 whitespace-pre-line text-ink/80">{done.message}</p>}
       </div>
     );
   }
@@ -65,7 +65,7 @@ export function ActionForm({
         {done?.message && (
           <div role="status" className="flex gap-2 rounded-lg border border-ok/30 bg-green-50 px-3 py-2 text-sm text-ok">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>{done.message}</span>
+            <span className="whitespace-pre-line">{done.message}</span>
           </div>
         )}
         {tempPassword && (

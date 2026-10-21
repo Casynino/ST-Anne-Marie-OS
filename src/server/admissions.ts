@@ -9,6 +9,9 @@ import { actorOf, diffFields, writeAudit } from "@/server/audit";
 import { guardianLinkSchema, type GuardianLinkInput } from "@/server/guardians";
 import { createStudentInTx, prepareStudent } from "@/server/students";
 import { enrolmentReadiness } from "@/server/admission-offers";
+import { STAGES, stageIds, type Stage } from "@/server/admission-queues";
+import { admissionAccount } from "@/lib/admissions/rules";
+import { centsOf } from "@/lib/finance/money";
 import { checkbox, dateOnly, optDateOnly, optText, optUuid, parse, text } from "@/lib/validation";
 
 /*
@@ -280,7 +283,7 @@ export async function enrolApplication(ctx: AuthContext, applicationId: string, 
 
 // ───────────────────────── Reads ─────────────────────────
 
-export async function listApplications(ctx: AuthContext, opts: { q?: string; status?: string; page?: number } = {}) {
+export async function listApplications(ctx: AuthContext, opts: { q?: string; status?: string; stage?: string; source?: string; page?: number } = {}) {
   requirePermission(ctx, "admission.read");
   const pageSize = 25;
   const page = Math.max(1, opts.page ?? 1);
@@ -290,15 +293,27 @@ export async function listApplications(ctx: AuthContext, opts: { q?: string; sta
     and.push({ OR: [{ firstName: { contains: token, mode: "insensitive" } }, { lastName: { contains: token, mode: "insensitive" } }, { applicationNo: { contains: token, mode: "insensitive" } }] });
   }
   if (opts.status && (statuses as readonly string[]).includes(opts.status)) and.push({ status: opts.status as (typeof statuses)[number] });
+  if (opts.source === "ONLINE" || opts.source === "STAFF") and.push({ source: opts.source });
+  if (opts.stage && (STAGES as readonly string[]).includes(opts.stage)) and.push({ id: { in: await stageIds(ctx, opts.stage as Stage) } });
   const where: Prisma.ApplicationWhereInput = { AND: and };
   const [items, total, counts] = await Promise.all([
-    db.application.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize }),
+    db.application.findMany({
+      where, orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize,
+      include: { offer: { select: { status: true, feeAmount: true, paymentWaivedAt: true } }, payments: { select: { status: true, amount: true } }, interviews: { where: { status: "SCHEDULED" }, select: { scheduledAt: true } } },
+    }),
     db.application.count({ where }),
     db.application.groupBy({ by: ["status"], where: { schoolId: ctx.schoolId }, _count: { _all: true } }),
   ]);
   const classes = await db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, id: { in: items.map((i) => i.classAppliedId).filter((x): x is string => Boolean(x)) } }, select: { id: true, name: true } });
   return {
-    items: items.map((a) => ({ ...a, className: classes.find((c) => c.id === a.classAppliedId)?.name ?? null, primaryGuardian: (a.guardians as { fullName?: string; phone?: string }[])[0] ?? null })),
+    items: items.map(({ offer, payments, interviews, ...a }) => ({
+      ...a,
+      className: classes.find((c) => c.id === a.classAppliedId)?.name ?? null,
+      primaryGuardian: (a.guardians as { fullName?: string; phone?: string }[])[0] ?? null,
+      offerStatus: offer?.status ?? null,
+      account: offer ? admissionAccount(centsOf(offer.feeAmount), payments.map((p) => ({ status: p.status, amountCents: centsOf(p.amount) })), !!offer.paymentWaivedAt) : null,
+      interviewAt: interviews[0]?.scheduledAt ?? null,
+    })),
     total,
     page,
     pageSize,

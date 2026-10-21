@@ -12,6 +12,7 @@ import { listPayments } from "@/server/payments";
 import { listExpenses } from "@/server/expenses";
 import { arrearsReport, classCollectionReport, collectionsReport, expensesReport } from "@/server/finance-reports";
 import { getClassResults } from "@/server/results";
+export { admissionsTable } from "@/server/admission-reports";
 
 /*
  * Report data as tables. Every table is built with the same service, permission and scope as the screen it mirrors, so an
