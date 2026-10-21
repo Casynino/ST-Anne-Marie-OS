@@ -2525,6 +2525,12 @@ export const en = {
   "rcp.ackTitle": "Parent / guardian acknowledgement",
   "rcp.ack": "I have received the report of {name} ({class}, {term}).",
   "rcp.ackName": "Name",
+  "fin.pdf.sumOf": "The sum of",
+  "fin.pdf.payingFor": "Being payment for",
+  "fin.pdf.schoolFees": "School fees",
+  "fin.pdf.signature": "Signature",
+  "fin.pdf.thanksFull": "With thanks for your payment.",
+  "fin.pdf.more": "more",
 } as const;
 
 export type MessageKey = keyof typeof en;

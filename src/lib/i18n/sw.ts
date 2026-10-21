@@ -2527,4 +2527,10 @@ export const sw: Record<MessageKey, string> = {
   "rcp.ackTitle": "Uthibitisho wa mzazi / mlezi",
   "rcp.ack": "Nimepokea ripoti ya {name} ({class}, {term}).",
   "rcp.ackName": "Jina",
+  "fin.pdf.sumOf": "Kiasi cha",
+  "fin.pdf.payingFor": "Malipo ya",
+  "fin.pdf.schoolFees": "Ada ya shule",
+  "fin.pdf.signature": "Sahihi",
+  "fin.pdf.thanksFull": "Asante kwa malipo yako.",
+  "fin.pdf.more": "zaidi",
 };

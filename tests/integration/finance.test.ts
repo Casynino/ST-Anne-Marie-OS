@@ -10,6 +10,7 @@ import * as payments from "@/server/payments";
 import * as expenses from "@/server/expenses";
 import * as events from "@/server/payment-events";
 import { loadStudentFinance } from "@/server/balances";
+import { receiptDocument, receiptPdf } from "@/server/finance-pdf";
 import { signBody } from "@/lib/payments/providers";
 import { createCurrentYearAcademics, createTestSchool, createTestUser, studentInput } from "../helpers";
 
@@ -205,7 +206,7 @@ describe("reversals", () => {
   });
 
   it("the database refuses edits and deletes of payments, receipts and invoice lines", async () => {
-    const p = await db.payment.findFirstOrThrow({ where: { schoolId: school.id, status: "POSTED" } });
+    const p = await db.payment.findFirstOrThrow({ where: { schoolId: school.id, status: "POSTED", studentId: { not: kids[1]!.id } } }); // not kids[1]: moving it there would be a no-op
     await expect(db.payment.update({ where: { id: p.id }, data: { amount: "1.00" } })).rejects.toThrow();
     await expect(db.payment.update({ where: { id: p.id }, data: { studentId: kids[1]!.id } })).rejects.toThrow();
     await expect(db.payment.delete({ where: { id: p.id } })).rejects.toThrow();
@@ -443,5 +444,32 @@ describe("tenant isolation", () => {
     expect(await code(payments.decideRefund(oHead, refund.id, { decision: "APPROVE" }))).toBe("NOT_FOUND");
     expect((await invoices.listInvoices(o, {})).total).toBe(0);
     expect((await payments.listPayments(o, {})).total).toBe(0);
+  });
+});
+
+describe("the printed receipt", () => {
+  const stored = (i: number) => db.payment.findFirstOrThrow({ where: { schoolId: school.id, studentId: kids[i]!.id, status: "POSTED" }, include: { receipt: true }, orderBy: { createdAt: "asc" } });
+
+  it("adds class, what was paid for, who received it and the amount in words, without touching the stored receipt", async () => {
+    const p = await stored(0);
+    const before = JSON.stringify(p.receipt!.snapshot);
+    const doc = await receiptDocument(school.id, p.receipt!.snapshot as unknown as payments.ReceiptSnapshot, null, "EN");
+    const cls = await db.schoolClass.findUniqueOrThrow({ where: { id: setup.cls.id }, select: { name: true } });
+    expect(doc.className).toBe(cls.name);
+    expect(doc.receivedBy).toBe(accountant.fullName);
+    expect(doc.amountWords).toBe("TZS One Hundred Thousand Only");
+    expect(doc.payingFor).toHaveLength(1);
+    expect(doc.payingFor[0]).toMatchObject({ description: expect.stringContaining("School fees"), amountCents: tzs(100_000) });
+    expect(doc.payingFor[0]!.description).toContain(setup.term.name);
+    expect(JSON.stringify((await stored(0)).receipt!.snapshot)).toBe(before);
+    expect(Buffer.from(await receiptPdf(school.id, p.receipt!.snapshot as unknown as payments.ReceiptSnapshot, null, "SW")).subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
+  it("describes a one-off invoice by its first charge", async () => {
+    const p = await stored(2);
+    const doc = await receiptDocument(school.id, p.receipt!.snapshot as unknown as payments.ReceiptSnapshot, { reason: "test" }, "SW");
+    expect(doc.payingFor[0]!.description).toBe("Uniform");
+    expect(doc.voided).toBe(true);
+    expect(doc.amountWords).toBe("TZS Elfu arobaini na tano tu");
   });
 });
