@@ -24,6 +24,7 @@ export default async function NewApplicationPage() {
           <StudentDetailsFields t={t} canEditMedical={false} />
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <Field name="classAppliedId" label={t("adm.classApplied")} type="select" options={classes.map((c) => ({ value: c.id, label: c.name }))} placeholder={t("common.select")} optionalLabel={t("common.optional")} />
+            <Field name="submittedOn" label={t("adm.submittedOn")} type="date" hint={t("adm.submittedOn.hint")} optionalLabel={t("common.optional")} />
             <Field name="assessmentNotes" label={t("adm.assessmentNotes")} type="textarea" rows={2} optionalLabel={t("common.optional")} />
           </div>
         </Card>

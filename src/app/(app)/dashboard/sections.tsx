@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui";
 import { ChartCard } from "@/components/charts";
 import { Cell, DashSection, DashTable, DonutStat, EmptyLine, HBars, KpiCard, Panel, Pill, StackedBars, type PillTone } from "@/components/dash/parts";
 import { AttentionTabs } from "@/components/dash/attention-tabs";
+import type { AdmissionOverview, QueueItem } from "@/server/admission-queues";
 
 /*
  * The building blocks of every staff home page. Each section is permission-driven by the data it is given (a panel the user may not see
@@ -28,7 +29,7 @@ export type Overview = {
   events: Awaited<ReturnType<typeof ovMod.upcomingEvents>> | null;
   staffRoles: Awaited<ReturnType<typeof ovMod.staffByRole>> | null;
 };
-export type DashEnv = { t: Translate; locale: Locale; money: (cents: number) => string; fmtDay: (iso: string) => string; school: { timezone: string; currency: string; name: string }; d: DashboardData; o: Overview };
+export type DashEnv = { t: Translate; locale: Locale; money: (cents: number) => string; fmtDay: (iso: string) => string; school: { timezone: string; currency: string; name: string }; d: DashboardData; o: Overview; adm: { overview: AdmissionOverview | null; queues: QueueItem[] } };
 
 export const KPI_ICON = { enrolled: GraduationCap, pipeline: UserPlus, attendanceToday: ClipboardCheck, staff: UserCog, enquiries: Inbox, collected: Wallet, outstanding: Receipt, resultsLocked: FileCheck } as const;
 const STATUS_TONE = { APPLIED: "brand", INTERVIEW: "brand", ACCEPTED: "warn", ENROLLED: "ok", REJECTED: "bad", WITHDRAWN: "neutral" } as const;
@@ -266,11 +267,60 @@ export function ResultsSection({ env }: { env: DashEnv }) {
   );
 }
 
+/** What each person has waiting, from the real records (nothing here is a stored task that could be ticked without the work being done). */
+export function QueueSection({ env }: { env: DashEnv }) {
+  const { t, adm } = env;
+  if (adm.queues.length === 0) return null;
+  return (
+    <DashSection id="queues" title={t("adm.q.title")}>
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("adm.q.title")}>
+        {adm.queues.map((q) => (
+          <li key={q.key}>
+            <Link href={q.href} className="group flex h-full items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-[var(--shadow-card)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]">
+              <span className="text-sm font-medium text-ink">{t(`adm.q.${q.key}` as "adm.q.new")}</span>
+              <span className="text-2xl font-semibold tabular-nums text-link">{q.count}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </DashSection>
+  );
+}
+
+/** The Administrator's admissions picture: every card opens the matching filtered list. */
+export function AdmissionFlowSection({ env }: { env: DashEnv }) {
+  const { t, adm } = env;
+  const o = adm.overview;
+  if (!o) return null;
+  const cards: { icon: typeof Inbox; label: string; value: number; caption?: string; href: string; tone?: PillTone; pill?: string }[] = [
+    { icon: Inbox, label: t("adm.ov.received"), value: o.received.total, caption: `${o.received.online} ${t("adm.ov.online")} · ${o.received.physical} ${t("adm.ov.physical")}`, href: "/admissions" },
+    { icon: FileCheck, label: t("adm.q.new"), value: o.stages.new, href: "/admissions?stage=new", tone: o.stages.new > 0 ? "warn" : undefined, pill: o.stages.new > 0 ? t("dash.pill.new") : undefined },
+    { icon: FileCheck, label: t("adm.q.docsPending"), value: o.stages.docs_pending, href: "/admissions?stage=docs_pending" },
+    { icon: ClipboardCheck, label: t("adm.ov.upcoming"), value: o.interviews.upcoming, caption: o.interviews.today > 0 ? `${o.interviews.today} ${t("adm.iv.today").toLowerCase()}` : undefined, href: "/admissions/interviews" },
+    { icon: ClipboardCheck, label: t("adm.q.awaitingResult"), value: o.interviews.awaitingResult, href: "/admissions?stage=awaiting_result", tone: o.interviews.awaitingResult > 0 ? "warn" : undefined },
+    { icon: UserPlus, label: t("adm.q.awaitingDecision"), value: o.stages.awaiting_decision, href: "/admissions?stage=awaiting_decision" },
+    { icon: Wallet, label: t("adm.q.awaitingPaymentView"), value: o.offers.awaitingPayment, caption: o.offers.paymentsToVerify > 0 ? `${o.offers.paymentsToVerify} ${t("adm.stage.verification_pending").toLowerCase()}` : undefined, href: "/admissions?stage=awaiting_payment" },
+    { icon: CheckCircle2, label: t("adm.q.eligible"), value: o.offers.eligibleToEnrol, href: "/admissions?stage=eligible", tone: o.offers.eligibleToEnrol > 0 ? "ok" : undefined },
+    { icon: GraduationCap, label: t("adm.ov.enrolled"), value: o.enrolled.total, caption: o.enrolled.awaitingPlacement > 0 ? `${o.enrolled.awaitingPlacement} ${t("adm.q.awaitingPlacement").toLowerCase()}` : undefined, href: o.enrolled.awaitingPlacement > 0 ? "/admissions/placement" : "/admissions?status=ENROLLED" },
+    { icon: AlertTriangle, label: t("adm.ov.rejected"), value: (o.byStatus.REJECTED ?? 0) + (o.byStatus.WITHDRAWN ?? 0), href: "/admissions?status=REJECTED" },
+  ];
+  return (
+    <DashSection id="admissions-flow" title={t("adm.ov.title")} subtitle={t("dash.sec.admissions.sub")}>
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("adm.ov.title")}>
+        {cards.map((c) => (
+          <li key={c.label}><KpiCard icon={c.icon} label={c.label} value={c.value.toLocaleString()} caption={c.caption} href={c.href} openLabel={t("dash.kpi.open")} pill={c.pill && c.tone ? { text: c.pill, tone: c.tone } : undefined} /></li>
+        ))}
+      </ul>
+    </DashSection>
+  );
+}
+
 export function AdmissionsSection({ env }: { env: DashEnv }) {
   const { t, locale, d } = env;
   const pipelineTotal = d.pipeline?.reduce((n, p) => n + p.value, 0) ?? 0;
   return (
     <>
+      <AdmissionFlowSection env={env} />
       {(d.pipeline || d.recentApplications) && (
         <DashSection id="admissions" title={t("dash.sec.admissions")} subtitle={t("dash.sec.admissions.sub")}>
           <div className="grid gap-5 lg:grid-cols-2">

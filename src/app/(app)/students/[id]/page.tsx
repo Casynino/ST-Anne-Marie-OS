@@ -16,6 +16,10 @@ import { studentAccountState } from "@/server/portal";
 import { createStudentAccountAction, resetPortalPasswordAction, setPortalActiveAction } from "@/app/(app)/guardians/actions";
 import { RELATIONSHIPS } from "@/server/guardians";
 import { listDocuments } from "@/server/documents";
+import { db } from "@/lib/db";
+import { centsOf, formatMoney } from "@/lib/finance/money";
+import { loadAdmissionAccount } from "@/server/admission-offers";
+import { classOccupancy } from "@/server/admission-queues";
 import * as A from "../actions";
 
 export const metadata: Metadata = { title: "Student" };
@@ -33,7 +37,15 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   const today = todayInTimezone(school.timezone);
   const canEnroll = ctx.permissions.has("student.enroll") && s.status === "ENROLLED";
   const classes = canEnroll ? await listClasses(ctx).catch(() => []) : [];
-  const placementOptions = classes.filter((c) => c.isActive).flatMap((c) => (c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}` })) : [{ value: c.id, label: c.name }]));
+  const occupancy = canEnroll ? await classOccupancy(ctx.schoolId) : new Map();
+  const placementOptions = classes.filter((c) => c.isActive).flatMap((c) => {
+    const o = occupancy.get(c.id);
+    const note = o?.capacity ? ` (${o.count}/${o.capacity}${o.count >= o.capacity ? ` ${t("adm.place.full")}` : ""})` : "";
+    return c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}` })) : [{ value: c.id, label: `${c.name}${note}` }];
+  });
+  // How the student came in: the application (with its offer and the admission fee), or a direct registration.
+  const application = ctx.permissions.has("admission.read") ? await db.application.findFirst({ where: { schoolId: ctx.schoolId, studentId: id }, select: { id: true, applicationNo: true, classAppliedId: true } }) : null;
+  const admission = application ? await loadAdmissionAccount(db, ctx.schoolId, application.id) : null;
   const current = s.enrollments.find((e) => e.status === "ACTIVE");
   const canManageGuardians = ctx.permissions.has("guardian.manage");
   const labels = await guardianLabels(ctx.permissions.has("guardian.read") || canManageGuardians);
@@ -184,11 +196,23 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               <Link href={`/finance/students/${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-link hover:underline">{t("fin.student.statement")}</Link>
             </Card>
           )}
+          {application && (
+            <Card title={t("stu.admission.title")}>
+              <ul className="space-y-1 text-sm">
+                <li><span className="text-muted">{t("stu.admission.application")}:</span> <Link href={`/admissions/${application.id}`} className="font-medium text-link hover:underline">{application.applicationNo}</Link></li>
+                {admission?.offer && <li><span className="text-muted">{t("stu.admission.offer")}:</span> {admission.offer.letterNo}</li>}
+                {admission?.account && <li><span className="text-muted">{t("stu.admission.fee")}:</span> {formatMoney(admission.account.verifiedCents, school.currency)} / {formatMoney(admission.account.requiredCents, school.currency)} · {t(`adm.pay.status.${admission.account.status}` as "adm.pay.status.PAID")}</li>}
+                {admission?.payments.filter((p) => p.receiptNo).map((p) => <li key={p.id}><a href={`/api/admission-receipts/${p.id}?lang=${locale}`} target="_blank" rel="noopener" className="font-medium text-link hover:underline">{t("adm.pay.receipt")} {p.receiptNo}</a> <span className="text-muted">({formatMoney(centsOf(p.amount), school.currency)})</span></li>)}
+              </ul>
+            </Card>
+          )}
+          {canEnroll && !current && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warn">{t("stu.awaitingClass")}</p>}
           {canEnroll && placementOptions.length > 0 && (
             <Card title={current ? t("student.enrol.move") : t("student.enrol.title")}>
               <ActionForm action={A.enrollStudentAction} submitLabel={t("student.enrol.button")} className="space-y-3">
                 <input type="hidden" name="studentId" value={s.id} />
                 <Field name="placement" label={`${t("student.class")} / ${t("student.stream")}`} type="select" options={placementOptions} placeholder={t("common.select")} required />
+                {ctx.permissions.has("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} optionalLabel={t("common.optional")} /></>}
               </ActionForm>
             </Card>
           )}

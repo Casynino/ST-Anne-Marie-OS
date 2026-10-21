@@ -1,15 +1,24 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { requireContext, getT } from "@/lib/auth/next";
+import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import { displayDate, displayDateTime } from "@/lib/dates";
+import { centsOf } from "@/lib/finance/money";
 import { getApplication, OPEN_STATUSES } from "@/server/admissions";
 import { listClasses } from "@/server/academics";
 import { listDocuments, DOCUMENT_TYPES, MAX_DOCUMENT_BYTES } from "@/server/documents";
 import { getSchoolBasics } from "@/server/settings";
+import { getAdmissionPolicy } from "@/server/admission-policy";
+import { documentReadiness } from "@/server/admission-review";
+import { enrolmentReadiness, loadAdmissionAccount } from "@/server/admission-offers";
+import { interviewsOfApplication, listInterviewers } from "@/server/interviews";
+import { classOccupancy } from "@/server/admission-queues";
 import { ActionForm, Field } from "@/components/form";
+import { AdmissionsNav } from "@/components/admissions/subnav";
 import { Badge, Card, DefList, EmptyState, LinkButton, NoAccess, PageHeader } from "@/components/ui";
 import { ConfirmBoxes, FileInput } from "./parts";
+import { DocsReviewCard, GateList, InterviewCard, OfferCard } from "./sections";
 import { deleteDocumentAction, enrolApplicationAction, transitionApplicationAction, uploadDocumentAction } from "../actions";
 
 export const metadata: Metadata = { title: "Application" };
@@ -31,150 +40,198 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const school = await getSchoolBasics(ctx.schoolId);
   const open = (OPEN_STATUSES as readonly string[]).includes(app.status);
   const can = (p: Parameters<typeof ctx.permissions.has>[0]) => ctx.permissions.has(p);
-  const docs = can("document.read") ? await listDocuments(ctx, { applicationId: id }) : [];
-  const classes = app.status === "ACCEPTED" && can("admission.enrol") && can("student.enroll") ? (await listClasses(ctx)).filter((c) => c.isActive) : [];
-  const placementOptions = classes.flatMap((c) => (c.streams.length ? c.streams.map((s) => ({ value: `${c.id}|${s.id}`, label: `${c.name} – ${s.name}` })) : [{ value: c.id, label: c.name }]));
-  const preselected = app.classAppliedId && !classes.find((c) => c.id === app.classAppliedId)?.streams.length ? app.classAppliedId : undefined;
+  const now = Date.now();
+
+  const [policy, docs, ivs, interviewers, acct, docsReady, gate, allClasses, occupancy, exceptionUser] = await Promise.all([
+    getAdmissionPolicy(db, ctx.schoolId),
+    can("document.read") ? listDocuments(ctx, { applicationId: id }) : [],
+    interviewsOfApplication(ctx, id),
+    can("admission.interview.manage") ? listInterviewers(ctx) : [],
+    loadAdmissionAccount(db, ctx.schoolId, id),
+    documentReadiness(db, ctx.schoolId, app),
+    open ? enrolmentReadiness(db, ctx.schoolId, app) : null,
+    can("academic.read") ? listClasses(ctx) : [],
+    classOccupancy(ctx.schoolId),
+    app.docsExceptionById ? db.user.findFirst({ where: { id: app.docsExceptionById, schoolId: ctx.schoolId }, select: { fullName: true } }) : null,
+  ]);
+  const reviewer = app.reviewedById ? await db.user.findFirst({ where: { id: app.reviewedById, schoolId: ctx.schoolId }, select: { fullName: true } }) : null;
+  const classes = allClasses.filter((c) => c.isActive);
+  const classOptions = classes.map((c) => ({ value: c.id, label: c.name }));
+  const offer = acct.offer;
+  const live = ivs.find((i) => i.status === "SCHEDULED");
+
+  // Placement choices show how full each class is, so nobody is surprised by a "class is full" message.
+  const placementOptions = classes.flatMap((c) => {
+    const o = occupancy.get(c.id);
+    const note = o?.capacity ? ` (${o.count}/${o.capacity}${o.count >= o.capacity ? ` ${t("adm.place.full")}` : ""})` : "";
+    return c.streams.length ? c.streams.map((s) => ({ value: `${c.id}|${s.id}`, label: `${c.name} – ${s.name}${note}` })) : [{ value: c.id, label: `${c.name}${note}` }];
+  });
+  const preferredFull = (() => { const o = app.classAppliedId ? occupancy.get(app.classAppliedId) : null; return !!o?.capacity && o.count >= o.capacity; })();
+
+  const step = !open ? t("adm.step.closed")
+    : app.status === "ENROLLED" ? t("adm.step.place")
+    : app.status === "ACCEPTED" ? (gate?.ready ? t("adm.step.enrol") : t("adm.step.pay"))
+    : offer?.status === "PENDING_APPROVAL" ? t("adm.step.approve")
+    : live ? (live.scheduledAt.getTime() <= now ? t("adm.step.result") : t("adm.step.interview"))
+    : app.reviewStatus !== "VERIFIED" && !docsReady.ok ? t("adm.step.review")
+    : ivs.some((i) => i.status === "COMPLETED") ? t("adm.step.decide")
+    : policy.requireInterview ? t("adm.step.interview") : t("adm.step.decide");
 
   return (
     <>
       <PageHeader
         title={`${app.firstName} ${app.middleName ?? ""} ${app.lastName}`}
-        subtitle={`${app.applicationNo} · ${t(`adm.status.${app.status}`)}`}
+        subtitle={`${app.applicationNo} · ${t(`adm.status.${app.status}`)} · ${t(`adm.channel.${app.source}` as "adm.channel.ONLINE")}`}
         actions={open && can("admission.create") ? <LinkButton href={`/admissions/${id}/edit`} variant="secondary">{t("adm.edit")}</LinkButton> : undefined}
       />
-      <div className="space-y-5">
-        {app.status === "ACCEPTED" && <p className="rounded-lg border border-tint-2 bg-tint px-3 py-2 text-sm text-link">{t("adm.acceptedNote")}</p>}
-        {app.student && (
-          <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-ok">
-            {t("adm.studentRecord")}: <Link className="font-semibold underline" href={`/students/${app.student.id}`}>{app.student.admissionNo}</Link>
-          </p>
-        )}
+      <AdmissionsNav ctx={ctx} t={t} current="/admissions" />
+      <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">
+        <div className="space-y-5">
+          <p className="rounded-lg border border-tint-2 bg-tint px-3 py-2 text-sm"><span className="font-semibold text-link">{t("adm.nextStep")}:</span> {step}</p>
+          {app.student && (
+            <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-ok">
+              {t("adm.studentRecord")}: <Link className="font-semibold underline" href={`/students/${app.student.id}`}>{app.student.admissionNo}</Link>
+            </p>
+          )}
 
-        <Card title={t("adm.details")}>
-          <DefList
-            items={[
-              { label: t("student.dob"), value: displayDate(app.dateOfBirth, ctx.locale) },
-              { label: t("student.gender"), value: app.gender === "MALE" ? t("student.male") : t("student.female") },
-              { label: t("adm.classApplied"), value: app.className ?? t("adm.noClass") },
-              { label: t("student.nationality"), value: app.nationality },
-              { label: t("student.religion"), value: app.religion },
-              { label: t("student.birthCert"), value: app.birthCertificateNo },
-              { label: t("student.previousSchool"), value: app.previousSchool },
-              { label: t("common.address"), value: app.address },
-              { label: t("adm.interviewOn"), value: app.interviewOn ? displayDate(app.interviewOn, ctx.locale) : null },
-              { label: t("adm.assessmentNotes"), value: app.assessmentNotes },
-              { label: t("adm.decision"), value: app.decisionReason },
-            ]}
+          <DocsReviewCard
+            t={t} id={id} open={open} can={can} required={policy.requiredDocTypes} checklist={docsReady.checklist}
+            docs={docs.map((d) => ({ id: d.id, docType: d.docType, fileName: d.fileName, verification: d.verification, verificationNote: d.verificationNote }))}
+            review={{ status: app.reviewStatus, note: app.reviewNote, by: reviewer?.fullName ?? null, at: app.reviewedAt, locale: ctx.locale, timezone: school.timezone }}
+            exception={app.docsExceptionAt ? { reason: app.docsExceptionReason ?? "", by: exceptionUser?.fullName ?? null } : null}
           />
-        </Card>
 
-        <Card title={t("adm.guardians")}>
-          <ul className="divide-y divide-line text-sm">
-            {app.guardians.map((g, i) => (
-              <li key={i} className="py-2">
-                <p className="font-medium">{g.fullName ?? "—"} {g.relationship && <span className="font-normal text-muted">· {t(`student.rel.${g.relationship as "FATHER"}`)}</span>}</p>
-                <p className="text-muted">{g.phone ?? ""} {g.email ?? ""}</p>
-              </li>
-            ))}
-          </ul>
-        </Card>
+          <InterviewCard t={t} id={id} status={app.status} open={open} can={can} rows={ivs} interviewers={interviewers} defaultMinutes={policy.interviewMinutes} now={now} locale={ctx.locale} timezone={school.timezone} ready={docsReady.ok && app.reviewStatus !== "RETURNED"} />
 
-        {open && (can("admission.review") || can("admission.create")) && (
-          <Card title={t("common.actions")}>
-            <div className="grid gap-4 lg:grid-cols-2">
-              {app.status === "APPLIED" && can("admission.review") && (
-                <ActionForm action={transitionApplicationAction} submitLabel={t("adm.action.interview")} className="space-y-3">
-                  <input type="hidden" name="id" value={id} />
-                  <input type="hidden" name="to" value="INTERVIEW" />
-                  <Field name="interviewOn" type="date" label={t("adm.interviewOn")} optionalLabel={t("common.optional")} />
-                </ActionForm>
-              )}
-              {can("admission.review") && app.status !== "ACCEPTED" && (
-                <ActionForm action={transitionApplicationAction} submitLabel={t("adm.action.accept")} className="space-y-3">
-                  <input type="hidden" name="id" value={id} />
-                  <input type="hidden" name="to" value="ACCEPTED" />
-                  <Field name="assessmentNotes" label={t("adm.assessmentNotes")} type="textarea" rows={2} optionalLabel={t("common.optional")} />
-                </ActionForm>
-              )}
-              {can("admission.review") && (
-                <ActionForm action={transitionApplicationAction} submitLabel={t("adm.action.reject")} tone="danger" confirm={t("common.confirmAction")} className="space-y-3">
-                  <input type="hidden" name="id" value={id} />
-                  <input type="hidden" name="to" value="REJECTED" />
-                  <Field name="reason" label={t("adm.reason")} hint={t("adm.reason.hint")} required />
-                </ActionForm>
-              )}
-              <ActionForm action={transitionApplicationAction} submitLabel={t("adm.action.withdraw")} tone="danger" confirm={t("common.confirmAction")} className="space-y-3">
-                <input type="hidden" name="id" value={id} />
-                <input type="hidden" name="to" value="WITHDRAWN" />
-                <Field name="reason" label={t("adm.reason")} hint={t("adm.reason.hint")} required />
+          <OfferCard
+            t={t} id={id} status={app.status} open={open} can={can} userId={ctx.userId} locale={ctx.locale} timezone={school.timezone} currency={school.currency} classes={classOptions} defaultFeeCents={policy.admissionFeeCents}
+            hasLiveInterview={!!live} enrolled={app.status === "ENROLLED"} account={acct.account}
+            offer={offer ? { status: offer.status, letterNo: offer.letterNo, feeCents: centsOf(offer.feeAmount), expiresOn: offer.expiresOn, notes: offer.notes, issuedById: offer.issuedById, classOffered: allClasses.find((c) => c.id === offer.classOfferedId)?.name ?? null, waiver: offer.paymentWaivedAt ? { reason: offer.paymentWaiverReason ?? "" } : null } : null}
+            payments={acct.payments.map((p) => ({ id: p.id, amountCents: centsOf(p.amount), method: p.method, reference: p.reference, paidOn: p.paidOn, status: p.status, receiptNo: p.receiptNo, recordedAt: p.recordedAt, reverseReason: p.reverseReason, rejectReason: p.rejectReason }))}
+          />
+
+          {app.status === "ACCEPTED" && can("admission.enrol") && gate && (
+            <Card title={t("adm.enrol.title")}>
+              <div className="space-y-4">
+                <div><h3 className="mb-2 text-sm font-semibold">{t("adm.gate.title")}</h3><GateList t={t} items={gate.items} /></div>
+                {gate.ready ? (
+                  <ActionForm action={enrolApplicationAction} submitLabel={t("adm.action.enrol")} className="space-y-3 border-t border-line pt-4">
+                    <input type="hidden" name="id" value={id} />
+                    <p className="text-sm text-ok">{t("adm.gate.ready")}</p>
+                    {app.className && <p className="text-sm text-muted">{t("adm.enrol.preferred", { class: app.className })}{preferredFull ? ` (${t("adm.place.full")})` : ""}</p>}
+                    {can("student.enroll") && placementOptions.length > 0 && <Field name="placement" label={t("adm.enrol.optClass")} hint={t("adm.enrol.optClass.hint")} type="select" options={placementOptions} placeholder={t("common.select")} />}
+                    {can("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} optionalLabel={t("common.optional")} /></>}
+                    <Field name="admissionDate" label={t("student.admissionDate")} type="date" optionalLabel={t("common.optional")} />
+                    <ConfirmBoxes duplicate={t("student.confirmDuplicate")} sharedPhone={t("adm.confirmSharedPhone")} />
+                  </ActionForm>
+                ) : <p className="text-sm text-bad">{t("adm.gate.blocked")}</p>}
+              </div>
+            </Card>
+          )}
+
+          <Card title={t("doc.title")}>
+            <p className="mb-3 text-sm text-muted">{t("doc.access")}</p>
+            {docs.length === 0 ? (
+              <p className="text-sm text-muted">{can("document.read") ? t("doc.none") : t("common.noAccess.body")}</p>
+            ) : (
+              <ul className="divide-y divide-line text-sm">
+                {docs.map((d) => (
+                  <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{d.fileName}</p>
+                      <p className="text-muted">{t(`doc.type.${d.docType as "OTHER"}`)} · {kb(d.sizeBytes)} · {t("doc.uploadedBy", { name: d.uploadedBy })} · {displayDateTime(d.createdAt, school.timezone, ctx.locale)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 font-medium text-link hover:bg-canvas">{t("doc.download")}</a>
+                      {can("document.delete") && (
+                        <details>
+                          <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-bad">{t("doc.remove")}</summary>
+                          <ActionForm action={deleteDocumentAction} submitLabel={t("doc.remove")} tone="danger" className="mt-2 w-64 max-w-full space-y-2">
+                            <input type="hidden" name="documentId" value={d.id} />
+                            <Field name="reason" label={t("doc.remove.reason")} required />
+                          </ActionForm>
+                        </details>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {can("document.upload") && (
+              <ActionForm action={uploadDocumentAction} submitLabel={t("doc.upload")} className="mt-4 space-y-3 border-t border-line pt-4">
+                <input type="hidden" name="applicationId" value={id} />
+                <Field name="docType" label={t("doc.type")} type="select" required options={DOCUMENT_TYPES.map((d) => ({ value: d, label: t(`doc.type.${d}`) }))} placeholder={t("common.select")} />
+                <FileInput label={t("doc.file")} hint={t("doc.file.hint", { size: Math.floor(MAX_DOCUMENT_BYTES / 1024 / 1024) })} />
               </ActionForm>
-            </div>
+            )}
           </Card>
-        )}
+        </div>
 
-        {app.status === "ACCEPTED" && can("admission.enrol") && (
-          <Card title={t("adm.enrol.title")}>
-            <p className="mb-3 text-sm text-muted">{t("adm.enrol.hint")}</p>
-            <ActionForm action={enrolApplicationAction} submitLabel={t("adm.action.enrol")} className="space-y-3">
-              <input type="hidden" name="id" value={id} />
-              {placementOptions.length > 0 && <Field name="placement" label={t("adm.enrol.class")} type="select" options={placementOptions} defaultValue={preselected} placeholder={t("common.select")} />}
-              <Field name="admissionDate" label={t("student.admissionDate")} type="date" optionalLabel={t("common.optional")} />
-              <ConfirmBoxes duplicate={t("student.confirmDuplicate")} sharedPhone={t("adm.confirmSharedPhone")} />
-            </ActionForm>
+        <aside className="space-y-5">
+          <Card title={t("adm.details")}>
+            <DefList
+              items={[
+                { label: t("student.dob"), value: displayDate(app.dateOfBirth, ctx.locale) },
+                { label: t("student.gender"), value: app.gender === "MALE" ? t("student.male") : t("student.female") },
+                { label: t("adm.classApplied"), value: app.className ?? t("adm.noClass") },
+                { label: t("adm.channel"), value: t(`adm.channel.${app.source}` as "adm.channel.ONLINE") },
+                { label: t("adm.submittedOn"), value: app.submittedOn ? displayDate(app.submittedOn, ctx.locale) : null },
+                { label: t("student.nationality"), value: app.nationality },
+                { label: t("student.religion"), value: app.religion },
+                { label: t("student.birthCert"), value: app.birthCertificateNo },
+                { label: t("student.previousSchool"), value: app.previousSchool },
+                { label: t("common.address"), value: app.address },
+                { label: t("adm.assessmentNotes"), value: app.assessmentNotes },
+                { label: t("adm.decision"), value: app.decisionReason },
+              ]}
+            />
           </Card>
-        )}
 
-        <Card title={t("doc.title")}>
-          <p className="mb-3 text-sm text-muted">{t("doc.access")}</p>
-          {docs.length === 0 ? (
-            <p className="text-sm text-muted">{can("document.read") ? t("doc.none") : t("common.noAccess.body")}</p>
-          ) : (
+          <Card title={t("adm.guardians")}>
             <ul className="divide-y divide-line text-sm">
-              {docs.map((d) => (
-                <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="break-words font-medium">{d.fileName}</p>
-                    <p className="text-muted">{t(`doc.type.${d.docType as "OTHER"}`)} · {kb(d.sizeBytes)} · {t("doc.uploadedBy", { name: d.uploadedBy })} · {displayDateTime(d.createdAt, school.timezone, ctx.locale)}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 font-medium text-link hover:bg-canvas">{t("doc.download")}</a>
-                    {can("document.delete") && (
-                      <details>
-                        <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-bad">{t("doc.remove")}</summary>
-                        <ActionForm action={deleteDocumentAction} submitLabel={t("doc.remove")} tone="danger" className="mt-2 w-64 max-w-full space-y-2">
-                          <input type="hidden" name="documentId" value={d.id} />
-                          <Field name="reason" label={t("doc.remove.reason")} required />
-                        </ActionForm>
-                      </details>
-                    )}
-                  </div>
+              {app.guardians.map((g, i) => (
+                <li key={i} className="py-2">
+                  <p className="font-medium">{g.fullName ?? "—"} {g.relationship && <span className="font-normal text-muted">· {t(`student.rel.${g.relationship as "FATHER"}`)}</span>}</p>
+                  <p className="text-muted">{g.phone ?? ""} {g.email ?? ""}</p>
                 </li>
               ))}
             </ul>
-          )}
-          {can("document.upload") && (
-            <ActionForm action={uploadDocumentAction} submitLabel={t("doc.upload")} className="mt-4 space-y-3 border-t border-line pt-4">
-              <input type="hidden" name="applicationId" value={id} />
-              <Field name="docType" label={t("doc.type")} type="select" required options={DOCUMENT_TYPES.map((d) => ({ value: d, label: t(`doc.type.${d}`) }))} placeholder={t("common.select")} />
-              <FileInput label={t("doc.file")} hint={t("doc.file.hint", { size: Math.floor(MAX_DOCUMENT_BYTES / 1024 / 1024) })} />
-            </ActionForm>
-          )}
-        </Card>
+          </Card>
 
-        <Card title={t("adm.history")}>
-          <ol className="space-y-2 text-sm">
-            {app.events.map((e) => (
-              <li key={e.id} className="flex flex-wrap items-baseline gap-x-2">
-                <Badge tone={TONE[e.toStatus]}>{t(`adm.status.${e.toStatus}`)}</Badge>
-                <span className="text-muted">{displayDateTime(e.createdAt, school.timezone, ctx.locale)} · {e.byApplicant ? t("adm.byApplicant") : e.by}</span>
-                {e.reason && <span className="basis-full">{e.reason}</span>}
-              </li>
-            ))}
-          </ol>
-        </Card>
+          {open && (can("admission.review") || can("admission.create")) && (
+            <Card title={t("common.actions")}>
+              <p className="mb-3 text-sm text-muted">{t("adm.closeNote")}</p>
+              {acct.payments.some((p) => p.status === "VERIFIED") && <p className="mb-3 text-sm text-warn">{t("adm.heldMoney")}</p>}
+              <div className="grid gap-4">
+                {can("admission.review") && (
+                  <ActionForm action={transitionApplicationAction} submitLabel={t("adm.action.reject")} tone="danger" confirm={t("common.confirmAction")} className="space-y-3">
+                    <input type="hidden" name="id" value={id} />
+                    <input type="hidden" name="to" value="REJECTED" />
+                    <Field name="reason" label={t("adm.reason")} hint={t("adm.reason.hint")} required />
+                  </ActionForm>
+                )}
+                <ActionForm action={transitionApplicationAction} submitLabel={t("adm.action.withdraw")} tone="danger" confirm={t("common.confirmAction")} className="space-y-3">
+                  <input type="hidden" name="id" value={id} />
+                  <input type="hidden" name="to" value="WITHDRAWN" />
+                  <Field name="reason" label={t("adm.reason")} hint={t("adm.reason.hint")} required />
+                </ActionForm>
+              </div>
+            </Card>
+          )}
+
+          <Card title={t("adm.history")}>
+            <ol className="space-y-2 text-sm">
+              {app.events.map((e) => (
+                <li key={e.id} className="flex flex-wrap items-baseline gap-x-2">
+                  {e.kind === "STATUS" ? <Badge tone={TONE[e.toStatus]}>{t(`adm.status.${e.toStatus}`)}</Badge> : <Badge>{t(`adm.event.kind.${e.kind}` as "adm.event.kind.STATUS")}</Badge>}
+                  <span className="text-muted">{displayDateTime(e.createdAt, school.timezone, ctx.locale)} · {e.byApplicant ? t("adm.byApplicant") : e.by}</span>
+                  {e.reason && <span className="basis-full">{e.reason}</span>}
+                </li>
+              ))}
+            </ol>
+          </Card>
+        </aside>
       </div>
     </>
   );
 }
-

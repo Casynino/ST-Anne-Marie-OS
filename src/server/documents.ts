@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { conflict, invalid, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { getStorage } from "@/lib/storage";
+import { DOCUMENT_TYPES } from "@/lib/admissions/document-types";
 import { actorOf, writeAudit } from "@/server/audit";
 import { studentScope } from "@/server/students";
 import { parse, text } from "@/lib/validation";
@@ -17,7 +18,7 @@ import { parse, text } from "@/lib/validation";
  *  - "delete" hides the document and is audited; the stored object is kept until a retention policy exists (Phase 8)
  */
 
-export const DOCUMENT_TYPES = ["BIRTH_CERTIFICATE", "PREVIOUS_REPORT", "PASSPORT_PHOTO", "TRANSFER_LETTER", "IDENTITY", "MEDICAL", "OTHER"] as const;
+export { DOCUMENT_TYPES };
 export const MAX_DOCUMENT_BYTES = Number(process.env.DOCUMENT_MAX_BYTES) || 4 * 1024 * 1024;
 export const MAX_DOCUMENTS_PER_OWNER = 20;
 
@@ -103,7 +104,7 @@ export async function listDocuments(ctx: AuthContext, owner: Owner) {
     orderBy: { createdAt: "desc" },
   });
   const users = await db.user.findMany({ where: { schoolId: ctx.schoolId, id: { in: [...new Set(docs.map((d) => d.uploadedById))] } }, select: { id: true, fullName: true } });
-  return docs.map((d) => ({ id: d.id, docType: d.docType, fileName: d.fileName, mimeType: d.mimeType, sizeBytes: d.sizeBytes, createdAt: d.createdAt, uploadedBy: users.find((u) => u.id === d.uploadedById)?.fullName ?? "" }));
+  return docs.map((d) => ({ id: d.id, docType: d.docType, fileName: d.fileName, mimeType: d.mimeType, sizeBytes: d.sizeBytes, createdAt: d.createdAt, uploadedBy: users.find((u) => u.id === d.uploadedById)?.fullName ?? "", verification: d.verification, verificationNote: d.verificationNote, verifiedAt: d.verifiedAt }));
 }
 
 /** Loads a document the user may open. Throws NOT_FOUND for anything outside their school or scope. */

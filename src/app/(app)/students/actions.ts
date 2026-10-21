@@ -76,7 +76,7 @@ export async function enrollStudentAction(_: ActionState, form: FormData) {
     form,
     async (ctx, i) => {
       const placement = await splitPlacement(str(i.placement));
-      await students.enrollStudent(ctx, str(i.studentId), { academicYearId: str(i.academicYearId) || undefined, classId: placement.classId, streamId: placement.streamId });
+      await students.enrollStudent(ctx, str(i.studentId), { academicYearId: str(i.academicYearId) || undefined, classId: placement.classId, streamId: placement.streamId, overrideCapacity: i.overrideCapacity, overrideReason: i.overrideReason });
       return { message: makeT(ctx.locale)("common.saved") };
     },
     { mapFieldErrors: (e) => ({ ...e, placement: e.classId ?? e.streamId ?? "" }) },

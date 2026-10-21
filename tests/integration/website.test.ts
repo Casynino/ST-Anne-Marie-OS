@@ -137,7 +137,9 @@ describe("online application", () => {
     const { applicationNo } = await pub.submitOnlineApplication(school.id, input, meta());
     const ok = await pub.trackApplication(school.id, { applicationNo, phone: String(input.g1_phone) }, meta());
     expect(ok.status).toBe("APPLIED");
-    expect(Object.keys(ok).sort()).toEqual(["className", "status", "submittedOn"]);
+    // Only what the family needs; at this stage there is no interview, correction, offer or payment to show, and never any notes or decisions.
+    expect(Object.keys(ok).sort()).toEqual(["className", "correction", "currency", "interview", "offer", "payment", "status", "submittedOn", "timezone"]);
+    expect([ok.interview, ok.correction, ok.offer, ok.payment]).toEqual([null, null, null, null]);
     const wrongPhone = (await pub.trackApplication(school.id, { applicationNo, phone: "0799000111" }, meta()).catch((e) => e)) as AppError;
     const unknownNo = (await pub.trackApplication(school.id, { applicationNo: `APP/2099/${String(1000 + Math.floor(Math.random() * 8999))}`, phone: "0799000111" }, meta()).catch((e) => e)) as AppError;
     expect(wrongPhone.message).toBe(unknownNo.message); // cannot probe which numbers exist

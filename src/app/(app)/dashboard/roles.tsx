@@ -7,7 +7,7 @@ import { DashHero, Hi } from "@/components/dash/hero";
 import { Cell, DashSection, DashTable, EmptyLine, HBars, KpiCard, Panel, Pill } from "@/components/dash/parts";
 import type { HeadHome } from "@/server/head-home";
 import type { adminHome } from "@/server/admin-home";
-import { AdmissionsSection, AttentionSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LearningSection, MyRegistersSection, ResultsSection, StudentsSection, type DashEnv } from "./sections";
+import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LearningSection, MyRegistersSection, ResultsSection, StudentsSection, type DashEnv } from "./sections";
 
 /*
  * The home pages of the different staff roles. Each is a choice and an order of the shared sections (see sections.tsx) plus the few
@@ -64,6 +64,7 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
         </ul>
       )}
 
+      <QueueSection env={env} />
       <AttentionSection env={env} />
 
       {head && (
@@ -129,6 +130,7 @@ export function AccountantDashboard({ props }: { props: HomeProps }) {
       )}
       {!f && <div className="mt-6"><EmptyLine>{t("acc.empty")}</EmptyLine></div>}
 
+      <QueueSection env={env} />
       <AttentionSection env={env} />
       <FeesSection env={env} />
       <CalendarSection env={env} />
@@ -158,6 +160,7 @@ export function RegistrarDashboard({ props }: { props: HomeProps }) {
         {can("enquiry.read") && <LinkButton href="/enquiries" variant="secondary"><Inbox className="size-4" aria-hidden /> {t("acts.enquiries")}</LinkButton>}
         <Date_ env={env} today={props.today} />
       </div>
+      <QueueSection env={env} />
       <KpiSection env={env} />
       <AttentionSection env={env} />
       <AdmissionsSection env={env} />

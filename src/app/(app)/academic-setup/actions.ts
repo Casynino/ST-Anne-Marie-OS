@@ -43,6 +43,14 @@ export async function toggleClassActiveAction(_: ActionState, form: FormData) {
     return ok(ctx.locale);
   });
 }
+export async function setClassCapacityAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const cls = await db.schoolClass.findFirst({ where: { id: str(i.id), schoolId: ctx.schoolId } });
+    if (!cls) throw notFound("Class");
+    await ac.updateClass(ctx, cls.id, { levelId: cls.levelId, name: cls.name, nameSw: cls.nameSw ?? "", sortOrder: String(cls.sortOrder), isActive: cls.isActive ? "on" : "", capacity: str(i.capacity) });
+    return ok(ctx.locale);
+  });
+}
 export async function createStreamAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => (await ac.createStream(ctx, str(i.classId), str(i.name)), ok(ctx.locale)));
 }

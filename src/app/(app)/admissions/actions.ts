@@ -5,6 +5,11 @@ import { makeT } from "@/lib/i18n";
 import { db } from "@/lib/db";
 import * as admissions from "@/server/admissions";
 import * as documents from "@/server/documents";
+import * as review from "@/server/admission-review";
+import * as interviews from "@/server/interviews";
+import * as offers from "@/server/admission-offers";
+import * as policy from "@/server/admission-policy";
+import * as students from "@/server/students";
 import { getCurrentAcademicContext } from "@/server/academics";
 
 type Input = Record<string, string | string[] | undefined>;
@@ -30,7 +35,7 @@ function mapGuardianErrors(errors: Record<string, string>) {
   return out;
 }
 
-const DETAIL_FIELDS = ["firstName", "middleName", "lastName", "dateOfBirth", "gender", "classAppliedId", "nationality", "religion", "birthCertificateNo", "previousSchool", "address", "assessmentNotes", "confirmDuplicate"] as const;
+const DETAIL_FIELDS = ["submittedOn", "firstName", "middleName", "lastName", "dateOfBirth", "gender", "classAppliedId", "nationality", "religion", "birthCertificateNo", "previousSchool", "address", "assessmentNotes", "confirmDuplicate"] as const;
 function details(i: Input) {
   const out: Record<string, string | string[] | undefined> = {};
   for (const f of DETAIL_FIELDS) out[f] = i[f];
@@ -68,7 +73,7 @@ export async function updateApplicationAction(_: ActionState, form: FormData) {
 
 export async function transitionApplicationAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
-    await admissions.transitionApplication(ctx, str(i.id), { to: str(i.to), reason: i.reason, interviewOn: i.interviewOn, assessmentNotes: i.assessmentNotes });
+    await admissions.transitionApplication(ctx, str(i.id), { to: str(i.to), reason: i.reason, assessmentNotes: i.assessmentNotes });
     return { message: makeT(ctx.locale)("common.saved") };
   });
 }
@@ -76,7 +81,7 @@ export async function transitionApplicationAction(_: ActionState, form: FormData
 export async function enrolApplicationAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
     const [classId, streamId] = str(i.placement).split("|");
-    const student = await admissions.enrolApplication(ctx, str(i.id), { classId: classId || undefined, streamId: streamId || undefined, admissionDate: i.admissionDate, confirmDuplicate: i.confirmDuplicate, confirmSharedPhone: i.confirmSharedPhone });
+    const student = await admissions.enrolApplication(ctx, str(i.id), { classId: classId || undefined, streamId: streamId || undefined, admissionDate: i.admissionDate, confirmDuplicate: i.confirmDuplicate, confirmSharedPhone: i.confirmSharedPhone, overrideCapacity: i.overrideCapacity, overrideReason: i.overrideReason });
     return { redirectTo: `/students/${student.id}` };
   });
 }
@@ -97,4 +102,65 @@ export async function deleteDocumentAction(_: ActionState, form: FormData) {
     await documents.deleteDocument(ctx, str(i.documentId), str(i.reason));
     return { message: makeT(ctx.locale)("common.saved") };
   });
+}
+
+// ───────────── Review, documents, exceptions ─────────────
+const saved = (ctx: { locale: "EN" | "SW" }) => ({ message: makeT(ctx.locale)("common.saved") });
+
+export async function reviewApplicationAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await review.reviewApplication(ctx, str(i.id), { decision: str(i.decision), note: i.note }); return saved(ctx); });
+}
+export async function verifyDocumentAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await review.verifyDocument(ctx, str(i.documentId), { status: str(i.status), note: i.note }); return saved(ctx); });
+}
+export async function grantDocsExceptionAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await review.grantDocumentsException(ctx, str(i.id), { reason: i.reason }); return saved(ctx); });
+}
+
+// ───────────── Interviews ─────────────
+const INTERVIEW_FIELDS = ["scheduledAt", "durationMinutes", "location", "method", "interviewerId", "note", "confirmLocationClash", "exceptionReason", "reason"] as const;
+const interviewInput = (i: Input) => Object.fromEntries(INTERVIEW_FIELDS.map((f) => [f, i[f]]));
+export async function scheduleInterviewAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await interviews.scheduleInterview(ctx, str(i.id), interviewInput(i)); return saved(ctx); });
+}
+export async function rescheduleInterviewAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await interviews.rescheduleInterview(ctx, str(i.interviewId), interviewInput(i)); return saved(ctx); });
+}
+export async function cancelInterviewAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await interviews.cancelInterview(ctx, str(i.interviewId), { reason: i.reason }); return saved(ctx); });
+}
+export async function recordInterviewResultAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await interviews.recordInterviewResult(ctx, str(i.interviewId), { status: str(i.status), outcome: i.outcome, score: i.score, notes: i.notes }); return saved(ctx); });
+}
+
+// ───────────── Offers and exceptions ─────────────
+export async function issueOfferAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await offers.issueOffer(ctx, str(i.id), { classOfferedId: i.classOfferedId, feeAmount: i.feeAmount, expiresOn: i.expiresOn, notes: i.notes, assessmentNotes: i.assessmentNotes, exceptionReason: i.exceptionReason }); return saved(ctx); });
+}
+export async function approveOfferAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await offers.approveOffer(ctx, str(i.id)); return saved(ctx); });
+}
+export async function reviseOfferAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await offers.reviseOffer(ctx, str(i.id), { feeAmount: i.feeAmount, expiresOn: i.expiresOn, notes: i.notes, reason: i.reason }); return saved(ctx); });
+}
+export async function withdrawOfferAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await offers.withdrawOffer(ctx, str(i.id), { reason: i.reason }); return saved(ctx); });
+}
+export async function declineOfferAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await offers.declineOffer(ctx, str(i.id), { reason: i.reason }); return saved(ctx); });
+}
+export async function waivePaymentAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await offers.waiveAdmissionPayment(ctx, str(i.id), { reason: i.reason }); return saved(ctx); });
+}
+
+// ───────────── Class placement and policy ─────────────
+export async function placeStudentAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const [classId, streamId] = str(i.placement).split("|");
+    await students.enrollStudent(ctx, str(i.studentId), { classId: classId || undefined, streamId: streamId || undefined, overrideCapacity: i.overrideCapacity, overrideReason: i.overrideReason });
+    return saved(ctx);
+  });
+}
+export async function updatePolicyAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await policy.updateAdmissionPolicy(ctx, { ...i, requiredDocTypes: form.getAll("requiredDocTypes").map(String) }); return saved(ctx); });
 }

@@ -166,6 +166,12 @@ async function ClassesTab({ canManage, ctx }: { canManage: boolean; ctx: Ctx }) 
                       <Field name="name" label={t("student.stream")} placeholder="A" className="w-28" required />
                     </ActionForm>
                   )}
+                  {canManage ? (
+                    <ActionForm action={A.setClassCapacityAction} submitLabel={t("common.save")} className="mt-3 flex flex-wrap items-end gap-2">
+                      <input type="hidden" name="id" value={c.id} />
+                      <Field name="capacity" type="number" label={t("class.capacity")} defaultValue={c.capacity ?? ""} min={1} max={500} hint={t("class.capacity.hint")} className="w-48" />
+                    </ActionForm>
+                  ) : c.capacity ? <p className="mt-3 text-sm text-muted">{t("class.capacity")}: {c.capacity}</p> : null}
                   <details className="mt-3">
                     <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("academics.class.subjects")} ({subjectsByClass.get(c.id)?.length ?? 0})</summary>
                     {subjects.length === 0 ? (

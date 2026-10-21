@@ -4,7 +4,7 @@ import { invalid } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { parseAmount } from "@/lib/finance/money";
 import { actorOf, writeAudit } from "@/server/audit";
-import { DOCUMENT_TYPES } from "@/server/documents";
+import { DOCUMENT_TYPES } from "@/lib/admissions/document-types";
 import { checkbox, parse } from "@/lib/validation";
 
 /*

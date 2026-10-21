@@ -172,3 +172,13 @@ export async function admissionQueues(ctx: AuthContext): Promise<QueueItem[]> {
   }
   return out;
 }
+
+/** Active students per class in the current year with each class's capacity, so screens can show "12 of 40 places taken" before placing someone. */
+export async function classOccupancy(schoolId: string): Promise<Map<string, { count: number; capacity: number | null }>> {
+  const year = await db.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } });
+  const [classes, counts] = await Promise.all([
+    db.schoolClass.findMany({ where: { schoolId }, select: { id: true, capacity: true } }),
+    year ? db.studentEnrollment.groupBy({ by: ["classId"], where: { schoolId, academicYearId: year.id, status: "ACTIVE" }, _count: { _all: true } }) : [],
+  ]);
+  return new Map(classes.map((c) => [c.id, { count: counts.find((x) => x.classId === c.id)?._count._all ?? 0, capacity: c.capacity }]));
+}

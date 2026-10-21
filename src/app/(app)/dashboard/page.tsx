@@ -14,9 +14,10 @@ import { headHome } from "@/server/head-home";
 import { adminHome } from "@/server/admin-home";
 import * as ov from "@/server/school-overview";
 import { classCollectionReport } from "@/server/finance-reports";
+import { admissionOverview, admissionQueues } from "@/server/admission-queues";
 import { TeacherDashboard } from "./teacher";
 import { AccountantDashboard, HeadDashboard, RegistrarDashboard, SetupSection, type HomeProps } from "./roles";
-import { AdmissionsSection, AttentionSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LatestSection, LearningSection, MyRegistersSection, ResultsSection, StudentsSection, type DashEnv, type Overview } from "./sections";
+import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LatestSection, LearningSection, MyRegistersSection, ResultsSection, StudentsSection, type DashEnv, type Overview } from "./sections";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -47,7 +48,7 @@ export default async function DashboardPage() {
   }
 
   // School data panels: each is gated by the permission of its detail screen and fails alone, never the whole page.
-  const [byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles] = await Promise.all([
+  const [byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles, admOverview, admQueues] = await Promise.all([
     optional("students", () => ov.studentsByClassGender(ctx)),
     optional("attendance", () => ov.attendanceDaily(ctx)),
     optional("absent", () => ov.absentToday(ctx)),
@@ -58,11 +59,13 @@ export default async function DashboardPage() {
     optional("behaviour", () => ov.behaviourDaily(ctx)),
     optional("events", () => ov.upcomingEvents(ctx)),
     optional("staff", () => ov.staffByRole(ctx)),
+    can("admission.read") ? optional("admissionOverview", () => admissionOverview(ctx)) : null,
+    optional("admissionQueues", () => admissionQueues(ctx)),
   ]);
   const o: Overview = { byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles };
   const fmtDay = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), locale).slice(0, 6);
   const money = (c: number) => formatMoney(c, school.currency);
-  const env: DashEnv = { t, locale, money, fmtDay, school: { timezone: school.timezone, currency: school.currency, name: school.name }, d, o };
+  const env: DashEnv = { t, locale, money, fmtDay, school: { timezone: school.timezone, currency: school.currency, name: school.name }, d, o, adm: { overview: admOverview, queues: admQueues ?? [] } };
   const props: HomeProps = { env, first, hour, portal, today: d.today, can };
 
   if (kind === "head") return <HeadDashboard props={props} head={await optional("head", () => headHome(ctx))} />;
@@ -121,6 +124,7 @@ export default async function DashboardPage() {
       {nothingToShow && <EmptyState><p className="font-semibold text-ink">{t("dash.empty.title")}</p><p className="mt-1">{t("dash.empty.body")}</p></EmptyState>}
 
       {setup && <SetupSection env={env} setup={setup} />}
+      <QueueSection env={env} />
       <KpiSection env={env} />
       <AttentionSection env={env} />
       <ClassesSection env={env} />
