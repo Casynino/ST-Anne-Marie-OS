@@ -4,7 +4,7 @@
  *   logo.(png|svg|webp)        header/footer logo          og.(jpg|png)       social sharing image (1200x630)
  *   hero.(jpg|webp)  hero-2.*  hero-3.*   home page picture composition
  *   about.(jpg|webp)           about picture
- *   gallery/NN-name.*          gallery (up to 12, sorted by file name)
+ *   gallery/NN-name.*          gallery (up to 24, sorted by file name)
  *   notices/name.*             the school's own notice posters (admissions etc.), usable as news pictures
  * Optional public/site/meta.json: { "gallery/01-x.jpg": { "alt": "...", "caption": "..." } } gives accessible
  * descriptions and captions. Pixel sizes are read from the files so pages reserve space (no layout shift).
@@ -42,7 +42,7 @@ const media = {
   og: named("og"),
   hero: ["hero", "hero-2", "hero-3"].map(named).filter(Boolean),
   about: named("about"),
-  gallery: list(join(ROOT, "gallery")).slice(0, 12).map((f) => describe(`gallery/${f}`)),
+  gallery: list(join(ROOT, "gallery")).slice(0, 24).map((f) => describe(`gallery/${f}`)),
   notices: list(join(ROOT, "notices")).map((f) => describe(`notices/${f}`)),
 };
 
