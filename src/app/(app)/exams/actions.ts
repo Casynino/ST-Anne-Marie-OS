@@ -38,3 +38,10 @@ export async function removeExamSubjectAction(_: ActionState, form: FormData) {
     return { message: makeT(ctx.locale)("common.saved") };
   });
 }
+
+export async function scheduleSittingAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    await exams.scheduleSitting(ctx, str(i.examSubjectId), { sittingOn: i.sittingOn, startsAt: i.startsAt, venue: i.venue });
+    return { message: makeT(ctx.locale)("common.saved") };
+  });
+}

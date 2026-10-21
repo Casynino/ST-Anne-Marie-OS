@@ -3173,4 +3173,10 @@ export const sw: Record<MessageKey, string> = {
   "adm.q.tasksFINANCE": "Majukumu ya Fedha",
   "adm.q.tasksHR": "Majukumu ya ajira",
   "adm.q.tasksADMIN": "Majukumu ya utawala",
+  "tr.cancel": "Ghairi ombi",
+  "exam.sitting": "Anafanya",
+  "exam.sitting.set": "Weka tarehe, saa na mahali",
+  "exam.sitting.time": "Saa ya kuanza",
+  "exam.sitting.venue": "Mahali",
+  "adm.q.tasksOverdue": "Majukumu yaliyopita muda (idara zote)",
 };

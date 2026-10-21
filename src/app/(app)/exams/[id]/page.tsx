@@ -11,7 +11,7 @@ import { listScales } from "@/server/grading";
 import { listSubmissions } from "@/server/marks";
 import { Badge, Card, DataTable, DefList, EmptyState, NoAccess, PageHeader, Td } from "@/components/ui";
 import { ActionForm, CheckGroup, Field } from "@/components/form";
-import { addExamSubjectsAction, deleteExamAction, removeExamSubjectAction, updateExamAction } from "../actions";
+import { addExamSubjectsAction, deleteExamAction, removeExamSubjectAction, scheduleSittingAction, updateExamAction } from "../actions";
 import { bulkMarksAction } from "../../marks/actions";
 
 export const metadata: Metadata = { title: "Examination" };
@@ -37,6 +37,7 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
   const approved = subs.filter((s) => s.status === "APPROVED").map((s) => s.id);
   const count = (s: string) => subs.filter((x) => x.status === s).length;
   const esBySub = new Map(data.examSubjects.map((e) => [`${e.classId}:${e.subjectId}`, e.id]));
+  const sittingBySub = new Map(data.examSubjects.map((e) => [`${e.classId}:${e.subjectId}`, e]));
 
   return (
     <>
@@ -85,7 +86,7 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
                 <DataTable head={[t("exam.subject"), t("exam.stream"), t("marks.status"), t("marks.progress"), ""]} empty={rows.length ? undefined : <p className="px-4 py-6 text-center text-sm text-muted">{t("exam.noVisible")}</p>}>
                   {rows.map((s) => (
                     <tr key={s.id}>
-                      <Td className="font-medium">{s.subjectName}</Td>
+                      <Td className="font-medium">{s.subjectName}{(() => { const sit = sittingBySub.get(`${s.classId}:${s.subjectId}`); return sit?.sittingOn ? <span className="block text-xs font-normal text-muted">{t("exam.sitting")}: {displayDate(sit.sittingOn, ctx.locale)}{sit.startsAt ? ` ${sit.startsAt}` : ""}{sit.venue ? ` · ${sit.venue}` : ""}</span> : null; })()}</Td>
                       <Td>{s.streamName ?? "—"}</Td>
                       <Td>
                         <Badge tone={SUBMISSION_TONE[s.status as keyof typeof SUBMISSION_TONE]}>{t(`marks.status.${s.status}` as never)}</Badge>
@@ -95,6 +96,16 @@ export default async function ExamPage({ params }: { params: Promise<{ id: strin
                       <Td className="text-right">
                         <span className="inline-flex items-center gap-3">
                           <Link href={`/marks/${s.id}`} className="text-sm font-medium text-link hover:underline">{s.canEnter && (s.status === "DRAFT" || s.status === "RETURNED") ? t("marks.enter") : t("common.view")}</Link>
+                          {canManage && esBySub.get(`${s.classId}:${s.subjectId}`) && (
+                            <details><summary className="min-h-9 cursor-pointer text-xs text-link">{t("exam.sitting.set")}</summary>
+                              <ActionForm action={scheduleSittingAction} inline submitLabel={t("common.save")} className="mt-2 space-y-2">
+                                <input type="hidden" name="examSubjectId" value={esBySub.get(`${s.classId}:${s.subjectId}`)} />
+                                <Field name="sittingOn" type="date" label={t("fin.pdf.date")} defaultValue={sittingBySub.get(`${s.classId}:${s.subjectId}`)?.sittingOn?.toISOString().slice(0, 10) ?? ""} />
+                                <Field name="startsAt" label={t("exam.sitting.time")} placeholder="09:00" defaultValue={sittingBySub.get(`${s.classId}:${s.subjectId}`)?.startsAt ?? ""} />
+                                <Field name="venue" label={t("exam.sitting.venue")} defaultValue={sittingBySub.get(`${s.classId}:${s.subjectId}`)?.venue ?? ""} />
+                              </ActionForm>
+                            </details>
+                          )}
                           {canManage && s.entered === 0 && esBySub.get(`${s.classId}:${s.subjectId}`) && (
                             <ActionForm action={removeExamSubjectAction} inline tone="danger" submitLabel={t("common.remove")} confirm={t("exam.confirmRemove")}>
                               <input type="hidden" name="examSubjectId" value={esBySub.get(`${s.classId}:${s.subjectId}`)} />

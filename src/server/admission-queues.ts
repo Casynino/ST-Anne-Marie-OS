@@ -172,7 +172,10 @@ export async function admissionQueues(ctx: AuthContext): Promise<QueueItem[]> {
     push("awaitingPayment", derived, "/finance/admissions");
   }
   // Hand-off tasks from other steps (class placement, concerns, onboarding, fee reminders), per department the person may see.
-  for (const c of await taskCounts(ctx)) push(`tasks${c.department}`, c.open, `/tasks?department=${c.department}`);
+  const counts = await taskCounts(ctx);
+  for (const c of counts) push(`tasks${c.department}`, c.open, `/tasks?department=${c.department}`);
+  // The administrator's oversight: work that has gone past its date in any department.
+  if (can("tasks.admin")) push("tasksOverdue", counts.reduce((n, c) => n + c.overdue, 0), "/tasks?state=overdue");
   return out;
 }
 

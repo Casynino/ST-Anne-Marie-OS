@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db, type Tx } from "@/lib/db";
 import { conflict, invalid, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
+import { formatDateOnly } from "@/lib/dates";
 import { actorOf, writeAudit } from "@/server/audit";
 import { optDateOnly, optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
@@ -149,6 +150,21 @@ export async function addExamSubjects(ctx: AuthContext, examId: string, input: u
     await writeAudit(tx, actorOf(ctx), { action: "exam.subjects_add", entityType: "Exam", entityId: examId, summary: exam.name, changes: { added, classes: classes.length } });
   });
   return { added };
+}
+
+const sittingSchema = z.object({ sittingOn: optDateOnly(), startsAt: z.preprocess((v) => (v === "" ? undefined : v), z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/, "Enter a time such as 09:00").optional()), venue: optText(80) });
+
+/** The examination timetable: when and where one class sits one subject. Blank fields clear the entry. Families see it for their child's class. */
+export async function scheduleSitting(ctx: AuthContext, examSubjectId: string, input: unknown) {
+  requirePermission(ctx, "exam.manage");
+  const d = parse(sittingSchema, input);
+  const es = await db.examSubject.findFirst({ where: { id: examSubjectId, schoolId: ctx.schoolId }, include: { exam: { select: { name: true } } } });
+  if (!es) throw notFound("Examination subject");
+  if (d.startsAt && !d.sittingOn) throw invalid("Please correct the highlighted fields.", { sittingOn: "Choose the date as well" });
+  await db.$transaction(async (tx) => {
+    await tx.examSubject.update({ where: { id: examSubjectId }, data: { sittingOn: d.sittingOn ?? null, startsAt: d.startsAt ?? null, venue: d.venue ?? null } });
+    await writeAudit(tx, actorOf(ctx), { action: "exam.sitting_schedule", entityType: "Exam", entityId: es.examId, summary: es.exam.name, changes: { examSubjectId, sittingOn: d.sittingOn ? formatDateOnly(d.sittingOn) : null, startsAt: d.startsAt ?? null, venue: d.venue ?? null } });
+  });
 }
 
 /** Removes a subject from an examination, only while no marks exist for it. */

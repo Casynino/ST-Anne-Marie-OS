@@ -48,6 +48,7 @@ let n = 61000 + Math.floor(Math.random() * 9_000_000); // phones and emails are 
 const code = async (p: Promise<unknown>) => ((await p.then(() => null, (e) => e)) as AppError | null)?.code ?? null;
 const PDF = Buffer.concat([Buffer.from("%PDF-1.4\n"), Buffer.alloc(200, 0x20)]);
 const inDays = (d: number, h = 9) => { const t = new Date(Date.now() + d * 86_400_000); t.setUTCHours(h, 0, 0, 0); return t.toISOString(); };
+const plusDate = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
 const tasksOf = (kind: string, relatedId: string) => db.workflowTask.findMany({ where: { schoolId: school.id, kind, relatedId } });
 
 beforeAll(async () => {
@@ -179,6 +180,11 @@ describe("14-17: examination to published result", () => {
   it("14-16. the teacher enters marks, the Academic Office approves and locks, the report card is published", async () => {
     const exam = await exams.createExam(academic, { termId: setup.term.id, name: "Terminal", category: "TERMINAL", maxMarks: "100", weight: "100" });
     await exams.addExamSubjects(academic, exam.id, { classIds: [setup.cls.id] });
+    const sitting = await db.examSubject.findFirstOrThrow({ where: { examId: exam.id } });
+    expect(await code(exams.scheduleSitting(teacher, sitting.id, { sittingOn: plusDate(5), startsAt: "09:00", venue: "Hall" }))).toBe("FORBIDDEN");
+    expect(await code(exams.scheduleSitting(academic, sitting.id, { sittingOn: plusDate(5), startsAt: "9am" }))).toBe("VALIDATION");
+    await exams.scheduleSitting(academic, sitting.id, { sittingOn: plusDate(5), startsAt: "09:00", venue: "Main hall" }); // the examination timetable
+    expect((await academicDesk(academic)).calendar.sittings.map((s) => s.venue)).toContain("Main hall");
     const unit = (await marks.listSubmissions(teacher, { examId: exam.id }))[0]!;
     await marks.saveMarks(teacher, unit.id, { entries: [{ studentId, score: 78 }] });
     expect(await code(marks.approveMarks(teacher, unit.id))).toBe("FORBIDDEN"); // a teacher cannot approve their own results
@@ -197,6 +203,7 @@ describe("14-17: examination to published result", () => {
     parent = await buildAuthContext((await db.guardian.findUniqueOrThrow({ where: { id: guardianId } })).userId!);
     const progress = await portal.childProgress(parent, studentId);
     expect(progress.latest?.subjects[0]).toMatchObject({ name: "Mathematics", percent: 78 });
+    expect((await portal.childAcademicNotices(parent, studentId)).exams[0]).toMatchObject({ examName: "Terminal", subject: "Mathematics", startsAt: "09:00", venue: "Main hall" }); // upcoming examinations
     const other = await db.student.findFirstOrThrow({ where: { schoolId: school.id, id: { not: studentId } } }).catch(() => null);
     if (other) expect(await code(portal.childProgress(parent, other.id))).toBe("NOT_FOUND");
     expect(await code(portal.childProgress(teacher, studentId))).toBe("FORBIDDEN");
@@ -249,8 +256,6 @@ describe("21-22: a teacher is recruited and onboarded", () => {
     expect((await workflow.listTasks(accountant, { department: "FINANCE" })).items.some((x) => x.kind === "PAYROLL_ONBOARDING")).toBe(true);
   });
 });
-
-const plusDate = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString().slice(0, 10);
 
 describe("23: the administrator oversees the whole school", () => {
   it("sees school-wide figures, every department's tasks and the audit trail", async () => {

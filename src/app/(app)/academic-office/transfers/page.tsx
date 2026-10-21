@@ -60,7 +60,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
                       <ActionForm action={applyTransferAction} submitLabel={t("tr.apply")} inline className="space-y-1">{hid(r.id)}{can("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} /></>}</ActionForm>
                     )}
                     {(r.status === "REQUESTED" || r.status === "APPROVED") && (r.requestedById === ctx.userId || can("transfer.approve")) && (
-                      <details><summary className="min-h-9 cursor-pointer text-xs text-muted">{t("adm.iv.cancel")}</summary><ActionForm action={cancelTransferAction} submitLabel={t("adm.iv.cancel")} inline tone="danger" className="mt-2 space-y-1">{hid(r.id)}<Field name="reason" label={t("marks.reason")} required /></ActionForm></details>
+                      <details><summary className="min-h-9 cursor-pointer text-xs text-muted">{t("tr.cancel")}</summary><ActionForm action={cancelTransferAction} submitLabel={t("tr.cancel")} inline tone="danger" className="mt-2 space-y-1">{hid(r.id)}<Field name="reason" label={t("marks.reason")} required /></ActionForm></details>
                     )}
                   </Td>
                 </tr>

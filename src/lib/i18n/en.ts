@@ -3171,6 +3171,12 @@ export const en = {
   "adm.q.tasksFINANCE": "Finance tasks",
   "adm.q.tasksHR": "Staff recruitment tasks",
   "adm.q.tasksADMIN": "Administration tasks",
+  "tr.cancel": "Cancel the request",
+  "exam.sitting": "Sits",
+  "exam.sitting.set": "Set date, time and venue",
+  "exam.sitting.time": "Start time",
+  "exam.sitting.venue": "Venue",
+  "adm.q.tasksOverdue": "Tasks past their date (all departments)",
 } as const;
 
 export type MessageKey = keyof typeof en;
