@@ -94,3 +94,16 @@ export function completeness(a: { checklist: { docType: string; state: DocState 
   const done = items.filter((i) => i.ok).length;
   return { percent: Math.round((done / items.length) * 100), complete: done === items.length, missing: items.filter((i) => !i.ok), checked: a.checklist.filter((c) => c.state === "VERIFIED").length, required: a.checklist.length };
 }
+
+/** How far an application has got on the road received, reviewed, interview, decision, enrolled (0 to 5 steps done; a closed one shows none). */
+export const WORKFLOW_STEPS = 5;
+export function workflowProgress(state: WorkflowState): number {
+  switch (state) {
+    case "NEW": case "UNDER_REVIEW": case "NEEDS_INFO": return 1;
+    case "REVIEWED": case "INTERVIEW_SCHEDULED": return 2;
+    case "AWAITING_DECISION": return 3;
+    case "ACCEPTED": return 4;
+    case "ENROLLED": return 5;
+    default: return 0;
+  }
+}

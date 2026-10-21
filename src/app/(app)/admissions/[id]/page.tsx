@@ -12,7 +12,8 @@ import { getSchoolBasics } from "@/server/settings";
 import { getAdmissionPolicy, requiredDocsFor } from "@/server/admission-policy";
 import { documentReadiness } from "@/server/admission-review";
 import { enrolmentReadiness, loadAdmissionAccount } from "@/server/admission-offers";
-import { interviewsOfApplication, listInterviewers } from "@/server/interviews";
+import { interviewsOfApplication, listInterviewers, upcomingInterviewSlots } from "@/server/interviews";
+import { Printer } from "lucide-react";
 import { deskRow } from "@/server/admission-desk";
 import { acceptanceReadiness } from "@/server/admission-offers";
 import { listReviewers } from "@/server/admission-review";
@@ -47,7 +48,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const can = (p: Parameters<typeof ctx.permissions.has>[0]) => ctx.permissions.has(p);
   const now = Date.now();
 
-  const [policy, docs, ivs, interviewers, acct, docsReady, gate, allClasses, occupancy, exceptionUser, row, ready, reviewers, notices] = await Promise.all([
+  const [policy, docs, ivs, interviewers, acct, docsReady, gate, allClasses, occupancy, exceptionUser, row, ready, reviewers, notices, slotRows, feeDraft] = await Promise.all([
     getAdmissionPolicy(db, ctx.schoolId),
     can("document.read") ? listDocuments(ctx, { applicationId: id }) : [],
     interviewsOfApplication(ctx, id),
@@ -62,6 +63,8 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     acceptanceReadiness(db, ctx.schoolId, app),
     listReviewers(ctx),
     noticesOf(db, ctx.schoolId, id),
+    can("admission.interview.manage") ? upcomingInterviewSlots(ctx) : [],
+    db.applicationDraft.findUnique({ where: { applicationId: id }, select: { id: true, paidAt: true, receiptNo: true } }),
   ]);
   const reviewer = app.reviewedById ? await db.user.findFirst({ where: { id: app.reviewedById, schoolId: ctx.schoolId }, select: { fullName: true } }) : null;
   const classes = allClasses.filter((c) => c.isActive);
@@ -84,7 +87,13 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
       <PageHeader
         title={`${app.firstName} ${app.middleName ?? ""} ${app.lastName}`}
         subtitle={`${app.applicationNo} · ${t(`adm.status.${app.status}`)} · ${t(`adm.channel.${app.source}` as "adm.channel.ONLINE")}`}
-        actions={open && can("admission.create") ? <LinkButton href={`/admissions/${id}/edit`} variant="secondary">{t("adm.edit")}</LinkButton> : undefined}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <a href={`/api/applications/${id}/form`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-semibold hover:bg-canvas"><Printer className="size-4" aria-hidden />{t("adm.app.print")}</a>
+            {feeDraft?.paidAt && feeDraft.receiptNo && <a href={`/api/applications/${feeDraft.id}/receipt`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-semibold hover:bg-canvas"><Printer className="size-4" aria-hidden />{t("adm.app.receipt")}</a>}
+            {open && can("admission.create") && <LinkButton href={`/admissions/${id}/edit`} variant="secondary">{t("adm.edit")}</LinkButton>}
+          </div>
+        }
       />
       <AdmissionsNav ctx={ctx} t={t} current="/admissions" />
       <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">
@@ -94,6 +103,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
             interviewWaivedReason={app.interviewWaivedReason} open={open} can={can} reviewers={reviewers} interviewers={interviewers} defaultMinutes={policy.interviewMinutes} ready={ready}
             checklistOpen={docsReady.checklist.filter((c) => c.state !== "VERIFIED" && !app.docsExceptionAt)} offerStatus={offer?.status ?? null} account={acct.account ? { requiredCents: acct.account.requiredCents } : null}
             currency={school.currency} notices={notices} locale={ctx.locale} timezone={school.timezone}
+            slots={slotRows.map((x) => ({ local: x.local, label: t("adm.slot.label", { when: x.when, n: x.count }) }))}
           />
           {app.student && (
             <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-ok">

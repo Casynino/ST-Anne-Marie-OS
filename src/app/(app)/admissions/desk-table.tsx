@@ -8,11 +8,11 @@ import { Badge } from "@/components/ui";
 
 export type DeskLine = {
   id: string; applicationNo: string; name: string; className: string | null; guardian: string | null; phone: string | null; submitted: string; online: boolean;
-  state: string; stateLabel: string; stateTone: "neutral" | "ok" | "warn" | "bad" | "brand";
+  state: string; stateLabel: string; stateTone: "neutral" | "ok" | "warn" | "bad" | "brand"; step: number; stepLabel: string;
   interviewLabel: string; interviewDetail: string | null; percent: number; missing: string[]; assignedTo: string | null; attention: string[];
 };
 type Mode = "START_REVIEW" | "MARK_REVIEWED" | "ASSIGN";
-export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "assigned" | "status" | "open" | "online" | "selectAll" | "start" | "review" | "assign" | "assignTo" | "go" | "cancel" | "dismiss" | "never" | "unassigned" | "choose", string>
+export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "assigned" | "status" | "online" | "selectAll" | "start" | "review" | "assign" | "assignTo" | "go" | "cancel" | "dismiss" | "never" | "unassigned" | "choose", string>
   & { selected: string; selectRow: string; confirm: Record<Mode, string>; done: string; unchanged: string; failed: string };
 
 /**
@@ -77,11 +77,11 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
       )}
 
       <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-[var(--shadow-card)]">
-        <table className="w-full min-w-[60rem] text-left text-sm">
+        <table className="w-full min-w-[56rem] text-left text-sm">
           <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
             <tr>
               {selectable && <th scope="col" className="w-10 px-3 py-3"><input type="checkbox" aria-label={labels.selectAll} checked={all} onChange={() => setPicked(all ? [] : rows.map((r) => r.id))} className="size-4 accent-brand-600" /></th>}
-              {[labels.applicant, labels.guardian, labels.class, labels.submitted, labels.complete, labels.interview, labels.assigned, labels.status, ""].map((h, i) => <th key={i} scope="col" className="px-3 py-3 font-medium">{h}</th>)}
+              {[labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, labels.submitted, labels.assigned].map((h, i) => <th key={i} scope="col" className="px-3 py-3 font-medium">{h}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -92,20 +92,24 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                   <Link href={`/admissions/${r.id}`} className="font-semibold text-link hover:underline">{r.name}</Link>
                   <span className="block text-xs tabular-nums text-muted">{r.applicationNo}{r.online ? ` · ${labels.online}` : ""}</span>
                 </td>
-                <td className="px-3 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
-                <td className="whitespace-nowrap px-3 py-3">{r.className ?? "—"}</td>
-                <td className="whitespace-nowrap px-3 py-3 text-muted">{r.submitted}</td>
+                <td className="px-3 py-3">
+                  <span className="flex items-center gap-1.5">
+                    <Badge tone={r.stateTone}>{r.stateLabel}</Badge>
+                    {r.attention.length > 0 && <span title={r.attention.join("\n")} className="inline-flex text-warn"><AlertTriangle className="size-4" aria-label={r.attention.join(", ")} /></span>}
+                  </span>
+                  <span role="img" aria-label={r.stepLabel} title={r.stepLabel} className="mt-1.5 flex w-24 gap-0.5">
+                    {[1, 2, 3, 4, 5].map((n) => <span key={n} className={`h-1 flex-1 rounded-sm ${n <= r.step ? (r.stateTone === "bad" ? "bg-bad" : "bg-brand-500") : "bg-line"}`} />)}
+                  </span>
+                </td>
                 <td className="px-3 py-3" title={r.missing.join(", ")}>
-                  <span className="flex items-center gap-2"><span aria-hidden className="h-1.5 w-14 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full" style={{ width: `${r.percent}%`, background: r.percent === 100 ? "var(--color-ok)" : r.percent >= 60 ? "var(--color-warn)" : "var(--color-bad)" }} /></span><span className="tabular-nums">{r.percent}%</span></span>
+                  <span className="flex items-center gap-2"><span aria-hidden className="h-1.5 w-16 overflow-hidden rounded-sm bg-line"><span className="block h-full" style={{ width: `${r.percent}%`, background: r.percent === 100 ? "var(--color-ok)" : r.percent >= 60 ? "var(--color-warn)" : "var(--color-bad)" }} /></span><span className="tabular-nums">{r.percent}%</span></span>
                   {r.missing.length > 0 && <span className="block max-w-[11rem] truncate text-xs text-muted">{r.missing.join(", ")}</span>}
                 </td>
                 <td className="px-3 py-3"><span className="block">{r.interviewLabel}</span>{r.interviewDetail && <span className="block whitespace-nowrap text-xs text-muted">{r.interviewDetail}</span>}</td>
+                <td className="whitespace-nowrap px-3 py-3">{r.className ?? "—"}</td>
+                <td className="px-3 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
+                <td className="whitespace-nowrap px-3 py-3 text-muted">{r.submitted}</td>
                 <td className="px-3 py-3 text-muted">{r.assignedTo ?? labels.unassigned}</td>
-                <td className="px-3 py-3">
-                  <Badge tone={r.stateTone}>{r.stateLabel}</Badge>
-                  {r.attention.length > 0 && <span title={r.attention.join("\n")} className="ml-2 inline-flex align-middle text-warn"><AlertTriangle className="size-4" aria-label={r.attention.join(", ")} /></span>}
-                </td>
-                <td className="whitespace-nowrap px-3 py-3 text-right"><Link href={`/admissions/${r.id}`} className="font-semibold text-link hover:underline">{labels.open}</Link></td>
               </tr>
             ))}
           </tbody>

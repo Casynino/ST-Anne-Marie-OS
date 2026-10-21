@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { Plus } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
@@ -9,10 +8,13 @@ import { loadDesk, INTERVIEW_STATES, type DeskFilters } from "@/server/admission
 import { listReviewers } from "@/server/admission-review";
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { ExportMenu } from "@/components/export-menu";
-import { EmptyState, FilterBar, LinkButton, NoAccess, PageHeader, Pagination } from "@/components/ui";
-import { Field } from "@/components/form";
+import { EmptyState, LinkButton, NoAccess, PageHeader, Pagination } from "@/components/ui";
+import { inputClass } from "@/components/form";
+import { workflowProgress } from "@/lib/admissions/rules";
 import { DeskTable, type DeskLabels, type DeskLine } from "./desk-table";
 import { bulkDeskAction } from "./actions";
+import { Pipeline, type PipelineTab } from "./pipeline";
+import { DeskFilters as FilterRow } from "./desk-filters";
 
 export const metadata: Metadata = { title: "Admissions" };
 type Search = { q?: string; state?: string; classId?: string; from?: string; to?: string; interview?: string; assigned?: string; source?: string; attention?: string; page?: string };
@@ -42,53 +44,72 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
     const p = new URLSearchParams(Object.entries({ ...keep, ...extra }).filter(([, v]) => !!v) as [string, string][]);
     return p.size ? `/admissions?${p}` : "/admissions";
   };
-  const tabs: { key: string; label: string; n: number; to: string; on: boolean }[] = [
-    { key: "all", label: t("adm.stage.all"), n: c.total, to: href({}), on: !sp.state && sp.attention !== "1" },
+  const COLOR = { NEW: "var(--color-muted)", UNDER_REVIEW: "var(--color-indigo)", NEEDS_INFO: "var(--color-warn)", AWAITING_INTERVIEW: "var(--color-brand-300)", INTERVIEW_SCHEDULED: "var(--color-brand-400)", AWAITING_DECISION: "var(--color-sun-600)", ACCEPTED: "var(--color-brand-600)", ENROLLED: "var(--color-brand-800)", CLOSED: "var(--color-bad)" } as const;
+  const tabs: PipelineTab[] = [
+    { key: "all", label: t("adm.stage.all"), n: c.total, to: href({}), on: !sp.state && sp.attention !== "1", color: "var(--color-line)" },
     ...(["NEW", "UNDER_REVIEW", "NEEDS_INFO", "AWAITING_INTERVIEW", "INTERVIEW_SCHEDULED", "AWAITING_DECISION", "ACCEPTED", "ENROLLED", "CLOSED"] as const).map((s) => ({
-      key: s, label: t(`adm.state.${s}`), n: s === "AWAITING_INTERVIEW" ? c.awaitingInterview : s === "CLOSED" ? c.closed : c[s], to: href({ state: s }), on: sp.state === s,
+      key: s, label: t(`adm.tab.${s}`), color: COLOR[s], to: href({ state: s }), on: sp.state === s,
+      n: s === "AWAITING_INTERVIEW" ? c.awaitingInterview : s === "CLOSED" ? c.closed : c[s],
+      // "to interview" is the part of Reviewed that still has no interview, so the bar uses all of Reviewed there and counts nobody twice
+      bar: s === "AWAITING_INTERVIEW" ? c.REVIEWED : undefined,
     })),
-    { key: "attention", label: t("adm.state.ATTENTION"), n: c.attention, to: href({ attention: "1" }), on: sp.attention === "1" },
+    { key: "attention", label: t("adm.tab.ATTENTION"), n: c.attention, to: href({ attention: "1" }), on: sp.attention === "1", color: "var(--color-warn)", alert: true },
   ];
   const lines: DeskLine[] = desk.rows.map((r) => ({
     id: r.id, applicationNo: r.applicationNo, name: r.name, className: r.className, guardian: r.guardianName, phone: r.guardianPhone, submitted: displayDate(r.submittedAt, ctx.locale), online: r.source === "ONLINE",
-    state: r.state, stateLabel: t(`adm.state.${r.state}`), stateTone: TONE[r.state],
+    state: r.state, stateLabel: t(`adm.state.${r.state}`), stateTone: TONE[r.state], step: workflowProgress(r.state), stepLabel: t("adm.progress", { n: String(workflowProgress(r.state)) }),
     interviewLabel: t(`adm.ivs.${r.interview}`), interviewDetail: r.interviewAt ? displayDateTime(r.interviewAt, school.timezone, ctx.locale) : null,
     percent: r.completeness.percent,
     missing: r.completeness.missing.map((k) => (k.startsWith("doc:") ? t(`doc.type.${k.slice(4) as "OTHER"}`) : k === "class" ? t("adm.missing.class") : t("adm.missing.contact"))),
     assignedTo: r.assignedTo, attention: r.attention.map((a) => t(`adm.attn.${a}`)),
   }));
   const labels: DeskLabels = {
-    applicant: t("adm.applicant"), guardian: t("adm.guardian"), class: t("adm.classApplied"), submitted: t("adm.appliedOn"), complete: t("adm.col.complete"), interview: t("adm.col.interview"), assigned: t("adm.col.assigned"), status: t("common.status"), open: t("adm.col.open"),
+    applicant: t("adm.applicant"), guardian: t("adm.guardian"), class: t("adm.classApplied"), submitted: t("adm.appliedOn"), complete: t("adm.col.complete"), interview: t("adm.col.interview"), assigned: t("adm.col.assigned"), status: t("common.status"),
     online: t("adm.online"), selectAll: t("adm.bulk.selectAll"), start: t("adm.bulk.start"), review: t("adm.bulk.review"), assign: t("adm.bulk.assign"), assignTo: t("adm.bulk.assignTo"), go: t("adm.bulk.go"), cancel: t("adm.bulk.cancel"), dismiss: t("adm.bulk.dismiss"),
     never: t("adm.bulk.never"), unassigned: t("adm.unassigned"), choose: t("common.select"),
     selected: t("adm.bulk.selected", { n: "{n}" }), selectRow: t("adm.bulk.selectRow", { name: "{name}" }),
     confirm: { START_REVIEW: t("adm.bulk.confirm.START_REVIEW", { n: "{n}" }), MARK_REVIEWED: t("adm.bulk.confirm.MARK_REVIEWED", { n: "{n}" }), ASSIGN: t("adm.bulk.confirm.ASSIGN", { n: "{n}" }) },
     done: t("adm.bulk.done", { n: "{n}" }), unchanged: t("adm.bulk.unchanged", { n: "{n}" }), failed: t("adm.bulk.failed", { n: "{n}" }),
   };
+  const filtersOn = !!(sp.q || sp.classId || sp.from || sp.to || sp.interview || sp.assigned || sp.source);
+  const SEL = `${inputClass} !min-h-10 !w-auto !py-1.5 !text-sm`;
   const exportQuery = new URLSearchParams({ desk: "1", ...Object.fromEntries(Object.entries({ ...keep, state: sp.state, attention: sp.attention }).filter(([, v]) => !!v) as [string, string][]) });
 
   return (
     <>
       <PageHeader title={t("adm.title")} actions={<div className="flex flex-wrap items-center gap-2">{can("admission.read") && <ExportMenu base={`/api/export/admissions?${exportQuery}`} t={t} />}{can("admission.create") && <LinkButton href="/admissions/new"><Plus className="size-4" aria-hidden /> {t("adm.new")}</LinkButton>}</div>} />
       <AdmissionsNav ctx={ctx} t={t} current="/admissions" />
-      <nav aria-label={t("common.status")} className="mb-3 flex flex-wrap gap-1.5">
-        {tabs.map((x) => (
-          <Link key={x.key} href={x.to} aria-current={x.on ? "page" : undefined} className={`inline-flex min-h-9 items-center gap-2 rounded-md px-3 text-sm font-medium ${x.on ? "bg-brand-700 text-white" : "border border-line bg-surface hover:bg-canvas"}`}>
-            {x.label}<span className={`tabular-nums ${x.on ? "text-white/80" : x.key === "attention" && x.n > 0 ? "font-semibold text-warn" : "text-muted"}`}>{x.n}</span>
-          </Link>
-        ))}
-      </nav>
-      <FilterBar t={t} resetHref="/admissions">
+      <Pipeline tabs={tabs} label={t("common.status")} />
+      <FilterRow resetHref="/admissions" active={filtersOn} clearLabel={t("common.clear")} moreLabel={t("adm.f.more")} moreOpen={!!(sp.from || sp.to || sp.source)}
+        more={<>
+          <label className="flex items-center gap-2 text-sm text-muted">{t("adm.f.from.short")}<input type="date" name="from" defaultValue={sp.from} aria-label={t("adm.f.from")} className={SEL} /></label>
+          <label className="flex items-center gap-2 text-sm text-muted">{t("adm.f.to.short")}<input type="date" name="to" defaultValue={sp.to} aria-label={t("adm.f.to")} className={SEL} /></label>
+          <select name="source" defaultValue={sp.source ?? ""} aria-label={t("adm.channel")} className={SEL}>
+            <option value="">{t("adm.f.anyChannel")}</option>
+            <option value="ONLINE">{t("adm.channel.ONLINE")}</option>
+            <option value="STAFF">{t("adm.channel.STAFF")}</option>
+          </select>
+        </>}
+      >
         {sp.state && <input type="hidden" name="state" value={sp.state} />}
         {sp.attention === "1" && <input type="hidden" name="attention" value="1" />}
-        <Field name="q" label={t("common.search")} defaultValue={sp.q} placeholder={t("adm.search")} className="min-w-52 flex-1" />
-        <Field name="classId" label={t("adm.f.class")} type="select" defaultValue={sp.classId} placeholder={t("common.all")} options={classes.filter((x) => x.isActive).map((x) => ({ value: x.id, label: x.name }))} />
-        <Field name="from" label={t("adm.f.from")} type="date" defaultValue={sp.from} />
-        <Field name="to" label={t("adm.f.to")} type="date" defaultValue={sp.to} />
-        <Field name="interview" label={t("adm.f.interview")} type="select" defaultValue={sp.interview} placeholder={t("common.all")} options={INTERVIEW_STATES.map((s) => ({ value: s, label: t(`adm.ivs.${s}`) }))} />
-        <Field name="assigned" label={t("adm.f.assigned")} type="select" defaultValue={sp.assigned} placeholder={t("common.all")} options={[{ value: "me", label: t("adm.f.assigned.me") }, { value: "none", label: t("adm.f.assigned.none") }, ...reviewers.filter((r) => r.id !== ctx.userId).map((r) => ({ value: r.id, label: r.fullName }))]} />
-        <Field name="source" label={t("adm.channel")} type="select" defaultValue={sp.source} placeholder={t("common.all")} options={[{ value: "ONLINE", label: t("adm.channel.ONLINE") }, { value: "STAFF", label: t("adm.channel.STAFF") }]} />
-      </FilterBar>
+        <input type="search" name="q" defaultValue={sp.q} placeholder={t("adm.f.search.ph")} aria-label={t("common.search")} className={`${inputClass} !min-h-10 min-w-48 flex-1 !py-1.5 !text-sm`} />
+        <select name="classId" defaultValue={sp.classId ?? ""} aria-label={t("adm.f.class")} className={SEL}>
+          <option value="">{t("adm.f.allClasses")}</option>
+          {classes.filter((x) => x.isActive).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </select>
+        <select name="interview" defaultValue={sp.interview ?? ""} aria-label={t("adm.f.interview")} className={SEL}>
+          <option value="">{t("adm.f.anyInterview")}</option>
+          {INTERVIEW_STATES.map((st) => <option key={st} value={st}>{t(`adm.ivs.${st}`)}</option>)}
+        </select>
+        <select name="assigned" defaultValue={sp.assigned ?? ""} aria-label={t("adm.f.assigned")} className={SEL}>
+          <option value="">{t("adm.f.anyone")}</option>
+          <option value="me">{t("adm.f.assigned.me")}</option>
+          <option value="none">{t("adm.f.assigned.none")}</option>
+          {reviewers.filter((r) => r.id !== ctx.userId).map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+        </select>
+        <button className="inline-flex min-h-10 items-center rounded-md border border-line px-3 text-sm font-semibold hover:border-brand-500">{t("common.filter")}</button>
+      </FilterRow>
       {lines.length === 0 ? (
         <EmptyState>{t("adm.none")}</EmptyState>
       ) : (

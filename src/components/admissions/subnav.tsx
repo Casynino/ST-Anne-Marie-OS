@@ -7,6 +7,7 @@ export function AdmissionsNav({ ctx, t, current }: { ctx: AuthContext; t: Transl
   const has = (p: Parameters<AuthContext["permissions"]["has"]>[0]) => ctx.permissions.has(p);
   const items = [
     { href: "/admissions", label: t("adm.nav.applications"), show: has("admission.read") },
+    { href: "/admissions/drafts", label: t("adm.nav.drafts"), show: has("admission.read") },
     { href: "/admissions/interviews", label: t("adm.nav.interviews"), show: has("admission.read") || has("admission.interview.manage") },
     { href: "/admissions/placement", label: t("adm.nav.placement"), show: has("student.enroll") || has("admission.read") },
     { href: "/admissions/reports", label: t("adm.nav.reports"), show: has("admission.read") },

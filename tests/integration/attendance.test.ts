@@ -104,13 +104,14 @@ describe("taking attendance", () => {
     await freshRegister();
     expect(await code(submit(teacherB, [[0, "PRESENT"]]))).toBe("FORBIDDEN"); // assigned to stream B only
     expect(await code(submit(accountant, [[0, "PRESENT"]]))).toBe("FORBIDDEN");
+    expect(await code(submit(registrar, [[0, "PRESENT"]]))).toBe("FORBIDDEN"); // the registrar looks at attendance; taking it is the teachers' job
     expect(await code(submit(teacherA, [[0, "PRESENT"]], { date: "2999-01-01" }))).toBe("VALIDATION");
     expect(await code(att.submitAttendance(teacherA, { clientOpId: randomUUID(), kind: "SAVE_DRAFT", ...sheetInput(), entries: [{ studentId: randomUUID(), status: "PRESENT" }] }))).toBe("VALIDATION");
     expect(await code(submit(teacherA, [[0, "PRESENT"]], { sessionId: randomUUID() }))).toBe("VALIDATION");
     expect(await db.attendanceOperation.count({ where: { schoolId: school.id } })).toBe(0);
     expect(await db.studentAttendance.count({ where: { schoolId: school.id } })).toBe(0);
     // The registrar holds attendance.take_any and may record for any class.
-    expect((await submit(registrar, [[0, "PRESENT"]])).outcome).toBe("APPLIED");
+    expect((await submit(headTeacher, [[0, "PRESENT"]])).outcome).toBe("APPLIED");
   });
 
   it("is idempotent: replaying an operation id (even concurrently) never duplicates records", async () => {
@@ -131,7 +132,7 @@ describe("taking attendance", () => {
     await freshRegister();
     const id = randomUUID();
     const a = await submit(teacherA, [[0, "PRESENT"]], { clientOpId: id });
-    const b = await submit(registrar, [[0, "PRESENT"]], { clientOpId: id });
+    const b = await submit(headTeacher, [[0, "PRESENT"]], { clientOpId: id });
     expect(a.replay).toBe(false);
     expect(b.replay).toBe(false); // not a replay of teacher A's operation
   });
@@ -184,17 +185,17 @@ describe("conflicts and the keep-first-finalised policy", () => {
     await submit(teacherA, allPresent().slice(0, 3), { kind: "FINALISE" });
     await db.studentEnrollment.updateMany({ where: { studentId: late.id }, data: { status: "ACTIVE", endedOn: null } }); // (re)joins today
     const withLate = [...allPresent().slice(0, 3), [3, "ABSENT"] as [number, string]];
-    const res = await submit(registrar, withLate, { kind: "FINALISE" });
+    const res = await submit(headTeacher, withLate, { kind: "FINALISE" });
     expect(res).toMatchObject({ outcome: "APPLIED", code: "ADDED_TO_FINALISED" });
     const rows = await db.studentAttendance.findMany({ where: { schoolId: school.id } });
     expect(rows).toHaveLength(4);
     expect(rows.filter((r) => r.status === "PRESENT")).toHaveLength(3); // originals untouched
-    expect(rows.find((r) => r.studentId === late.id)).toMatchObject({ status: "ABSENT", markedById: registrar.userId });
+    expect(rows.find((r) => r.studentId === late.id)).toMatchObject({ status: "ABSENT", markedById: headTeacher.userId });
     expect(await db.notificationEvent.count({ where: { schoolId: school.id, studentId: late.id } })).toBe(1); // absence alert for the late joiner
     expect(await db.auditLog.count({ where: { schoolId: school.id, action: "attendance.add_late_records" } })).toBe(1);
     // Re-sending is a no-op; changing an existing record is still a conflict.
-    expect((await submit(registrar, withLate, { kind: "FINALISE" })).code).toBe("NOOP_ALREADY_FINALISED");
-    expect((await submit(registrar, [[0, "ABSENT"], [3, "ABSENT"]], { kind: "FINALISE" })).outcome).toBe("CONFLICT");
+    expect((await submit(headTeacher, withLate, { kind: "FINALISE" })).code).toBe("NOOP_ALREADY_FINALISED");
+    expect((await submit(headTeacher, [[0, "ABSENT"], [3, "ABSENT"]], { kind: "FINALISE" })).outcome).toBe("CONFLICT");
   });
 
   it("flags another user's different submission against an open draft, but lets the same user keep editing", async () => {
@@ -396,6 +397,7 @@ describe("reports", () => {
     const term = await reports.termReport(headTeacher, setup.term.id);
     expect(term.totals.ABSENT).toBe(1);
     expect(await code(reports.schoolReport(accountant, range))).toBe("FORBIDDEN");
+    expect((await reports.schoolReport(registrar, range)).classes[0]!.students).toBe(4); // but the registrar can see how attendance is going
     const student = await reports.studentReport(teacherA, kids[1]!.id, range);
     expect(student.records).toHaveLength(1);
     expect(await code(reports.studentReport(teacherB, kids[1]!.id, range))).toBe("NOT_FOUND");

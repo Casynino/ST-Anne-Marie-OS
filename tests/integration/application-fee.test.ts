@@ -53,7 +53,7 @@ const apply = (input: Record<string, unknown>, opts: Parameters<typeof pub.submi
 const draftOf = (id: string) => db.applicationDraft.findUniqueOrThrow({ where: { id } });
 async function familyOf(draftId: string) {
   const d = await draftOf(draftId);
-  return buildAuthContext(d.userId);
+  return buildAuthContext(d.userId!);
 }
 
 beforeAll(async () => {
@@ -89,7 +89,7 @@ describe("the fee and the account", () => {
     expect(JSON.stringify(d.payload)).not.toContain(PASSWORD); // the password is never kept with the application
     expect(await db.application.count({ where: { schoolId: school.id, firstName: input.firstName as string } })).toBe(0);
     expect(await db.workflowTask.count({ where: { schoolId: school.id, kind: "APPLICATION_REVIEW" } })).toBe(0);
-    const user = await db.user.findUniqueOrThrow({ where: { id: d.userId }, include: { roles: { include: { role: true } } } });
+    const user = await db.user.findUniqueOrThrow({ where: { id: d.userId! }, include: { roles: { include: { role: true } } } });
     expect(user).toMatchObject({ type: "GUARDIAN", email: input.g1_email, mustChangePassword: false, status: "ACTIVE" });
     expect(user.roles.map((x) => x.role.key)).toEqual(["parent"]);
     const login = await authenticate(input.g1_email as string, PASSWORD, meta());

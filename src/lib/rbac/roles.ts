@@ -234,7 +234,6 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       "comms.send",
       "student.import",
       "attendance.read",
-      "attendance.take_any",
       "attendance.staff.read",
       "attendance.staff.record",
       "notification.read",

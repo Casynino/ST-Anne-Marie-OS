@@ -18,12 +18,15 @@ export type ApplicationFormDoc = {
   /** What the family added: the kind of each file and its name. */
   files: { label: string; fileName: string }[];
   fee: { amount: string; paidOn: string; reference: string; receiptNo: string; test: boolean } | null;
+  /** The fee still to be paid (a form filled in at the office before the family has paid): the amount, the reference to quote and how to pay. */
+  pay: { amount: string; reference: string; instructions: string | null } | null;
   documents: string[];
 };
 export type ApplicationFormLabels = {
   title: string; applicationNo: string; submitted: string; classApplied: string; child: string; name: string; dateOfBirth: string; gender: string; nationality: string; previousSchool: string; address: string;
   entry: string; transferReason: string; previousAdmissionNo: string; guardians: string; relationship: string; phone: string; email: string; religion: string; birthCert: string; previousClass: string; health: string; occupation: string; emergency: string; guardian2: string; files: string; fee: string; amountPaid: string; paidOn: string; reference: string; receiptNo: string; testNote: string;
   documents: string; documentsIntro: string; consent: string; keep: string;
+  payTitle: string; payAmount: string; payHow: string; payBring: string; notSubmitted: string; signGuardian: string; signOffice: string;
 };
 
 export async function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: ApplicationFormDoc, L: ApplicationFormLabels, logo: PDFImage | null) {
@@ -42,9 +45,9 @@ export async function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Appli
   // Title bar
   page.drawRectangle({ x: M, y: y - 6, width: W, height: 28, color: TINT });
   draw(page, L.title.toUpperCase(), M + 10, y + 3, { font: f.bold, size: 13, color: GREEN });
-  draw(page, `${L.applicationNo}: ${d.applicationNo}`, M, y + 3, { font: f.bold, size: 12, align: "right", width: W - 10 });
+  draw(page, `${d.pay ? L.reference : L.applicationNo}: ${d.applicationNo}`, M, y + 3, { font: f.bold, size: 12, align: "right", width: W - 10 });
   y -= 26;
-  draw(page, `${L.submitted}: ${d.submittedOn}`, M, y, { font: f.regular, size: 9.5, color: MUTED });
+  draw(page, `${d.pay ? L.notSubmitted : L.submitted}: ${d.submittedOn}`, M, y, { font: f.regular, size: 9.5, color: MUTED });
   y -= 22;
 
   const section = (title: string) => {
@@ -122,7 +125,21 @@ export async function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Appli
     y -= 8;
   }
 
-  if (d.documents.length > 0) {
+  if (d.pay) {
+    section(L.payTitle);
+    row(L.payAmount, d.pay.amount);
+    row(L.reference, d.pay.reference);
+    row(L.payHow, d.pay.instructions);
+    wrap(L.payBring, f.regular, 10, W).forEach((ln) => { ensure(14); draw(page, ln, M, y, { font: f.regular, size: 10 }); y -= 14; });
+    y -= 8;
+  }
+
+  if (d.documents.length > 0 && d.pay) {
+    // The copy handed over at the office stays on one page: the papers are listed on a single line.
+    section(L.documents);
+    wrap(d.documents.join(",  "), f.regular, 10.5, W).forEach((ln) => { ensure(14); draw(page, ln, M, y, { font: f.regular, size: 10.5 }); y -= 14; });
+    y -= 8;
+  } else if (d.documents.length > 0) {
     section(L.documents);
     wrap(L.documentsIntro, f.regular, 10, W).forEach((ln) => { ensure(14); draw(page, ln, M, y, { font: f.regular, size: 10 }); y -= 14; });
     y -= 2;
@@ -136,7 +153,16 @@ export async function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Appli
     y -= 8;
   }
 
-  ensure(70);
+  if (d.pay) {
+    ensure(60);
+    y -= 18;
+    page.drawRectangle({ x: M, y, width: W / 2 - 20, height: 0.6, color: MUTED });
+    page.drawRectangle({ x: M + W / 2 + 20, y, width: W / 2 - 20, height: 0.6, color: MUTED });
+    draw(page, L.signGuardian, M, y - 12, { font: f.regular, size: 9, color: MUTED });
+    draw(page, L.signOffice, M + W / 2 + 20, y - 12, { font: f.regular, size: 9, color: MUTED });
+    y -= 28;
+  }
+  ensure(50);
   wrap(L.consent, f.italic, 9, W).forEach((ln) => { draw(page, ln, M, y, { font: f.italic, size: 9, color: MUTED }); y -= 12; });
   y -= 6;
   wrap(L.keep, f.regular, 9, W).forEach((ln) => { draw(page, ln, M, y, { font: f.regular, size: 9, color: MUTED }); y -= 12; });

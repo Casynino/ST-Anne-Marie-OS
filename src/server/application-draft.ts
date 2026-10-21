@@ -130,13 +130,14 @@ const fieldOf = (docType: string) => (docType === "PASSPORT_PHOTO" ? "photo" : `
  * it) and every paper the school requires must be there, each file must be a PDF or picture decided from its own bytes and within the size
  * limit, and the photo must be a picture. Errors name the form field so the family sees which file to fix.
  */
-export async function checkIncomingFiles(schoolId: string, files: IncomingFile[], entryType?: string | null) {
+export async function checkIncomingFiles(schoolId: string, files: IncomingFile[], entryType?: string | null, opts: { requireAll?: boolean } = {}) {
+  const requireAll = opts.requireAll ?? true;
   const policy = await getAdmissionPolicy(db, schoolId);
   const given = files.filter((f) => f.bytes.length > 0);
   const have = new Set(given.map((f) => f.docType));
   const errors: Record<string, string> = {};
-  if (policy.applicationPhotoRequired && !have.has("PASSPORT_PHOTO")) errors.photo = "Add the child's passport photo";
-  for (const t of requiredDocsFor(policy, entryType)) if (t !== "PASSPORT_PHOTO" && !have.has(t)) errors[fieldOf(t)] = "Add this paper";
+  if (requireAll && policy.applicationPhotoRequired && !have.has("PASSPORT_PHOTO")) errors.photo = "Add the child's passport photo";
+  if (requireAll) for (const t of requiredDocsFor(policy, entryType)) if (t !== "PASSPORT_PHOTO" && !have.has(t)) errors[fieldOf(t)] = "Add this paper";
   for (const f of given) {
     const type = sniffType(f.bytes);
     if (f.bytes.length > MAX_DOCUMENT_BYTES) errors[fieldOf(f.docType)] = `The file is too large (limit ${Math.floor(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB)`;

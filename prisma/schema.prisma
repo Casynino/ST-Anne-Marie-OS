@@ -2798,27 +2798,35 @@ enum ApplicationDraftStatus {
 }
 
 model ApplicationDraft {
-  id              String                 @id @default(uuid(7)) @db.Uuid
-  schoolId        String                 @db.Uuid
-  userId          String                 @db.Uuid
+  id                  String                 @id @default(uuid(7)) @db.Uuid
+  schoolId            String                 @db.Uuid
+  /// The family's account (online applications). Null for an application filled in at the office.
+  userId              String?                @db.Uuid
+  /// ONLINE (the family filled it in) or OFFICE (the Admissions Office filled it in with the family; createdById says who).
+  channel             String                 @default("ONLINE")
+  createdById         String?                @db.Uuid
+  /// How the fee was received when it was recorded at the office (CASH | BANK | MOBILE_MONEY | OTHER), who recorded it and a note such as a bank slip number.
+  paymentMethod       String?
+  paymentRecordedById String?                @db.Uuid
+  paymentNote         String?
   /// What the payer quotes to the provider; the provider's notification returns it.
-  reference       String
-  payload         Json
-  feeAmount       Decimal                @db.Decimal(14, 2)
-  status          ApplicationDraftStatus @default(AWAITING_PAYMENT)
-  paymentProvider String?
-  paymentEventId  String?
-  paidAmount      Decimal?               @db.Decimal(14, 2)
-  paidAt          DateTime?
-  receiptNo       String?
-  applicationId   String?                @unique @db.Uuid
-  holdNote        String?
+  reference           String
+  payload             Json
+  feeAmount           Decimal                @db.Decimal(14, 2)
+  status              ApplicationDraftStatus @default(AWAITING_PAYMENT)
+  paymentProvider     String?
+  paymentEventId      String?
+  paidAmount          Decimal?               @db.Decimal(14, 2)
+  paidAt              DateTime?
+  receiptNo           String?
+  applicationId       String?                @unique @db.Uuid
+  holdNote            String?
   /// The family confirmed the details, photo and papers; payment details are shown only after this. Any change clears it.
-  confirmedAt     DateTime?
-  createdAt       DateTime               @default(now())
+  confirmedAt         DateTime?
+  createdAt           DateTime               @default(now())
 
   school      School       @relation(fields: [schoolId], references: [id])
-  user        User         @relation(fields: [userId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id])
   application Application? @relation(fields: [applicationId], references: [id])
   documents   Document[]
 
@@ -2826,6 +2834,7 @@ model ApplicationDraft {
   @@unique([schoolId, paymentProvider, paymentEventId])
   @@index([schoolId, userId])
   @@index([schoolId, status])
+  @@index([schoolId, channel, status])
   @@map("application_drafts")
 }
 

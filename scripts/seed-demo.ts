@@ -516,6 +516,25 @@ async function main() {
     }
   }
 
+  // ───── 15. Attendance today for every class that has pupils (so the attendance screens show a full day) ─────
+  {
+    const session = (await att.listAttendanceSessions(admin))[0]!;
+    const todayDate = new Date(`${today}T00:00:00Z`);
+    let made = 0;
+    for (const c of await db.schoolClass.findMany({ where: { schoolId }, include: { streams: true } })) {
+      for (const stream of c.streams.length ? c.streams : [null]) {
+        const ids = await enrolled(c.id, stream?.id);
+        if (ids.length === 0) continue;
+        const done = await db.attendanceRegister.findFirst({ where: { schoolId, classId: c.id, streamId: stream?.id ?? null, sessionId: session.id, date: todayDate, status: "FINALISED" }, select: { id: true } });
+        if (done) continue;
+        const entries = ids.map((studentId) => { const r = rnd(); return { studentId, status: r < 0.06 ? "ABSENT" : r < 0.11 ? "LATE" : r < 0.13 ? "EXCUSED" : "PRESENT" }; });
+        await att.submitAttendance(admin, { clientOpId: randomUUID(), kind: "FINALISE", classId: c.id, streamId: stream?.id, sessionId: session.id, date: today, entries });
+        made++;
+      }
+    }
+    if (made) log("attendance registers for today:", made);
+  }
+
   console.log(`\nDemo school is ready. Every account below uses the password: ${PASSWORD}`);
   console.table([
     { department: "(owner)", signIn: `admin@${DOMAIN}`, note: "your own admin account, password unchanged" },

@@ -8,6 +8,7 @@ import type { AcceptanceReadiness } from "@/server/admission-offers";
 import { ActionForm, Field } from "@/components/form";
 import { Badge, Card } from "@/components/ui";
 import * as A from "../actions";
+import { SlotField } from "./slot-field";
 
 type Can = (p: Parameters<import("@/lib/auth/context").AuthContext["permissions"]["has"]>[0]) => boolean;
 const TONE = { NEW: "neutral", UNDER_REVIEW: "brand", NEEDS_INFO: "warn", REVIEWED: "brand", INTERVIEW_SCHEDULED: "brand", AWAITING_DECISION: "warn", ACCEPTED: "ok", ENROLLED: "ok", REJECTED: "bad", WITHDRAWN: "neutral" } as const;
@@ -36,7 +37,7 @@ export function DeskCard(p: {
   t: Translate; id: string; name: string; row: DeskRow; status: string; reviewStatus: string; reviewNote: string | null; reviewedAt: Date | null; reviewerName: string | null;
   interviewWaivedReason: string | null; open: boolean; can: Can; reviewers: { id: string; fullName: string }[]; interviewers: { id: string; fullName: string }[]; defaultMinutes: number;
   ready: AcceptanceReadiness; checklistOpen: { docType: string }[]; offerStatus: string | null; account: { requiredCents: number } | null; currency: string;
-  notices: { id: string; kind: string; status: string; createdAt: Date }[]; locale: "EN" | "SW"; timezone: string;
+  notices: { id: string; kind: string; status: string; createdAt: Date }[]; locale: "EN" | "SW"; timezone: string; slots: { local: string; label: string }[];
 }) {
   const { t, id, row, can, ready } = p;
   const consideration = p.open && ["APPLIED", "INTERVIEW"].includes(p.status);
@@ -127,7 +128,7 @@ export function DeskCard(p: {
                       {hid("id", id)}
                       <div className="grid gap-3 sm:grid-cols-2">
                         <Field name="kind" type="select" label={t("adm.iv.kind")} options={(["INTERVIEW", "ENTRANCE_EXAM", "ASSESSMENT"] as const).map((k) => ({ value: k, label: t(`adm.iv.kind.${k}` as "adm.iv.kind.INTERVIEW") }))} defaultValue="INTERVIEW" />
-                        <Field name="scheduledAt" type="datetime-local" label={t("adm.iv.when")} required />
+                        <SlotField name="scheduledAt" label={t("adm.iv.when")} pickLabel={t("adm.slot.pick")} slots={p.slots} required />
                         <Field name="durationMinutes" type="number" label={t("adm.iv.duration")} defaultValue={p.defaultMinutes} min={5} max={480} />
                         <Field name="location" label={t("adm.iv.location")} optionalLabel={t("common.optional")} />
                         <Field name="method" label={t("adm.iv.method")} placeholder={t("adm.iv.method.ph")} optionalLabel={t("common.optional")} />
@@ -143,7 +144,7 @@ export function DeskCard(p: {
                     <ActionForm action={A.confirmExistingInterviewAction} submitLabel={t("common.save")} className="space-y-3">
                       {hid("id", id)}{hid("kind", "INTERVIEW")}
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <Field name="scheduledAt" type="datetime-local" label={t("adm.iv.when")} required />
+                        <SlotField name="scheduledAt" label={t("adm.iv.when")} pickLabel={t("adm.slot.pick")} slots={p.slots} required />
                         <Field name="location" label={t("adm.iv.location")} optionalLabel={t("common.optional")} />
                         <Field name="interviewerId" type="select" label={t("adm.iv.interviewer")} options={p.interviewers.map((u) => ({ value: u.id, label: u.fullName }))} placeholder={t("common.select")} optionalLabel={t("common.optional")} />
                         <Field name="note" label={t("adm.iv.note")} optionalLabel={t("common.optional")} />

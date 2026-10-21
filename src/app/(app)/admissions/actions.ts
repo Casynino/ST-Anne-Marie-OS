@@ -2,11 +2,14 @@
 
 import { run, str, type ActionState } from "@/lib/action";
 import { makeT } from "@/lib/i18n";
+import { AppError } from "@/lib/errors";
 import { db } from "@/lib/db";
 import * as admissions from "@/server/admissions";
 import * as documents from "@/server/documents";
 import * as review from "@/server/admission-review";
 import * as desk from "@/server/admission-desk";
+import * as office from "@/server/office-application";
+import type { IncomingFile } from "@/server/application-draft";
 import * as interviews from "@/server/interviews";
 import * as offers from "@/server/admission-offers";
 import * as policy from "@/server/admission-policy";
@@ -119,7 +122,7 @@ export async function grantDocsExceptionAction(_: ActionState, form: FormData) {
 }
 
 // ───────────── Interviews ─────────────
-const INTERVIEW_FIELDS = ["kind", "scheduledAt", "durationMinutes", "location", "method", "interviewerId", "note", "confirmLocationClash", "exceptionReason", "reason"] as const;
+const INTERVIEW_FIELDS = ["kind", "scheduledAt", "durationMinutes", "location", "method", "interviewerId", "note", "confirmLocationClash", "allowSharedSlot", "exceptionReason", "reason"] as const;
 const interviewInput = (i: Input) => Object.fromEntries(INTERVIEW_FIELDS.map((f) => [f, i[f]]));
 export async function scheduleInterviewAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await interviews.scheduleInterview(ctx, str(i.id), interviewInput(i)); return saved(ctx); });
@@ -132,6 +135,38 @@ export async function cancelInterviewAction(_: ActionState, form: FormData) {
 }
 export async function recordInterviewResultAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await interviews.recordInterviewResult(ctx, str(i.interviewId), { status: str(i.status), outcome: i.outcome, score: i.score, notes: i.notes, recommendation: i.recommendation, recommendationNote: i.recommendationNote }); return saved(ctx); });
+}
+
+// ───────────── An application filled in at the office (the same form as the online one) ─────────────
+/** The child's photo and the papers that came with the form (empty file boxes are ignored). */
+async function filesOf(form: FormData): Promise<IncomingFile[]> {
+  const files: IncomingFile[] = [];
+  for (const [key, value] of form.entries()) {
+    if (!(value instanceof File) || value.size === 0) continue;
+    if (key === "photo") files.push({ docType: "PASSPORT_PHOTO", fileName: value.name, bytes: Buffer.from(await value.arrayBuffer()) });
+    else if (key.startsWith("paper_")) files.push({ docType: key.slice(6), fileName: value.name, bytes: Buffer.from(await value.arrayBuffer()) });
+  }
+  return files;
+}
+export async function createOfficeApplicationAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const r = await office.createOfficeApplication(ctx, i, await filesOf(form));
+    return { redirectTo: r.applicationId ? `/admissions/${r.applicationId}` : `/admissions/drafts/${r.draftId}` };
+  });
+}
+export async function updateOfficeDraftAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await office.updateOfficeDraft(ctx, str(i.id), i); return { redirectTo: `/admissions/drafts/${str(i.id)}` }; });
+}
+export async function cancelOfficeDraftAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await office.cancelOfficeDraft(ctx, str(i.id), { reason: i.reason }); return { redirectTo: "/admissions/drafts" }; });
+}
+export async function uploadOfficeDraftDocumentAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const file = form.get("file");
+    if (!(file instanceof File) || file.size === 0) throw new AppError("VALIDATION", "Choose a file to upload.", { file: "Required" });
+    await office.uploadOfficeDraftDocument(ctx, str(i.id), { docType: i.docType, fileName: file.name, bytes: Buffer.from(await file.arrayBuffer()) });
+    return saved(ctx);
+  });
 }
 
 // ───────────── The admissions desk: review, assignment, bulk, the other interview arrangements, quick accept ─────────────

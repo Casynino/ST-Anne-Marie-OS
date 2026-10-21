@@ -42,6 +42,8 @@ const scheduleSchema = z.object({
   interviewerId: optUuid(),
   note: optText(500),
   confirmLocationClash: checkbox().default(false),
+  /** Joining a date already set for other applicants (an interview day): the same interviewer may see several applicants that start together. */
+  allowSharedSlot: checkbox().default(false),
   /** An authorised person lets the interview go ahead although the papers are not complete. */
   exceptionReason: optText(400),
 });
@@ -55,13 +57,14 @@ async function assertInterviewer(tx: Tx, schoolId: string, userId: string) {
   if (!u) throw invalid("Please correct the highlighted fields.", { interviewerId: "Choose an active staff member" });
 }
 
-async function assertNoClash(tx: Tx, schoolId: string, slot: { start: Date; minutes: number }, d: { interviewerId?: string; location?: string; confirmLocationClash: boolean }, excludeId?: string) {
+async function assertNoClash(tx: Tx, schoolId: string, slot: { start: Date; minutes: number }, d: { interviewerId?: string; location?: string; confirmLocationClash: boolean; allowSharedSlot?: boolean }, excludeId?: string) {
   const near = await tx.interview.findMany({
     where: { schoolId, status: "SCHEDULED", ...(excludeId ? { id: { not: excludeId } } : {}), scheduledAt: { gte: new Date(slot.start.getTime() - 8 * 3_600_000), lt: new Date(slot.start.getTime() + slot.minutes * 60_000) } },
     include: { application: { select: { applicationNo: true, firstName: true, lastName: true } } },
   });
   const overlapping = near.filter((i) => slotsOverlap(slot, { start: i.scheduledAt, minutes: i.durationMinutes }));
-  const byInterviewer = d.interviewerId ? overlapping.find((i) => i.interviewerId === d.interviewerId) : undefined;
+  // An interviewer is never double-booked, except when the office joins an applicant to a date already set (an interview day) that starts at exactly the same time.
+  const byInterviewer = d.interviewerId ? overlapping.find((i) => i.interviewerId === d.interviewerId && !(d.allowSharedSlot && i.scheduledAt.getTime() === slot.start.getTime())) : undefined;
   if (byInterviewer) throw conflict(`This interviewer already has an interview at that time (${byInterviewer.application.firstName} ${byInterviewer.application.lastName}, ${byInterviewer.application.applicationNo}). Choose another time or interviewer.`);
   const byRoom = d.location ? overlapping.find((i) => (i.location ?? "").toLowerCase() === d.location!.toLowerCase()) : undefined;
   if (byRoom && !d.confirmLocationClash) throw conflict(`"${d.location}" is already in use at that time (${byRoom.application.applicationNo}). Tick the confirmation if both interviews can share it.`);
@@ -117,7 +120,7 @@ export async function scheduleInterview(ctx: AuthContext, applicationId: string,
     if (!(OPEN as readonly string[]).includes(app.status)) throw conflict("An interview can only be scheduled for an application that is still under consideration.");
     if (await tx.interview.findFirst({ where: { applicationId, status: "SCHEDULED" }, select: { id: true } })) throw conflict("This applicant already has a scheduled interview. Reschedule it instead.");
     await checkReadyForInterview(tx, ctx, app, d.exceptionReason);
-    await assertNoClash(tx, ctx.schoolId, { start, minutes }, { interviewerId: d.interviewerId, location: d.location, confirmLocationClash: d.confirmLocationClash });
+    await assertNoClash(tx, ctx.schoolId, { start, minutes }, { interviewerId: d.interviewerId, location: d.location, confirmLocationClash: d.confirmLocationClash, allowSharedSlot: d.allowSharedSlot });
     const i = await create(tx, ctx, applicationId, d, start, minutes);
     await tx.application.update({ where: { id: applicationId }, data: { status: "INTERVIEW", interviewOn: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())), ...restoreInterview(app) } });
     if (app.interviewWaivedAt) await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: app.status, kind: "INTERVIEW", reason: "Interview requirement restored: an interview was scheduled", byUserId: ctx.userId } });
@@ -160,7 +163,7 @@ export async function confirmExistingInterview(ctx: AuthContext, applicationId: 
     if (live && live.kind === d.kind && live.scheduledAt.getTime() === start.getTime()) return { interviewId: live.id, unchanged: true };
     const done = await tx.interview.findFirst({ where: { applicationId, status: "COMPLETED", kind: d.kind }, orderBy: { scheduledAt: "desc" } });
     if (done) throw conflict(`This applicant already has a completed ${d.kind.toLowerCase().replace("_", " ")} (${when(done.scheduledAt, school.timezone)}), so another date is not needed.`);
-    await assertNoClash(tx, ctx.schoolId, { start, minutes }, { interviewerId: d.interviewerId, location: d.location, confirmLocationClash: d.confirmLocationClash }, live?.id);
+    await assertNoClash(tx, ctx.schoolId, { start, minutes }, { interviewerId: d.interviewerId, location: d.location, confirmLocationClash: d.confirmLocationClash, allowSharedSlot: d.allowSharedSlot }, live?.id);
     const label = `${app.firstName} ${app.lastName} (${app.applicationNo})`;
     if (live) {
       await tx.interview.update({ where: { id: live.id }, data: { status: "CANCELLED", cancelReason: `Date changed to ${when(start, school.timezone)}` } });
@@ -383,4 +386,13 @@ export async function interviewsOfApplication(ctx: AuthContext, applicationId: s
 export async function listInterviewers(ctx: AuthContext) {
   requireAnyPermission(ctx, ["admission.interview.manage", "admission.read"]);
   return db.user.findMany({ where: { schoolId: ctx.schoolId, type: "STAFF", status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true } });
+}
+
+/** The dates and times already set for interviews that are still to come, with how many applicants each has, so another applicant can be added to one. */
+export async function upcomingInterviewSlots(ctx: AuthContext) {
+  requireAnyPermission(ctx, ["admission.read", "admission.interview.manage"]);
+  const school = await db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
+  const rows = await db.interview.groupBy({ by: ["scheduledAt"], where: { schoolId: ctx.schoolId, status: "SCHEDULED", kind: "INTERVIEW", scheduledAt: { gt: new Date() } }, _count: { _all: true }, orderBy: { scheduledAt: "asc" }, take: 30 });
+  const local = new Intl.DateTimeFormat("sv-SE", { timeZone: school.timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  return rows.map((r) => ({ at: r.scheduledAt, local: local.format(r.scheduledAt).replace(" ", "T"), when: when(r.scheduledAt, school.timezone), count: r._count._all }));
 }

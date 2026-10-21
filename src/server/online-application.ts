@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { conflict, invalid } from "@/lib/errors";
 import type { RequestMeta } from "@/lib/auth/context";
 import { ageOn, parseDateOnly, todayInTimezone } from "@/lib/dates";
-import { writeAudit } from "@/server/audit";
+import { writeAudit, type AuditActor } from "@/server/audit";
 import { openTask } from "@/server/workflow";
 import { allocateApplicationNo, OPEN_STATUSES } from "@/server/admissions";
 import { guardianLinkSchema, RELATIONSHIPS } from "@/server/guardians";
@@ -129,15 +129,16 @@ export async function assertNoOpenDuplicate(tx: Tx, schoolId: string, d: Pick<On
   if (openApp || student) throw conflict(DUPLICATE_MESSAGE);
 }
 
-/** Creates the application in the Admissions Office's queue as APPLIED (source ONLINE) and tells the office. Nothing is enrolled. */
-export async function insertOnlineApplication(tx: Tx, schoolId: string, d: OnlineForm, p: PreparedOnline, meta: RequestMeta, audit: { feePaidCents?: number; feeReference?: string } = {}) {
+/** Creates the application in the Admissions Office's queue as APPLIED (source ONLINE, or STAFF when it was filled in at the office) and tells the office. Nothing is enrolled. */
+export async function insertOnlineApplication(tx: Tx, schoolId: string, d: OnlineForm, p: PreparedOnline, meta: RequestMeta, audit: { feePaidCents?: number; feeReference?: string } = {}, office: { createdById: string; actor: AuditActor } | null = null) {
   await assertNoOpenDuplicate(tx, schoolId, d);
   const applicationNo = await allocateApplicationNo(tx, schoolId, p.today.getUTCFullYear());
   const app = await tx.application.create({
     data: {
       schoolId,
       applicationNo,
-      source: "ONLINE",
+      source: office ? "STAFF" : "ONLINE",
+      createdById: office?.createdById,
       consentAt: new Date(),
       firstName: d.firstName,
       middleName: d.middleName,
@@ -161,13 +162,13 @@ export async function insertOnlineApplication(tx: Tx, schoolId: string, d: Onlin
     },
   });
   await tx.applicationEvent.create({ data: { schoolId, applicationId: app.id, toStatus: "APPLIED" } });
-  await openTask(tx, { schoolId, kind: "APPLICATION_REVIEW", relatedType: "Application", relatedId: app.id, relatedLabel: `${app.firstName} ${app.lastName} (${applicationNo})`, sourceEvent: "application.received_online" });
-  await writeAudit(tx, { schoolId, actorId: null, actorName: "Online applicant", meta }, {
-    action: "admission.create_online",
+  await openTask(tx, { schoolId, kind: "APPLICATION_REVIEW", relatedType: "Application", relatedId: app.id, relatedLabel: `${app.firstName} ${app.lastName} (${applicationNo})`, sourceEvent: office ? "application.received_office" : "application.received_online" });
+  await writeAudit(tx, office?.actor ?? { schoolId, actorId: null, actorName: "Online applicant", meta }, {
+    action: office ? "admission.create_office" : "admission.create_online",
     entityType: "Application",
     entityId: app.id,
     summary: `${app.firstName} ${app.lastName} (${applicationNo})`,
-    changes: { applicationNo, source: "ONLINE", ...(audit.feePaidCents !== undefined ? { applicationFeePaidCents: audit.feePaidCents, feeReference: audit.feeReference } : {}) },
+    changes: { applicationNo, source: office ? "STAFF" : "ONLINE", ...(audit.feePaidCents !== undefined ? { applicationFeePaidCents: audit.feePaidCents, feeReference: audit.feeReference } : {}) },
   });
   return { id: app.id, applicationNo };
 }

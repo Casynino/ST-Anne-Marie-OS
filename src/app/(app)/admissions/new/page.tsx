@@ -1,44 +1,58 @@
 import type { Metadata } from "next";
-import { requireContext, getT } from "@/lib/auth/next";
-import { listClasses } from "@/server/academics";
-import { ActionForm, Field, IfConflict } from "@/components/form";
-import { GuardianFields } from "@/components/guardian-fields";
-import { guardianLabels } from "@/components/guardian-labels";
-import { StudentDetailsFields } from "@/components/student-form";
-import { Card, NoAccess, PageHeader } from "@/components/ui";
-import { createApplicationAction } from "../actions";
+import { requireContext, getLocale, getT } from "@/lib/auth/next";
+import { formatMoney } from "@/lib/finance/money";
+import { db } from "@/lib/db";
+import { getAdmissionPolicy } from "@/server/admission-policy";
+import { applicationFeeInfo } from "@/server/application-fee";
+import { listApplyClasses } from "@/server/public-applications";
+import { RELATIONSHIPS } from "@/server/guardians";
+import { ActionForm, Field, FileField } from "@/components/form";
+import { ApplicationFields } from "@/components/site/application-fields";
+import { EntryTypeProvider, WhenTransfer } from "@/components/site/entry-type";
+import { NoAccess, PageHeader } from "@/components/ui";
+import { AdmissionsNav } from "@/components/admissions/subnav";
+import { createOfficeApplicationAction } from "../actions";
 
 export const metadata: Metadata = { title: "New application" };
 
+/**
+ * An application filled in at the office is the same form as the online one (same questions, same checks, same application fee). The photo and
+ * papers can be added now or later. With an application fee the form is printed for the family, who pay and come back with the receipt.
+ */
 export default async function NewApplicationPage() {
   const ctx = await requireContext();
-  const t = await getT();
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
   if (!ctx.permissions.has("admission.create")) return <NoAccess t={t} />;
-  const classes = ctx.permissions.has("academic.read") ? (await listClasses(ctx)).filter((c) => c.isActive) : [];
-  const labels = await guardianLabels(ctx.permissions.has("guardian.read") || ctx.permissions.has("guardian.manage"));
+  const [classes, policy, fee] = await Promise.all([listApplyClasses(ctx.schoolId, locale), getAdmissionPolicy(db, ctx.schoolId), applicationFeeInfo(ctx.schoolId)]);
+  const classOptions = classes.map((c) => ({ value: c.id, label: `${c.level} — ${c.name}` }));
+  const relOptions = RELATIONSHIPS.map((r) => ({ value: r, label: t(`student.rel.${r}` as "student.rel.FATHER") }));
+  const paper = (d: string) => <FileField key={d} name={`paper_${d}`} label={t(`doc.type.${d}` as "doc.type.OTHER")} accept="application/pdf,image/jpeg,image/png,image/webp" optionalLabel={t("common.optional")} hint={t("apf.papers.hint")} />;
   return (
     <>
-      <PageHeader title={t("adm.new")} subtitle={t("adm.new.intro")} />
-      <ActionForm action={createApplicationAction} submitLabel={t("common.save")} className="space-y-5">
-        <Card title={t("adm.details")}>
-          <StudentDetailsFields t={t} canEditMedical={false} />
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <Field name="classAppliedId" label={t("adm.classApplied")} type="select" options={classes.map((c) => ({ value: c.id, label: c.name }))} placeholder={t("common.select")} optionalLabel={t("common.optional")} />
-            <Field name="submittedOn" label={t("adm.submittedOn")} type="date" hint={t("adm.submittedOn.hint")} optionalLabel={t("common.optional")} />
-            <Field name="assessmentNotes" label={t("adm.assessmentNotes")} type="textarea" rows={2} optionalLabel={t("common.optional")} />
+      <PageHeader title={t("adm.new")} subtitle={t("adm.new.office")} />
+      <AdmissionsNav ctx={ctx} t={t} current="/admissions/new" />
+      <div className="max-w-4xl">
+        {fee.feeCents > 0 && <p className="mb-4 rounded-lg border border-tint-2 bg-tint px-4 py-3 text-sm font-medium text-link">{t("adm.new.fee", { amount: formatMoney(fee.feeCents, fee.currency) })}</p>}
+        <ActionForm action={createOfficeApplicationAction} submitLabel={fee.feeCents > 0 ? t("adm.new.saveFee") : t("adm.new.submit")} className="space-y-6">
+          <EntryTypeProvider defaultKind="NEW">
+            <ApplicationFields t={t} classOptions={classOptions} relOptions={relOptions} emailRequired={false} variant="portal" />
+            <fieldset className="space-y-4 rounded-2xl border border-line bg-surface p-5">
+              <legend className="px-2 text-base font-semibold">{t("apf.files.title")}</legend>
+              <p className="text-sm text-muted">{t("adm.new.files.body")}</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FileField name="photo" label={t("apf.photo.title")} accept="image/jpeg,image/png,image/webp" optionalLabel={t("common.optional")} hint={t("apf.photo.hint")} />
+                {policy.requiredDocTypes.filter((d) => d !== "PASSPORT_PHOTO").map(paper)}
+                <WhenTransfer>{policy.transferDocTypes.filter((d) => d !== "PASSPORT_PHOTO" && !policy.requiredDocTypes.includes(d)).map(paper)}</WhenTransfer>
+                <FileField name="paper_OTHER" label={t("apf.papers.other")} accept="application/pdf,image/jpeg,image/png,image/webp" optionalLabel={t("common.optional")} hint={t("apf.papers.hint")} />
+              </div>
+            </fieldset>
+          </EntryTypeProvider>
+          <div className="space-y-2 rounded-2xl border border-line bg-surface p-5">
+            <Field name="consent" type="checkbox" label={t("apply.consent")} required />
+            <p className="text-xs text-muted">{t("apply.privacy")}</p>
           </div>
-        </Card>
-        <Card title={t("student.guardian1")}>
-          <GuardianFields prefix="g1_" labels={labels} canSearch={labels.canSearch} primary />
-        </Card>
-        <Card title={`${t("student.guardian2")} (${t("common.optional")})`}>
-          <details>
-            <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("student.link")}</summary>
-            <div className="mt-2"><GuardianFields prefix="g2_" labels={labels} canSearch={labels.canSearch} optionalBlock /></div>
-          </details>
-        </Card>
-        <IfConflict><Field name="confirmDuplicate" type="checkbox" label={t("adm.confirmDuplicate")} /></IfConflict>
-      </ActionForm>
+        </ActionForm>
+      </div>
     </>
   );
 }

@@ -109,13 +109,13 @@ describe("scenario 2: schedule an interview", () => {
     expect(r).toMatchObject({ state: "INTERVIEW_SCHEDULED", interview: "SCHEDULED" });
     expect(r.interviewAt?.getTime()).toBe(new Date(inDays(3)).getTime());
     expect((await notices(app.id)).map((x) => [x.kind, x.status])).toEqual([["INTERVIEW", "SENT_IN_APP"]]);
-    expect(await db.inAppNotification.count({ where: { userId: familyUser, title: { contains: "Interview" } } })).toBe(1);
+    expect(await db.inAppNotification.count({ where: { userId: familyUser!, title: { contains: "Interview" } } })).toBe(1);
     await interviews.rescheduleInterview(rehema, iv.id, { scheduledAt: inDays(5), reason: "Hall is booked" });
     r = await row(app.id);
     expect(r.interviewAt?.getTime()).toBe(new Date(inDays(5)).getTime());
     expect((await db.interview.findUniqueOrThrow({ where: { id: iv.id } })).status).toBe("CANCELLED"); // the old date is kept
     expect((await notices(app.id)).map((x) => x.kind)).toEqual(["INTERVIEW", "INTERVIEW_CHANGED"]);
-    expect(await db.inAppNotification.count({ where: { userId: familyUser } })).toBe(2);
+    expect(await db.inAppNotification.count({ where: { userId: familyUser! } })).toBe(2);
   });
 });
 

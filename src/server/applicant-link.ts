@@ -8,7 +8,7 @@ import { writeAudit } from "@/server/audit";
  */
 export async function linkApplicantAccount(tx: Tx, schoolId: string, applicationId: string, studentId: string) {
   const draft = await tx.applicationDraft.findUnique({ where: { applicationId }, select: { userId: true } });
-  if (!draft) return;
+  if (!draft?.userId) return; // an application filled in at the office has no family account to link
   const user = await tx.user.findFirst({ where: { id: draft.userId, schoolId, type: "GUARDIAN" }, select: { id: true, phone: true, guardian: { select: { id: true } } } });
   if (!user || user.guardian) return;
   const links = await tx.studentGuardian.findMany({ where: { studentId, schoolId }, select: { isPrimary: true, guardian: { select: { id: true, phone: true, userId: true } } } });

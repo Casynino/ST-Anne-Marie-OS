@@ -57,7 +57,7 @@ export type FeeResult = { outcome: FeeOutcome; draftId?: string; note?: string }
  * different currency, changes nothing and is left for Finance. If the money arrived but the application cannot be created (for example a
  * matching application appeared in the meantime) the draft is kept as PAID_HOLD and Finance gets a task: the payment is never lost.
  */
-export async function confirmApplicationFee(a: { schoolId: string; reference: string; provider: string; providerEventId: string; amountCents: number; currency: string | null; at?: Date | null; meta: RequestMeta }): Promise<FeeResult> {
+export async function confirmApplicationFee(a: { schoolId: string; reference: string; provider: string; providerEventId: string; amountCents: number; currency: string | null; at?: Date | null; meta: RequestMeta; /** Set when Finance records a fee received at the office. */ by?: AuthContext; method?: string; note?: string }): Promise<FeeResult> {
   const school = await db.school.findUniqueOrThrow({ where: { id: a.schoolId }, select: { id: true, timezone: true, currency: true } });
   const reference = a.reference.trim().toUpperCase();
   const draft = await db.applicationDraft.findUnique({ where: { schoolId_reference: { schoolId: a.schoolId, reference } } });
@@ -72,8 +72,8 @@ export async function confirmApplicationFee(a: { schoolId: string; reference: st
   const now = new Date();
   const paidAt = a.at && a.at <= now ? a.at : now;
   const year = Number(paidAt.toISOString().slice(0, 4));
-  const paid = { paidAt, paidAmount: (a.amountCents / 100).toFixed(2), paymentProvider: a.provider, paymentEventId: a.providerEventId };
-  const actor = { schoolId: a.schoolId, actorId: null, actorName: a.provider === "sandbox" ? "Test payment (sandbox)" : `Payment provider: ${a.provider}`, meta: a.meta };
+  const paid = { paidAt, paidAmount: (a.amountCents / 100).toFixed(2), paymentProvider: a.provider, paymentEventId: a.providerEventId, ...(a.by ? { paymentMethod: a.method ?? null, paymentNote: a.note ?? null, paymentRecordedById: a.by.userId } : {}) };
+  const actor = a.by ? actorOf(a.by) : { schoolId: a.schoolId, actorId: null, actorName: a.provider === "sandbox" ? "Test payment (sandbox)" : `Payment provider: ${a.provider}`, meta: a.meta };
   const form = fromStored(draft.payload as unknown as StoredForm);
 
   try {
@@ -81,7 +81,9 @@ export async function confirmApplicationFee(a: { schoolId: string; reference: st
       const rows = await tx.$queryRaw<{ paidAt: Date | null }[]>`SELECT "paidAt" FROM application_drafts WHERE id = ${draft.id}::uuid FOR UPDATE`;
       if (rows[0]?.paidAt) return { outcome: "ALREADY" as const, draftId: draft.id }; // another delivery of the same notification won the race
       const prepared = await prepareOnline(school, form);
-      const app = await insertOnlineApplication(tx, a.schoolId, form, prepared, a.meta, { feePaidCents: a.amountCents, feeReference: reference });
+      // A form filled in at the office becomes an application of the office (the member of staff who filled it in is recorded); an online one stays online.
+      const office = draft.channel === "OFFICE" && draft.createdById ? { createdById: draft.createdById, actor: { schoolId: a.schoolId, actorId: draft.createdById, actorName: (await tx.user.findFirst({ where: { id: draft.createdById }, select: { fullName: true } }))?.fullName ?? "Admissions Office", meta: a.meta } } : null;
+      const app = await insertOnlineApplication(tx, a.schoolId, form, prepared, a.meta, { feePaidCents: a.amountCents, feeReference: reference }, office);
       const receiptNo = await allocateNumber(tx, a.schoolId, "APR", year);
       await tx.applicationDraft.update({ where: { id: draft.id }, data: { status: "SUBMITTED", ...paid, receiptNo, applicationId: app.id } });
       // The photo and papers the family added now belong to the application too, so the Admissions Office finds them with it.
@@ -183,7 +185,7 @@ export async function applicationFeeLedger(ctx: AuthContext) {
     currency: school.currency,
     rows: rows.map((d) => {
       const p = d.payload as unknown as StoredForm;
-      return { id: d.id, reference: d.reference, child: `${p.firstName} ${p.lastName}`, guardian: p.g1_fullName, status: d.status, feeCents: centsOf(d.feeAmount), paidCents: d.paidAmount ? centsOf(d.paidAmount) : 0, paidAt: d.paidAt, receiptNo: d.receiptNo, applicationNo: d.application?.applicationNo ?? null, provider: d.paymentProvider, holdNote: d.holdNote, createdAt: d.createdAt };
+      return { id: d.id, channel: d.channel, method: d.paymentMethod, reference: d.reference, child: `${p.firstName} ${p.lastName}`, guardian: p.g1_fullName, status: d.status, feeCents: centsOf(d.feeAmount), paidCents: d.paidAmount ? centsOf(d.paidAmount) : 0, paidAt: d.paidAt, receiptNo: d.receiptNo, applicationNo: d.application?.applicationNo ?? null, provider: d.paymentProvider, holdNote: d.holdNote, createdAt: d.createdAt };
     }),
   };
 }

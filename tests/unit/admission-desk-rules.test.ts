@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessmentResolved, completeness, interviewState, workflowState } from "@/lib/admissions/rules";
+import { assessmentResolved, completeness, interviewState, workflowProgress, workflowState, WORKFLOW_STATES } from "@/lib/admissions/rules";
 
 const base = { status: "APPLIED" as const, review: "PENDING" as const, liveInterview: false, assessmentResolved: false };
 
@@ -49,5 +49,16 @@ describe("completeness", () => {
     expect(c.missing.map((m) => m.key)).toEqual(["doc:REPORT", "doc:TRANSFER_LETTER", "contact"]);
     expect(c.checked).toBe(1);
     expect(completeness({ checklist: [], hasClass: true, hasContact: true })).toMatchObject({ percent: 100, complete: true });
+  });
+});
+
+describe("progress along the road", () => {
+  it("only moves forward through the states, and a closed application shows none", () => {
+    const order = ["NEW", "UNDER_REVIEW", "NEEDS_INFO", "REVIEWED", "INTERVIEW_SCHEDULED", "AWAITING_DECISION", "ACCEPTED", "ENROLLED"] as const;
+    const steps = order.map(workflowProgress);
+    expect(steps).toEqual([1, 1, 1, 2, 2, 3, 4, 5]);
+    expect(workflowProgress("REJECTED")).toBe(0);
+    expect(workflowProgress("WITHDRAWN")).toBe(0);
+    for (const st of WORKFLOW_STATES) expect(workflowProgress(st)).toBeLessThanOrEqual(5);
   });
 });
