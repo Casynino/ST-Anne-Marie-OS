@@ -19,6 +19,9 @@ import { listDocuments } from "@/server/documents";
 import { db } from "@/lib/db";
 import { centsOf, formatMoney } from "@/lib/finance/money";
 import { loadAdmissionAccount } from "@/server/admission-offers";
+import { feeReviewFlag } from "@/server/fees";
+import { listConcerns } from "@/server/concerns";
+import { flagConcernAction } from "@/app/(app)/academic-office/actions";
 import { classOccupancy } from "@/server/admission-queues";
 import * as A from "../actions";
 
@@ -46,6 +49,9 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   // How the student came in: the application (with its offer and the admission fee), or a direct registration.
   const application = ctx.permissions.has("admission.read") ? await db.application.findFirst({ where: { schoolId: ctx.schoolId, studentId: id }, select: { id: true, applicationNo: true, classAppliedId: true } }) : null;
   const admission = application ? await loadAdmissionAccount(db, ctx.schoolId, application.id) : null;
+  const canFlag = ctx.permissions.has("concern.flag") || ctx.permissions.has("concern.manage");
+  const concernRows = canFlag ? await listConcerns(ctx, { status: "open", studentId: id }).catch(() => []) : [];
+  const feeFlag = ctx.permissions.has("fees.status.read") || ctx.permissions.has("fees.read") ? await feeReviewFlag(ctx, id).catch(() => null) : null;
   const current = s.enrollments.find((e) => e.status === "ACTIVE");
   const canManageGuardians = ctx.permissions.has("guardian.manage");
   const labels = await guardianLabels(ctx.permissions.has("guardian.read") || canManageGuardians);
@@ -62,6 +68,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
         title={fullName}
         subtitle={`${s.admissionNo} · ${current ? `${current.class.name}${current.stream ? ` – ${current.stream.name}` : ""}` : t("student.notPlaced")}`}
         actions={<>
+          {feeFlag?.status === "REVIEW" && <Badge tone="warn">{t("fin.fees.reviewBadge")}</Badge>}
           <Badge tone={STATUS_TONE[s.status]}>{t(`student.status.${s.status}`)}</Badge>
           {ctx.permissions.has("student.update") && <LinkButton href={`/students/${s.id}/edit`} variant="secondary"><Pencil className="size-4" aria-hidden /> {t("student.profile.edit")}</LinkButton>}
         </>}
@@ -189,6 +196,20 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
           {canSeeAttendance && (
             <Card title={t("att.title")}>
               <Link href={`/attendance/reports?view=student&studentId=${id}`} className="inline-flex min-h-11 items-center text-sm font-medium text-link hover:underline">{t("att.reports")}</Link>
+            </Card>
+          )}
+          {canFlag && s.status === "ENROLLED" && (
+            <Card title={t("concern.flag")}>
+              {concernRows.length > 0 && (
+                <ul className="mb-3 divide-y divide-line text-sm">{concernRows.map((c) => <li key={c.id} className="py-2"><Link href={`/academic-office/concerns/${c.id}`} className="font-medium text-link hover:underline">{t(`concern.cat.${c.category}` as "concern.cat.OTHER")}</Link> <span className="text-muted">· {c.summary}</span></li>)}</ul>
+              )}
+              <p className="mb-3 text-sm text-muted">{t("concern.flag.hint")}</p>
+              <ActionForm action={flagConcernAction} submitLabel={t("concern.flag")} className="space-y-3">
+                <input type="hidden" name="studentId" value={s.id} />
+                <Field name="category" type="select" label={t("concern.category")} required options={(["ABSENCE", "LOW_MARKS", "MISSING_WORK", "DECLINE", "BEHAVIOUR", "OTHER"] as const).map((k) => ({ value: k, label: t(`concern.cat.${k}` as "concern.cat.OTHER") }))} placeholder={t("common.select")} />
+                <Field name="summary" label={t("concern.flag.summary")} required />
+                <Field name="notes" type="textarea" rows={2} label={t("concern.flag.notes")} optionalLabel={t("common.optional")} />
+              </ActionForm>
             </Card>
           )}
           {ctx.permissions.has("fees.read") && (

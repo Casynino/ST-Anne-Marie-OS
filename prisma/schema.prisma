@@ -153,6 +153,10 @@ model School {
   interviews             Interview[]
   admissionOffers        AdmissionOffer[]
   admissionPayments      AdmissionPayment[]
+  workflowTasks          WorkflowTask[]
+  academicConcerns       AcademicConcern[]
+  classTransfers         ClassTransfer[]
+  staffCandidates        StaffCandidate[]
 
   @@map("schools")
 }
@@ -1001,15 +1005,19 @@ model Application {
   updatedAt          DateTime          @updatedAt
 
   // Admissions Office review (separate from the status above): are the details and papers in order?
-  submittedOn         DateTime?    @db.Date // the day a paper form was handed in (staff-entered applications)
-  reviewStatus        ReviewStatus @default(PENDING)
+  submittedOn         DateTime?          @db.Date // the day a paper form was handed in (staff-entered applications)
+  reviewStatus        ReviewStatus       @default(PENDING)
   reviewNote          String?
-  reviewedById        String?      @db.Uuid
+  reviewedById        String?            @db.Uuid
   reviewedAt          DateTime?
   // Recorded exception: the papers are not complete but an authorised person lets the application go on.
   docsExceptionReason String?
-  docsExceptionById   String?      @db.Uuid
+  docsExceptionById   String?            @db.Uuid
   docsExceptionAt     DateTime?
+  // The recorded admission decision while it is not yet final (Deferred, Further assessment, Awaiting decision). Accepted and Not accepted
+  // show in the status itself (an offer exists, or the application is rejected).
+  decisionOutcome     AdmissionDecision?
+  decisionNote        String?
 
   school     School             @relation(fields: [schoolId], references: [id])
   events     ApplicationEvent[]
@@ -1075,6 +1083,14 @@ model Document {
 
 // ═════════════════════════ Admissions workflow: review, interviews, offers, admission payments ═════════════════════════
 
+enum AdmissionDecision {
+  ACCEPTED
+  NOT_ACCEPTED
+  DEFERRED
+  FURTHER_ASSESSMENT
+  AWAITING_DECISION
+}
+
 enum ReviewStatus {
   PENDING
   VERIFIED
@@ -1085,6 +1101,18 @@ enum DocVerification {
   PENDING
   VERIFIED
   NEEDS_CORRECTION
+}
+
+enum AssessmentKind {
+  INTERVIEW
+  ENTRANCE_EXAM
+  ASSESSMENT
+}
+
+enum Recommendation {
+  RECOMMEND
+  RECOMMEND_WITH_CONDITIONS
+  NOT_RECOMMENDED
 }
 
 enum InterviewStatus {
@@ -1118,26 +1146,29 @@ enum AdmissionPaymentStatus {
 
 // One row per appointment. A rescheduled interview is cancelled and a new row points back to it (history is kept).
 model Interview {
-  id                String            @id @default(uuid(7)) @db.Uuid
-  schoolId          String            @db.Uuid
-  applicationId     String            @db.Uuid
-  scheduledAt       DateTime
-  durationMinutes   Int               @default(30)
-  location          String?
-  method            String? // free text, for example "In person" or "Phone"
-  interviewerId     String?           @db.Uuid // staff user responsible
-  status            InterviewStatus   @default(SCHEDULED)
-  outcome           InterviewOutcome?
-  score             Int? // optional 0-100
-  notes             String? // restricted: needs admission.interview.notes
-  scheduleNote      String?
-  cancelReason      String?
-  rescheduledFromId String?           @db.Uuid
-  completedAt       DateTime?
-  completedById     String?           @db.Uuid
-  createdById       String            @db.Uuid
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id                 String            @id @default(uuid(7)) @db.Uuid
+  schoolId           String            @db.Uuid
+  applicationId      String            @db.Uuid
+  kind               AssessmentKind    @default(INTERVIEW)
+  recommendation     Recommendation?
+  recommendationNote String?
+  scheduledAt        DateTime
+  durationMinutes    Int               @default(30)
+  location           String?
+  method             String? // free text, for example "In person" or "Phone"
+  interviewerId      String?           @db.Uuid // staff user responsible
+  status             InterviewStatus   @default(SCHEDULED)
+  outcome            InterviewOutcome?
+  score              Int? // optional 0-100
+  notes              String? // restricted: needs admission.interview.notes
+  scheduleNote       String?
+  cancelReason       String?
+  rescheduledFromId  String?           @db.Uuid
+  completedAt        DateTime?
+  completedById      String?           @db.Uuid
+  createdById        String            @db.Uuid
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   school      School      @relation(fields: [schoolId], references: [id])
   application Application @relation(fields: [applicationId], references: [id])
@@ -1209,6 +1240,236 @@ model AdmissionPayment {
   @@index([schoolId, status])
   @@index([applicationId])
   @@map("admission_payments")
+}
+
+// ═════════════════════════ Hand-offs between departments ═════════════════════════
+
+enum TaskDepartment {
+  ADMISSIONS
+  ACADEMIC
+  FINANCE
+  HR
+  ADMIN
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// One row per piece of work one department hands to another. The business record (application, payment, student, ...) stays the source of
+// truth: a task is created when its event happens, completed by the step that does the work, and never replaces a status. Overdue is not a
+// stored status: it is an open task whose due date has passed. The unique dedupe key makes a retried event create the task only once.
+model WorkflowTask {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  schoolId       String         @db.Uuid
+  kind           String
+  department     TaskDepartment
+  sourceEvent    String
+  relatedType    String
+  relatedId      String         @db.Uuid
+  relatedLabel   String?
+  assignedToId   String?        @db.Uuid
+  dueOn          DateTime?      @db.Date
+  status         TaskStatus     @default(PENDING)
+  dedupeKey      String
+  createdAt      DateTime       @default(now())
+  createdById    String?        @db.Uuid
+  startedAt      DateTime?
+  completedAt    DateTime?
+  completedById  String?        @db.Uuid
+  completionNote String?
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, dedupeKey])
+  @@index([schoolId, department, status])
+  @@index([schoolId, relatedType, relatedId])
+  @@index([assignedToId, status])
+  @@map("workflow_tasks")
+}
+
+// ═════════════════════════ Academic Office: concerns, transfers; staff recruitment ═════════════════════════
+
+enum ConcernCategory {
+  ABSENCE
+  LOW_MARKS
+  MISSING_WORK
+  DECLINE
+  BEHAVIOUR
+  OTHER
+}
+
+enum ConcernStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
+}
+
+// A teacher's flag that a student may need academic follow-up. The summary is plain and safe to show staff who teach the student; the notes are
+// restricted. Only what the Academic Office explicitly shares (shareWithParent + parentMessage) is ever shown to the family.
+model AcademicConcern {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  schoolId        String          @db.Uuid
+  studentId       String          @db.Uuid
+  category        ConcernCategory
+  summary         String
+  notes           String?
+  status          ConcernStatus   @default(OPEN)
+  classId         String?         @db.Uuid
+  subjectId       String?         @db.Uuid
+  flaggedById     String          @db.Uuid
+  flaggedAt       DateTime        @default(now())
+  assignedToId    String?         @db.Uuid
+  shareWithParent Boolean         @default(false)
+  parentMessage   String?
+  resolvedById    String?         @db.Uuid
+  resolvedAt      DateTime?
+  resolution      String?
+  updatedAt       DateTime        @updatedAt
+
+  school  School          @relation(fields: [schoolId], references: [id])
+  actions ConcernAction[]
+
+  @@index([schoolId, status])
+  @@index([studentId])
+  @@map("academic_concerns")
+}
+
+// Follow-up steps on a concern, append-only: what was done, by whom and when.
+model ConcernAction {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  concernId String   @db.Uuid
+  kind      String // NOTE | MEETING | PARENT_CONTACT | SUPPORT_PLAN | STATUS
+  note      String
+  byUserId  String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  concern AcademicConcern @relation(fields: [concernId], references: [id])
+
+  @@index([concernId])
+  @@map("concern_actions")
+}
+
+enum TransferKind {
+  TRANSFER
+  PROMOTION
+}
+
+enum TransferStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  APPLIED
+  CANCELLED
+}
+
+// A move between classes or streams (TRANSFER) or to the next class in a new year (PROMOTION), requested by one person, decided by another
+// and applied on its effective date. Applying closes the old enrolment and opens a new one; nothing in the history is overwritten.
+model ClassTransfer {
+  id                  String         @id @default(uuid(7)) @db.Uuid
+  schoolId            String         @db.Uuid
+  studentId           String         @db.Uuid
+  kind                TransferKind   @default(TRANSFER)
+  academicYearId      String         @db.Uuid
+  fromEnrollmentId    String?        @db.Uuid
+  fromClassId         String?        @db.Uuid
+  fromStreamId        String?        @db.Uuid
+  toClassId           String         @db.Uuid
+  toStreamId          String?        @db.Uuid
+  effectiveOn         DateTime       @db.Date
+  reason              String?
+  status              TransferStatus @default(REQUESTED)
+  requestedById       String         @db.Uuid
+  requestedAt         DateTime       @default(now())
+  decidedById         String?        @db.Uuid
+  decidedAt           DateTime?
+  decisionNote        String?
+  appliedAt           DateTime?
+  appliedEnrollmentId String?        @db.Uuid
+  overrideNote        String? // set when a full class was overridden
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, status])
+  @@index([studentId])
+  @@map("class_transfers")
+}
+
+enum CandidateStatus {
+  APPLIED
+  INTERVIEW_SCHEDULED
+  INTERVIEWED
+  AWAITING_DECISION
+  ACCEPTED
+  ONBOARDING
+  ACTIVE
+  REJECTED
+  WITHDRAWN
+}
+
+// A person applying to teach (or work) at the school. Recruitment is separate from staff accounts: the account exists only after employment is
+// approved and onboarding is completed. Salary is never stored here; Finance receives a payroll hand-off with the employee's reference only.
+model StaffCandidate {
+  id                     String          @id @default(uuid(7)) @db.Uuid
+  schoolId               String          @db.Uuid
+  candidateNo            String
+  fullName               String
+  phone                  String?
+  email                  String?
+  positionApplied        String
+  subjects               String?
+  qualifications         String?
+  experience             String?
+  notes                  String? // restricted
+  status                 CandidateStatus @default(APPLIED)
+  interviewAt            DateTime?
+  interviewLocation      String?
+  interviewerId          String?         @db.Uuid
+  interviewScore         Int?
+  interviewOutcome       String? // PASSED | NOT_PASSED
+  interviewNotes         String? // restricted
+  suitability            String? // the Academic Office's view: qualifications, subject expertise
+  decidedById            String?         @db.Uuid
+  decidedAt              DateTime?
+  decisionReason         String?
+  employmentApprovedById String?         @db.Uuid
+  employmentApprovedAt   DateTime?
+  startDate              DateTime?       @db.Date
+  jobTitle               String?
+  userId                 String?         @unique @db.Uuid
+  createdById            String          @db.Uuid
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  school    School              @relation(fields: [schoolId], references: [id])
+  documents CandidateDocument[]
+
+  @@unique([schoolId, candidateNo])
+  @@index([schoolId, status])
+  @@map("staff_candidates")
+}
+
+// Which employment papers have been received (a record, not the file): contract, identity, certificates, referees. Restricted.
+model CandidateDocument {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  schoolId     String    @db.Uuid
+  candidateId  String    @db.Uuid
+  docType      String
+  received     Boolean   @default(false)
+  receivedOn   DateTime? @db.Date
+  note         String?
+  recordedById String    @db.Uuid
+  updatedAt    DateTime  @updatedAt
+
+  candidate StaffCandidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([candidateId, docType])
+  @@map("candidate_documents")
 }
 
 // ═════════════════════════ Phase 2: Bulk import ═════════════════════════
@@ -1480,13 +1741,17 @@ model Exam {
 
 // A subject examined for one class in one exam; marks are entered against it.
 model ExamSubject {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  schoolId  String   @db.Uuid
-  examId    String   @db.Uuid
-  classId   String   @db.Uuid
-  subjectId String   @db.Uuid
-  maxMarks  Decimal  @db.Decimal(6, 2)
-  createdAt DateTime @default(now())
+  id        String    @id @default(uuid(7)) @db.Uuid
+  schoolId  String    @db.Uuid
+  examId    String    @db.Uuid
+  classId   String    @db.Uuid
+  subjectId String    @db.Uuid
+  maxMarks  Decimal   @db.Decimal(6, 2)
+  createdAt DateTime  @default(now())
+  // The examination timetable: when and where this subject is sat for this class (all optional).
+  sittingOn DateTime? @db.Date
+  startsAt  String? // "09:00"
+  venue     String?
 
   school      School             @relation(fields: [schoolId], references: [id])
   exam        Exam               @relation(fields: [examId], references: [id], onDelete: Cascade)

@@ -31,7 +31,11 @@ export type AdmissionPolicy = {
   interviewMinutes: number;
   /** An admission payment must be verified by someone other than the person who recorded it. */
   paymentNeedsSecondPerson: boolean;
+  /** What an applicant to each entry level must sit: an interview, an entrance examination, both or neither. A level not listed follows the school default. */
+  assessmentByLevel: Record<string, AssessmentRule>;
 };
+export type AssessmentRule = "NONE" | "INTERVIEW" | "EXAM" | "BOTH";
+const RULES: readonly AssessmentRule[] = ["NONE", "INTERVIEW", "EXAM", "BOTH"];
 
 export const DEFAULT_POLICY: AdmissionPolicy = {
   requireInterview: false,
@@ -43,6 +47,7 @@ export const DEFAULT_POLICY: AdmissionPolicy = {
   allowDirectRegistration: true,
   interviewMinutes: 30,
   paymentNeedsSecondPerson: false,
+  assessmentByLevel: {},
 };
 
 const KEY = "admission_policy";
@@ -61,6 +66,7 @@ export async function getAdmissionPolicy(client: Db | Tx, schoolId: string): Pro
     allowDirectRegistration: typeof s.allowDirectRegistration === "boolean" ? s.allowDirectRegistration : d.allowDirectRegistration,
     interviewMinutes: Number.isInteger(s.interviewMinutes) ? (s.interviewMinutes as number) : d.interviewMinutes,
     paymentNeedsSecondPerson: typeof s.paymentNeedsSecondPerson === "boolean" ? s.paymentNeedsSecondPerson : d.paymentNeedsSecondPerson,
+    assessmentByLevel: Object.fromEntries(Object.entries(s.assessmentByLevel ?? {}).filter(([, v]) => (RULES as readonly string[]).includes(v as string))) as Record<string, AssessmentRule>,
   };
 }
 
@@ -81,13 +87,30 @@ export async function updateAdmissionPolicy(ctx: AuthContext, input: unknown) {
   const d = parse(schema, input);
   const fee = parseAmount(d.admissionFee);
   if (fee === null) throw invalid("Please correct the highlighted fields.", { admissionFee: "Enter an amount such as 0 or 50000" });
+  // Per-level rules arrive as assessment_<levelId> = NONE | INTERVIEW | EXAM | BOTH (empty = follow the school default).
+  const levelIds = Object.keys(input as Record<string, unknown>).filter((k) => k.startsWith("assessment_")).map((k) => k.slice(11));
+  const known = new Set((await db.academicLevel.findMany({ where: { schoolId: ctx.schoolId, id: { in: levelIds.filter((x) => /^[0-9a-f-]{36}$/i.test(x)) } }, select: { id: true } })).map((l) => l.id));
+  const assessmentByLevel: Record<string, AssessmentRule> = {};
+  for (const id of levelIds) {
+    const v = String((input as Record<string, unknown>)[`assessment_${id}`] ?? "");
+    if (!v) continue;
+    if (!known.has(id) || !(RULES as readonly string[]).includes(v)) throw invalid("Please correct the highlighted fields.", { [`assessment_${id}`]: "Choose interview, entrance examination, both or none" });
+    assessmentByLevel[id] = v as AssessmentRule;
+  }
   const value: AdmissionPolicy = {
     requireInterview: d.requireInterview, requiredDocTypes: [...new Set(d.requiredDocTypes)], admissionFeeCents: fee, requirePaymentBeforeEnrol: d.requirePaymentBeforeEnrol,
-    offerValidDays: d.offerValidDays, offerNeedsApproval: d.offerNeedsApproval, allowDirectRegistration: d.allowDirectRegistration, interviewMinutes: d.interviewMinutes, paymentNeedsSecondPerson: d.paymentNeedsSecondPerson,
+    offerValidDays: d.offerValidDays, offerNeedsApproval: d.offerNeedsApproval, allowDirectRegistration: d.allowDirectRegistration, interviewMinutes: d.interviewMinutes, paymentNeedsSecondPerson: d.paymentNeedsSecondPerson, assessmentByLevel: levelIds.length === 0 ? (await getAdmissionPolicy(db, ctx.schoolId)).assessmentByLevel : assessmentByLevel,
   };
   const before = await getAdmissionPolicy(db, ctx.schoolId);
   await db.$transaction(async (tx) => {
     await tx.schoolSetting.upsert({ where: { schoolId_key: { schoolId: ctx.schoolId, key: KEY } }, create: { schoolId: ctx.schoolId, key: KEY, value, updatedById: ctx.userId }, update: { value, updatedById: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "settings.admission_policy_update", entityType: "SchoolSetting", entityId: KEY, changes: { before, after: value } });
   });
+}
+
+/** What this school asks of an applicant for an entry level: an interview, an entrance examination, both or neither. Levels without their own rule follow the school default. */
+export function assessmentFor(policy: AdmissionPolicy, levelId: string | null): { interview: boolean; exam: boolean } {
+  const rule = levelId ? policy.assessmentByLevel[levelId] : undefined;
+  if (!rule) return { interview: policy.requireInterview, exam: false };
+  return { interview: rule === "INTERVIEW" || rule === "BOTH", exam: rule === "EXAM" || rule === "BOTH" };
 }

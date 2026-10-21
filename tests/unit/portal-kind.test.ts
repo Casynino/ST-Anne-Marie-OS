@@ -11,6 +11,7 @@ describe("portalOf", () => {
   it("gives each staff role its own home", () => {
     expect(portalOf(staff(["super_admin"]))).toBe("admin");
     expect(portalOf(staff(["head_teacher"]))).toBe("head");
+    expect(portalOf(staff(["academic_office"]))).toBe("academic");
     expect(portalOf(staff(["accountant"]))).toBe("accountant");
     expect(portalOf(staff(["registrar"]))).toBe("registrar");
     expect(portalOf(staff(["class_teacher"]))).toBe("teacher");
@@ -18,6 +19,8 @@ describe("portalOf", () => {
   });
   it("picks the highest role when a person has several", () => {
     expect(portalOf(staff(["class_teacher", "head_teacher"]))).toBe("head");
+    expect(portalOf(staff(["academic_office", "head_teacher"]))).toBe("head");
+    expect(portalOf(staff(["academic_office", "registrar"]))).toBe("academic");
     expect(portalOf(staff(["registrar", "accountant"]))).toBe("accountant");
     expect(portalOf(staff(["class_teacher", "super_admin"]))).toBe("admin");
     expect(portalOf(staff(["subject_teacher", "registrar"]))).toBe("registrar");

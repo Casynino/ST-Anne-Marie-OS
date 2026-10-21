@@ -5,7 +5,8 @@ import { conflict, invalid, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { docChecklist, docsComplete } from "@/lib/admissions/rules";
 import { actorOf, writeAudit } from "@/server/audit";
-import { getAdmissionPolicy } from "@/server/admission-policy";
+import { assessmentFor, getAdmissionPolicy } from "@/server/admission-policy";
+import { closeTasks, openTask } from "@/server/workflow";
 import { optText, parse, text } from "@/lib/validation";
 
 /*
@@ -62,6 +63,13 @@ export async function reviewApplication(ctx: AuthContext, applicationId: string,
       if (!r.ok) throw conflict("Some required documents are missing or not yet verified. Verify them first, or record an exception.");
     }
     await tx.application.update({ where: { id: applicationId }, data: { reviewStatus: d.decision, reviewNote: d.note ?? null, reviewedById: ctx.userId, reviewedAt: new Date() } });
+    if (d.decision === "VERIFIED") {
+      await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["APPLICATION_REVIEW"], by: ctx.userId, note: "Application verified" });
+      // Ready for assessment: the Academic Office arranges whatever assessment the school requires for this entry level.
+      const policy = await getAdmissionPolicy(tx, ctx.schoolId);
+      const need = assessmentFor(policy, app.classAppliedId ? (await tx.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId: ctx.schoolId }, select: { levelId: true } }))?.levelId ?? null : null);
+      if ((need.interview || need.exam) && app.status === "APPLIED") await openTask(tx, { schoolId: ctx.schoolId, kind: "ASSESSMENT_COORDINATE", relatedType: "Application", relatedId: applicationId, relatedLabel: `${app.firstName} ${app.lastName} (${app.applicationNo})`, sourceEvent: "application.ready_for_assessment", createdById: ctx.userId });
+    }
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: app.status, kind: "REVIEW", reason: `${d.decision}${d.note ? ` - ${d.note}` : ""}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: d.decision === "VERIFIED" ? "admission.review_verified" : "admission.review_returned", entityType: "Application", entityId: applicationId, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { from: app.reviewStatus, to: d.decision }, reason: d.note });
   });

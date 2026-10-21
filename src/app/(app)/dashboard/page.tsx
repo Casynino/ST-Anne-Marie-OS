@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { CalendarDays, ClipboardCheck, UserPlus } from "lucide-react";
+import { redirect } from "next/navigation";
 import { requireContext, getT, getLocale } from "@/lib/auth/next";
 import { portalOf, portalLabelKey } from "@/lib/auth/portal";
 import { getDashboard } from "@/server/dashboard";
@@ -36,6 +37,8 @@ export default async function DashboardPage() {
   const t = await getT();
   const locale = await getLocale();
   const kind = portalOf(ctx);
+  // The Academic Office's home is its own desk.
+  if (kind === "academic") redirect("/academic-office");
   const [d, school] = await Promise.all([getDashboard(ctx), getSchoolBasics(ctx.schoolId)]);
   const can = (p: string) => ctx.permissions.has(p as never);
   const first = ctx.fullName.split(" ")[0] ?? ctx.fullName;

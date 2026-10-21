@@ -15,7 +15,7 @@ export default async function PolicyPage() {
   const ctx = await requireContext();
   const t = await getT();
   if (!ctx.permissions.has("school.settings.read")) return <NoAccess t={t} />;
-  const [p, school] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), getSchoolBasics(ctx.schoolId)]);
+  const [p, school, levels] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), getSchoolBasics(ctx.schoolId), db.academicLevel.findMany({ where: { schoolId: ctx.schoolId }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true } })]);
   const edit = ctx.permissions.has("school.settings.update");
   return (
     <>
@@ -25,6 +25,15 @@ export default async function PolicyPage() {
         {p.admissionFeeCents === 0 && <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warn">{t("adm.policy.noFeeWarn")}</p>}
         <ActionForm action={updatePolicyAction} submitLabel={edit ? t("common.save") : undefined} hideSubmit={!edit} className="max-w-2xl space-y-5">
           <Field name="requireInterview" type="checkbox" label={t("adm.policy.requireInterview")} defaultValue={p.requireInterview} />
+          {levels.length > 0 && (
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">{t("adm.policy.assessment")}</legend>
+              <p className="text-sm text-muted">{t("adm.policy.assessment.hint")}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {levels.map((l) => <Field key={l.id} name={`assessment_${l.id}`} type="select" label={l.name} defaultValue={p.assessmentByLevel[l.id] ?? ""} placeholder={t("adm.policy.assessment.default")} options={(["NONE", "INTERVIEW", "EXAM", "BOTH"] as const).map((r) => ({ value: r, label: t(`adm.policy.assessment.${r}` as "adm.policy.assessment.NONE") }))} />)}
+              </div>
+            </fieldset>
+          )}
           <fieldset className="space-y-1">
             <legend className="text-sm font-medium">{t("adm.policy.requiredDocs")}</legend>
             <p className="mb-1 text-sm text-muted">{t("adm.policy.requiredDocs.hint")}</p>

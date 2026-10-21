@@ -86,7 +86,7 @@ describe("policy", () => {
 describe("applications: online and physical share one workflow", () => {
   it("an online application and a walk-in application land in the same queue, both as applicants and not as students", async () => {
     const k = next();
-    const { applicationNo } = await pub.submitOnlineApplication(school.id, { firstName: `Web${k}`, lastName: `Child${k}`, dateOfBirth: "2019-02-02", gender: "MALE", classAppliedId: setup.cls.id, g1_fullName: `Web Parent ${k}`, g1_phone: `0733${String(k).padStart(6, "0")}`, g1_relationship: "MOTHER", consent: "on", website: "" }, { ip: "10.0.0.1", userAgent: "test" } as never);
+    const { applicationNo } = await pub.submitOnlineApplication(school.id, { firstName: `Web${k}`, lastName: `Child${k}`, dateOfBirth: "2019-02-02", gender: "MALE", classAppliedId: setup.cls.id, g1_fullName: `Web Parent ${k}`, g1_phone: `0733${String(k).padStart(6, "0")}`, g1_relationship: "MOTHER", consent: "on", website: "" }, { ip: `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`, userAgent: "test" } as never);
     const physical = await newApp({ submittedOn: new Date().toISOString().slice(0, 10) });
     const list = await admissions.listApplications(registrar, {});
     const online = list.items.find((a) => a.applicationNo === applicationNo)!;

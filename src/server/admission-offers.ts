@@ -6,9 +6,10 @@ import { admissionAccount } from "@/lib/admissions/rules";
 import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { centsOf, decimalOf, formatMoney, parseAmount } from "@/lib/finance/money";
 import { actorOf, writeAudit } from "@/server/audit";
-import { getAdmissionPolicy } from "@/server/admission-policy";
+import { assessmentFor, getAdmissionPolicy } from "@/server/admission-policy";
 import { reviewBlockers, documentReadiness } from "@/server/admission-review";
 import { allocateNumber } from "@/server/invoices";
+import { closeTasks, openTask } from "@/server/workflow";
 import { optDateOnly, optText, optUuid, parse, text } from "@/lib/validation";
 
 /*
@@ -37,6 +38,18 @@ async function todayOf(client: Db | Tx, schoolId: string): Promise<Date> {
   return parseDateOnly(todayInTimezone(s.timezone)) as Date;
 }
 const label = (a: { firstName: string; lastName: string; applicationNo: string }) => `${a.firstName} ${a.lastName} (${a.applicationNo})`;
+
+/**
+ * After a place is offered: the Admissions Office tells the family, Finance is asked to collect the admission fee, and (when nothing has to be
+ * paid first) the Admissions Office can go straight to enrolment.
+ */
+async function handOffAcceptance(tx: Tx, ctx: AuthContext, app: { id: string; firstName: string; lastName: string; applicationNo: string }, feeCents: number, paymentRequired: boolean) {
+  const base = { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, relatedLabel: label(app), createdById: ctx.userId };
+  await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, kinds: ["DECISION_REVIEW", "ASSESSMENT_COORDINATE"], by: ctx.userId, note: "Decision made" });
+  await openTask(tx, { ...base, kind: "OFFER_COMMUNICATE", sourceEvent: "offer.issued" });
+  if (feeCents > 0 && paymentRequired) await openTask(tx, { ...base, kind: "ADMISSION_PAYMENT", sourceEvent: "offer.fee_required" });
+  else await openTask(tx, { ...base, kind: "ENROL_APPLICANT", sourceEvent: "offer.no_payment_needed" });
+}
 
 // ───────────────────────── Offers ─────────────────────────
 
@@ -68,8 +81,19 @@ export async function issueOffer(ctx: AuthContext, applicationId: string, input:
     if (blockers.length) throw conflict(`This application is not ready for an offer. ${blockers.join(" ")}`);
 
     if (await tx.interview.findFirst({ where: { applicationId, status: "SCHEDULED" }, select: { id: true } })) throw conflict("An interview is still scheduled. Record its result or cancel it before deciding.");
-    const last = await tx.interview.findFirst({ where: { applicationId, status: "COMPLETED" }, orderBy: { scheduledAt: "desc" }, select: { outcome: true } });
-    const interviewProblem = last ? (last.outcome === "PASSED" ? null : `The latest interview result is ${last.outcome}.`) : policy.requireInterview ? "The school requires a passed interview first." : null;
+    const completed = await tx.interview.findMany({ where: { applicationId, status: "COMPLETED" }, orderBy: { scheduledAt: "desc" }, select: { kind: true, outcome: true } });
+    const levelId = app.classAppliedId ? (await tx.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId: ctx.schoolId }, select: { levelId: true } }))?.levelId ?? null : null;
+    const need = assessmentFor(policy, levelId);
+    const unmet: string[] = [];
+    for (const [required, kind, name] of [[need.interview, "INTERVIEW", "interview"], [need.exam, "ENTRANCE_EXAM", "entrance examination"]] as const) {
+      if (!required) continue;
+      const latest = completed.find((c) => c.kind === kind || (kind === "INTERVIEW" && c.kind === "ASSESSMENT"));
+      if (!latest) unmet.push(`The school requires a passed ${name} first.`);
+      else if (latest.outcome !== "PASSED") unmet.push(`The latest ${name} result is ${latest.outcome}.`);
+    }
+    // When nothing is required, the decision still may not quietly go against a recorded result.
+    if (!need.interview && !need.exam && completed[0] && completed[0].outcome !== "PASSED") unmet.push(`The latest assessment result is ${completed[0].outcome}.`);
+    const interviewProblem = unmet.length ? unmet.join(" ") : null;
     if (interviewProblem) {
       if (!d.exceptionReason) throw conflict(`${interviewProblem} An authorised person can record an exception.`);
       requirePermission(ctx, "admission.override");
@@ -88,7 +112,8 @@ export async function issueOffer(ctx: AuthContext, applicationId: string, input:
       ? await tx.admissionOffer.update({ where: { id: existing.id }, data })
       : await tx.admissionOffer.create({ data: { ...data, schoolId: ctx.schoolId, applicationId, letterNo: await allocateNumber(tx, ctx.schoolId, "ADM", today.getUTCFullYear()) } });
     if (!needsApproval) {
-      await tx.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED", decidedAt: new Date(), decidedById: ctx.userId, decisionReason: null, ...(d.assessmentNotes ? { assessmentNotes: d.assessmentNotes } : {}) } });
+      await tx.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED", decidedAt: new Date(), decidedById: ctx.userId, decisionReason: null, decisionOutcome: null, decisionNote: null, ...(d.assessmentNotes ? { assessmentNotes: d.assessmentNotes } : {}) } });
+      await handOffAcceptance(tx, ctx, app, fee, policy.requirePaymentBeforeEnrol);
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: "ACCEPTED", kind: "STATUS", reason: `Offer ${offer.letterNo}`, byUserId: ctx.userId } });
     } else {
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: app.status, kind: "OFFER", reason: `Offer ${offer.letterNo} waiting for approval`, byUserId: ctx.userId } });
@@ -107,6 +132,7 @@ export async function approveOffer(ctx: AuthContext, applicationId: string) {
     if (offer.issuedById === ctx.userId) throw conflict("An offer must be approved by someone other than the person who made it.");
     await tx.admissionOffer.update({ where: { id: offer.id }, data: { status: "ISSUED", approvedAt: new Date(), approvedById: ctx.userId } });
     await tx.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED", decidedAt: new Date(), decidedById: ctx.userId } });
+    await handOffAcceptance(tx, ctx, app, centsOf(offer.feeAmount), (await getAdmissionPolicy(tx, ctx.schoolId)).requirePaymentBeforeEnrol);
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: "ACCEPTED", kind: "STATUS", reason: `Offer ${offer.letterNo} approved`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "admission.offer_approve", entityType: "AdmissionOffer", entityId: offer.id, summary: `${label(app)} · ${offer.letterNo}` });
   });
@@ -141,6 +167,7 @@ export async function withdrawOffer(ctx: AuthContext, applicationId: string, inp
     if (!offer || !["ISSUED", "PENDING_APPROVAL"].includes(offer.status) || app.status === "ENROLLED") throw conflict("There is no live offer to withdraw.");
     if (await tx.admissionPayment.findFirst({ where: { applicationId, status: "VERIFIED" }, select: { id: true } })) throw conflict("Verified admission payments exist for this applicant. Finance must reverse them before the offer is withdrawn.");
     await tx.admissionOffer.update({ where: { id: offer.id }, data: { status: "WITHDRAWN", responseNote: reason, respondedAt: new Date() } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["OFFER_COMMUNICATE", "ADMISSION_PAYMENT", "ENROL_APPLICANT"], status: "CANCELLED", by: ctx.userId, note: "Offer withdrawn" });
     if (app.status === "ACCEPTED") {
       await tx.application.update({ where: { id: applicationId }, data: { status: "APPLIED", decidedAt: null, decidedById: null } });
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "ACCEPTED", toStatus: "APPLIED", kind: "STATUS", reason: `Offer withdrawn: ${reason}`, byUserId: ctx.userId } });
@@ -158,6 +185,7 @@ export async function declineOffer(ctx: AuthContext, applicationId: string, inpu
     const offer = await tx.admissionOffer.findUnique({ where: { applicationId } });
     if (!offer || offer.status !== "ISSUED" || app.status !== "ACCEPTED") throw conflict("There is no issued offer to decline.");
     await tx.admissionOffer.update({ where: { id: offer.id }, data: { status: "DECLINED", responseNote: reason, respondedAt: new Date() } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, status: "CANCELLED", by: ctx.userId, note: "Offer declined" });
     await tx.application.update({ where: { id: applicationId }, data: { status: "WITHDRAWN", decisionReason: `Offer declined: ${reason}`, decidedAt: new Date(), decidedById: ctx.userId } });
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "ACCEPTED", toStatus: "WITHDRAWN", kind: "STATUS", reason: `Offer declined: ${reason}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "admission.offer_decline", entityType: "AdmissionOffer", entityId: offer.id, summary: `${label(app)} · ${offer.letterNo}`, reason });
@@ -227,6 +255,12 @@ export async function verifyAdmissionPayment(ctx: AuthContext, paymentId: string
     const today = await todayOf(tx, ctx.schoolId);
     const receiptNo = await allocateNumber(tx, ctx.schoolId, "ARC", today.getUTCFullYear());
     const v = await tx.admissionPayment.update({ where: { id: p.id }, data: { status: "VERIFIED", verifiedById: ctx.userId, verifiedAt: new Date(), receiptNo } });
+    // When the verified money now covers the fee, Finance's task is done and the Admissions Office can enrol.
+    const { account } = await loadAdmissionAccount(tx, ctx.schoolId, p.applicationId);
+    if (account?.satisfied) {
+      await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: p.applicationId, kinds: ["ADMISSION_PAYMENT"], by: ctx.userId, note: `Verified, receipt ${receiptNo}` });
+      await openTask(tx, { schoolId: ctx.schoolId, kind: "ENROL_APPLICANT", relatedType: "Application", relatedId: p.applicationId, relatedLabel: label(app), sourceEvent: "admission_payment.verified", createdById: ctx.userId });
+    }
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: p.applicationId, fromStatus: app.status, toStatus: app.status, kind: "PAYMENT", reason: `Admission payment verified (${formatMoney(centsOf(p.amount))}), receipt ${receiptNo}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "admission_payment.verify", entityType: "AdmissionPayment", entityId: p.id, summary: `${label(app)} · ${receiptNo} · ${formatMoney(centsOf(p.amount))}` });
     return v;
@@ -258,6 +292,13 @@ export async function reverseAdmissionPayment(ctx: AuthContext, paymentId: strin
     if (p.status !== "VERIFIED") throw conflict("Only a verified payment can be reversed.");
     const app = await tx.application.findUniqueOrThrow({ where: { id: p.applicationId } });
     await tx.admissionPayment.update({ where: { id: p.id }, data: { status: "REVERSED", reversedById: ctx.userId, reversedAt: new Date(), reverseReason: reason } });
+    if (app.status === "ACCEPTED") {
+      const { account } = await loadAdmissionAccount(tx, ctx.schoolId, p.applicationId);
+      if (account && !account.satisfied) {
+        await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: p.applicationId, kinds: ["ENROL_APPLICANT"], status: "CANCELLED", by: ctx.userId, note: "Payment reversed" });
+        await openTask(tx, { schoolId: ctx.schoolId, kind: "ADMISSION_PAYMENT", relatedType: "Application", relatedId: p.applicationId, relatedLabel: label(app), sourceEvent: "admission_payment.reversed", createdById: ctx.userId, discriminator: `reversed-${p.id}` });
+      }
+    }
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: p.applicationId, fromStatus: app.status, toStatus: app.status, kind: "PAYMENT", reason: `Admission payment ${p.receiptNo} reversed: ${reason}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "admission_payment.reverse", entityType: "AdmissionPayment", entityId: p.id, summary: `${label(app)} · ${p.receiptNo} · ${formatMoney(centsOf(p.amount))}`, changes: { alreadyEnrolled: app.status === "ENROLLED" }, reason });
   });
@@ -272,6 +313,8 @@ export async function waiveAdmissionPayment(ctx: AuthContext, applicationId: str
     const offer = await tx.admissionOffer.findUnique({ where: { applicationId } });
     if (!offer || offer.status !== "ISSUED" || app.status !== "ACCEPTED") throw conflict("There is no issued offer to make an exception for.");
     await tx.admissionOffer.update({ where: { id: offer.id }, data: { paymentWaivedAt: new Date(), paymentWaivedById: ctx.userId, paymentWaiverReason: reason } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ADMISSION_PAYMENT"], by: ctx.userId, note: "Exception recorded: payment waived" });
+    await openTask(tx, { schoolId: ctx.schoolId, kind: "ENROL_APPLICANT", relatedType: "Application", relatedId: applicationId, relatedLabel: label(app), sourceEvent: "admission_payment.waived", createdById: ctx.userId });
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: app.status, kind: "EXCEPTION", reason: `Admission payment exception: ${reason}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "admission.exception_payment", entityType: "AdmissionOffer", entityId: offer.id, summary: `${label(app)} · ${offer.letterNo}`, reason });
   });

@@ -118,7 +118,7 @@ export async function grantDocsExceptionAction(_: ActionState, form: FormData) {
 }
 
 // ───────────── Interviews ─────────────
-const INTERVIEW_FIELDS = ["scheduledAt", "durationMinutes", "location", "method", "interviewerId", "note", "confirmLocationClash", "exceptionReason", "reason"] as const;
+const INTERVIEW_FIELDS = ["kind", "scheduledAt", "durationMinutes", "location", "method", "interviewerId", "note", "confirmLocationClash", "exceptionReason", "reason"] as const;
 const interviewInput = (i: Input) => Object.fromEntries(INTERVIEW_FIELDS.map((f) => [f, i[f]]));
 export async function scheduleInterviewAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await interviews.scheduleInterview(ctx, str(i.id), interviewInput(i)); return saved(ctx); });
@@ -130,12 +130,15 @@ export async function cancelInterviewAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await interviews.cancelInterview(ctx, str(i.interviewId), { reason: i.reason }); return saved(ctx); });
 }
 export async function recordInterviewResultAction(_: ActionState, form: FormData) {
-  return run(form, async (ctx, i) => { await interviews.recordInterviewResult(ctx, str(i.interviewId), { status: str(i.status), outcome: i.outcome, score: i.score, notes: i.notes }); return saved(ctx); });
+  return run(form, async (ctx, i) => { await interviews.recordInterviewResult(ctx, str(i.interviewId), { status: str(i.status), outcome: i.outcome, score: i.score, notes: i.notes, recommendation: i.recommendation, recommendationNote: i.recommendationNote }); return saved(ctx); });
 }
 
 // ───────────── Offers and exceptions ─────────────
 export async function issueOfferAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await offers.issueOffer(ctx, str(i.id), { classOfferedId: i.classOfferedId, feeAmount: i.feeAmount, expiresOn: i.expiresOn, notes: i.notes, assessmentNotes: i.assessmentNotes, exceptionReason: i.exceptionReason }); return saved(ctx); });
+}
+export async function recordDecisionAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await admissions.recordAdmissionDecision(ctx, str(i.id), { outcome: i.outcome, note: i.note }); return saved(ctx); });
 }
 export async function approveOfferAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await offers.approveOffer(ctx, str(i.id)); return saved(ctx); });

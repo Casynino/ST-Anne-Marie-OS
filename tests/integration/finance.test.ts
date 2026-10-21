@@ -84,12 +84,13 @@ describe("discounts and scholarships", () => {
   it("only fees.discount can grant; percentages are limited to 100", async () => {
     const d = { studentId: kids[0]!.id, academicYearId: setup.year.id, name: "Staff child", kind: "PERCENT", value: "50", reason: "Child of a teacher" };
     expect(await code(fees.grantDiscount(accountant, d))).toBe("FORBIDDEN");
-    expect(await code(fees.grantDiscount(head, { ...d, value: "101" }))).toBe("VALIDATION");
-    expect(await code(fees.grantDiscount(head, { ...d, value: "abc" }))).toBe("VALIDATION");
-    expect(await code(fees.grantDiscount(head, { ...d, reason: "" }))).toBe("VALIDATION");
-    await fees.grantDiscount(head, d);
-    await fees.grantDiscount(head, { studentId: kids[1]!.id, academicYearId: setup.year.id, name: "Bursary", kind: "FIXED", value: "100000", feeItemId: tuition.id, reason: "Hardship" });
-    await fees.grantDiscount(head, { studentId: kids[2]!.id, academicYearId: setup.year.id, name: "Full scholarship", kind: "PERCENT", value: "100", reason: "Sponsored" });
+    expect(await code(fees.grantDiscount(head, d))).toBe("FORBIDDEN"); // the Head Teacher supervises academics and does not grant fee discounts
+    expect(await code(fees.grantDiscount(admin, { ...d, value: "101" }))).toBe("VALIDATION");
+    expect(await code(fees.grantDiscount(admin, { ...d, value: "abc" }))).toBe("VALIDATION");
+    expect(await code(fees.grantDiscount(admin, { ...d, reason: "" }))).toBe("VALIDATION");
+    await fees.grantDiscount(admin, d);
+    await fees.grantDiscount(admin, { studentId: kids[1]!.id, academicYearId: setup.year.id, name: "Bursary", kind: "FIXED", value: "100000", feeItemId: tuition.id, reason: "Hardship" });
+    await fees.grantDiscount(admin, { studentId: kids[2]!.id, academicYearId: setup.year.id, name: "Full scholarship", kind: "PERCENT", value: "100", reason: "Sponsored" });
   });
 });
 

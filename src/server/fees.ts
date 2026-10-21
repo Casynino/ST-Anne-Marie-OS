@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db, type Db, type Tx } from "@/lib/db";
 import { conflict, invalid, notFound } from "@/lib/errors";
-import { requirePermission, type AuthContext } from "@/lib/auth/context";
+import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
 import { centsOf, decimalOf, parseAmount, positiveAmount } from "@/lib/finance/money";
 import { actorOf, writeAudit } from "@/server/audit";
 import { loadFinance } from "@/server/balances";
@@ -9,8 +9,8 @@ import { optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
 // ───────────────────────── Settings ─────────────────────────
 
-export type FeeSettings = { paymentInstructions: string; defaultDueDays: number; clearanceMaxOutstandingCents: number; /** An expense of this size or more waits for approval (0 = only categories marked as needing approval). */ expenseApprovalAboveCents: number };
-export const DEFAULT_FEE_SETTINGS: FeeSettings = { paymentInstructions: "", defaultDueDays: 14, clearanceMaxOutstandingCents: 0, expenseApprovalAboveCents: 0 };
+export type FeeSettings = { paymentInstructions: string; defaultDueDays: number; clearanceMaxOutstandingCents: number; /** An expense of this size or more waits for approval (0 = only categories marked as needing approval). */ expenseApprovalAboveCents: number; /** Show academic staff a plain "fees need review" flag for a student (no amounts). The school chooses; nothing is blocked by it. */ academicReviewFlag: boolean };
+export const DEFAULT_FEE_SETTINGS: FeeSettings = { paymentInstructions: "", defaultDueDays: 14, clearanceMaxOutstandingCents: 0, expenseApprovalAboveCents: 0, academicReviewFlag: false };
 
 export async function getFeeSettings(client: Db | Tx, schoolId: string): Promise<FeeSettings> {
   const row = await client.schoolSetting.findUnique({ where: { schoolId_key: { schoolId, key: "fees" } } });
@@ -20,6 +20,7 @@ export async function getFeeSettings(client: Db | Tx, schoolId: string): Promise
     defaultDueDays: Number.isInteger(s.defaultDueDays) ? (s.defaultDueDays as number) : DEFAULT_FEE_SETTINGS.defaultDueDays,
     clearanceMaxOutstandingCents: Number.isInteger(s.clearanceMaxOutstandingCents) ? (s.clearanceMaxOutstandingCents as number) : 0,
     expenseApprovalAboveCents: Number.isInteger(s.expenseApprovalAboveCents) && (s.expenseApprovalAboveCents as number) >= 0 ? (s.expenseApprovalAboveCents as number) : 0,
+    academicReviewFlag: s.academicReviewFlag === true,
   };
 }
 
@@ -28,6 +29,7 @@ const settingsSchema = z.object({
   defaultDueDays: z.coerce.number().int().min(0).max(120),
   clearanceMaxOutstanding: z.preprocess((v) => (v === "" || v === undefined ? "0" : v), z.union([z.string(), z.number()])),
   expenseApprovalAbove: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.union([z.string(), z.number()]).optional()),
+  academicReviewFlag: z.preprocess((v) => (v === undefined ? undefined : v === "on" || v === "true" || v === true), z.boolean().optional()),
 });
 
 export async function updateFeeSettings(ctx: AuthContext, input: unknown) {
@@ -39,7 +41,7 @@ export async function updateFeeSettings(ctx: AuthContext, input: unknown) {
   // A form that does not send the field leaves the threshold as it was; an explicit 0 turns it off.
   const approvalAbove = d.expenseApprovalAbove === undefined ? before.expenseApprovalAboveCents : parseAmount(d.expenseApprovalAbove);
   if (approvalAbove === null) throw invalid("Please correct the highlighted fields.", { expenseApprovalAbove: "Enter an amount such as 0 or 500000" });
-  const value: FeeSettings = { paymentInstructions: d.paymentInstructions ?? "", defaultDueDays: d.defaultDueDays, clearanceMaxOutstandingCents: max, expenseApprovalAboveCents: approvalAbove };
+  const value: FeeSettings = { paymentInstructions: d.paymentInstructions ?? "", defaultDueDays: d.defaultDueDays, clearanceMaxOutstandingCents: max, expenseApprovalAboveCents: approvalAbove, academicReviewFlag: d.academicReviewFlag ?? before.academicReviewFlag };
   await db.$transaction(async (tx) => {
     await tx.schoolSetting.upsert({ where: { schoolId_key: { schoolId: ctx.schoolId, key: "fees" } }, create: { schoolId: ctx.schoolId, key: "fees", value, updatedById: ctx.userId }, update: { value, updatedById: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "fees.settings_update", entityType: "SchoolSetting", entityId: "fees", changes: { before: { ...before, paymentInstructions: undefined }, after: { ...value, paymentInstructions: undefined } } });
@@ -239,3 +241,20 @@ export async function clearedStudents(client: Db | Tx, schoolId: string, termId:
   return cleared;
 }
 
+
+/**
+ * For academic staff: does this student's fee account need a look? Only a flag, never an amount, and only when the school has switched the
+ * flag on in Fee settings. It blocks nothing: any restriction on examinations or report cards is a separate, explicit school policy.
+ * Returns null when the flag is off or the student has no bill this term.
+ */
+export async function feeReviewFlag(ctx: AuthContext, studentId: string): Promise<{ status: "CLEARED" | "REVIEW" | "NOT_BILLED" } | null> {
+  requireAnyPermission(ctx, ["fees.status.read", "fees.read"]);
+  const settings = await getFeeSettings(db, ctx.schoolId);
+  if (!settings.academicReviewFlag) return null;
+  const term = await db.term.findFirst({ where: { schoolId: ctx.schoolId, isCurrent: true }, select: { id: true } });
+  if (!term) return null;
+  if (!(await db.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId }, select: { id: true } }))) throw notFound("Student");
+  const billed = await db.invoice.count({ where: { schoolId: ctx.schoolId, studentId, termId: term.id, status: "ISSUED" } });
+  if (!billed) return { status: "NOT_BILLED" };
+  return { status: (await clearedStudents(db, ctx.schoolId, term.id, [studentId])).has(studentId) ? "CLEARED" : "REVIEW" };
+}

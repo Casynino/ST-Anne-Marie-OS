@@ -5,7 +5,7 @@ import { ArrowLeft, CalendarCheck, ClipboardList, FileDown, GraduationCap, Walle
 import { requireContext, getT } from "@/lib/auth/next";
 import { AppError } from "@/lib/errors";
 import { displayDate } from "@/lib/dates";
-import { childFees, childOverview, childProgress, myChildren } from "@/server/portal";
+import { childAcademicNotices, childFees, childOverview, childProgress, myChildren } from "@/server/portal";
 import { childAssignments } from "@/server/assignments";
 import { childTimetable } from "@/server/timetable";
 import { isoWeekday, schoolTimezone } from "@/server/learning-access";
@@ -32,7 +32,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const [many, fees, homework, tt, school, tz, progress] = await Promise.all([
+  const [many, fees, homework, tt, school, tz, progress, notices] = await Promise.all([
     myChildren(ctx).then((c) => c.length > 1),
     childFees(ctx, studentId),
     childAssignments(ctx, studentId),
@@ -40,6 +40,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
     getSchoolBasics(ctx.schoolId),
     schoolTimezone(ctx.schoolId),
     childProgress(ctx, studentId),
+    childAcademicNotices(ctx, studentId),
   ]);
   const own = ctx.userType === "STUDENT";
   const todoItems = homework.items.filter((i) => !i.closed && !i.submission);
@@ -152,6 +153,23 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
           </div>
         )}
       </DashSection>
+
+      {(notices.exams.length > 0 || notices.concerns.length > 0) && (
+        <DashSection id="notices" title={t("fam.notices.title")} subtitle={t("fam.notices.sub")}>
+          <div className="grid gap-5 lg:grid-cols-2">
+            {notices.exams.length > 0 && (
+              <Panel title={t("fam.exams.title")}>
+                <ul className="divide-y divide-line text-sm">{notices.exams.map((e) => <li key={e.id} className="flex flex-wrap justify-between gap-2 py-2"><span>{e.examName} · {e.subject}</span><span className="text-muted">{displayDate(e.on, ctx.locale)}{e.startsAt ? ` ${e.startsAt}` : ""}{e.venue ? ` · ${e.venue}` : ""}</span></li>)}</ul>
+              </Panel>
+            )}
+            {notices.concerns.length > 0 && (
+              <Panel title={t("fam.concerns.title")}>
+                <ul className="space-y-3 text-sm">{notices.concerns.map((c) => <li key={c.id}><p>{c.message}</p><p className="text-xs text-muted">{displayDate(c.at, ctx.locale)}</p></li>)}</ul>
+              </Panel>
+            )}
+          </div>
+        </DashSection>
+      )}
 
       <DashSection id="reports" title={t("fam.reportCards")}>
         {ov.reportCards.length === 0 ? <EmptyLine>{t("fam.noReportCards")}</EmptyLine> : (

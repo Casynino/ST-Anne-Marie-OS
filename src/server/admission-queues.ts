@@ -5,6 +5,7 @@ import { admissionAccount, docChecklist, docsComplete } from "@/lib/admissions/r
 import { centsOf } from "@/lib/finance/money";
 import { getAdmissionPolicy } from "@/server/admission-policy";
 import { enrolmentReadiness } from "@/server/admission-offers";
+import { taskCounts } from "@/server/workflow";
 
 /*
  * Where every open application stands and what each department has to do next, worked out from the real records each time (nothing is stored
@@ -170,6 +171,8 @@ export async function admissionQueues(ctx: AuthContext): Promise<QueueItem[]> {
     const derived = (await derive(ctx)).filter((d) => inStage(d, "awaiting_payment", new Date())).length;
     push("awaitingPayment", derived, "/finance/admissions");
   }
+  // Hand-off tasks from other steps (class placement, concerns, onboarding, fee reminders), per department the person may see.
+  for (const c of await taskCounts(ctx)) push(`tasks${c.department}`, c.open, `/tasks?department=${c.department}`);
   return out;
 }
 

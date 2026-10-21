@@ -8,6 +8,7 @@ import { zonedToUtc } from "@/lib/dates";
 import { actorOf, writeAudit } from "@/server/audit";
 import { getAdmissionPolicy } from "@/server/admission-policy";
 import { reviewBlockers } from "@/server/admission-review";
+import { closeTasks, openTask } from "@/server/workflow";
 import { checkbox, optText, optUuid, parse, text } from "@/lib/validation";
 
 /*
@@ -31,6 +32,8 @@ function instant(value: string, timezone: string): Date | null {
 }
 
 const scheduleSchema = z.object({
+  /** An interview, an entrance examination or another assessment of the applicant. */
+  kind: z.enum(["INTERVIEW", "ENTRANCE_EXAM", "ASSESSMENT"]).default("INTERVIEW"),
   scheduledAt: text(40),
   durationMinutes: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.coerce.number().int().min(5).max(480).optional()),
   location: optText(120),
@@ -63,6 +66,14 @@ async function assertNoClash(tx: Tx, schoolId: string, slot: { start: Date; minu
   if (byRoom && !d.confirmLocationClash) throw conflict(`"${d.location}" is already in use at that time (${byRoom.application.applicationNo}). Tick the confirmation if both interviews can share it.`);
 }
 
+/** The interviewer's assignment (when one is named): due on the day of the interview. */
+async function assignInterviewer(tx: Tx, ctx: AuthContext, app: { id: string; applicationNo: string; firstName: string; lastName: string }, i: { id: string; interviewerId: string | null; scheduledAt: Date }, event: string) {
+  await openTask(tx, {
+    schoolId: ctx.schoolId, kind: "INTERVIEW_ASSIGNED", relatedType: "Application", relatedId: app.id, relatedLabel: `${app.firstName} ${app.lastName} (${app.applicationNo})`, sourceEvent: event,
+    assignedToId: i.interviewerId, dueOn: new Date(Date.UTC(i.scheduledAt.getUTCFullYear(), i.scheduledAt.getUTCMonth(), i.scheduledAt.getUTCDate())), createdById: ctx.userId, discriminator: i.id,
+  });
+}
+
 async function lockApplication(tx: Tx, schoolId: string, id: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM applications WHERE id = ${id}::uuid AND "schoolId" = ${schoolId}::uuid FOR UPDATE`;
   if (!rows.length) throw notFound("Application");
@@ -82,7 +93,7 @@ async function checkReadyForInterview(tx: Tx, ctx: AuthContext, app: { id: strin
 
 async function create(tx: Tx, ctx: AuthContext, appId: string, d: z.output<typeof scheduleSchema>, start: Date, minutes: number, extra: { rescheduledFromId?: string } = {}) {
   const i = await tx.interview.create({
-    data: { schoolId: ctx.schoolId, applicationId: appId, scheduledAt: start, durationMinutes: minutes, location: d.location ?? null, method: d.method ?? null, interviewerId: d.interviewerId ?? null, scheduleNote: d.note ?? null, createdById: ctx.userId, rescheduledFromId: extra.rescheduledFromId ?? null },
+    data: { schoolId: ctx.schoolId, applicationId: appId, kind: d.kind, scheduledAt: start, durationMinutes: minutes, location: d.location ?? null, method: d.method ?? null, interviewerId: d.interviewerId ?? null, scheduleNote: d.note ?? null, createdById: ctx.userId, rescheduledFromId: extra.rescheduledFromId ?? null },
   });
   return i;
 }
@@ -105,6 +116,8 @@ export async function scheduleInterview(ctx: AuthContext, applicationId: string,
     await assertNoClash(tx, ctx.schoolId, { start, minutes }, { interviewerId: d.interviewerId, location: d.location, confirmLocationClash: d.confirmLocationClash });
     const i = await create(tx, ctx, applicationId, d, start, minutes);
     await tx.application.update({ where: { id: applicationId }, data: { status: "INTERVIEW", interviewOn: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())) } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ASSESSMENT_COORDINATE"], by: ctx.userId, note: "Interview scheduled" });
+    await assignInterviewer(tx, ctx, app, i, "interview.scheduled");
     if (app.status !== "INTERVIEW") await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: "INTERVIEW", kind: "STATUS", byUserId: ctx.userId } });
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "INTERVIEW", toStatus: "INTERVIEW", kind: "INTERVIEW", reason: `Interview scheduled for ${when(start, school.timezone)}${d.location ? ` at ${d.location}` : ""}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "interview.schedule", entityType: "Interview", entityId: i.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { scheduledAt: start.toISOString(), minutes, location: d.location ?? null, interviewerId: d.interviewerId ?? null } });
@@ -137,6 +150,8 @@ export async function rescheduleInterview(ctx: AuthContext, interviewId: string,
     await tx.interview.update({ where: { id: old.id }, data: { status: "CANCELLED", cancelReason: `Rescheduled: ${d.reason}` } });
     const i = await create(tx, ctx, app.id, merged, start, minutes, { rescheduledFromId: old.id });
     await tx.application.update({ where: { id: app.id }, data: { interviewOn: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())) } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, kinds: ["INTERVIEW_ASSIGNED"], discriminator: old.id, status: "CANCELLED", by: ctx.userId, note: "Interview moved" });
+    await assignInterviewer(tx, ctx, app, i, "interview.rescheduled");
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, fromStatus: app.status, toStatus: app.status, kind: "INTERVIEW", reason: `Interview moved to ${when(start, school.timezone)}: ${d.reason}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "interview.reschedule", entityType: "Interview", entityId: i.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { from: old.scheduledAt.toISOString(), to: start.toISOString(), previousInterviewId: old.id }, reason: d.reason });
     return i;
@@ -154,11 +169,13 @@ export async function cancelInterview(ctx: AuthContext, interviewId: string, inp
     if (!i) throw notFound("Interview");
     if (i.status !== "SCHEDULED") throw conflict("Only a scheduled interview can be cancelled.");
     await tx.interview.update({ where: { id: i.id }, data: { status: "CANCELLED", cancelReason: reason } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, kinds: ["INTERVIEW_ASSIGNED"], discriminator: i.id, status: "CANCELLED", by: ctx.userId, note: "Interview cancelled" });
     // With no live or finished interview left, the application goes back to the review stage.
     const remaining = await tx.interview.count({ where: { applicationId: app.id, status: { in: ["SCHEDULED", "COMPLETED"] } } });
     if (app.status === "INTERVIEW" && remaining === 0) {
       await tx.application.update({ where: { id: app.id }, data: { status: "APPLIED", interviewOn: null } });
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, fromStatus: "INTERVIEW", toStatus: "APPLIED", kind: "STATUS", reason: "Interview cancelled", byUserId: ctx.userId } });
+      await openTask(tx, { schoolId: ctx.schoolId, kind: "ASSESSMENT_COORDINATE", relatedType: "Application", relatedId: app.id, relatedLabel: `${app.firstName} ${app.lastName} (${app.applicationNo})`, sourceEvent: "interview.cancelled", createdById: ctx.userId, discriminator: i.id });
     }
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, fromStatus: app.status, toStatus: app.status, kind: "INTERVIEW", reason: `Interview cancelled: ${reason}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "interview.cancel", entityType: "Interview", entityId: i.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, reason });
@@ -171,6 +188,9 @@ const resultSchema = z
     outcome: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["PASSED", "NOT_PASSED", "DEFERRED", "FURTHER_ASSESSMENT", "AWAITING_DECISION"]).optional()),
     score: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.coerce.number().int().min(0).max(100).optional()),
     notes: optText(2000),
+    /** The Academic Office's view of the applicant's academic suitability. */
+    recommendation: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["RECOMMEND", "RECOMMEND_WITH_CONDITIONS", "NOT_RECOMMENDED"]).optional()),
+    recommendationNote: optText(600),
   })
   .refine((v) => v.status !== "COMPLETED" || !!v.outcome, { path: ["outcome"], message: "Choose the result" });
 
@@ -187,8 +207,12 @@ export async function recordInterviewResult(ctx: AuthContext, interviewId: strin
     if (i.status === "CANCELLED") throw conflict("A cancelled interview has no result.");
     if (!["APPLIED", "INTERVIEW"].includes(app.status)) throw conflict("A decision has already been made on this application.");
     if (i.scheduledAt.getTime() > Date.now()) throw conflict("The interview has not taken place yet.");
-    const data: Prisma.InterviewUpdateInput = { status: d.status, outcome: d.status === "COMPLETED" ? d.outcome : null, score: d.score ?? null, notes: d.notes ?? null, completedAt: new Date(), completedById: ctx.userId };
+    const data: Prisma.InterviewUpdateInput = { status: d.status, outcome: d.status === "COMPLETED" ? d.outcome : null, score: d.score ?? null, notes: d.notes ?? null, recommendation: d.recommendation ?? null, recommendationNote: d.recommendationNote ?? null, completedAt: new Date(), completedById: ctx.userId };
     await tx.interview.update({ where: { id: i.id }, data });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, kinds: ["INTERVIEW_ASSIGNED"], discriminator: i.id, by: ctx.userId, note: d.status === "NO_SHOW" ? "Applicant did not attend" : `Result recorded: ${d.outcome}` });
+    const label = `${app.firstName} ${app.lastName} (${app.applicationNo})`;
+    if (d.status === "COMPLETED") await openTask(tx, { schoolId: ctx.schoolId, kind: "DECISION_REVIEW", relatedType: "Application", relatedId: app.id, relatedLabel: label, sourceEvent: "interview.completed", createdById: ctx.userId, discriminator: i.id });
+    else await openTask(tx, { schoolId: ctx.schoolId, kind: "ASSESSMENT_COORDINATE", relatedType: "Application", relatedId: app.id, relatedLabel: label, sourceEvent: "interview.no_show", createdById: ctx.userId, discriminator: `noshow-${i.id}` });
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, fromStatus: app.status, toStatus: app.status, kind: "INTERVIEW", reason: d.status === "NO_SHOW" ? "Interview: applicant did not attend" : `Interview completed: ${d.outcome}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "interview.result", entityType: "Interview", entityId: i.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { status: d.status, outcome: d.outcome ?? null, score: d.score ?? null, previous: { status: i.status, outcome: i.outcome } } });
   });
@@ -197,7 +221,7 @@ export async function recordInterviewResult(ctx: AuthContext, interviewId: strin
 // ───────────────────────── Reads ─────────────────────────
 
 export type InterviewRow = {
-  id: string; applicationId: string; applicationNo: string; applicantName: string; scheduledAt: Date; durationMinutes: number; location: string | null; method: string | null; interviewerId: string | null; interviewer: string | null;
+  id: string; kind: string; recommendation: string | null; recommendationNote: string | null; applicationId: string; applicationNo: string; applicantName: string; scheduledAt: Date; durationMinutes: number; location: string | null; method: string | null; interviewerId: string | null; interviewer: string | null;
   status: string; outcome: string | null; score: number | null; notes: string | null; scheduleNote: string | null; cancelReason: string | null; className: string | null;
 };
 
@@ -207,7 +231,7 @@ async function rows(ctx: AuthContext, where: Prisma.InterviewWhereInput): Promis
   const classes = await db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, id: { in: [...new Set(list.map((i) => i.application.classAppliedId).filter((x): x is string => !!x))] } }, select: { id: true, name: true } });
   const canNotes = ctx.permissions.has("admission.interview.notes");
   return list.map((i) => ({
-    id: i.id, applicationId: i.applicationId, applicationNo: i.application.applicationNo, applicantName: `${i.application.firstName} ${i.application.lastName}`, scheduledAt: i.scheduledAt, durationMinutes: i.durationMinutes, location: i.location, method: i.method,
+    id: i.id, kind: i.kind, recommendation: i.recommendation, recommendationNote: i.recommendationNote, applicationId: i.applicationId, applicationNo: i.application.applicationNo, applicantName: `${i.application.firstName} ${i.application.lastName}`, scheduledAt: i.scheduledAt, durationMinutes: i.durationMinutes, location: i.location, method: i.method,
     interviewerId: i.interviewerId, interviewer: users.find((u) => u.id === i.interviewerId)?.fullName ?? null, status: i.status, outcome: i.outcome, score: i.score,
     // Notes are restricted to people with the permission and to the interviewer who wrote them.
     notes: canNotes || i.interviewerId === ctx.userId ? i.notes : null, scheduleNote: i.scheduleNote, cancelReason: i.cancelReason, className: classes.find((c) => c.id === i.application.classAppliedId)?.name ?? null,

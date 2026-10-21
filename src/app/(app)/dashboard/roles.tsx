@@ -51,6 +51,7 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
         {can("plans.review") && <LinkButton href="/planning" variant="secondary">{t("acts.reviewPlans")}</LinkButton>}
         {can("attendance.take_any") && <LinkButton href="/attendance" variant="secondary"><ClipboardCheck className="size-4" aria-hidden /> {t("dash.takeAttendance")}</LinkButton>}
         {can("reportcard.generate") && <LinkButton href="/report-cards" variant="secondary">{t("nav.reportCards")}</LinkButton>}
+        {can("academic.office") && <LinkButton href="/academic-office" variant="secondary">{t("nav.academicOffice")}</LinkButton>}
         <Date_ env={env} today={props.today} />
       </div>
 

@@ -33,8 +33,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Navigation is grouped by purpose and only lists modules this user may open. Finance and examinations appear
   // here when those modules exist; nothing is shown for modules that do not.
-  const groups: NavGroup[] = [{ label: t("navgroup.overview"), items: [{ href: "/dashboard", label: t("nav.dashboard"), icon: "dashboard" }] }];
+  const groups: NavGroup[] = [{ label: t("navgroup.overview"), items: [{ href: "/dashboard", label: t("nav.dashboard"), icon: "dashboard" }, ...(hasAny(ctx, ["admission.read", "tasks.academic", "tasks.finance", "tasks.hr", "tasks.admin"]) ? [{ href: "/tasks", label: t("nav.tasks"), icon: "tasks" as const }] : [])] }];
   const academic_ = [
+    hasAny(ctx, ["academic.office"]) && { href: "/academic-office", label: t("nav.academicOffice"), icon: "academicOffice" as const },
     hasAny(ctx, ["student.read", "student.read_assigned"]) && { href: "/students", label: t("nav.students"), icon: "students" as const },
     hasAny(ctx, ["admission.read"]) && { href: "/admissions", label: t("nav.admissions"), icon: "admissions" as const },
     hasAny(ctx, ["attendance.read", "attendance.read_assigned", "attendance.take", "attendance.take_any"]) && { href: "/attendance", label: t("nav.attendance"), icon: "attendance" as const },
@@ -71,6 +72,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ].filter(Boolean) as NavGroup["items"];
   groups.push({ label: t("navgroup.communication"), items: comms });
   const admin = [
+    hasAny(ctx, ["staff.recruit"]) && { href: "/staff-recruitment", label: t("nav.recruitment"), icon: "recruitment" as const },
     hasAny(ctx, ["user.read"]) && { href: "/users", label: t("nav.users"), icon: "users" as const },
     hasAny(ctx, ["role.read"]) && { href: "/roles", label: t("nav.roles"), icon: "roles" as const },
     hasAny(ctx, ["school.settings.read"]) && { href: "/settings", label: t("nav.settings"), icon: "settings" as const },

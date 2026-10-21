@@ -123,6 +123,7 @@ function ScheduleFields({ t, interviewers, defaultMinutes, withException, locati
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
+        <Field name="kind" type="select" label={t("adm.iv.kind")} options={(["INTERVIEW", "ENTRANCE_EXAM", "ASSESSMENT"] as const).map((k) => ({ value: k, label: t(`adm.iv.kind.${k}` as "adm.iv.kind.INTERVIEW") }))} defaultValue="INTERVIEW" />
         <Field name="scheduledAt" type="datetime-local" label={t("adm.iv.when")} required />
         <Field name="durationMinutes" type="number" label={t("adm.iv.duration")} defaultValue={minutes ?? defaultMinutes} min={5} max={480} />
         <Field name="location" label={t("adm.iv.location")} defaultValue={location ?? ""} optionalLabel={t("common.optional")} />
@@ -152,6 +153,7 @@ export function InterviewCard({ t, id, status, open, can, rows, interviewers, de
             return (
               <li key={r.id} className="rounded-lg border border-line p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
+                  <Badge>{t(`adm.iv.kind.${r.kind}` as "adm.iv.kind.INTERVIEW")}</Badge>
                   <span className="font-medium">{displayDateTime(r.scheduledAt, timezone, locale)}</span>
                   <span className="text-muted">{r.durationMinutes} min</span>
                   <Badge tone={IV_TONE[r.status]}>{t(`adm.iv.status.${r.status}` as "adm.iv.status.SCHEDULED")}</Badge>
@@ -159,6 +161,7 @@ export function InterviewCard({ t, id, status, open, can, rows, interviewers, de
                   {r.score !== null && <span className="text-muted">{r.score}/100</span>}
                 </div>
                 <p className="mt-1 text-muted">{[r.location, r.method, r.interviewer].filter(Boolean).join(" · ")}</p>
+                {r.recommendation && <p className="mt-1 text-sm"><span className="text-muted">{t("adm.iv.recommendation")}:</span> {t(`adm.iv.recommendation.${r.recommendation}` as "adm.iv.recommendation.RECOMMEND")}{r.recommendationNote ? ` - ${r.recommendationNote}` : ""}</p>}
                 {r.scheduleNote && <p className="mt-1">{r.scheduleNote}</p>}
                 {r.cancelReason && <p className="mt-1 text-muted">{r.cancelReason}</p>}
                 {r.notes && <p className="mt-2 whitespace-pre-line rounded bg-canvas px-2 py-1">{r.notes}</p>}
@@ -171,6 +174,8 @@ export function InterviewCard({ t, id, status, open, can, rows, interviewers, de
                           <Field name="status" type="select" label={t("common.status")} required options={[{ value: "COMPLETED", label: t("adm.iv.attended") }, { value: "NO_SHOW", label: t("adm.iv.status.NO_SHOW") }]} defaultValue="COMPLETED" />
                           <Field name="outcome" type="select" label={t("adm.iv.title")} options={(["PASSED", "NOT_PASSED", "DEFERRED", "FURTHER_ASSESSMENT", "AWAITING_DECISION"] as const).map((o) => ({ value: o, label: t(`adm.iv.outcome.${o}` as "adm.iv.outcome.PASSED") }))} placeholder={t("common.select")} />
                           <Field name="score" type="number" label={t("adm.iv.score")} min={0} max={100} optionalLabel={t("common.optional")} />
+                          <Field name="recommendation" type="select" label={t("adm.iv.recommendation")} options={(["RECOMMEND", "RECOMMEND_WITH_CONDITIONS", "NOT_RECOMMENDED"] as const).map((k) => ({ value: k, label: t(`adm.iv.recommendation.${k}` as "adm.iv.recommendation.RECOMMEND") }))} placeholder={t("common.select")} optionalLabel={t("common.optional")} />
+                          <Field name="recommendationNote" label={t("adm.iv.recommendation.note")} optionalLabel={t("common.optional")} />
                           <Field name="notes" type="textarea" rows={3} label={t("adm.iv.notes")} hint={t("adm.iv.hiddenNotes")} optionalLabel={t("common.optional")} />
                         </ActionForm>
                       </Disclosure>
@@ -245,6 +250,16 @@ export function OfferCard({ t, id, status, open, can, userId, offer, account, pa
                 <Field name="notes" label={t("adm.offer.notes")} optionalLabel={t("common.optional")} />
               </div>
               {can("admission.override") && <Field name="exceptionReason" label={t("adm.offer.exception")} optionalLabel={t("common.optional")} />}
+            </ActionForm>
+          </Disclosure>
+        )}
+
+        {can("admission.review") && ["APPLIED", "INTERVIEW"].includes(status) && !hasLiveInterview && !offer?.status.match(/PENDING_APPROVAL|ISSUED/) && (
+          <Disclosure label={t("adm.decision.title")}>
+            <ActionForm action={A.recordDecisionAction} submitLabel={t("common.save")} className="space-y-3">
+              {hid("id", id)}
+              <Field name="outcome" type="select" label={t("adm.decision.outcome")} required options={(["DEFERRED", "FURTHER_ASSESSMENT", "AWAITING_DECISION", "NOT_ACCEPTED"] as const).map((k) => ({ value: k, label: t(`adm.decision.${k}` as "adm.decision.DEFERRED") }))} placeholder={t("common.select")} />
+              <Field name="note" label={t("adm.decision.note")} />
             </ActionForm>
           </Disclosure>
         )}

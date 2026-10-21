@@ -117,6 +117,25 @@ export async function childProgress(ctx: AuthContext, studentId: string) {
   };
 }
 
+/**
+ * What the family may see about academic concerns: only those the Academic Office chose to share, and only the message written for the
+ * family (never the teacher's summary or notes). Examinations are shown only for the child's own class, from today on.
+ */
+export async function childAcademicNotices(ctx: AuthContext, studentId: string) {
+  await childOrThrow(ctx, studentId);
+  const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z");
+  const enrolment = await db.studentEnrollment.findFirst({ where: { schoolId: ctx.schoolId, studentId, status: "ACTIVE" }, select: { classId: true } });
+  const [concerns, sittings] = await Promise.all([
+    db.academicConcern.findMany({ where: { schoolId: ctx.schoolId, studentId, shareWithParent: true, status: { in: ["OPEN", "IN_PROGRESS", "RESOLVED"] } }, orderBy: { updatedAt: "desc" }, take: 5, select: { id: true, parentMessage: true, status: true, updatedAt: true } }),
+    enrolment ? db.examSubject.findMany({ where: { schoolId: ctx.schoolId, classId: enrolment.classId, sittingOn: { gte: today } }, orderBy: [{ sittingOn: "asc" }, { startsAt: "asc" }], take: 10, include: { exam: { select: { name: true } } } }) : [],
+  ]);
+  const subjects = await db.subject.findMany({ where: { schoolId: ctx.schoolId, id: { in: sittings.map((s) => s.subjectId) } }, select: { id: true, name: true } });
+  return {
+    concerns: concerns.map((c) => ({ id: c.id, message: c.parentMessage ?? "", status: c.status, at: c.updatedAt })),
+    exams: sittings.map((s) => ({ id: s.id, examName: s.exam.name, subject: subjects.find((x) => x.id === s.subjectId)?.name ?? "", on: s.sittingOn as Date, startsAt: s.startsAt, venue: s.venue })),
+  };
+}
+
 /** A published report card of one of the viewer's children. */
 export async function getMyReportCard(ctx: AuthContext, cardId: string) {
   const ids = await childIds(ctx);

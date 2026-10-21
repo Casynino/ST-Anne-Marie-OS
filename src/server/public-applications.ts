@@ -7,6 +7,7 @@ import { consumeRateLimit } from "@/lib/rate-limit";
 import { ageOn, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { normalizePhone } from "@/lib/phone";
 import { writeAudit } from "@/server/audit";
+import { openTask } from "@/server/workflow";
 import { admissionAccount } from "@/lib/admissions/rules";
 import { centsOf } from "@/lib/finance/money";
 import { getFeeSettings } from "@/server/fees";
@@ -136,6 +137,7 @@ export async function submitOnlineApplication(schoolId: string, input: Record<st
         },
       });
       await tx.applicationEvent.create({ data: { schoolId: school.id, applicationId: app.id, toStatus: "APPLIED" } });
+      await openTask(tx, { schoolId: school.id, kind: "APPLICATION_REVIEW", relatedType: "Application", relatedId: app.id, relatedLabel: `${app.firstName} ${app.lastName} (${applicationNo})`, sourceEvent: "application.received_online" });
       await writeAudit(tx, { schoolId: school.id, actorId: null, actorName: "Online applicant", meta }, {
         action: "admission.create_online",
         entityType: "Application",

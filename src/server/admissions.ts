@@ -8,7 +8,8 @@ import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { actorOf, diffFields, writeAudit } from "@/server/audit";
 import { guardianLinkSchema, type GuardianLinkInput } from "@/server/guardians";
 import { createStudentInTx, prepareStudent } from "@/server/students";
-import { enrolmentReadiness } from "@/server/admission-offers";
+import { enrolmentReadiness, issueOffer } from "@/server/admission-offers";
+import { closeTasks, openTask } from "@/server/workflow";
 import { STAGES, stageIds, type Stage } from "@/server/admission-queues";
 import { admissionAccount } from "@/lib/admissions/rules";
 import { centsOf } from "@/lib/finance/money";
@@ -122,6 +123,7 @@ export async function createApplication(ctx: AuthContext, input: unknown) {
         data: { ...fields, guardians: guardians as unknown as Prisma.InputJsonValue, schoolId: ctx.schoolId, applicationNo, createdById: ctx.userId, submittedOn: d.submittedOn ?? today },
       });
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, toStatus: "APPLIED", byUserId: ctx.userId } });
+      await openTask(tx, { schoolId: ctx.schoolId, kind: "APPLICATION_REVIEW", relatedType: "Application", relatedId: app.id, relatedLabel: `${app.firstName} ${app.lastName} (${applicationNo})`, sourceEvent: "application.registered_physical", createdById: ctx.userId });
       await writeAudit(tx, actorOf(ctx), {
         action: "admission.create",
         entityType: "Application",
@@ -195,6 +197,7 @@ export async function transitionApplication(ctx: AuthContext, applicationId: str
     await tx.interview.updateMany({ where: { applicationId, status: "SCHEDULED" }, data: { status: "CANCELLED", cancelReason: `Application ${d.to.toLowerCase()}` } });
     await tx.admissionOffer.updateMany({ where: { applicationId, status: { in: ["ISSUED", "PENDING_APPROVAL"] } }, data: { status: "WITHDRAWN", respondedAt: new Date(), responseNote: `Application ${d.to.toLowerCase()}: ${d.reason}` } });
     const heldMoney = await tx.admissionPayment.count({ where: { applicationId, status: "VERIFIED" } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, status: "CANCELLED", by: ctx.userId, note: `Application ${d.to.toLowerCase()}` });
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: d.to, reason: d.reason, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), {
       action: `admission.${d.to.toLowerCase()}`,
@@ -204,6 +207,36 @@ export async function transitionApplication(ctx: AuthContext, applicationId: str
       changes: { from: app.status, to: d.to, verifiedAdmissionPayments: heldMoney },
       reason: d.reason,
     });
+  });
+}
+
+// ───────────────────────── Recording the decision ─────────────────────────
+
+const decisionSchema = z.object({
+  outcome: z.enum(["ACCEPTED", "NOT_ACCEPTED", "DEFERRED", "FURTHER_ASSESSMENT", "AWAITING_DECISION"]),
+  note: optText(500),
+});
+
+/**
+ * Records the admission decision. Accepted makes the offer (all the usual conditions apply), Not accepted closes the application with the
+ * reason, and Deferred, Further assessment and Awaiting decision keep it open with the outcome and the reason on the record. Further
+ * assessment also asks the Academic Office to arrange it. Only people who may decide (admission.review) can do this; a teacher cannot unless
+ * that permission is given to them.
+ */
+export async function recordAdmissionDecision(ctx: AuthContext, applicationId: string, input: unknown) {
+  requirePermission(ctx, "admission.review");
+  const d = parse(decisionSchema, input);
+  if (d.outcome === "ACCEPTED") return issueOffer(ctx, applicationId, input);
+  if (d.outcome === "NOT_ACCEPTED") return transitionApplication(ctx, applicationId, { to: "REJECTED", reason: d.note });
+  if ((d.outcome === "DEFERRED" || d.outcome === "FURTHER_ASSESSMENT") && !d.note) throw invalid("Say why.", { note: "Required" });
+  await db.$transaction(async (tx) => {
+    const app = await lockApplication(tx, ctx.schoolId, applicationId);
+    if (!["APPLIED", "INTERVIEW"].includes(app.status)) throw conflict("A decision can only be recorded while the application is still under consideration.");
+    const n = await tx.applicationEvent.count({ where: { applicationId, kind: "DECISION" } });
+    await tx.application.update({ where: { id: applicationId }, data: { decisionOutcome: d.outcome, decisionNote: d.note ?? null, decidedAt: new Date(), decidedById: ctx.userId } });
+    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: app.status, kind: "DECISION", reason: `${d.outcome}${d.note ? ` - ${d.note}` : ""}`, byUserId: ctx.userId } });
+    if (d.outcome === "FURTHER_ASSESSMENT") await openTask(tx, { schoolId: ctx.schoolId, kind: "ASSESSMENT_COORDINATE", relatedType: "Application", relatedId: applicationId, relatedLabel: `${app.firstName} ${app.lastName} (${app.applicationNo})`, sourceEvent: "decision.further_assessment", createdById: ctx.userId, discriminator: `further-${n}` });
+    await writeAudit(tx, actorOf(ctx), { action: "admission.decision", entityType: "Application", entityId: applicationId, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { outcome: d.outcome }, reason: d.note });
   });
 }
 
@@ -268,6 +301,9 @@ export async function enrolApplication(ctx: AuthContext, applicationId: string, 
       await tx.application.update({ where: { id: applicationId }, data: { status: "ENROLLED", studentId: student.id } });
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "ACCEPTED", toStatus: "ENROLLED", byUserId: ctx.userId } });
       await tx.document.updateMany({ where: { schoolId: ctx.schoolId, applicationId, studentId: null }, data: { studentId: student.id } });
+      await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ENROL_APPLICANT", "OFFER_COMMUNICATE", "ADMISSION_PAYMENT"], by: ctx.userId, note: `Enrolled as ${student.admissionNo}` });
+      // Enrolment hands the student to the Academic Office for a class unless a class was chosen right here.
+      if (!classId) await openTask(tx, { schoolId: ctx.schoolId, kind: "CLASS_PLACEMENT", relatedType: "Student", relatedId: student.id, relatedLabel: `${app.firstName} ${app.lastName} (${student.admissionNo})`, sourceEvent: "student.enrolled", createdById: ctx.userId });
       await writeAudit(tx, actorOf(ctx), {
         action: "admission.enrol",
         entityType: "Application",

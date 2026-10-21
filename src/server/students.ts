@@ -7,6 +7,7 @@ import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { actorOf, diffFields, writeAudit } from "@/server/audit";
 import { getAdmissionSettings, type AdmissionSettings } from "@/server/settings";
 import { getAdmissionPolicy } from "@/server/admission-policy";
+import { closeTasks } from "@/server/workflow";
 import { teachingScope } from "@/server/academics";
 import { guardianLinkSchema, resolveGuardian } from "@/server/guardians";
 import { checkbox, dateOnly, optDateOnly, optText, optUuid, parse, phoneField, text, uuid } from "@/lib/validation";
@@ -308,49 +309,56 @@ export async function updateStudent(ctx: AuthContext, studentId: string, input: 
 
 const enrollSchema = z.object({ academicYearId: optUuid(), classId: uuid(), streamId: optUuid(), overrideCapacity: checkbox().default(false), overrideReason: optText(300) });
 
+export type PlacementInput = { academicYearId?: string; classId: string; streamId?: string; overrideCapacity?: boolean; overrideReason?: string };
+
 /**
- * Places a student in a class/stream for an academic year. Never overwrites history: an existing
- * ACTIVE enrollment is closed (MOVED within the same year, COMPLETED from an earlier year) and a
- * new row is opened.
+ * Places a student in a class/stream for an academic year, inside the caller's transaction. Never overwrites history: an existing ACTIVE
+ * enrolment is closed (MOVED within the same year, COMPLETED from an earlier year) and a new row is opened, starting on `effectiveOn`
+ * (today when not given). Used by direct placement and by approved class transfers and promotions, so all of them follow the same rules:
+ * the student must be Enrolled, the class must have room (or an authorised override with a reason), and the audit entry says what moved.
  */
+export async function placeStudentTx(tx: Tx, ctx: AuthContext, studentId: string, d: PlacementInput, opts: { effectiveOn?: Date; extraAudit?: Record<string, unknown> } = {}) {
+  const school = await tx.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
+  const today = parseDateOnly(todayInTimezone(school.timezone)) as Date;
+  const effective = opts.effectiveOn && opts.effectiveOn > today ? opts.effectiveOn : today;
+  const student = await tx.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
+  if (!student) throw notFound("Student");
+  if (student.status !== "ENROLLED") throw conflict("Only students with status Enrolled can be placed in a class. Reinstate the student first.");
+  const year = await resolveEnrollmentTarget(tx, ctx.schoolId, { academicYearId: d.academicYearId, classId: d.classId, streamId: d.streamId });
+  if (year.endsOn < today) throw invalid("Cannot enrol into an academic year that has already ended.", { classId: "Academic year has ended" });
+
+  const active = await tx.studentEnrollment.findMany({ where: { studentId, status: "ACTIVE" }, include: { academicYear: true } });
+  const sameYear = active.find((e) => e.academicYearId === year.id);
+  if (sameYear && sameYear.classId === d.classId && (sameYear.streamId ?? null) === (d.streamId ?? null)) {
+    throw conflict("The student is already in this class.");
+  }
+  const capacity = await assertCapacity(tx, ctx, { academicYearId: year.id, classId: d.classId }, { overrideCapacity: d.overrideCapacity ?? false, overrideReason: d.overrideReason }, studentId);
+  for (const e of active) {
+    const closedOn = e.startedOn > effective ? e.startedOn : effective;
+    await tx.studentEnrollment.update({
+      where: { id: e.id },
+      data: { status: e.academicYearId === year.id ? "MOVED" : "COMPLETED", endedOn: closedOn },
+    });
+  }
+  const startedOn = effective < year.startsOn ? year.startsOn : effective;
+  const created = await tx.studentEnrollment.create({
+    data: { schoolId: ctx.schoolId, studentId, academicYearId: year.id, classId: d.classId, streamId: d.streamId, startedOn, createdById: ctx.userId },
+  });
+  await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Student", relatedId: studentId, kinds: ["CLASS_PLACEMENT"], by: ctx.userId, note: "Class assigned" });
+  await writeAudit(tx, actorOf(ctx), {
+    action: sameYear ? "student.move_class" : "student.enroll",
+    entityType: "Student",
+    entityId: studentId,
+    summary: `${student.firstName} ${student.lastName} (${student.admissionNo})`,
+    changes: { enrollmentId: created.id, academicYearId: year.id, classId: d.classId, streamId: d.streamId ?? null, effectiveOn: formatDateOnly(startedOn), previous: active.map((e) => ({ classId: e.classId, streamId: e.streamId })), ...(capacity ?? {}), ...(opts.extraAudit ?? {}) },
+  });
+  return { created, previous: active, year };
+}
+
 export async function enrollStudent(ctx: AuthContext, studentId: string, input: unknown) {
   requirePermission(ctx, "student.enroll");
   const d = parse(enrollSchema, input);
-  const school = await db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
-  const today = parseDateOnly(todayInTimezone(school.timezone)) as Date;
-
-  await db.$transaction(async (tx) => {
-    const student = await tx.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
-    if (!student) throw notFound("Student");
-    if (student.status !== "ENROLLED") throw conflict("Only students with status Enrolled can be placed in a class. Reinstate the student first.");
-    const year = await resolveEnrollmentTarget(tx, ctx.schoolId, { academicYearId: d.academicYearId, classId: d.classId, streamId: d.streamId });
-    if (year.endsOn < today) throw invalid("Cannot enrol into an academic year that has already ended.", { classId: "Academic year has ended" });
-
-    const active = await tx.studentEnrollment.findMany({ where: { studentId, status: "ACTIVE" }, include: { academicYear: true } });
-    const sameYear = active.find((e) => e.academicYearId === year.id);
-    if (sameYear && sameYear.classId === d.classId && (sameYear.streamId ?? null) === (d.streamId ?? null)) {
-      throw conflict("The student is already in this class.");
-    }
-    const capacity = await assertCapacity(tx, ctx, { academicYearId: year.id, classId: d.classId }, { overrideCapacity: d.overrideCapacity, overrideReason: d.overrideReason }, studentId);
-    for (const e of active) {
-      const closedOn = e.startedOn > today ? e.startedOn : today;
-      await tx.studentEnrollment.update({
-        where: { id: e.id },
-        data: { status: e.academicYearId === year.id ? "MOVED" : "COMPLETED", endedOn: closedOn },
-      });
-    }
-    const startedOn = today < year.startsOn ? year.startsOn : today;
-    const created = await tx.studentEnrollment.create({
-      data: { schoolId: ctx.schoolId, studentId, academicYearId: year.id, classId: d.classId, streamId: d.streamId, startedOn, createdById: ctx.userId },
-    });
-    await writeAudit(tx, actorOf(ctx), {
-      action: sameYear ? "student.move_class" : "student.enroll",
-      entityType: "Student",
-      entityId: studentId,
-      summary: `${student.firstName} ${student.lastName} (${student.admissionNo})`,
-      changes: { enrollmentId: created.id, academicYearId: year.id, classId: d.classId, streamId: d.streamId ?? null, previous: active.map((e) => ({ classId: e.classId, streamId: e.streamId })), ...(capacity ?? {}) },
-    });
-  });
+  await db.$transaction((tx) => placeStudentTx(tx, ctx, studentId, d));
 }
 
 const statusSchema = z.object({

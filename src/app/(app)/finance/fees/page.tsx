@@ -91,6 +91,7 @@ export default async function FeesSetupPage({ searchParams }: { searchParams: Pr
               <ActionForm action={updateFeeSettingsAction} submitLabel={t("common.save")}>
                 <Field name="defaultDueDays" type="number" label={t("fin.fees.dueDays")} defaultValue={settings.defaultDueDays} min={0} max={120} required />
                 <Field name="clearanceMaxOutstanding" label={t("fin.fees.clearance")} defaultValue={settings.clearanceMaxOutstandingCents / 100} hint={t("fin.fees.clearanceHint")} />
+                <Field name="academicReviewFlag" type="checkbox" label={t("fin.fees.reviewFlag")} defaultValue={settings.academicReviewFlag} />
                 <Field name="expenseApprovalAbove" label={t("fin.fees.expenseApproval")} defaultValue={settings.expenseApprovalAboveCents / 100} hint={t("fin.fees.expenseApproval.hint")} />
                 <Field name="paymentInstructions" type="textarea" rows={4} label={t("fin.fees.instructions")} defaultValue={settings.paymentInstructions} optionalLabel={t("common.optional")} hint={t("fin.fees.instructionsHint")} />
               </ActionForm>
