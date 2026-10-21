@@ -17,6 +17,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:bootstrap": "tsx --env-file-if-exists=.env scripts/bootstrap.ts",
+    "db:seed-demo": "tsx --env-file-if-exists=.env scripts/seed-demo.ts",
     "site:media": "tsx scripts/scan-site-media.ts",
     "predev": "tsx scripts/scan-site-media.ts",
     "db:backup": "tsx --env-file-if-exists=.env scripts/backup.ts"
