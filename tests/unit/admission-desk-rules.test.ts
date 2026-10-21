@@ -12,17 +12,18 @@ describe("the single status of an application", () => {
     expect(workflowState({ ...base, review: "VERIFIED", assessmentResolved: true })).toBe("AWAITING_DECISION");
     expect(workflowState({ ...base, assessmentResolved: true })).toBe("NEW"); // reviewed first, whatever the interview says
   });
-  it("an application with an interview date is in the interview list, reviewed or not; a returned one still needs more information", () => {
-    expect(workflowState({ ...base, review: "VERIFIED", liveInterview: true })).toBe("INTERVIEW_SCHEDULED");
-    expect(workflowState({ ...base, status: "INTERVIEW", review: "PENDING", liveInterview: true })).toBe("INTERVIEW_SCHEDULED");
+  it("every application is reviewed first: a date that came with it does not skip the review; accepting it (review passed) puts it in the interview list", () => {
+    expect(workflowState({ ...base, status: "INTERVIEW", review: "PENDING", liveInterview: true })).toBe("NEW");
+    expect(workflowState({ ...base, status: "INTERVIEW", review: "IN_REVIEW", liveInterview: true })).toBe("UNDER_REVIEW");
     expect(workflowState({ ...base, review: "RETURNED", liveInterview: true })).toBe("NEEDS_INFO");
-    expect(workflowState({ ...base, review: "PENDING" })).toBe("NEW"); // no date: it waits under review
+    expect(workflowState({ ...base, review: "VERIFIED", liveInterview: true })).toBe("INTERVIEW_SCHEDULED");
+    expect(workflowState({ ...base, review: "PENDING" })).toBe("NEW");
     expect(workflowState({ ...base, review: "PENDING", assessmentResolved: true, interviewHeld: true })).toBe("AWAITING_DECISION"); // the interview was held: it does not fall back under review
     expect(workflowState({ ...base, review: "PENDING", assessmentResolved: true })).toBe("NEW"); // nothing was required and nothing held: still under review
   });
-  it("puts each status in the list it belongs to: review, then interview (an accepted applicant not yet enrolled stays in the interview list)", () => {
-    expect((["NEW", "UNDER_REVIEW", "NEEDS_INFO"] as const).map(stageOf)).toEqual(["review", "review", "review"]);
-    expect((["REVIEWED", "INTERVIEW_SCHEDULED", "AWAITING_DECISION", "ACCEPTED"] as const).map(stageOf)).toEqual(["interview", "interview", "interview", "interview"]);
+  it("puts each status in the list it belongs to: review (reviewed with no date included), then interview (only with a confirmed date, or after it)", () => {
+    expect((["NEW", "UNDER_REVIEW", "NEEDS_INFO", "REVIEWED"] as const).map(stageOf)).toEqual(["review", "review", "review", "review"]);
+    expect((["INTERVIEW_SCHEDULED", "AWAITING_DECISION", "ACCEPTED"] as const).map(stageOf)).toEqual(["interview", "interview", "interview"]);
     expect(stageOf("ENROLLED")).toBe("enrolled");
     expect(stageOf("REJECTED")).toBe("closed");
     expect(stageOf("WITHDRAWN")).toBe("closed");

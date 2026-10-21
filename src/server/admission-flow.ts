@@ -10,9 +10,9 @@ import { getInterviewDays } from "@/server/interview-days";
 import { recordInterviewResult, scheduleInterview } from "@/server/interviews";
 
 /*
- * The steps an application takes from the desk, each one a short action on its row. An application that arrives with an interview date goes
- * straight to the interview list. One without a date waits under review (the office talks it over, often with the Academic Office); accepting
- * it means choosing its interview date, and it then moves to the interview list. After the interview the result is recorded: a pass accepts the
+ * The steps an application takes from the desk, each one a short action on its row. Every application arrives under review (the office talks it
+ * over, often with the Academic Office); accepting it means it has been reviewed and is fine. It then moves to the interview list with its
+ * interview date: the one that came with it (from an application window) or one chosen in the same step. After the interview the result is recorded: a pass accepts the
  * applicant and enrols them at once (a student record with no class yet), so they wait in Class placement, and they leave the list when a class
  * is given. Declining closes the application. Nothing is paid at this stage. Every step calls the same services as the full application page,
  * so each rule still applies.
@@ -96,15 +96,17 @@ export async function acceptReview(ctx: AuthContext, applicationId: string, inpu
   requirePermission(ctx, "admission.documents.verify");
   const row = await deskRow(ctx, applicationId);
   if (row.state !== "NEW" && row.state !== "UNDER_REVIEW") return { state: row.state, already: true };
-  const toInterview = row.afterReview === "interview";
-  if (toInterview) {
+  // An application that came with its interview date (from an application window) keeps it; one without a date needs one chosen now.
+  const hasDate = row.interviewAt !== null;
+  const toInterview = row.afterReview === "interview" || hasDate;
+  if (toInterview && !hasDate) {
     if (!input.scheduledAt) throw invalid("Please correct the highlighted fields.", { scheduledAt: "Choose the interview date" });
     requirePermission(ctx, "admission.interview.manage");
     await checkInterviewDate(ctx, input.scheduledAt); // refused before anything is changed
   }
   await confirmPapers(ctx, applicationId, !!input.papersChecked);
   if (toInterview) {
-    await giveInterviewDate(ctx, applicationId, input.scheduledAt!);
+    if (!hasDate) await giveInterviewDate(ctx, applicationId, input.scheduledAt!);
     return { state: (await deskRow(ctx, applicationId)).state, already: false };
   }
   let after = await deskRow(ctx, applicationId);

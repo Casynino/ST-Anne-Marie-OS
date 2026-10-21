@@ -58,8 +58,8 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
   const onAll = !sp.state && sp.attention !== "1";
   const tabs: PipelineTab[] = [
     mk("all", t("adm.stage.all"), c.stages[listStage], href({ stage: listStage === "review" ? undefined : listStage }), onAll && inList),
-    ...(stage === "review" ? [mk("NEW", t("adm.tab.NEW"), c.NEW, href({ state: "NEW" }), sp.state === "NEW"), mk("UNDER_REVIEW", t("adm.tab.UNDER_REVIEW"), c.UNDER_REVIEW, href({ state: "UNDER_REVIEW" }), sp.state === "UNDER_REVIEW"), mk("NEEDS_INFO", t("adm.tab.NEEDS_INFO"), c.NEEDS_INFO, href({ state: "NEEDS_INFO" }), sp.state === "NEEDS_INFO", { color: "var(--color-warn)" })] : []),
-    ...(stage === "interview" ? [mk("AWAITING_INTERVIEW", t("adm.tab.NODATE"), c.awaitingInterview, href({ state: "AWAITING_INTERVIEW" }), sp.state === "AWAITING_INTERVIEW", { color: "var(--color-warn)" }), mk("INTERVIEW_SCHEDULED", t("adm.tab.INTERVIEW_SCHEDULED"), c.INTERVIEW_SCHEDULED, href({ state: "INTERVIEW_SCHEDULED" }), sp.state === "INTERVIEW_SCHEDULED"), mk("AWAITING_DECISION", t("adm.tab.AWAITING_DECISION"), c.AWAITING_DECISION, href({ state: "AWAITING_DECISION" }), sp.state === "AWAITING_DECISION"), ...(c.ACCEPTED > 0 ? [mk("ACCEPTED", t("adm.tab.TOENROL"), c.ACCEPTED, href({ state: "ACCEPTED" }), sp.state === "ACCEPTED", { color: "var(--color-warn)" })] : [])] : []),
+    ...(stage === "review" ? [mk("NEW", t("adm.tab.NEW"), c.NEW, href({ state: "NEW" }), sp.state === "NEW"), mk("UNDER_REVIEW", t("adm.tab.UNDER_REVIEW"), c.UNDER_REVIEW, href({ state: "UNDER_REVIEW" }), sp.state === "UNDER_REVIEW"), mk("REVIEWED", t("adm.tab.REVIEWED"), c.REVIEWED, href({ state: "REVIEWED" }), sp.state === "REVIEWED"), mk("NEEDS_INFO", t("adm.tab.NEEDS_INFO"), c.NEEDS_INFO, href({ state: "NEEDS_INFO" }), sp.state === "NEEDS_INFO", { color: "var(--color-warn)" })] : []),
+    ...(stage === "interview" ? [mk("AWAITING_DECISION", t("adm.tab.AWAITING_DECISION"), c.AWAITING_DECISION, href({ state: "AWAITING_DECISION" }), sp.state === "AWAITING_DECISION"), ...(c.ACCEPTED > 0 ? [mk("ACCEPTED", t("adm.tab.TOENROL"), c.ACCEPTED, href({ state: "ACCEPTED" }), sp.state === "ACCEPTED", { color: "var(--color-warn)" })] : [])] : []),
     mk("attention", t("adm.tab.ATTENTION"), c.attention, href({ attention: "1", stage: listStage === "review" ? undefined : listStage }), sp.attention === "1", { color: "var(--color-warn)", alert: true }),
     mk("ENROLLED", t("adm.tab.ENROLLED"), c.ENROLLED, href({ state: "ENROLLED" }), sp.state === "ENROLLED", { color: "var(--color-brand-800)" }),
     mk("CLOSED", t("adm.tab.CLOSED"), c.closed, href({ state: "CLOSED" }), sp.state === "CLOSED", { color: "var(--color-bad)" }),
@@ -103,7 +103,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
       column: t("adm.col.action"), view: t("common.view"), accept: t("adm.q.accept"), decline: t("adm.q.decline"), date: t("adm.q.date"), result: t("adm.q.result"),
       acceptQ: t("adm.accept.confirm", { name: "{name}", class: "{class}" }), acceptAfter: t("adm.q.accept.after"), declineQ: t("adm.q.decline.q", { name: "{name}" }), declineReason: t("adm.q.decline.reason"), declineGo: t("adm.q.decline.go"),
       confirm: t("adm.accept.go"), open: t("adm.q.open"), cancel: t("adm.bulk.cancel"),
-      reviewQ: t("adm.q.review.q", { name: "{name}" }), reviewToInterview: t("adm.q.review.toInterview"), reviewToAccepted: t("adm.q.review.toAccepted"), papersChecked: t("adm.q.papersChecked", { n: "{n}" }),
+      reviewQ: t("adm.q.review.q", { name: "{name}" }), reviewToInterview: t("adm.q.review.toInterview"), reviewToAccepted: t("adm.q.review.toAccepted"), reviewHasDate: t("adm.q.review.hasDate", { date: "{date}" }), papersChecked: t("adm.q.papersChecked", { n: "{n}" }),
       dateQ: t("adm.q.date.q", { name: "{name}" }), dateSlot: t("adm.q.date.slot"), dateOther: t("adm.q.date.other"), dateWhen: t("adm.q.date.when"), dateGo: t("adm.q.date.go"),
       resultQ: t("adm.q.result.q", { name: "{name}" }), resultPassed: t("adm.q.result.passed"), resultNot: t("adm.q.result.not"), resultNote: t("adm.q.result.note"), resultGo: t("adm.q.result.go"), resultHint: t("adm.q.result.hint"),
       back: t("adm.q.back"), backQ: t("adm.q.back.q", { name: "{name}" }), backNote: t("adm.q.back.note"), backDefault: t("adm.q.back.default", { list: "{list}" }), backAfter: t("adm.q.back.after"), backGo: t("adm.q.back.go"),
@@ -147,7 +147,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
         </select>
         <button className="inline-flex min-h-10 items-center rounded-md border border-line px-3 text-sm font-semibold hover:border-brand-500">{t("common.filter")}</button>
       </FilterRow>
-      <DeskTable rows={lines} labels={labels} canVerify={can("admission.documents.verify")} action={bulkDeskAction} quick={quickDecisionAction} empty={t("adm.none")} slots={slotRows.map((x) => ({ value: x.local, classIds: x.classIds, label: `${x.when}${x.name ? ` · ${x.name}` : ""}${x.venue ? ` · ${x.venue}` : ""}${x.count > 0 ? ` (${x.count})` : ""}` }))} />
+      <DeskTable rows={lines} labels={labels} canVerify={can("admission.documents.verify")} action={bulkDeskAction} quick={quickDecisionAction} view={stage === "interview" ? "interview" : "review"} empty={t("adm.none")} slots={slotRows.map((x) => ({ value: x.local, classIds: x.classIds, label: `${x.when}${x.name ? ` · ${x.name}` : ""}${x.venue ? ` · ${x.venue}` : ""}${x.count > 0 ? ` (${x.count})` : ""}` }))} />
       <Pagination page={desk.page} pageSize={desk.pageSize} total={desk.total} basePath="/admissions" params={{ ...keep, state: sp.state, stage: sp.stage, attention: sp.attention }} t={t} />
     </>
   );

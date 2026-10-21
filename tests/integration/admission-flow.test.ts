@@ -119,15 +119,18 @@ describe("the steps an application takes", () => {
     expect((await days.listInterviewDays(rehema)).find((d) => d.name === "Group day")?.placed).toBe(2);
   });
 
-  it("an application that arrives with an interview date goes straight to the interview list; a pass then checks its papers and takes it to Class placement", async () => {
+  it("an application that arrives with an interview date is reviewed first; accepting it keeps the date (none to choose) and moves it to Interviews", async () => {
     const a = await newApp();
-    await db.interview.create({ data: { schoolId: school.id, applicationId: a.id, kind: "INTERVIEW", scheduledAt: new Date(Date.now() + 5 * 86_400_000), arrangement: "DAY", createdById: null } });
+    const date = new Date(Date.now() + 5 * 86_400_000);
+    await db.interview.create({ data: { schoolId: school.id, applicationId: a.id, kind: "INTERVIEW", scheduledAt: date, arrangement: "DAY", createdById: null } });
+    expect(await lists(a.id)).toEqual({ review: true, interview: false }); // the date does not skip the review
+    expect((await desk.loadDesk(rehema, {}, 1)).rows.find((r) => r.id === a.id)).toMatchObject({ state: "NEW", interview: "SCHEDULED", pendingDocs: 1 });
+    expect(await code(flow.acceptReview(rehema, a.id, {}))).toBe("VALIDATION"); // the papers are still to be checked
+    expect(await flow.acceptReview(rehema, a.id, { papersChecked: true })).toMatchObject({ state: "INTERVIEW_SCHEDULED", already: false }); // no date needed: it came with one
     expect(await lists(a.id)).toEqual({ review: false, interview: true });
-    expect((await desk.loadDesk(rehema, { stage: "interview" }, 1)).rows.find((r) => r.id === a.id)).toMatchObject({ state: "INTERVIEW_SCHEDULED", pendingDocs: 1 });
+    expect((await db.interview.findMany({ where: { applicationId: a.id, status: "SCHEDULED" } })).map((i) => i.scheduledAt.getTime())).toEqual([date.getTime()]);
     await db.interview.updateMany({ where: { applicationId: a.id }, data: { scheduledAt: new Date(Date.now() - 3_600_000) } });
-    expect(await code(flow.recordQuickResult(rehema, a.id, { outcome: "PASSED" }))).toBe("VALIDATION"); // the papers were never checked: say so first
-    expect(await db.interview.count({ where: { applicationId: a.id, status: "COMPLETED" } })).toBe(0);
-    expect(await flow.recordQuickResult(rehema, a.id, { outcome: "PASSED", papersChecked: true })).toMatchObject({ passed: true, landing: "placement" });
+    expect(await flow.recordQuickResult(rehema, a.id, { outcome: "PASSED" })).toMatchObject({ passed: true, landing: "placement" }); // already reviewed: no tick needed
     expect((await db.application.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("ENROLLED");
   });
 

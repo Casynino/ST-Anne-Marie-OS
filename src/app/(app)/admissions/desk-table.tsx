@@ -14,7 +14,7 @@ export type DeskLine = {
 };
 type Mode = "START_REVIEW" | "MARK_REVIEWED";
 type Kind = "REVIEW" | "ACCEPT" | "DECLINE" | "DATE" | "RESULT" | "ENROL" | "BACK";
-export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "date" | "result" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel" | "reviewQ" | "reviewToInterview" | "reviewToAccepted" | "papersChecked" | "dateQ" | "dateSlot" | "dateOther" | "dateWhen" | "dateGo" | "resultQ" | "resultPassed" | "resultNot" | "resultNote" | "resultGo" | "resultHint" | "enrol" | "enrolQ" | "enrolAfter" | "enrolGo" | "back" | "backQ" | "backNote" | "backDefault" | "backAfter" | "backGo", string>;
+export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "date" | "result" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel" | "reviewQ" | "reviewToInterview" | "reviewToAccepted" | "reviewHasDate" | "papersChecked" | "dateQ" | "dateSlot" | "dateOther" | "dateWhen" | "dateGo" | "resultQ" | "resultPassed" | "resultNot" | "resultNote" | "resultGo" | "resultHint" | "enrol" | "enrolQ" | "enrolAfter" | "enrolGo" | "back" | "backQ" | "backNote" | "backDefault" | "backAfter" | "backGo", string>;
 export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "status" | "online" | "selectAll" | "start" | "review" | "go" | "cancel" | "dismiss" | "never", string>
   & { quick: QuickLabels; selected: string; selectRow: string; confirm: Record<Mode, string>; done: string; unchanged: string; failed: string };
 
@@ -23,8 +23,9 @@ export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted"
  * (start the review, mark as reviewed, give to a reviewer). A consequential action asks first, and afterwards the result says what was
  * done, what needed nothing and what could not be done and why. Accepting is never offered here.
  */
-export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots }: {
-  empty: string; slots: { value: string; label: string; classIds: string[] | null }[]; rows: DeskLine[]; labels: DeskLabels; canVerify: boolean;
+export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots, view }: {
+  /** "interview": everyone listed has a confirmed interview date, so only the date, class and guardian are shown (no status, no completeness, no ticking). */
+  view: "review" | "interview"; empty: string; slots: { value: string; label: string; classIds: string[] | null }[]; rows: DeskLine[]; labels: DeskLabels; canVerify: boolean;
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
   quick: (prev: ActionState, form: FormData) => Promise<ActionState>;
 }) {
@@ -59,7 +60,7 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const outcome = state?.ok && state.data ? state.data : null;
   const problems: { no: string; reason: string }[] = outcome?.problems ? JSON.parse(outcome.problems) : [];
-  const selectable = canVerify;
+  const selectable = canVerify && view === "review";
 
   // The interview date: one of the days the school set, or another date and time. Used when giving a date and when accepting an application under review.
   const dateFields = (
@@ -127,7 +128,7 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
           <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
             <tr>
               {selectable && <th scope="col" className="w-10 px-1.5 py-3"><input type="checkbox" aria-label={labels.selectAll} checked={all} onChange={() => setPicked(all ? [] : rows.map((r) => r.id))} className="size-4 accent-brand-600" /></th>}
-              {[labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, q.column].map((h, i) => <th key={i} scope="col" className="px-1.5 py-3 font-medium">{h}</th>)}
+              {(view === "interview" ? [labels.applicant, labels.interview, labels.class, labels.guardian, q.column] : [labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, q.column]).map((h, i) => <th key={i} scope="col" className="px-1.5 py-3 font-medium">{h}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -142,6 +143,8 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
                   <Link href={`/admissions/${r.id}`} className="font-semibold text-link hover:underline">{r.name}</Link>
                   <span className="block text-xs tabular-nums text-muted">{r.applicationNo}</span><span className="block text-xs text-muted">{r.submitted}{r.online ? ` · ${labels.online}` : ""}</span>
                 </td>
+                {view === "review" && (
+                  <>
                 <td className="px-1.5 py-3">
                   <span className="flex items-center gap-1.5">
                     <Badge tone={r.stateTone}>{r.stateLabel}</Badge>
@@ -155,7 +158,21 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
                   <span className="flex items-center gap-2"><span aria-hidden className="h-1.5 w-12 overflow-hidden rounded-sm bg-line"><span className="block h-full" style={{ width: `${r.percent}%`, background: r.percent === 100 ? "var(--color-ok)" : r.percent >= 60 ? "var(--color-warn)" : "var(--color-bad)" }} /></span><span className="tabular-nums">{r.percent}%</span></span>
                   {r.missing.length > 0 && <span className="block max-w-[11rem] truncate text-xs text-muted">{r.missing.join(", ")}</span>}
                 </td>
-                <td className="px-1.5 py-3"><span className="block">{r.interviewLabel}</span>{r.interviewDetail && <span className="block whitespace-nowrap text-xs text-muted">{r.interviewDetail}</span>}</td>
+                  </>
+                )}
+                <td className="px-1.5 py-3">
+                  {view === "interview" ? (
+                    <>
+                      <span className="flex items-center gap-1.5 font-medium">
+                        {r.interviewDetail ?? r.interviewLabel}
+                        {r.attention.length > 0 && <span title={r.attention.join("\n")} className="inline-flex text-warn"><AlertTriangle className="size-4" aria-label={r.attention.join(", ")} /></span>}
+                      </span>
+                      {r.state !== "INTERVIEW_SCHEDULED" && <span className="mt-0.5 block text-xs text-muted">{r.stateLabel}</span>}
+                    </>
+                  ) : (
+                    <><span className="block">{r.interviewLabel}</span>{r.interviewDetail && <span className="block whitespace-nowrap text-xs text-muted">{r.interviewDetail}</span>}</>
+                  )}
+                </td>
                 <td className="whitespace-nowrap px-1.5 py-3">{r.className ?? "—"}</td>
                 <td className="px-1.5 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
                 <td className="whitespace-nowrap px-1.5 py-3">
@@ -194,8 +211,8 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
             </h2>
             {ask.kind === "REVIEW" && (
               <>
-                <p className="text-sm text-muted">{ask.row.afterReview === "placement" ? q.reviewToAccepted : q.reviewToInterview}</p>
-                {ask.row.afterReview === "interview" && dateFields}
+                <p className="text-sm text-muted">{ask.row.interviewDetail ? q.reviewHasDate.replace("{date}", ask.row.interviewDetail) : ask.row.afterReview === "placement" ? q.reviewToAccepted : q.reviewToInterview}</p>
+                {ask.row.afterReview === "interview" && !ask.row.interviewDetail && dateFields}
                 {ask.row.pendingDocs > 0 && (
                   <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="papersChecked" required className="mt-1 size-4 accent-brand-600" /><span>{q.papersChecked.replace("{n}", String(ask.row.pendingDocs))}</span></label>
                 )}

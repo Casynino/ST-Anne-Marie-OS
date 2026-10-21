@@ -3918,8 +3918,8 @@ export const en = {
   "adm.stage.title.review": "Applications",
   "adm.stage.title.interview": "Interviews",
   "adm.stage.title.accepted": "Accepted",
-  "adm.stage.sub.review": "Applications without an interview date wait here to be discussed and reviewed (often with the Academic Office). Accept one and choose its interview date, or decline it. An application that arrives with a date goes straight to Interviews.",
-  "adm.stage.sub.interview": "Everyone here has an interview date (or needs one). Record the result after the interview: a pass accepts the applicant and sends them straight to Class placement.",
+  "adm.stage.sub.review": "Every application arrives here to be discussed and reviewed (often with the Academic Office). Accept it when everything is fine: it goes to Interviews with its date (the one it came with, or one you choose). Or send it back, or decline it.",
+  "adm.stage.sub.interview": "Everyone here has been reviewed and has a confirmed interview date. Record the result after the interview: a pass accepts the applicant and sends them straight to Class placement.",
   "adm.stage.sub.accepted": "Accepted applicants who are not enrolled yet (for example the offer waits for approval, or the enrolment needs a look). Enrol them to send them to Class placement.",
   "adm.q.date": "Set date",
   "adm.q.result": "Result",
@@ -3983,7 +3983,7 @@ export const en = {
   "adm.win.classes.hint": "The classes this window is for. Choose none to cover every class.",
   "adm.win.from": "Opens on",
   "adm.win.until": "Closes after",
-  "adm.win.hint": "A family that applies for one of these classes between the two dates gets the interview date straight away. When the places are full, the next application waits for the office to give it a date.",
+  "adm.win.hint": "A family that applies for one of these classes between the two dates gets the interview date straight away; the application is still reviewed first. When the places are full, the next application waits for the office to give it a date.",
   "adm.win.added": "The window is open.",
   "adm.win.removed": "The window was removed.",
   "adm.win.public.title": "Applications open now",
@@ -4012,6 +4012,8 @@ export const en = {
   "apf.returned.sent": "Thank you. Your application is with the school again.",
   "apf.photo.add": "Add the photo",
   "apf.paper.add": "Add the paper",
+  "adm.tab.REVIEWED": "Needs a date",
+  "adm.q.review.hasDate": "The papers are in order. Its interview date stays: {date}. The application then goes to the Interviews list.",
 } as const;
 
 export type MessageKey = keyof typeof en;

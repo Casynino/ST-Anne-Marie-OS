@@ -89,11 +89,11 @@ describe("placing a paid application on an interview day", () => {
     const iv = await liveInterview(a.applicationId);
     expect(iv).toMatchObject({ kind: "INTERVIEW", arrangement: "DAY", createdById: null, location: "Main hall" });
     expect((await db.application.findUniqueOrThrow({ where: { id: a.applicationId } })).status).toBe("INTERVIEW");
-    // it comes with its date, so it goes straight to the interview list
-    const row = (await desk.loadDesk(rehema, { stage: "interview" }, 1)).rows.find((r) => r.id === a.applicationId);
-    expect(row).toMatchObject({ state: "INTERVIEW_SCHEDULED", interview: "SCHEDULED" });
-    expect((await desk.loadDesk(rehema, {}, 1)).rows.map((r) => r.id)).not.toContain(a.applicationId);
+    // it comes with its date but, like every application, it is reviewed first: it shows the date in the review list
+    const row = (await desk.loadDesk(rehema, {}, 1)).rows.find((r) => r.id === a.applicationId);
+    expect(row).toMatchObject({ state: "NEW", interview: "SCHEDULED" });
     expect(row?.interviewAt?.getTime()).toBe(iv!.scheduledAt.getTime());
+    expect((await desk.loadDesk(rehema, { stage: "interview" }, 1)).rows.map((r) => r.id)).not.toContain(a.applicationId);
     const notes = await db.applicationNotice.findMany({ where: { applicationId: a.applicationId } });
     expect(notes.map((x) => [x.kind, x.status])).toEqual([["INTERVIEW", "NO_ACCOUNT"]]);
     expect((await pdf.applicationFormDocument(rehema, a.draftId, "EN")).interview).toMatchObject({ venue: "Main hall" });
