@@ -13,6 +13,7 @@ import { LinkButton, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { inputClass } from "@/components/form";
 import { stageOf, workflowProgress, type Stage, type WorkflowState } from "@/lib/admissions/rules";
 import { DeskTable, type DeskLabels, type DeskLine } from "./desk-table";
+import { quickActs, quickLabels, quickSlots } from "./quick-line";
 import { quickDecisionAction } from "./actions";
 import { Pipeline, type PipelineTab } from "./pipeline";
 import { DeskFilters as FilterRow } from "./desk-filters";
@@ -67,28 +68,10 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
   // The bar shows the three lists an application moves through; the nav shows how many are in each.
   const segments = (["review", "interview"] as const).map((st) => ({ key: st, label: t(st === "review" ? "adm.nav.applications" : "adm.nav.stageInterview"), n: c.stages[st], to: stageHref(st), color: COLOR[st] }));
   const badges = { "/admissions": c.stages.review, "/admissions?stage=interview": c.stages.interview, "/admissions/placement": waitingForClass.length };
-  // The buttons on a row follow the step the application is at. Under review: Accept (the papers are in order, it goes on) or Decline. In the interview
-  // list: give it a date, record the result once the interview has taken place, then Accept. Every service checks its own conditions again.
   const now = Date.now();
-  const actsOf = (r: DeskRow): DeskLine["acts"] => {
-    const out: DeskLine["acts"] = [];
-    const decide = can("admission.review"), verify = can("admission.documents.verify"), iv = can("admission.interview.manage");
-    // Under review: accept only an application that is complete; anything missing is sent back to the family (who resend it), so nothing incomplete is accepted.
-    if ((r.state === "NEW" || r.state === "UNDER_REVIEW" || r.state === "REVIEWED") && verify) {
-      const missing = r.completeness.missing.map((k) => (k.startsWith("doc:") ? t(`doc.type.${k.slice(4) as "OTHER"}`) : k === "class" ? t("adm.missing.class") : t("adm.missing.contact")));
-      out.push({ kind: "REVIEW", why: missing.length ? t("adm.q.wait.incomplete", { list: missing.join(", ") }) : null });
-      out.push({ kind: "BACK", why: null });
-    }
-    // Sent back: it waits for the family, who send it again from their account (it then returns under review by itself); nothing to press here.
-    if (r.state === "INTERVIEW_SCHEDULED" && iv) out.push({ kind: "RESULT", why: r.interviewAt && r.interviewAt.getTime() > now ? t("adm.q.wait.date") : null });
-    if (r.state === "AWAITING_DECISION" && decide) out.push({ kind: "ACCEPT", why: null });
-    if (r.state === "ACCEPTED" && can("student.enroll")) out.push({ kind: "ENROL", why: null });
-    if (decide && r.state !== "ACCEPTED" && ["review", "interview"].includes(stageOf(r.state))) out.push({ kind: "DECLINE", why: null });
-    return out;
-  };
   const lines: DeskLine[] = desk.rows.map((r) => ({
     id: r.id, applicationNo: r.applicationNo, name: r.name, className: r.className, guardian: r.guardianName, phone: r.guardianPhone, submitted: displayDate(r.submittedAt, ctx.locale), online: r.source === "ONLINE",
-    state: r.state, stateLabel: t(`adm.state.${r.state}`), stateTone: TONE[r.state], step: workflowProgress(r.state), className2: r.className ?? t("adm.noClass"), classId: r.classAppliedId, acts: actsOf(r), afterReview: r.afterReview, pendingDocs: r.pendingDocs, stepLabel: t("adm.progress", { n: String(workflowProgress(r.state)) }),
+    state: r.state, stateLabel: t(`adm.state.${r.state}`), stateTone: TONE[r.state], step: workflowProgress(r.state), className2: r.className ?? t("adm.noClass"), classId: r.classAppliedId, acts: quickActs(r, t, can, now), afterReview: r.afterReview, pendingDocs: r.pendingDocs, stepLabel: t("adm.progress", { n: String(workflowProgress(r.state)) }),
     interviewLabel: t(`adm.ivs.${r.interview}`), interviewDetail: r.interviewAt ? displayDateTime(r.interviewAt, school.timezone, ctx.locale) : null,
     percent: r.completeness.percent,
     missing: r.completeness.missing.map((k) => (k.startsWith("doc:") ? t(`doc.type.${k.slice(4) as "OTHER"}`) : k === "class" ? t("adm.missing.class") : t("adm.missing.contact"))),
@@ -97,16 +80,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
   const labels: DeskLabels = {
     applicant: t("adm.applicant"), guardian: t("adm.guardian"), class: t("adm.classApplied"), submitted: t("adm.appliedOn"), complete: t("adm.col.complete"), interview: t("adm.col.interview"), status: t("common.status"),
     online: t("adm.online"), dismiss: t("adm.bulk.dismiss"),
-    quick: {
-      column: t("adm.col.action"), view: t("common.view"), accept: t("adm.q.accept"), decline: t("adm.q.decline"), date: t("adm.q.date"), result: t("adm.q.result"),
-      acceptQ: t("adm.accept.confirm", { name: "{name}", class: "{class}" }), acceptAfter: t("adm.q.accept.after"), declineQ: t("adm.q.decline.q", { name: "{name}" }), declineReason: t("adm.q.decline.reason"), declineGo: t("adm.q.decline.go"),
-      confirm: t("adm.accept.go"), open: t("adm.q.open"), cancel: t("adm.bulk.cancel"),
-      reviewQ: t("adm.q.review.q", { name: "{name}" }), reviewToInterview: t("adm.q.review.toInterview"), reviewToAccepted: t("adm.q.review.toAccepted"), reviewHasDate: t("adm.q.review.hasDate", { date: "{date}" }), papersChecked: t("adm.q.papersChecked", { n: "{n}" }),
-      dateQ: t("adm.q.date.q", { name: "{name}" }), dateSlot: t("adm.q.date.slot"), dateOther: t("adm.q.date.other"), dateWhen: t("adm.q.date.when"), dateGo: t("adm.q.date.go"),
-      resultQ: t("adm.q.result.q", { name: "{name}" }), resultPassed: t("adm.q.result.passed"), resultNot: t("adm.q.result.not"), resultNote: t("adm.q.result.note"), resultGo: t("adm.q.result.go"), resultHint: t("adm.q.result.hint"),
-      back: t("adm.q.back"), backQ: t("adm.q.back.q", { name: "{name}" }), backNote: t("adm.q.back.note"), backDefault: t("adm.q.back.default", { list: "{list}" }), backAfter: t("adm.q.back.after"), backGo: t("adm.q.back.go"),
-      enrol: t("adm.q.enrol"), enrolQ: t("adm.q.enrol.q", { name: "{name}" }), enrolAfter: t("adm.q.enrol.after"), enrolGo: t("adm.q.enrol.go"),
-    },
+    quick: quickLabels(t),
   };
   const filtersOn = !!(sp.q || sp.classId || sp.from || sp.to || sp.interview || sp.source);
   const SEL = `${inputClass} !min-h-10 !w-auto !py-1.5 !text-sm`;
@@ -142,7 +116,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
         </select>
         <button className="inline-flex min-h-10 items-center rounded-md border border-line px-3 text-sm font-semibold hover:border-brand-500">{t("common.filter")}</button>
       </FilterRow>
-      <DeskTable rows={lines} labels={labels} quick={quickDecisionAction} view={stage === "interview" ? "interview" : "review"} empty={t("adm.none")} slots={slotRows.map((x) => ({ value: x.local, classIds: x.classIds, label: `${x.when}${x.name ? ` · ${x.name}` : ""}${x.venue ? ` · ${x.venue}` : ""}${x.count > 0 ? ` (${x.count})` : ""}` }))} />
+      <DeskTable rows={lines} labels={labels} quick={quickDecisionAction} view={stage === "interview" ? "interview" : "review"} empty={t("adm.none")} slots={quickSlots(slotRows)} />
       <Pagination page={desk.page} pageSize={desk.pageSize} total={desk.total} basePath="/admissions" params={{ ...keep, state: sp.state, stage: sp.stage, attention: sp.attention }} t={t} />
     </>
   );

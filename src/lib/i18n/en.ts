@@ -4014,6 +4014,7 @@ export const en = {
   "apf.paper.add": "Add the paper",
   "adm.tab.REVIEWED": "Needs a date",
   "adm.q.review.hasDate": "The papers are in order. Its interview date stays: {date}. The application then goes to the Interviews list.",
+  "adm.more.options": "More options (date already agreed, not needed, exceptions…)",
 } as const;
 
 export type MessageKey = keyof typeof en;

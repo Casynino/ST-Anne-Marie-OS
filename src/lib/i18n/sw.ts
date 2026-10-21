@@ -4016,4 +4016,5 @@ export const sw: Record<MessageKey, string> = {
   "apf.paper.add": "Ongeza nyaraka",
   "adm.tab.REVIEWED": "Linahitaji tarehe",
   "adm.q.review.hasDate": "Nyaraka ziko sawa. Tarehe yake ya usaili inabaki: {date}. Ombi litaenda kwenye orodha ya Usaili.",
+  "adm.more.options": "Chaguo zaidi (tarehe imeshakubaliwa, haihitajiki, vighairi…)",
 };

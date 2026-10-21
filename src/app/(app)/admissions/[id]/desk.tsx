@@ -71,7 +71,9 @@ export function DeskCard(p: {
         </dl>
 
         {consideration && (
-          <ol className="space-y-5 border-t border-line pt-5">
+          <details className="group border-t border-line pt-3">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center gap-1 text-sm font-semibold text-link marker:hidden [&::-webkit-details-marker]:hidden">{t("adm.more.options")}</summary>
+          <ol className="mt-3 space-y-5">
             <Step title={t("adm.desk.step.review")} done={reviewed}>
               <p className="text-sm text-muted">
                 {reviewed ? t("adm.desk.review.done", { name: p.reviewerName ?? "—", date: p.reviewedAt ? displayDate(p.reviewedAt, p.locale) : "—" })
@@ -192,6 +194,7 @@ export function DeskCard(p: {
               )}
             </Step>
           </ol>
+          </details>
         )}
 
         {(p.status === "ACCEPTED" || p.status === "ENROLLED") && (

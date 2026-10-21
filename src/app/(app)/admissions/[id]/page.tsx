@@ -21,6 +21,10 @@ import { noticesOf } from "@/server/application-notices";
 import { classOccupancy } from "@/server/admission-queues";
 import { ActionForm, Field } from "@/components/form";
 import { AdmissionsNav } from "@/components/admissions/subnav";
+import { stageOf } from "@/lib/admissions/rules";
+import { QuickBar } from "../quick-actions";
+import { missingLabels, quickActs, quickLabels, quickSlots } from "../quick-line";
+import { quickDecisionAction } from "../actions";
 import { Badge, Card, DefList, EmptyState, LinkButton, NoAccess, PageHeader } from "@/components/ui";
 import { ConfirmBoxes, FileInput } from "./parts";
 import { DocsReviewCard, GateList, InterviewCard, OfferCard } from "./sections";
@@ -95,7 +99,14 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           </div>
         }
       />
-      <AdmissionsNav ctx={ctx} t={t} current="/admissions" />
+      <AdmissionsNav ctx={ctx} t={t} current={stageOf(row.state) === "interview" ? "/admissions?stage=interview" : "/admissions"} />
+      {/* The same steps as the list, here on the application: Accept, Send back, Decline (and Result, Enrol), each asking in a pop-up first. */}
+      <div className="mb-5">
+        <QuickBar
+          line={{ id, name: `${app.firstName} ${app.lastName}`, className2: row.className ?? t("adm.noClass"), classId: row.classAppliedId, acts: quickActs(row, t, can, now), afterReview: row.afterReview, pendingDocs: row.pendingDocs, missing: missingLabels(row, t), interviewDetail: row.interviewAt ? displayDateTime(row.interviewAt, school.timezone, ctx.locale) : null }}
+          labels={quickLabels(t)} dismiss={t("adm.bulk.dismiss")} quick={quickDecisionAction} slots={quickSlots(slotRows)}
+        />
+      </div>
       <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">
         <div className="space-y-5">
           <DeskCard
