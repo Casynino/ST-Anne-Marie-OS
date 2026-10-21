@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { db, type Db, type Tx } from "@/lib/db";
-import { conflict, invalid, notFound } from "@/lib/errors";
+import { AppError, conflict, invalid, notFound } from "@/lib/errors";
 import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
 import { admissionAccount } from "@/lib/admissions/rules";
 import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
@@ -8,6 +8,7 @@ import { centsOf, decimalOf, formatMoney, parseAmount } from "@/lib/finance/mone
 import { actorOf, writeAudit } from "@/server/audit";
 import { assessmentFor, getAdmissionPolicy } from "@/server/admission-policy";
 import { reviewBlockers, documentReadiness } from "@/server/admission-review";
+import { noticeFamily } from "@/server/application-notices";
 import { allocateNumber } from "@/server/invoices";
 import { closeTasks, openTask } from "@/server/workflow";
 import { optDateOnly, optText, optUuid, parse, text } from "@/lib/validation";
@@ -51,6 +52,52 @@ async function handOffAcceptance(tx: Tx, ctx: AuthContext, app: { id: string; fi
   else await openTask(tx, { ...base, kind: "ENROL_APPLICANT", sourceEvent: "offer.no_payment_needed" });
 }
 
+/** Tells the family a place has been offered (once per offer). */
+async function noticeOffer(tx: Tx, ctx: AuthContext, app: { id: string; firstName: string; lastName: string }, offer: { classOfferedId: string | null; issuedAt: Date }) {
+  const cls = offer.classOfferedId ? await tx.schoolClass.findFirst({ where: { id: offer.classOfferedId, schoolId: ctx.schoolId }, select: { name: true } }) : null;
+  await noticeFamily(tx, ctx, app, { kind: "ACCEPTED", key: `accepted:${app.id}:${offer.issuedAt.toISOString()}`, vars: { className: cls?.name } });
+}
+
+export type AcceptanceReadiness = {
+  /** Problems no exception can skip here (the application was returned, or required papers are not verified). */
+  hard: string[];
+  /** An interview is still scheduled: record its result or cancel it first. */
+  live: { scheduledAt: Date } | null;
+  /** What the school requires that has not happened (an authorised person can record an exception). */
+  interview: string | null;
+  ready: boolean;
+};
+
+/**
+ * Everything that must be true before an applicant can be accepted, in words a person can act on. The same function is used by the
+ * application screen (to list what is missing) and by `issueOffer` (to refuse), so the two can never disagree. A recorded "interview not
+ * required" satisfies the interview requirement (never the entrance examination).
+ */
+export async function acceptanceReadiness(
+  client: Db | Tx, schoolId: string,
+  app: { id: string; reviewStatus: string; docsExceptionAt: Date | null; entryType?: string | null; classAppliedId: string | null; interviewWaivedAt: Date | null },
+  policyIn?: Awaited<ReturnType<typeof getAdmissionPolicy>>,
+): Promise<AcceptanceReadiness> {
+  const policy = policyIn ?? (await getAdmissionPolicy(client, schoolId));
+  const hard = await reviewBlockers(client, schoolId, app);
+  const live = await client.interview.findFirst({ where: { applicationId: app.id, status: "SCHEDULED" }, select: { scheduledAt: true } });
+  const completed = await client.interview.findMany({ where: { applicationId: app.id, status: "COMPLETED" }, orderBy: { scheduledAt: "desc" }, select: { kind: true, outcome: true } });
+  const levelId = app.classAppliedId ? (await client.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId }, select: { levelId: true } }))?.levelId ?? null : null;
+  const need = assessmentFor(policy, levelId);
+  const unmet: string[] = [];
+  for (const [required, kind, name] of [[need.interview, "INTERVIEW", "interview"], [need.exam, "ENTRANCE_EXAM", "entrance examination"]] as const) {
+    if (!required) continue;
+    if (kind === "INTERVIEW" && app.interviewWaivedAt) continue;
+    const latest = completed.find((c) => c.kind === kind || (kind === "INTERVIEW" && c.kind === "ASSESSMENT"));
+    if (!latest) unmet.push(`The school requires a passed ${name} first.`);
+    else if (latest.outcome !== "PASSED") unmet.push(`The latest ${name} result is ${latest.outcome}.`);
+  }
+  // When nothing is required, the decision still may not quietly go against a recorded result.
+  if (!need.interview && !need.exam && completed[0] && completed[0].outcome !== "PASSED") unmet.push(`The latest assessment result is ${completed[0].outcome}.`);
+  const interview = unmet.length ? unmet.join(" ") : null;
+  return { hard, live, interview, ready: hard.length === 0 && !live && !interview };
+}
+
 // ───────────────────────── Offers ─────────────────────────
 
 const offerSchema = z.object({
@@ -77,23 +124,10 @@ export async function issueOffer(ctx: AuthContext, applicationId: string, input:
   return db.$transaction(async (tx) => {
     const app = await lockApplication(tx, ctx.schoolId, applicationId);
     if (!["APPLIED", "INTERVIEW"].includes(app.status)) throw conflict(app.status === "ACCEPTED" ? "This applicant already has an admission offer." : "An offer can only be made to an application that is still under consideration.");
-    const blockers = await reviewBlockers(tx, ctx.schoolId, app);
-    if (blockers.length) throw conflict(`This application is not ready for an offer. ${blockers.join(" ")}`);
-
-    if (await tx.interview.findFirst({ where: { applicationId, status: "SCHEDULED" }, select: { id: true } })) throw conflict("An interview is still scheduled. Record its result or cancel it before deciding.");
-    const completed = await tx.interview.findMany({ where: { applicationId, status: "COMPLETED" }, orderBy: { scheduledAt: "desc" }, select: { kind: true, outcome: true } });
-    const levelId = app.classAppliedId ? (await tx.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId: ctx.schoolId }, select: { levelId: true } }))?.levelId ?? null : null;
-    const need = assessmentFor(policy, levelId);
-    const unmet: string[] = [];
-    for (const [required, kind, name] of [[need.interview, "INTERVIEW", "interview"], [need.exam, "ENTRANCE_EXAM", "entrance examination"]] as const) {
-      if (!required) continue;
-      const latest = completed.find((c) => c.kind === kind || (kind === "INTERVIEW" && c.kind === "ASSESSMENT"));
-      if (!latest) unmet.push(`The school requires a passed ${name} first.`);
-      else if (latest.outcome !== "PASSED") unmet.push(`The latest ${name} result is ${latest.outcome}.`);
-    }
-    // When nothing is required, the decision still may not quietly go against a recorded result.
-    if (!need.interview && !need.exam && completed[0] && completed[0].outcome !== "PASSED") unmet.push(`The latest assessment result is ${completed[0].outcome}.`);
-    const interviewProblem = unmet.length ? unmet.join(" ") : null;
+    const ready = await acceptanceReadiness(tx, ctx.schoolId, app, policy);
+    if (ready.hard.length) throw conflict(`This application is not ready for an offer. ${ready.hard.join(" ")}`);
+    if (ready.live) throw conflict("An interview is still scheduled. Record its result or cancel it before deciding.");
+    const interviewProblem = ready.interview;
     if (interviewProblem) {
       if (!d.exceptionReason) throw conflict(`${interviewProblem} An authorised person can record an exception.`);
       requirePermission(ctx, "admission.override");
@@ -112,7 +146,8 @@ export async function issueOffer(ctx: AuthContext, applicationId: string, input:
       ? await tx.admissionOffer.update({ where: { id: existing.id }, data })
       : await tx.admissionOffer.create({ data: { ...data, schoolId: ctx.schoolId, applicationId, letterNo: await allocateNumber(tx, ctx.schoolId, "ADM", today.getUTCFullYear()) } });
     if (!needsApproval) {
-      await tx.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED", decidedAt: new Date(), decidedById: ctx.userId, decisionReason: null, decisionOutcome: null, decisionNote: null, ...(d.assessmentNotes ? { assessmentNotes: d.assessmentNotes } : {}) } });
+      await tx.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED", decidedAt: new Date(), decidedById: ctx.userId, decisionReason: null, decisionOutcome: null, decisionNote: null, ...(d.assessmentNotes ? { assessmentNotes: d.assessmentNotes } : {}), ...(app.reviewStatus !== "VERIFIED" ? { reviewStatus: "VERIFIED" as const, reviewedById: ctx.userId, reviewedAt: new Date() } : {}) } });
+      await noticeOffer(tx, ctx, app, offer);
       await handOffAcceptance(tx, ctx, app, fee, policy.requirePaymentBeforeEnrol);
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: "ACCEPTED", kind: "STATUS", reason: `Offer ${offer.letterNo}`, byUserId: ctx.userId } });
     } else {
@@ -131,11 +166,37 @@ export async function approveOffer(ctx: AuthContext, applicationId: string) {
     if (!offer || offer.status !== "PENDING_APPROVAL") throw conflict("There is no offer waiting for approval.");
     if (offer.issuedById === ctx.userId) throw conflict("An offer must be approved by someone other than the person who made it.");
     await tx.admissionOffer.update({ where: { id: offer.id }, data: { status: "ISSUED", approvedAt: new Date(), approvedById: ctx.userId } });
-    await tx.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED", decidedAt: new Date(), decidedById: ctx.userId } });
+    await tx.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED", decidedAt: new Date(), decidedById: ctx.userId, ...(app.reviewStatus !== "VERIFIED" ? { reviewStatus: "VERIFIED" as const, reviewedById: ctx.userId, reviewedAt: new Date() } : {}) } });
+    await noticeOffer(tx, ctx, app, offer);
     await handOffAcceptance(tx, ctx, app, centsOf(offer.feeAmount), (await getAdmissionPolicy(tx, ctx.schoolId)).requirePaymentBeforeEnrol);
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: "ACCEPTED", kind: "STATUS", reason: `Offer ${offer.letterNo} approved`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "admission.offer_approve", entityType: "AdmissionOffer", entityId: offer.id, summary: `${label(app)} · ${offer.letterNo}` });
   });
+}
+
+const acceptSchema = z.object({ note: optText(600), exceptionReason: optText(400) });
+
+/**
+ * The quick acceptance: one action that makes the admission offer with the school's own defaults (the class applied for, the admission fee
+ * and offer validity from the policy), so nothing the applicant already submitted is typed again. Every condition of `issueOffer` applies
+ * (papers verified, interview requirement met, nothing still scheduled, second-person approval when the school requires it). Pressing it twice, or
+ * two people pressing it together, accepts once: the second answer says the applicant is already accepted.
+ */
+export async function acceptApplication(ctx: AuthContext, applicationId: string, input: unknown): Promise<{ offerId: string; status: string; already: boolean }> {
+  requirePermission(ctx, "admission.review");
+  const d = parse(acceptSchema, input);
+  const existing = await db.admissionOffer.findFirst({ where: { applicationId, schoolId: ctx.schoolId }, select: { id: true, status: true, application: { select: { status: true } } } });
+  if (existing && (existing.status === "PENDING_APPROVAL" || (existing.status === "ISSUED" && existing.application.status === "ACCEPTED"))) return { offerId: existing.id, status: existing.status, already: true };
+  try {
+    const offer = await issueOffer(ctx, applicationId, { notes: d.note, exceptionReason: d.exceptionReason });
+    return { offerId: offer.id, status: offer.status, already: false };
+  } catch (e) {
+    if (e instanceof AppError && e.code === "CONFLICT") {
+      const now = await db.admissionOffer.findFirst({ where: { applicationId, schoolId: ctx.schoolId }, select: { id: true, status: true, application: { select: { status: true } } } });
+      if (now && (now.status === "PENDING_APPROVAL" || (now.status === "ISSUED" && now.application.status === "ACCEPTED"))) return { offerId: now.id, status: now.status, already: true };
+    }
+    throw e;
+  }
 }
 
 const reviseSchema = z.object({ feeAmount: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.union([z.string(), z.number()]).optional()), expiresOn: optDateOnly(), notes: optText(600), reason: text(300) });

@@ -10,7 +10,7 @@ import { DashHero, Hi } from "@/components/dash/hero";
 import { Cell, DashSection, DashTable, EmptyLine, KpiCard, Panel, PersonCell, Pill } from "@/components/dash/parts";
 import { JumpNav } from "@/components/dash/jump-nav";
 import type { Quick } from "@/components/dash/quick-links";
-import { QuickSection } from "./quick";
+import { ActionBar } from "@/components/dash/action-bar";
 import { toneFor } from "@/components/learning/timetable-grid";
 
 type Props = { t: Translate; locale: "EN" | "SW"; first: string; hour: number; schoolName: string; portal: string; today: string; d: DashboardData; th: Awaited<ReturnType<typeof teacherHome>>; quick: Quick[] };
@@ -41,14 +41,7 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
       <DashHero photoIndex={4} eyebrow={`${schoolName} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
         {bits.length > 0 ? bits.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("tch.hero.calm")}
       </DashHero>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <LinkButton href="/attendance"><ClipboardCheck className="size-4" aria-hidden /> {t("dash.takeAttendance")}</LinkButton>
-        <LinkButton href="/marks" variant="secondary">{t("nav.marks")}</LinkButton>
-        <LinkButton href="/assignments/new" variant="secondary">{t("learn.asg.new")}</LinkButton>
-        <LinkButton href="/planning/lessons/new" variant="secondary">{t("learn.lesson.new")}</LinkButton>
-        <span className="ml-auto text-sm text-muted">{displayDate(new Date(`${today}T00:00:00Z`), locale)}{d.term ? ` · ${d.term.name}` : ""}</span>
-      </div>
-
+      <ActionBar label={t("dash.quick.title")} items={quick} trailing={<span className="ml-auto text-sm text-muted">{displayDate(new Date(`${today}T00:00:00Z`), locale)}{d.term ? ` · ${d.term.name}` : ""}</span>} />
       <JumpNav label={t("dash.jump")} items={[rows.length > 0 && { id: "todo", label: t("tch.todo.title") }, { id: "quick", label: t("dash.quick.title") }, { id: "today", label: t("tch.today.title") }, { id: "students", label: t("tch.students.title") }, { id: "mine", label: t("tch.classes.title") }, { id: "work", label: t("tch.work.title") }].filter(Boolean) as { id: string; label: string }[]} />
 
       <ul className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -58,8 +51,6 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
         <li><KpiCard icon={ClipboardList} label={t("tch.kpi.homework")} value={th.homework.open} caption={t("tch.kpi.homework.cap", { n: th.homework.toMark })} href="/assignments" openLabel={t("dash.kpi.open")} pill={th.homework.toMark > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
         <li><KpiCard icon={FileText} label={t("tch.kpi.plans")} value={th.plans.needs} caption={t("tch.kpi.plans.cap", { s: th.plans.schemes, l: th.plans.lessons })} href="/planning" openLabel={t("dash.kpi.open")} pill={th.plans.needs > 0 ? { text: t("dash.pill.watch"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
       </ul>
-
-      <QuickSection t={t} items={quick} />
 
       {rows.length > 0 && (
         <DashSection id="todo" title={t("tch.todo.title")} subtitle={t("tch.todo.sub")}>

@@ -45,3 +45,52 @@ export function slotsOverlap(a: Slot, b: Slot): boolean {
   const bEnd = b.start.getTime() + b.minutes * 60_000;
   return a.start.getTime() < bEnd && b.start.getTime() < aEnd;
 }
+
+// ───────────────────────── The admissions desk: one status for an application, interview state, completeness ─────────────────────────
+
+export type ReviewState = "PENDING" | "IN_REVIEW" | "VERIFIED" | "RETURNED";
+export type AppStatus = "APPLIED" | "INTERVIEW" | "ACCEPTED" | "ENROLLED" | "REJECTED" | "WITHDRAWN";
+
+/** The single status the Admissions Office sees. It is worked out from the records (status, review, interviews), never stored, so it cannot contradict them. */
+export const WORKFLOW_STATES = ["NEW", "UNDER_REVIEW", "NEEDS_INFO", "REVIEWED", "INTERVIEW_SCHEDULED", "AWAITING_DECISION", "ACCEPTED", "ENROLLED", "REJECTED", "WITHDRAWN"] as const;
+export type WorkflowState = (typeof WORKFLOW_STATES)[number];
+
+export function workflowState(a: { status: AppStatus; review: ReviewState; liveInterview: boolean; assessmentResolved: boolean }): WorkflowState {
+  if (a.status === "ACCEPTED" || a.status === "ENROLLED" || a.status === "REJECTED" || a.status === "WITHDRAWN") return a.status;
+  if (a.review === "RETURNED") return "NEEDS_INFO";
+  if (a.liveInterview) return "INTERVIEW_SCHEDULED";
+  if (a.review === "VERIFIED") return a.assessmentResolved ? "AWAITING_DECISION" : "REVIEWED";
+  return a.review === "IN_REVIEW" ? "UNDER_REVIEW" : "NEW";
+}
+
+export type InterviewState = "SCHEDULED" | "COMPLETED" | "WAIVED" | "NOT_REQUIRED" | "TO_ARRANGE";
+
+/**
+ * Where the interview stands for an application. A live appointment wins; then a completed interview; then a recorded "not required";
+ * then the school's own policy (nothing required = not required); otherwise it still has to be arranged.
+ */
+export function interviewState(a: { live: boolean; completed: boolean; waived: boolean; required: boolean }): InterviewState {
+  if (a.live) return "SCHEDULED";
+  if (a.completed) return "COMPLETED";
+  if (a.waived) return "WAIVED";
+  return a.required ? "TO_ARRANGE" : "NOT_REQUIRED";
+}
+
+/**
+ * Whether what the school requires before a decision has happened: the interview (done, or recorded as not required, or not required by policy)
+ * and the entrance examination (done, or not required). A result of any kind counts as done; the decision itself is a separate step.
+ */
+export function assessmentResolved(a: { needInterview: boolean; needExam: boolean; interviewDone: boolean; examDone: boolean; interviewWaived: boolean }): boolean {
+  return (!a.needInterview || a.interviewDone || a.interviewWaived) && (!a.needExam || a.examDone);
+}
+
+/** How complete an application is: every required paper provided (and not marked for correction), the class applied for, and a contact phone. */
+export function completeness(a: { checklist: { docType: string; state: DocState }[]; hasClass: boolean; hasContact: boolean }) {
+  const items: { key: string; label: string; ok: boolean }[] = [
+    ...a.checklist.map((c) => ({ key: `doc:${c.docType}`, label: c.docType, ok: c.state === "VERIFIED" || c.state === "PENDING" })),
+    { key: "class", label: "CLASS", ok: a.hasClass },
+    { key: "contact", label: "CONTACT", ok: a.hasContact },
+  ];
+  const done = items.filter((i) => i.ok).length;
+  return { percent: Math.round((done / items.length) * 100), complete: done === items.length, missing: items.filter((i) => !i.ok), checked: a.checklist.filter((c) => c.state === "VERIFIED").length, required: a.checklist.length };
+}

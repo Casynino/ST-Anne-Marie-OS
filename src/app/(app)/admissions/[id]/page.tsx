@@ -13,12 +13,17 @@ import { getAdmissionPolicy, requiredDocsFor } from "@/server/admission-policy";
 import { documentReadiness } from "@/server/admission-review";
 import { enrolmentReadiness, loadAdmissionAccount } from "@/server/admission-offers";
 import { interviewsOfApplication, listInterviewers } from "@/server/interviews";
+import { deskRow } from "@/server/admission-desk";
+import { acceptanceReadiness } from "@/server/admission-offers";
+import { listReviewers } from "@/server/admission-review";
+import { noticesOf } from "@/server/application-notices";
 import { classOccupancy } from "@/server/admission-queues";
 import { ActionForm, Field } from "@/components/form";
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { Badge, Card, DefList, EmptyState, LinkButton, NoAccess, PageHeader } from "@/components/ui";
 import { ConfirmBoxes, FileInput } from "./parts";
 import { DocsReviewCard, GateList, InterviewCard, OfferCard } from "./sections";
+import { DeskCard } from "./desk";
 import { deleteDocumentAction, enrolApplicationAction, transitionApplicationAction, uploadDocumentAction } from "../actions";
 
 export const metadata: Metadata = { title: "Application" };
@@ -42,7 +47,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const can = (p: Parameters<typeof ctx.permissions.has>[0]) => ctx.permissions.has(p);
   const now = Date.now();
 
-  const [policy, docs, ivs, interviewers, acct, docsReady, gate, allClasses, occupancy, exceptionUser] = await Promise.all([
+  const [policy, docs, ivs, interviewers, acct, docsReady, gate, allClasses, occupancy, exceptionUser, row, ready, reviewers, notices] = await Promise.all([
     getAdmissionPolicy(db, ctx.schoolId),
     can("document.read") ? listDocuments(ctx, { applicationId: id }) : [],
     interviewsOfApplication(ctx, id),
@@ -53,6 +58,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     can("academic.read") ? listClasses(ctx) : [],
     classOccupancy(ctx.schoolId),
     app.docsExceptionById ? db.user.findFirst({ where: { id: app.docsExceptionById, schoolId: ctx.schoolId }, select: { fullName: true } }) : null,
+    deskRow(ctx, id),
+    acceptanceReadiness(db, ctx.schoolId, app),
+    listReviewers(ctx),
+    noticesOf(db, ctx.schoolId, id),
   ]);
   const reviewer = app.reviewedById ? await db.user.findFirst({ where: { id: app.reviewedById, schoolId: ctx.schoolId }, select: { fullName: true } }) : null;
   const classes = allClasses.filter((c) => c.isActive);
@@ -70,15 +79,6 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   });
   const preferredFull = (() => { const o = app.classAppliedId ? occupancy.get(app.classAppliedId) : null; return !!o?.capacity && o.count >= o.capacity; })();
 
-  const step = !open ? t("adm.step.closed")
-    : app.status === "ENROLLED" ? t("adm.step.place")
-    : app.status === "ACCEPTED" ? (gate?.ready ? t("adm.step.enrol") : t("adm.step.pay"))
-    : offer?.status === "PENDING_APPROVAL" ? t("adm.step.approve")
-    : live ? (live.scheduledAt.getTime() <= now ? t("adm.step.result") : t("adm.step.interview"))
-    : app.reviewStatus !== "VERIFIED" && !docsReady.ok ? t("adm.step.review")
-    : ivs.some((i) => i.status === "COMPLETED") ? t("adm.step.decide")
-    : policy.requireInterview ? t("adm.step.interview") : t("adm.step.decide");
-
   return (
     <>
       <PageHeader
@@ -89,7 +89,12 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
       <AdmissionsNav ctx={ctx} t={t} current="/admissions" />
       <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">
         <div className="space-y-5">
-          <p className="rounded-lg border border-tint-2 bg-tint px-3 py-2 text-sm"><span className="font-semibold text-link">{t("adm.nextStep")}:</span> {step}</p>
+          <DeskCard
+            t={t} id={id} name={`${app.firstName} ${app.lastName}`} row={row} status={app.status} reviewStatus={app.reviewStatus} reviewNote={app.reviewNote} reviewedAt={app.reviewedAt} reviewerName={reviewer?.fullName ?? null}
+            interviewWaivedReason={app.interviewWaivedReason} open={open} can={can} reviewers={reviewers} interviewers={interviewers} defaultMinutes={policy.interviewMinutes} ready={ready}
+            checklistOpen={docsReady.checklist.filter((c) => c.state !== "VERIFIED" && !app.docsExceptionAt)} offerStatus={offer?.status ?? null} account={acct.account ? { requiredCents: acct.account.requiredCents } : null}
+            currency={school.currency} notices={notices} locale={ctx.locale} timezone={school.timezone}
+          />
           {app.student && (
             <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-ok">
               {t("adm.studentRecord")}: <Link className="font-semibold underline" href={`/students/${app.student.id}`}>{app.student.admissionNo}</Link>

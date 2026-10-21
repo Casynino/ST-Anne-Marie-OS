@@ -10,7 +10,8 @@ import { Ring } from "@/components/dash/viz";
 import type { HeadHome } from "@/server/head-home";
 import type { adminHome } from "@/server/admin-home";
 import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LearningSection, MyRegistersSection, PulseSection, ResultsSection, StudentsSection, type DashEnv } from "./sections";
-import { QuickSection, jumpItems, quickItems } from "./quick";
+import { ActionBar } from "@/components/dash/action-bar";
+import { jumpItems, quickItems } from "./quick";
 
 /*
  * The home pages of the different staff roles. Each is a choice and an order of the shared sections (see sections.tsx) plus the few
@@ -51,14 +52,7 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
   return (
     <>
       <Greeting {...props} photoIndex={0}><Sentence bits={bits} empty={t("head.hero.calm")} /></Greeting>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {can("results.approve") && <LinkButton href="/marks"><FileCheck className="size-4" aria-hidden /> {t("acts.approveMarks")}</LinkButton>}
-        {can("plans.review") && <LinkButton href="/planning" variant="secondary">{t("acts.reviewPlans")}</LinkButton>}
-        {can("attendance.take_any") && <LinkButton href="/attendance" variant="secondary"><ClipboardCheck className="size-4" aria-hidden /> {t("dash.takeAttendance")}</LinkButton>}
-        {can("reportcard.generate") && <LinkButton href="/report-cards" variant="secondary">{t("nav.reportCards")}</LinkButton>}
-        {can("academic.office") && <LinkButton href="/academic-office" variant="secondary">{t("nav.academicOffice")}</LinkButton>}
-        <Date_ env={env} today={props.today} />
-      </div>
+      <ActionBar label={t("dash.quick.title")} items={quickItems("head", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
       <JumpNav label={t("dash.jump")} items={jumpItems(env, ["quick", "queues", "attention", "pulse", "teachers", "classes", "results", "students", "learning", "calendar"], { teachers: !!head && t("head.teachers.title") })} />
 
       {tot && (
@@ -71,7 +65,6 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
         </ul>
       )}
 
-      <QuickSection t={t} items={quickItems("head", t, can, d.attention)} />
       <QueueSection env={env} />
       <AttentionSection env={env} />
       <PulseSection env={env} />
@@ -119,14 +112,7 @@ export function AccountantDashboard({ props }: { props: HomeProps }) {
   return (
     <>
       <Greeting {...props} photoIndex={2}><Sentence bits={bits} empty={t("acc.hero.empty")} /></Greeting>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {can("payment.record") && <LinkButton href="/finance/payments/new"><Wallet className="size-4" aria-hidden /> {t("acts.recordPayment")}</LinkButton>}
-        <LinkButton href="/finance/invoices" variant="secondary"><Receipt className="size-4" aria-hidden /> {t("acts.invoices")}</LinkButton>
-        <LinkButton href="/finance/fees" variant="secondary">{t("acts.fees")}</LinkButton>
-        {can("expense.read") && <LinkButton href="/finance/expenses" variant="secondary">{t("acts.expenses")}</LinkButton>}
-        {can("finance.reconcile") && <LinkButton href="/finance/reconciliation" variant="secondary">{t("acts.reconcile")}</LinkButton>}
-        <Date_ env={env} today={props.today} />
-      </div>
+      <ActionBar label={t("dash.quick.title")} items={quickItems("accountant", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
       <JumpNav label={t("dash.jump")} items={jumpItems(env, ["quick", "queues", "attention", "fees", "calendar"])} />
 
       {f && (
@@ -140,7 +126,6 @@ export function AccountantDashboard({ props }: { props: HomeProps }) {
       )}
       {!f && <div className="mt-6"><EmptyLine>{t("acc.empty")}</EmptyLine></div>}
 
-      <QuickSection t={t} items={quickItems("accountant", t, can, d.attention)} />
       <QueueSection env={env} />
       <AttentionSection env={env} />
       <FeesSection env={env} />
@@ -164,15 +149,8 @@ export function RegistrarDashboard({ props }: { props: HomeProps }) {
   return (
     <>
       <Greeting {...props} photoIndex={4}><Sentence bits={bits} empty={t("dash.hero.empty")} /></Greeting>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {can("student.create") && <LinkButton href="/students/new"><UserPlus className="size-4" aria-hidden /> {t("dash.registerStudent")}</LinkButton>}
-        {can("admission.create") && <LinkButton href="/admissions/new" variant="secondary">{t("dash.newApplication")}</LinkButton>}
-        {can("student.import") && <LinkButton href="/students/import" variant="secondary">{t("acts.importStudents")}</LinkButton>}
-        {can("enquiry.read") && <LinkButton href="/enquiries" variant="secondary"><Inbox className="size-4" aria-hidden /> {t("acts.enquiries")}</LinkButton>}
-        <Date_ env={env} today={props.today} />
-      </div>
+      <ActionBar label={t("dash.quick.title")} items={quickItems("registrar", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
       <JumpNav label={t("dash.jump")} items={jumpItems(env, ["quick", "queues", "school", "attention", "admissions", "students", "pulse", "classes", "calendar"])} />
-      <QuickSection t={t} items={quickItems("registrar", t, can, d.attention)} />
       <QueueSection env={env} />
       <KpiSection env={env} />
       <AttentionSection env={env} />

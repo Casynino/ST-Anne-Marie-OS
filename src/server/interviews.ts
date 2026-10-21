@@ -6,7 +6,8 @@ import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib
 import { slotsOverlap } from "@/lib/admissions/rules";
 import { zonedToUtc } from "@/lib/dates";
 import { actorOf, writeAudit } from "@/server/audit";
-import { getAdmissionPolicy } from "@/server/admission-policy";
+import { assessmentFor, getAdmissionPolicy } from "@/server/admission-policy";
+import { noticeFamily } from "@/server/application-notices";
 import { reviewBlockers } from "@/server/admission-review";
 import { closeTasks, openTask } from "@/server/workflow";
 import { checkbox, optText, optUuid, parse, text } from "@/lib/validation";
@@ -74,6 +75,9 @@ async function assignInterviewer(tx: Tx, ctx: AuthContext, app: { id: string; ap
   });
 }
 
+/** Scheduling an interview takes back an earlier "interview not required" (the history keeps the reason). */
+const restoreInterview = (app: { interviewWaivedAt: Date | null }) => (app.interviewWaivedAt ? { interviewWaivedAt: null, interviewWaivedById: null, interviewWaivedReason: null } : {});
+
 async function lockApplication(tx: Tx, schoolId: string, id: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM applications WHERE id = ${id}::uuid AND "schoolId" = ${schoolId}::uuid FOR UPDATE`;
   if (!rows.length) throw notFound("Application");
@@ -91,9 +95,9 @@ async function checkReadyForInterview(tx: Tx, ctx: AuthContext, app: { id: strin
   await writeAudit(tx, actorOf(ctx), { action: "admission.exception_documents", entityType: "Application", entityId: app.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { blockers }, reason: exceptionReason });
 }
 
-async function create(tx: Tx, ctx: AuthContext, appId: string, d: z.output<typeof scheduleSchema>, start: Date, minutes: number, extra: { rescheduledFromId?: string } = {}) {
+async function create(tx: Tx, ctx: AuthContext, appId: string, d: z.output<typeof scheduleSchema>, start: Date, minutes: number, extra: { rescheduledFromId?: string; arrangement?: "SCHEDULED" | "EXISTING" } = {}) {
   const i = await tx.interview.create({
-    data: { schoolId: ctx.schoolId, applicationId: appId, kind: d.kind, scheduledAt: start, durationMinutes: minutes, location: d.location ?? null, method: d.method ?? null, interviewerId: d.interviewerId ?? null, scheduleNote: d.note ?? null, createdById: ctx.userId, rescheduledFromId: extra.rescheduledFromId ?? null },
+    data: { schoolId: ctx.schoolId, applicationId: appId, kind: d.kind, scheduledAt: start, durationMinutes: minutes, location: d.location ?? null, method: d.method ?? null, interviewerId: d.interviewerId ?? null, scheduleNote: d.note ?? null, createdById: ctx.userId, rescheduledFromId: extra.rescheduledFromId ?? null, arrangement: extra.arrangement ?? "SCHEDULED" },
   });
   return i;
 }
@@ -115,13 +119,137 @@ export async function scheduleInterview(ctx: AuthContext, applicationId: string,
     await checkReadyForInterview(tx, ctx, app, d.exceptionReason);
     await assertNoClash(tx, ctx.schoolId, { start, minutes }, { interviewerId: d.interviewerId, location: d.location, confirmLocationClash: d.confirmLocationClash });
     const i = await create(tx, ctx, applicationId, d, start, minutes);
-    await tx.application.update({ where: { id: applicationId }, data: { status: "INTERVIEW", interviewOn: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())) } });
+    await tx.application.update({ where: { id: applicationId }, data: { status: "INTERVIEW", interviewOn: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())), ...restoreInterview(app) } });
+    if (app.interviewWaivedAt) await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: app.status, kind: "INTERVIEW", reason: "Interview requirement restored: an interview was scheduled", byUserId: ctx.userId } });
     await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ASSESSMENT_COORDINATE"], by: ctx.userId, note: "Interview scheduled" });
+    if (d.kind === "INTERVIEW") await noticeFamily(tx, ctx, app, { kind: "INTERVIEW", key: `interview:${i.id}`, vars: { when: when(start, school.timezone), where: d.location } });
     await assignInterviewer(tx, ctx, app, i, "interview.scheduled");
     if (app.status !== "INTERVIEW") await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: "INTERVIEW", kind: "STATUS", byUserId: ctx.userId } });
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "INTERVIEW", toStatus: "INTERVIEW", kind: "INTERVIEW", reason: `Interview scheduled for ${when(start, school.timezone)}${d.location ? ` at ${d.location}` : ""}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "interview.schedule", entityType: "Interview", entityId: i.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { scheduledAt: start.toISOString(), minutes, location: d.location ?? null, interviewerId: d.interviewerId ?? null } });
     return i;
+  });
+}
+
+const dayOf = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+
+// ───────────────────────── The other ways an interview can be arranged ─────────────────────────
+
+export type ArrangeResult = { interviewId: string; unchanged: boolean };
+
+/**
+ * An interview date that was already agreed (by phone, at the gate, in the family's request) is entered as it is. It is the one live
+ * interview of the application: entering the same date again changes nothing and tells nobody; a different date replaces it, the old date
+ * stays in the history and the family hears about the change. A date that has passed is refused here (record a completed interview instead).
+ * The papers do not have to be in order for a date that already exists.
+ */
+export async function confirmExistingInterview(ctx: AuthContext, applicationId: string, input: unknown): Promise<ArrangeResult> {
+  requirePermission(ctx, "admission.interview.manage");
+  const d = parse(scheduleSchema, input);
+  const school = await db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
+  const start = instant(d.scheduledAt, school.timezone);
+  if (!start) throw invalid("Please correct the highlighted fields.", { scheduledAt: "Enter a date and time" });
+  if (start.getTime() < Date.now() - FUTURE_SLACK_MS) throw invalid("Please correct the highlighted fields.", { scheduledAt: "This date has passed. If the interview already took place, record it as completed instead." });
+  const policy = await getAdmissionPolicy(db, ctx.schoolId);
+  const minutes = d.durationMinutes ?? policy.interviewMinutes;
+  return db.$transaction(async (tx) => {
+    if (d.interviewerId) { await assertInterviewer(tx, ctx.schoolId, d.interviewerId); await lockInterviewer(tx, d.interviewerId); }
+    const app = await lockApplication(tx, ctx.schoolId, applicationId);
+    if (!(OPEN as readonly string[]).includes(app.status)) throw conflict("An interview can only be arranged for an application that is still under consideration.");
+    const live = await tx.interview.findFirst({ where: { applicationId, status: "SCHEDULED" } });
+    if (live && live.kind === d.kind && live.scheduledAt.getTime() === start.getTime()) return { interviewId: live.id, unchanged: true };
+    const done = await tx.interview.findFirst({ where: { applicationId, status: "COMPLETED", kind: d.kind }, orderBy: { scheduledAt: "desc" } });
+    if (done) throw conflict(`This applicant already has a completed ${d.kind.toLowerCase().replace("_", " ")} (${when(done.scheduledAt, school.timezone)}), so another date is not needed.`);
+    await assertNoClash(tx, ctx.schoolId, { start, minutes }, { interviewerId: d.interviewerId, location: d.location, confirmLocationClash: d.confirmLocationClash }, live?.id);
+    const label = `${app.firstName} ${app.lastName} (${app.applicationNo})`;
+    if (live) {
+      await tx.interview.update({ where: { id: live.id }, data: { status: "CANCELLED", cancelReason: `Date changed to ${when(start, school.timezone)}` } });
+      await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, kinds: ["INTERVIEW_ASSIGNED"], discriminator: live.id, status: "CANCELLED", by: ctx.userId, note: "Interview date changed" });
+    }
+    const i = await create(tx, ctx, applicationId, { ...d, interviewerId: d.interviewerId ?? live?.interviewerId ?? undefined, location: d.location ?? live?.location ?? undefined }, start, minutes, { rescheduledFromId: live?.id, arrangement: "EXISTING" });
+    await tx.application.update({ where: { id: applicationId }, data: { status: "INTERVIEW", interviewOn: dayOf(start), ...restoreInterview(app) } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ASSESSMENT_COORDINATE"], by: ctx.userId, note: "Interview date confirmed" });
+    await assignInterviewer(tx, ctx, app, i, "interview.confirmed");
+    if (app.status !== "INTERVIEW") await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: "INTERVIEW", kind: "STATUS", byUserId: ctx.userId } });
+    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "INTERVIEW", toStatus: "INTERVIEW", kind: "INTERVIEW", reason: live ? `Interview date changed from ${when(live.scheduledAt, school.timezone)} to ${when(start, school.timezone)}` : `Agreed interview date recorded: ${when(start, school.timezone)}${d.location ? ` at ${d.location}` : ""}`, byUserId: ctx.userId } });
+    await writeAudit(tx, actorOf(ctx), { action: "interview.confirm_existing", entityType: "Interview", entityId: i.id, summary: label, changes: { scheduledAt: start.toISOString(), previous: live?.scheduledAt.toISOString() ?? null, previousInterviewId: live?.id ?? null } });
+    if (d.kind === "INTERVIEW") await noticeFamily(tx, ctx, app, { kind: live ? "INTERVIEW_CHANGED" : "INTERVIEW", key: `interview:${i.id}`, vars: { when: when(start, school.timezone), where: i.location ?? undefined } });
+    return { interviewId: i.id, unchanged: false };
+  });
+}
+
+const notRequiredSchema = z.object({ reason: optText(400) });
+
+/**
+ * Records that no interview is needed for this application. When the school's policy does not require one for the class applied for, the
+ * Admissions Office can say so (a reason is optional). When the policy does require one, only a person who may authorise exceptions can, and
+ * a reason is required. Never changes an interview that was held, and cannot be done while one is scheduled.
+ */
+export async function markInterviewNotRequired(ctx: AuthContext, applicationId: string, input: unknown): Promise<{ changed: boolean }> {
+  requirePermission(ctx, "admission.interview.manage");
+  const d = parse(notRequiredSchema, input);
+  const policy = await getAdmissionPolicy(db, ctx.schoolId);
+  return db.$transaction(async (tx) => {
+    const app = await lockApplication(tx, ctx.schoolId, applicationId);
+    if (!(OPEN as readonly string[]).includes(app.status)) throw conflict("This application is no longer under consideration.");
+    if (app.interviewWaivedAt) return { changed: false };
+    if (await tx.interview.findFirst({ where: { applicationId, status: "SCHEDULED" }, select: { id: true } })) throw conflict("An interview is scheduled for this applicant. Cancel it first if no interview is needed.");
+    if (await tx.interview.findFirst({ where: { applicationId, status: "COMPLETED", kind: { in: ["INTERVIEW", "ASSESSMENT"] } }, select: { id: true } })) throw conflict("An interview has already been held for this applicant.");
+    const levelId = app.classAppliedId ? (await tx.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId: ctx.schoolId }, select: { levelId: true } }))?.levelId ?? null : null;
+    const required = assessmentFor(policy, levelId).interview;
+    if (required) {
+      requirePermission(ctx, "admission.override");
+      if (!d.reason) throw invalid("The school requires an interview for this class. Say why it is not needed.", { reason: "Required" });
+    }
+    await tx.application.update({ where: { id: applicationId }, data: { interviewWaivedAt: new Date(), interviewWaivedById: ctx.userId, interviewWaivedReason: d.reason ?? null } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ASSESSMENT_COORDINATE"], by: ctx.userId, note: "Interview not required" });
+    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: app.status, kind: required ? "EXCEPTION" : "INTERVIEW", reason: `Interview not required${d.reason ? `: ${d.reason}` : ""}${required ? " (the school's policy asks for one)" : ""}`, byUserId: ctx.userId } });
+    await writeAudit(tx, actorOf(ctx), { action: required ? "admission.exception_interview_waived" : "admission.interview_not_required", entityType: "Application", entityId: applicationId, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { policyRequiresInterview: required }, reason: d.reason });
+    if (app.reviewStatus === "VERIFIED") await openTask(tx, { schoolId: ctx.schoolId, kind: "DECISION_REVIEW", relatedType: "Application", relatedId: applicationId, relatedLabel: `${app.firstName} ${app.lastName} (${app.applicationNo})`, sourceEvent: "interview.not_required", createdById: ctx.userId });
+    return { changed: true };
+  });
+}
+
+const completedSchema = z
+  .object({
+    kind: z.enum(["INTERVIEW", "ENTRANCE_EXAM", "ASSESSMENT"]).default("INTERVIEW"),
+    heldAt: text(40),
+    outcome: z.enum(["PASSED", "NOT_PASSED", "DEFERRED", "FURTHER_ASSESSMENT", "AWAITING_DECISION"]),
+    score: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.coerce.number().int().min(0).max(100).optional()),
+    notes: optText(2000),
+    interviewerId: optUuid(),
+    recommendation: z.preprocess((v) => (v === "" ? undefined : v), z.enum(["RECOMMEND", "RECOMMEND_WITH_CONDITIONS", "NOT_RECOMMENDED"]).optional()),
+  });
+
+/**
+ * Records an interview that has already taken place (it may be well in the past). It becomes the completed interview of the application,
+ * nothing new has to be scheduled, and the application can go straight to the decision. The same interview cannot be recorded twice.
+ */
+export async function recordCompletedInterview(ctx: AuthContext, applicationId: string, input: unknown): Promise<{ interviewId: string }> {
+  requirePermission(ctx, "admission.interview.manage");
+  const d = parse(completedSchema, input);
+  const school = await db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
+  const held = instant(d.heldAt, school.timezone);
+  if (!held) throw invalid("Please correct the highlighted fields.", { heldAt: "Enter the date and time it took place" });
+  if (held.getTime() > Date.now() + FUTURE_SLACK_MS) throw invalid("Please correct the highlighted fields.", { heldAt: "This date has not come yet. Arrange the interview instead." });
+  return db.$transaction(async (tx) => {
+    if (d.interviewerId) await assertInterviewer(tx, ctx.schoolId, d.interviewerId);
+    const app = await lockApplication(tx, ctx.schoolId, applicationId);
+    if (!(OPEN as readonly string[]).includes(app.status)) throw conflict("This application is no longer under consideration.");
+    if (await tx.interview.findFirst({ where: { applicationId, status: "SCHEDULED" }, select: { id: true } })) throw conflict("An interview is scheduled for this applicant. Record its result instead of adding another.");
+    const sameDay = await tx.interview.findFirst({ where: { applicationId, status: "COMPLETED", kind: d.kind, scheduledAt: { gte: dayOf(held), lt: new Date(dayOf(held).getTime() + 86_400_000) } } });
+    if (sameDay) throw conflict(`This ${d.kind.toLowerCase().replace("_", " ")} was already recorded for ${when(sameDay.scheduledAt, school.timezone)}.`);
+    const i = await tx.interview.create({
+      data: { schoolId: ctx.schoolId, applicationId, kind: d.kind, scheduledAt: held, status: "COMPLETED", outcome: d.outcome, score: d.score ?? null, notes: d.notes ?? null, recommendation: d.recommendation ?? null, interviewerId: d.interviewerId ?? null, arrangement: "RECORDED", completedAt: new Date(), completedById: ctx.userId, createdById: ctx.userId },
+    });
+    const label = `${app.firstName} ${app.lastName} (${app.applicationNo})`;
+    await tx.application.update({ where: { id: applicationId }, data: { ...(app.status === "APPLIED" ? { status: "INTERVIEW" as const } : {}), interviewOn: dayOf(held), ...restoreInterview(app) } });
+    if (app.status === "APPLIED") await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "APPLIED", toStatus: "INTERVIEW", kind: "STATUS", byUserId: ctx.userId } });
+    await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ASSESSMENT_COORDINATE"], by: ctx.userId, note: "Interview already completed" });
+    await openTask(tx, { schoolId: ctx.schoolId, kind: "DECISION_REVIEW", relatedType: "Application", relatedId: applicationId, relatedLabel: label, sourceEvent: "interview.recorded", createdById: ctx.userId, discriminator: i.id });
+    await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "INTERVIEW", toStatus: "INTERVIEW", kind: "INTERVIEW", reason: `Completed interview recorded for ${when(held, school.timezone)}: ${d.outcome}`, byUserId: ctx.userId } });
+    await writeAudit(tx, actorOf(ctx), { action: "interview.record_completed", entityType: "Interview", entityId: i.id, summary: label, changes: { heldAt: held.toISOString(), outcome: d.outcome, kind: d.kind, score: d.score ?? null } });
+    return { interviewId: i.id };
   });
 }
 
@@ -151,6 +279,7 @@ export async function rescheduleInterview(ctx: AuthContext, interviewId: string,
     const i = await create(tx, ctx, app.id, merged, start, minutes, { rescheduledFromId: old.id });
     await tx.application.update({ where: { id: app.id }, data: { interviewOn: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())) } });
     await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, kinds: ["INTERVIEW_ASSIGNED"], discriminator: old.id, status: "CANCELLED", by: ctx.userId, note: "Interview moved" });
+    if (old.kind === "INTERVIEW") await noticeFamily(tx, ctx, app, { kind: "INTERVIEW_CHANGED", key: `interview:${i.id}`, vars: { when: when(start, school.timezone), where: merged.location } });
     await assignInterviewer(tx, ctx, app, i, "interview.rescheduled");
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, fromStatus: app.status, toStatus: app.status, kind: "INTERVIEW", reason: `Interview moved to ${when(start, school.timezone)}: ${d.reason}`, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "interview.reschedule", entityType: "Interview", entityId: i.id, summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`, changes: { from: old.scheduledAt.toISOString(), to: start.toISOString(), previousInterviewId: old.id }, reason: d.reason });

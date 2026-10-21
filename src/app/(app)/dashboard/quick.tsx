@@ -1,6 +1,5 @@
 import type { Translate } from "@/lib/i18n";
-import { DashSection } from "@/components/dash/parts";
-import { QuickLinks, type Quick } from "@/components/dash/quick-links";
+import type { Quick } from "@/components/dash/quick-links";
 import type { DashEnv } from "./sections";
 
 /*
@@ -79,20 +78,12 @@ export function quickItems(kind: QuickKind, t: Translate, can: (p: string) => bo
       { href: "/report-cards", label: t("nav.reportCards"), icon: "reportcards", perm: ["reportcard.read", "reportcard.generate"] },
       { href: "/timetable", label: t("nav.timetable"), icon: "timetable", perm: ["timetable.read"] },
       { href: "/academic-setup", label: t("nav.academics"), icon: "academics", perm: ["academic.read"] },
+      { href: "/tasks", label: t("nav.tasks"), icon: "tasks" },
       library, calendar,
     ],
     staff: [students, attendance, messages, calendar],
   };
   return sets[kind].filter((i) => !i.perm || i.perm.some(can)).map(({ perm: _perm, ...q }) => q);
-}
-
-export function QuickSection({ t, items }: { t: Translate; items: Quick[] }) {
-  if (items.length === 0) return null;
-  return (
-    <DashSection id="quick" title={t("dash.quick.title")} subtitle={t("dash.quick.sub")}>
-      <QuickLinks items={items} label={t("dash.quick.title")} />
-    </DashSection>
-  );
 }
 
 /** The links of the jump bar: only sections the person's data will actually draw. */

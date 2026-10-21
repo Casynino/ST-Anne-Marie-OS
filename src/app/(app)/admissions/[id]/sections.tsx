@@ -95,14 +95,6 @@ export function DocsReviewCard({ t, id, open, can, required, checklist, docs, re
           </ul>
         )}
 
-        {canVerify && (
-          <div className="grid gap-3 lg:grid-cols-2">
-            <ActionForm action={A.reviewApplicationAction} submitLabel={t("adm.review.markOk")} className="space-y-2">{hid("id", id)}{hid("decision", "VERIFIED")}</ActionForm>
-            <Disclosure label={t("adm.review.return")}>
-              <ActionForm action={A.reviewApplicationAction} submitLabel={t("adm.review.return")} tone="danger" className="space-y-2">{hid("id", id)}{hid("decision", "RETURNED")}<Field name="note" label={t("adm.review.note")} type="textarea" rows={2} required /></ActionForm>
-            </Disclosure>
-          </div>
-        )}
         {review.note && <p className="text-sm text-muted">{review.note}</p>}
         {review.by && review.at && <p className="text-xs text-muted">{t("adm.review.last", { name: review.by })} · {displayDateTime(review.at, review.timezone, review.locale)}</p>}
 
@@ -142,7 +134,6 @@ export function InterviewCard({ t, id, status, open, can, rows, interviewers, de
 }) {
   const manage = can("admission.interview.manage");
   const live = rows.find((r) => r.status === "SCHEDULED");
-  const canSchedule = manage && open && ["APPLIED", "INTERVIEW"].includes(status) && !live;
   return (
     <Card title={t("adm.iv.title")}>
       <div className="space-y-4">
@@ -200,14 +191,6 @@ export function InterviewCard({ t, id, status, open, can, rows, interviewers, de
             );
           })}
         </ul>
-        {canSchedule && (
-          <Disclosure label={t("adm.iv.schedule")}>
-            <ActionForm action={A.scheduleInterviewAction} submitLabel={t("adm.iv.schedule")} className="space-y-3">
-              {hid("id", id)}
-              <ScheduleFields t={t} interviewers={interviewers} defaultMinutes={defaultMinutes} withException={can("admission.override") && !ready} />
-            </ActionForm>
-          </Disclosure>
-        )}
       </div>
     </Card>
   );
@@ -240,7 +223,7 @@ export function OfferCard({ t, id, status, open, can, userId, offer, account, pa
         )}
 
         {canDecide && (
-          <Disclosure label={t("adm.offer.issue")}>
+          <Disclosure label={t("adm.offer.custom")}>
             <ActionForm action={A.issueOfferAction} submitLabel={t("adm.offer.issue")} className="space-y-3">
               {hid("id", id)}
               <div className="grid gap-3 sm:grid-cols-2">

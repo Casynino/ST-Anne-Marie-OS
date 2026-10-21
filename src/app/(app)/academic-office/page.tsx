@@ -11,7 +11,8 @@ import { Cell, DashSection, DashTable, DonutStat, EmptyLine, HBars, KpiCard, Pan
 import { Badge, LinkButton, NoAccess } from "@/components/ui";
 import { DashHero, Hi } from "@/components/dash/hero";
 import { JumpNav } from "@/components/dash/jump-nav";
-import { QuickSection, quickItems } from "../dashboard/quick";
+import { ActionBar } from "@/components/dash/action-bar";
+import { quickItems } from "../dashboard/quick";
 import { AreaChart } from "@/components/dash/charts-client";
 import { Ring, StageBar } from "@/components/dash/viz";
 import { updateAcademicSettingsAction } from "./actions";
@@ -39,14 +40,8 @@ export default async function AcademicOfficePage() {
           ...(d.students.openConcerns > 0 ? [<><Hi tone="warn">{d.students.openConcerns}</Hi> {t("ac.kpi.concerns").toLowerCase()}</>] : []),
         ].map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>)}
       </DashHero>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {can("concern.manage") && <LinkButton href="/academic-office/concerns" variant="secondary"><HeartHandshake className="size-4" aria-hidden /> {t("ac.concerns")}</LinkButton>}
-        {(can("transfer.request") || can("transfer.approve")) && <LinkButton href="/academic-office/transfers" variant="secondary"><MoveRight className="size-4" aria-hidden /> {t("ac.transfers")}</LinkButton>}
-        <LinkButton href="/admissions/placement" variant="secondary"><GraduationCap className="size-4" aria-hidden /> {t("adm.nav.placement")}</LinkButton>
-        <LinkButton href="/tasks" variant="secondary"><ListChecks className="size-4" aria-hidden /> {t("nav.tasks")}</LinkButton>
-        <span className="ml-auto text-sm text-muted">{d.year ? d.year.name : t("ac.noYear")}{d.term ? ` · ${d.term.name}` : ""}</span>
-      </div>
-      <JumpNav label={t("dash.jump")} items={[{ id: "quick", label: t("dash.quick.title") }, { id: "alerts", label: t("ac.alerts") }, { id: "students", label: t("ac.students") }, { id: "attendance", label: t("ac.attendance") }, { id: "performance", label: t("ac.performance") }, ...(d.teachers ? [{ id: "teachers", label: t("ac.teachers") }] : []), { id: "calendar", label: t("ac.calendar") }]} />
+      <ActionBar label={t("dash.quick.title")} items={quickItems("academic", t, (p) => can(p as never), d.alerts.map((a) => ({ key: a.key, count: a.count })))} trailing={<span className="ml-auto text-sm text-muted">{d.year ? d.year.name : t("ac.noYear")}{d.term ? ` · ${d.term.name}` : ""}</span>} />
+      <JumpNav label={t("dash.jump")} items={[{ id: "alerts", label: t("ac.alerts") }, { id: "students", label: t("ac.students") }, { id: "attendance", label: t("ac.attendance") }, { id: "performance", label: t("ac.performance") }, ...(d.teachers ? [{ id: "teachers", label: t("ac.teachers") }] : []), { id: "calendar", label: t("ac.calendar") }]} />
 
       <ul className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("ac.title")}>
         <li><KpiCard icon={GraduationCap} label={t("ac.kpi.enrolled")} value={d.students.enrolled.toLocaleString()} caption={t("ac.kpi.enrolled.cap")} href="/students" openLabel={t("dash.kpi.open")} pill={{ text: t("dash.pill.active"), tone: "brand" }} /></li>
@@ -55,8 +50,6 @@ export default async function AcademicOfficePage() {
         <li><KpiCard icon={MoveRight} label={t("ac.kpi.transfers")} value={d.students.pendingTransfers} caption={t("ac.kpi.transfers.cap", { n: d.students.transfersThisTerm })} href="/academic-office/transfers" openLabel={t("dash.kpi.open")} pill={d.students.pendingTransfers > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
         <li><KpiCard icon={ListChecks} label={t("ac.kpi.tasks")} value={d.tasks?.open ?? 0} caption={d.tasks && d.tasks.overdue > 0 ? t("ac.kpi.tasks.overdue", { n: d.tasks.overdue }) : t("ac.kpi.tasks.cap")} href="/tasks?department=ACADEMIC" openLabel={t("dash.kpi.open")} pill={d.tasks && d.tasks.overdue > 0 ? { text: t("dash.pill.overdue"), tone: "bad" } : { text: t("dash.pill.onTrack"), tone: "ok" }} /></li>
       </ul>
-
-      <QuickSection t={t} items={quickItems("academic", t, (p) => can(p as never), d.alerts.map((a) => ({ key: a.key, count: a.count })))} />
 
       <DashSection id="alerts" title={t("ac.alerts")} subtitle={t("ac.alerts.sub")}>
         {d.alerts.length === 0 ? <EmptyLine>{t("ac.alerts.none")}</EmptyLine> : (

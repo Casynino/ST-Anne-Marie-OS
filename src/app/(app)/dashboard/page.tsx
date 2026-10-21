@@ -22,7 +22,8 @@ import { admissionOverview, admissionQueues } from "@/server/admission-queues";
 import { TeacherDashboard } from "./teacher";
 import { AccountantDashboard, HeadDashboard, RegistrarDashboard, SetupSection, type HomeProps } from "./roles";
 import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LatestSection, LearningSection, MyRegistersSection, PeopleSection, PulseSection, ResultsSection, StudentsSection, type DashEnv, type Overview } from "./sections";
-import { QuickSection, jumpItems, quickItems } from "./quick";
+import { ActionBar } from "@/components/dash/action-bar";
+import { jumpItems, quickItems } from "./quick";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -105,12 +106,7 @@ export default async function DashboardPage() {
       <DashHero eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
         {summary.length > 0 ? summary.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("dash.hero.empty")}
       </DashHero>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {can("student.create") && <LinkButton href="/students/new"><UserPlus className="size-4" aria-hidden /> {t("dash.registerStudent")}</LinkButton>}
-        {can("admission.create") && <LinkButton href="/admissions/new" variant="secondary">{t("dash.newApplication")}</LinkButton>}
-        {can("attendance.take") && <LinkButton href="/attendance" variant="secondary"><ClipboardCheck className="size-4" aria-hidden /> {t("dash.takeAttendance")}</LinkButton>}
-        <span className="ml-auto inline-flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" aria-hidden />{displayDate(new Date(`${d.today}T00:00:00Z`), locale)}{d.year ? ` · ${d.year.name}` : ""}{d.term ? ` · ${d.term.name}` : ""}</span>
-      </div>
+      <ActionBar label={t("dash.quick.title")} items={quick} trailing={<span className="ml-auto inline-flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" aria-hidden />{displayDate(new Date(`${d.today}T00:00:00Z`), locale)}{d.year ? ` · ${d.year.name}` : ""}{d.term ? ` · ${d.term.name}` : ""}</span>} />
       <JumpNav items={chips} label={t("dash.jump")} />
 
       {d.needsSetup && !setup && (
@@ -123,7 +119,6 @@ export default async function DashboardPage() {
       {nothingToShow && <EmptyState><p className="font-semibold text-ink">{t("dash.empty.title")}</p><p className="mt-1">{t("dash.empty.body")}</p></EmptyState>}
 
       {setup && <SetupSection env={env} setup={setup} />}
-      <QuickSection t={t} items={quick} />
       <QueueSection env={env} />
       <KpiSection env={env} />
       <AttentionSection env={env} />

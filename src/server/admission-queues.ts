@@ -1,9 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
-import { admissionAccount, docChecklist, docsComplete } from "@/lib/admissions/rules";
+import { admissionAccount, assessmentResolved, docChecklist, docsComplete, workflowState, type ReviewState, type WorkflowState } from "@/lib/admissions/rules";
 import { centsOf } from "@/lib/finance/money";
-import { getAdmissionPolicy, requiredDocsFor } from "@/server/admission-policy";
+import { assessmentFor, getAdmissionPolicy, requiredDocsFor } from "@/server/admission-policy";
 import { enrolmentReadiness } from "@/server/admission-offers";
 import { taskCounts } from "@/server/workflow";
 
@@ -17,7 +17,7 @@ export const STAGES = ["new", "returned", "incomplete", "docs_pending", "intervi
 export type Stage = (typeof STAGES)[number];
 
 type Derived = {
-  id: string; status: "APPLIED" | "INTERVIEW" | "ACCEPTED"; source: "ONLINE" | "STAFF"; review: "PENDING" | "VERIFIED" | "RETURNED";
+  id: string; status: "APPLIED" | "INTERVIEW" | "ACCEPTED"; source: "ONLINE" | "STAFF"; review: ReviewState; workflow: WorkflowState;
   docsOk: boolean; docsPending: boolean; liveInterviewAt: Date | null; latestOutcome: string | null; hasCompletedInterview: boolean;
   offerStatus: string | null; account: ReturnType<typeof admissionAccount> | null; eligible: boolean;
 };
@@ -25,12 +25,13 @@ type Derived = {
 /** One pass over the open applications (those still being decided or waiting to be enrolled). */
 async function derive(ctx: AuthContext): Promise<Derived[]> {
   const policy = await getAdmissionPolicy(db, ctx.schoolId);
+  const levelOf = new Map((await db.schoolClass.findMany({ where: { schoolId: ctx.schoolId }, select: { id: true, levelId: true } })).map((c) => [c.id, c.levelId]));
   const apps = await db.application.findMany({
     where: { schoolId: ctx.schoolId, status: { in: ["APPLIED", "INTERVIEW", "ACCEPTED"] } },
     select: {
-      id: true, status: true, source: true, entryType: true, reviewStatus: true, docsExceptionAt: true,
+      id: true, status: true, source: true, entryType: true, reviewStatus: true, docsExceptionAt: true, classAppliedId: true, interviewWaivedAt: true,
       documents: { where: { deletedAt: null }, select: { id: true, docType: true, verification: true } },
-      interviews: { select: { status: true, outcome: true, scheduledAt: true } },
+      interviews: { select: { status: true, outcome: true, scheduledAt: true, kind: true } },
       offer: { select: { status: true, feeAmount: true, paymentWaivedAt: true } },
       payments: { select: { status: true, amount: true } },
     },
@@ -42,10 +43,17 @@ async function derive(ctx: AuthContext): Promise<Derived[]> {
     const done = a.interviews.filter((i) => i.status === "COMPLETED").sort((x, y) => y.scheduledAt.getTime() - x.scheduledAt.getTime());
     const account = a.offer ? admissionAccount(centsOf(a.offer.feeAmount), a.payments.map((p) => ({ status: p.status, amountCents: centsOf(p.amount) })), !!a.offer.paymentWaivedAt) : null;
     const docsOk = docsComplete(checklist) || !!a.docsExceptionAt;
+    const need = assessmentFor(policy, a.classAppliedId ? (levelOf.get(a.classAppliedId) ?? null) : null);
+    const resolved = assessmentResolved({
+      needInterview: need.interview, needExam: need.exam, interviewWaived: !!a.interviewWaivedAt,
+      interviewDone: a.interviews.some((i) => i.status === "COMPLETED" && (i.kind === "INTERVIEW" || i.kind === "ASSESSMENT")),
+      examDone: a.interviews.some((i) => i.status === "COMPLETED" && i.kind === "ENTRANCE_EXAM"),
+    });
+    const workflow = workflowState({ status: a.status, review: a.reviewStatus, liveInterview: !!live, assessmentResolved: resolved });
     let eligible = false;
     if (a.status === "ACCEPTED" && a.offer?.status === "ISSUED") eligible = (await enrolmentReadiness(db, ctx.schoolId, { id: a.id, status: a.status, reviewStatus: a.reviewStatus, docsExceptionAt: a.docsExceptionAt, entryType: a.entryType })).ready;
     out.push({
-      id: a.id, status: a.status as Derived["status"], source: a.source, review: a.reviewStatus, docsOk, docsPending: a.documents.some((d) => d.verification === "PENDING"),
+      id: a.id, status: a.status as Derived["status"], source: a.source, review: a.reviewStatus, workflow, docsOk, docsPending: a.documents.some((d) => d.verification === "PENDING"),
       liveInterviewAt: live?.scheduledAt ?? null, latestOutcome: done[0]?.outcome ?? null, hasCompletedInterview: done.length > 0, offerStatus: a.offer?.status ?? null, account, eligible,
     });
   }
@@ -60,7 +68,7 @@ const inStage = (d: Derived, s: Stage, now: Date): boolean => {
     case "docs_pending": return d.docsPending;
     case "interview_scheduled": return d.liveInterviewAt !== null && d.liveInterviewAt >= now;
     case "awaiting_result": return d.liveInterviewAt !== null && d.liveInterviewAt < now;
-    case "awaiting_decision": return d.status === "INTERVIEW" && d.liveInterviewAt === null && d.hasCompletedInterview && d.offerStatus !== "PENDING_APPROVAL";
+    case "awaiting_decision": return d.workflow === "AWAITING_DECISION" && d.offerStatus !== "PENDING_APPROVAL";
     case "passed": return d.status !== "ACCEPTED" && d.latestOutcome === "PASSED";
     case "not_passed": return d.status !== "ACCEPTED" && d.latestOutcome === "NOT_PASSED";
     case "offer_pending": return d.offerStatus === "PENDING_APPROVAL";

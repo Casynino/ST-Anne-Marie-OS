@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import * as admissions from "@/server/admissions";
 import * as documents from "@/server/documents";
 import * as review from "@/server/admission-review";
+import * as desk from "@/server/admission-desk";
 import * as interviews from "@/server/interviews";
 import * as offers from "@/server/admission-offers";
 import * as policy from "@/server/admission-policy";
@@ -131,6 +132,41 @@ export async function cancelInterviewAction(_: ActionState, form: FormData) {
 }
 export async function recordInterviewResultAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await interviews.recordInterviewResult(ctx, str(i.interviewId), { status: str(i.status), outcome: i.outcome, score: i.score, notes: i.notes, recommendation: i.recommendation, recommendationNote: i.recommendationNote }); return saved(ctx); });
+}
+
+// ───────────── The admissions desk: review, assignment, bulk, the other interview arrangements, quick accept ─────────────
+export async function startReviewAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await review.startReview(ctx, str(i.id)); return saved(ctx); });
+}
+export async function assignApplicationAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await review.assignApplication(ctx, str(i.id), str(i.assigneeId) || null); return saved(ctx); });
+}
+/** Several applications at once. The result (what was done, what needed nothing, what could not be done and why) is returned for the table to show. */
+export async function bulkDeskAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const ids = ([] as string[]).concat(i.ids ?? []);
+    const r = await desk.bulkDesk(ctx, { action: str(i.action), ids, assigneeId: i.assigneeId });
+    return { data: { action: r.action, done: String(r.done.length), unchanged: String(r.unchanged.length), failed: String(r.failed.length), problems: JSON.stringify([...r.failed, ...r.unchanged].map((x) => ({ no: x.applicationNo, reason: x.reason ?? "" }))) } };
+  });
+}
+export async function confirmExistingInterviewAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const r = await interviews.confirmExistingInterview(ctx, str(i.id), interviewInput(i));
+    return { message: makeT(ctx.locale)(r.unchanged ? "adm.arr.unchanged" : "common.saved") };
+  });
+}
+export async function markInterviewNotRequiredAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await interviews.markInterviewNotRequired(ctx, str(i.id), { reason: i.reason }); return saved(ctx); });
+}
+export async function recordCompletedInterviewAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await interviews.recordCompletedInterview(ctx, str(i.id), { kind: i.kind, heldAt: i.heldAt, outcome: i.outcome, score: i.score, notes: i.notes, interviewerId: i.interviewerId, recommendation: i.recommendation }); return saved(ctx); });
+}
+export async function acceptApplicationAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const r = await offers.acceptApplication(ctx, str(i.id), { note: i.note, exceptionReason: i.exceptionReason });
+    const t = makeT(ctx.locale);
+    return { message: t(r.already ? "adm.accept.already" : r.status === "PENDING_APPROVAL" ? "adm.accept.pending" : "adm.accept.done") };
+  });
 }
 
 // ───────────── Offers and exceptions ─────────────

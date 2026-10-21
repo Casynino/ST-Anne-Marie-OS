@@ -10,6 +10,7 @@ import { actorOf, diffFields, writeAudit } from "@/server/audit";
 import { guardianLinkSchema, type GuardianLinkInput } from "@/server/guardians";
 import { createStudentInTx, prepareStudent } from "@/server/students";
 import { enrolmentReadiness, issueOffer } from "@/server/admission-offers";
+import { noticeFamily } from "@/server/application-notices";
 import { closeTasks, openTask } from "@/server/workflow";
 import { STAGES, stageIds, type Stage } from "@/server/admission-queues";
 import { admissionAccount } from "@/lib/admissions/rules";
@@ -156,6 +157,11 @@ export async function updateApplication(ctx: AuthContext, applicationId: string,
       const { confirmDuplicate: _c, guardians, ...fields } = d;
       const data = { ...fields, middleName: d.middleName ?? null, intakeYearId: d.intakeYearId ?? null, classAppliedId: d.classAppliedId ?? null, nationality: d.nationality ?? null, religion: d.religion ?? null, birthCertificateNo: d.birthCertificateNo ?? null, previousSchool: d.previousSchool ?? null, address: d.address ?? null, assessmentNotes: d.assessmentNotes ?? null };
       await tx.application.update({ where: { id: applicationId }, data: { ...data, ...(guardians ? { guardians: guardians as unknown as Prisma.InputJsonValue } : {}) } });
+      if ((app.classAppliedId ?? null) !== (data.classAppliedId ?? null)) {
+        const names = await tx.schoolClass.findMany({ where: { schoolId: ctx.schoolId, id: { in: [app.classAppliedId, data.classAppliedId].filter((x): x is string => !!x) } }, select: { id: true, name: true } });
+        const nameOf = (id: string | null | undefined) => names.find((c) => c.id === id)?.name ?? "none";
+        await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: app.status, kind: "CLASS", reason: `Class applied for changed from ${nameOf(app.classAppliedId)} to ${nameOf(data.classAppliedId)}`, byUserId: ctx.userId } });
+      }
       await writeAudit(tx, actorOf(ctx), { action: "admission.update", entityType: "Application", entityId: applicationId, summary: `${data.firstName} ${data.lastName} (${app.applicationNo})`, changes: diffFields(app, data, EDITABLE) });
     });
   } catch (e) {
@@ -200,6 +206,7 @@ export async function transitionApplication(ctx: AuthContext, applicationId: str
     const heldMoney = await tx.admissionPayment.count({ where: { applicationId, status: "VERIFIED" } });
     await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, status: "CANCELLED", by: ctx.userId, note: `Application ${d.to.toLowerCase()}` });
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: d.to, reason: d.reason, byUserId: ctx.userId } });
+    if (d.to === "REJECTED") await noticeFamily(tx, ctx, app, { kind: "NOT_ACCEPTED", key: `notaccepted:${applicationId}` });
     await writeAudit(tx, actorOf(ctx), {
       action: `admission.${d.to.toLowerCase()}`,
       entityType: "Application",
@@ -308,6 +315,7 @@ export async function enrolApplication(ctx: AuthContext, applicationId: string, 
       await tx.application.update({ where: { id: applicationId }, data: { status: "ENROLLED", studentId: student.id } });
       await linkApplicantAccount(tx, ctx.schoolId, applicationId, student.id); // the family's account becomes the guardian's portal account
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "ACCEPTED", toStatus: "ENROLLED", byUserId: ctx.userId } });
+      await noticeFamily(tx, ctx, app, { kind: "ENROLLED", key: `enrolled:${applicationId}` });
       await tx.document.updateMany({ where: { schoolId: ctx.schoolId, applicationId, studentId: null }, data: { studentId: student.id } });
       await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ENROL_APPLICANT", "OFFER_COMMUNICATE", "ADMISSION_PAYMENT"], by: ctx.userId, note: `Enrolled as ${student.admissionNo}` });
       // Enrolment hands the student to the Academic Office for a class unless a class was chosen right here.

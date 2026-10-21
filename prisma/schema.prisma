@@ -112,6 +112,7 @@ model School {
   notificationDeliveries NotificationDelivery[]
   inAppNotifications     InAppNotification[]
   applications           Application[]
+  applicationNotices     ApplicationNotice[]
   applicationEvents      ApplicationEvent[]
   documents              Document[]
   importBatches          ImportBatch[]
@@ -1022,28 +1023,35 @@ model Application {
   updatedAt          DateTime          @updatedAt
 
   // Admissions Office review (separate from the status above): are the details and papers in order?
-  submittedOn         DateTime?          @db.Date // the day a paper form was handed in (staff-entered applications)
-  reviewStatus        ReviewStatus       @default(PENDING)
-  reviewNote          String?
-  reviewedById        String?            @db.Uuid
-  reviewedAt          DateTime?
+  submittedOn           DateTime?          @db.Date // the day a paper form was handed in (staff-entered applications)
+  reviewStatus          ReviewStatus       @default(PENDING)
+  reviewNote            String?
+  reviewedById          String?            @db.Uuid
+  reviewedAt            DateTime?
   // Recorded exception: the papers are not complete but an authorised person lets the application go on.
-  docsExceptionReason String?
-  docsExceptionById   String?            @db.Uuid
-  docsExceptionAt     DateTime?
+  docsExceptionReason   String?
+  docsExceptionById     String?            @db.Uuid
+  docsExceptionAt       DateTime?
   // The recorded admission decision while it is not yet final (Deferred, Further assessment, Awaiting decision). Accepted and Not accepted
   // show in the status itself (an offer exists, or the application is rejected).
-  decisionOutcome     AdmissionDecision?
-  entryType           String             @default("NEW") // NEW (first time at a school) or TRANSFER (from another school)
-  transferReason      String?
-  previousAdmissionNo String?
-  previousClass       String?
-  healthNotes         String?
-  emergencyContact    Json?
-  decisionNote        String?
+  decisionOutcome       AdmissionDecision?
+  entryType             String             @default("NEW") // NEW (first time at a school) or TRANSFER (from another school)
+  transferReason        String?
+  previousAdmissionNo   String?
+  previousClass         String?
+  healthNotes           String?
+  emergencyContact      Json?
+  decisionNote          String?
+  // Admissions desk: who looks after this application, and whether the school decided no interview is needed for it.
+  assignedToId          String?            @db.Uuid
+  assignedAt            DateTime?
+  interviewWaivedAt     DateTime?
+  interviewWaivedById   String?            @db.Uuid
+  interviewWaivedReason String?
 
-  school     School             @relation(fields: [schoolId], references: [id])
+  school     School              @relation(fields: [schoolId], references: [id])
   events     ApplicationEvent[]
+  notices    ApplicationNotice[]
   documents  Document[]
   interviews Interview[]
   offer      AdmissionOffer?
@@ -1053,6 +1061,7 @@ model Application {
   @@unique([schoolId, applicationNo])
   @@index([schoolId, status])
   @@index([schoolId, lastName, firstName])
+  @@index([schoolId, assignedToId])
   @@map("applications")
 }
 
@@ -1120,6 +1129,7 @@ enum AdmissionDecision {
 
 enum ReviewStatus {
   PENDING
+  IN_REVIEW // an Admissions Office member has started checking the application
   VERIFIED
   RETURNED // sent back to the applicant for correction or more information
 }
@@ -1189,6 +1199,8 @@ model Interview {
   score              Int? // optional 0-100
   notes              String? // restricted: needs admission.interview.notes
   scheduleNote       String?
+  // How this row came to be: SCHEDULED (the office set the date), EXISTING (a date already agreed was confirmed) or RECORDED (an interview that had already taken place).
+  arrangement        String            @default("SCHEDULED")
   cancelReason       String?
   rescheduledFromId  String?           @db.Uuid
   completedAt        DateTime?
@@ -1204,6 +1216,27 @@ model Interview {
   @@index([applicationId])
   @@index([interviewerId, scheduledAt])
   @@map("interviews")
+}
+
+// What the family was told about its application, and whether it could be told: one row per message (deduplicated by key), so an unchanged
+// interview or decision is never announced twice and nothing is claimed as delivered that was not.
+model ApplicationNotice {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @db.Uuid
+  applicationId String   @db.Uuid
+  kind          String // INFO_NEEDED | INTERVIEW | INTERVIEW_CHANGED | ACCEPTED | NOT_ACCEPTED | ENROLLED
+  dedupeKey     String
+  status        String // SENT_IN_APP (the family's account received it) | NO_ACCOUNT (the family has no account: tell them by phone)
+  detail        String?
+  createdById   String?  @db.Uuid
+  createdAt     DateTime @default(now())
+
+  school      School      @relation(fields: [schoolId], references: [id])
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@unique([schoolId, dedupeKey])
+  @@index([applicationId])
+  @@map("application_notices")
 }
 
 // The decision to admit, with the admission payment required before enrolment. One per application.

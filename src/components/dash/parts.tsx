@@ -6,11 +6,11 @@ import { Ring, Spark, type VizTone } from "./viz";
 /** Section heading in the dashboard: a bold title with a one-line purpose, closed by a hairline. */
 export function DashSection({ id, eyebrow, title, subtitle, children }: { id: string; eyebrow?: string; title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-h`} className="mt-10 scroll-mt-24">
+    <section id={id} aria-labelledby={`${id}-h`} className="mt-8 scroll-mt-24">
       {eyebrow && (
         <div className="mb-3 flex items-center gap-3"><span className="rounded-full bg-surface px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em] text-muted ring-1 ring-inset ring-line">{eyebrow}</span><span aria-hidden className="h-px flex-1 bg-line" /></div>
       )}
-      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-3">
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-2">
         <h2 id={`${id}-h`} className="text-xl font-semibold tracking-tight text-ink">{title}</h2>
         {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
       </div>
@@ -40,16 +40,16 @@ export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLab
           ? <Ring value={ring} size={46} stroke={12} tone={tone} label={label}><span className="text-[10px] font-semibold tabular-nums text-ink">{Math.round(ring)}%</span></Ring>
           : <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-600/12 text-link"><Icon className="size-[1.15rem]" aria-hidden /></span>}
       </span>
-      <span className={`mt-2 block font-semibold tabular-nums tracking-tight text-ink ${typeof value === "string" && value.length > 9 ? "whitespace-nowrap text-[1.4rem] leading-9" : "text-4xl"}`}>{value}</span>
+      <span className={`mt-2 block font-semibold tabular-nums tracking-tight text-ink ${typeof value === "string" && value.length > 9 ? "whitespace-nowrap text-xl leading-8" : "text-3xl"}`}>{value}</span>
       {caption && <span className="mt-0.5 block text-sm text-muted">{caption}</span>}
       {spark && spark.length > 1 && <span className="mt-3 block"><Spark values={spark} tone={tone} /></span>}
-      <span className="mt-auto flex items-center justify-between gap-2 pt-4">
+      <span className="mt-auto flex items-center justify-between gap-2 pt-3">
         {pill ? <Pill tone={pill.tone}>{pill.text}</Pill> : <span />}
         {href && openLabel && <span className="inline-flex items-center gap-1 text-xs font-semibold text-link group-hover:underline">{openLabel}<ArrowRight className="size-3.5" aria-hidden /></span>}
       </span>
     </>
   );
-  const cls = "group flex h-full min-h-[10.5rem] flex-col rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]";
+  const cls = "group flex h-full min-h-[8rem] flex-col rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]";
   return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
