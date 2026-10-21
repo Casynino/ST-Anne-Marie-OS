@@ -93,12 +93,7 @@ export default async function HomePage() {
       <HeroStage slides={slides} labels={{ pause: t("site.hero.pause"), play: t("site.hero.play"), of: t("site.hero.of") }}>
         <div className={`${WRAP} flex min-h-[min(46rem,86svh)] flex-col justify-end pb-24 pt-32 sm:pb-28`}>
           <div className="max-w-5xl">
-            <p className="rise glass inline-flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[.16em] text-white">
-              {open && <span className="pulse-dot size-2 rounded-full bg-sun" aria-hidden />}
-              <span>{open ? t("site.hero.status") : school.name}</span>
-              {levels.length > 0 && <span className="text-white/70">{levels.map((l) => l.name).join(" · ")}</span>}
-            </p>
-            <h1 className={`display mt-6 text-white [text-shadow:0_2px_24px_rgb(0_0_0/.35)] ${size}`}>
+            <h1 className={`display text-white [text-shadow:0_2px_24px_rgb(0_0_0/.35)] ${size}`}>
               {head && <span className="block"><WordReveal text={head} /></span>}
               <span className="block text-sun"><WordReveal text={tail} offset={head.split(/\s+/).filter(Boolean).length} /></span>
             </h1>

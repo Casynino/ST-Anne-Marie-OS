@@ -66,23 +66,25 @@ export function SiteHeader({
             </span>
           </Link>
 
-          <div className="ml-auto hidden items-center gap-1 xl:flex">
-            <Link href="/calendar" className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-[13px] font-bold uppercase tracking-[.08em] text-brand-800 transition-colors hover:bg-tint"><CalendarDays className="size-4" aria-hidden />{calendarLabel}</Link>
+          {/* One size, one shape: every control is 44px high, text is 15px semibold in normal case, links and buttons are pills. */}
+          <div className="ml-auto hidden items-center gap-1.5 xl:flex">
+            <Link href="/calendar" className="inline-flex h-11 items-center gap-2 rounded-full px-4 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint"><CalendarDays className="size-[18px]" aria-hidden />{calendarLabel}</Link>
             <div className="group relative">
-              <button type="button" className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold uppercase tracking-[.08em] text-brand-800 transition-colors hover:bg-tint">{quickLabel}<ChevronDown className="size-3.5 transition-transform group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden /></button>
+              <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint">{quickLabel}<ChevronDown className="size-4 transition-transform group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden /></button>
               <div className="invisible absolute right-0 top-full z-50 w-64 pt-2 opacity-0 transition-[opacity,visibility] duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-                <ul className="border-t-4 border-sun bg-white p-2 shadow-[var(--shadow-lift)]">
-                  {quickLinks.map((q) => <li key={q.href}><Link href={q.href} className="flex min-h-11 items-center rounded px-3 text-[15px] font-semibold text-brand-900 transition-colors hover:bg-tint">{q.label}</Link></li>)}
+                <ul className="rounded-2xl border-t-4 border-sun bg-white p-2 shadow-[var(--shadow-lift)]">
+                  {quickLinks.map((q) => <li key={q.href}><Link href={q.href} className="flex min-h-11 items-center rounded-xl px-3 text-[15px] font-semibold text-brand-900 transition-colors hover:bg-tint">{q.label}</Link></li>)}
                 </ul>
               </div>
             </div>
             <Link href="/search" aria-label={searchLabel} title={searchLabel} className="inline-flex size-11 items-center justify-center rounded-full text-brand-800 transition-colors hover:bg-tint"><Search className="size-[18px]" aria-hidden /></Link>
-            <div className="mx-1">{languageSwitch}</div>
-            <Link href={portalHref} className="ml-1 inline-flex min-h-11 items-center gap-2 whitespace-nowrap rounded-full border-2 border-brand-700 px-5 text-sm font-bold text-brand-800 transition-colors hover:bg-brand-700 hover:text-white">
+            <div className="ml-1">{languageSwitch}</div>
+            <span aria-hidden className="mx-3 h-6 w-px bg-line" />
+            <Link href={portalHref} className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full border-2 border-brand-700 px-5 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-brand-700 hover:text-white">
               {signedIn && <span aria-hidden className="-ml-2 grid size-7 shrink-0 place-items-center rounded-full bg-brand-700 text-[11px] font-bold text-white">{portalLabel.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")}</span>}
               <span className="max-w-[11rem] truncate">{portalLabel}</span>
             </Link>
-            <Link href={applyHref} className="ml-2 inline-flex min-h-11 items-center whitespace-nowrap rounded-full bg-sun px-5 text-sm font-bold text-[#10200f] transition-colors hover:bg-sun-600">{applyLabel}</Link>
+            <Link href={applyHref} className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-sun px-5 text-[15px] font-semibold text-[#10200f] transition-colors hover:bg-sun-600">{applyLabel}</Link>
           </div>
 
           <div className="ml-auto flex items-center gap-2 xl:hidden">

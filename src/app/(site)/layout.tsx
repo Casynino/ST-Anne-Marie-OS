@@ -71,7 +71,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         menuLabel={t("nav.menu")}
         closeLabel={t("nav.close")}
         skipLabel={t("site.skip")}
-        languageSwitch={<LanguageSwitch current={locale} />}
+        languageSwitch={<LanguageSwitch current={locale} pill />}
         topSlot={<AnnouncementBar schoolId={site.school.id} t={t} locale={locale} />}
       />
       <SideTabs t={t} applyHref="/apply/form" />
