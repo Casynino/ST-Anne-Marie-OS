@@ -403,7 +403,8 @@ export async function enrolmentReadiness(client: Db | Tx, schoolId: string, app:
   items.push({ key: "offer", ok: app.status === "ACCEPTED" && offer?.status === "ISSUED", message: offer?.status === "PENDING_APPROVAL" ? "The offer is waiting for approval." : app.status === "ACCEPTED" && offer?.status === "ISSUED" ? "An admission offer has been issued." : "There is no issued admission offer." });
   const expired = !!offer?.expiresOn && offer.expiresOn < today;
   items.push({ key: "offerValid", ok: !expired, message: expired ? `The offer expired on ${formatDateOnly(offer!.expiresOn!)}. Extend it first.` : "The offer is still valid." });
-  if (!policy.requirePaymentBeforeEnrol || !account) items.push({ key: "payment", ok: true, message: "Admission payment is not required before enrolment." });
+  // No payment step is shown when the school asks for none (the application fee is paid first, so nothing is due after acceptance).
+  if (!policy.requirePaymentBeforeEnrol || !account) { /* nothing to show */ }
   else if (account.satisfied) items.push({ key: "payment", ok: true, message: account.status === "WAIVED" ? "Admission payment waived by an authorised exception." : account.requiredCents <= 0 ? "No admission fee is required." : `Admission payment verified (${formatMoney(account.verifiedCents)}).` });
   else items.push({ key: "payment", ok: false, message: `Admission payment not complete: ${formatMoney(account.verifiedCents)} verified of ${formatMoney(account.requiredCents)} required${account.pendingCents > 0 ? ` (${formatMoney(account.pendingCents)} waiting for verification)` : ""}.` });
   const docs = await documentReadiness(client, schoolId, app);

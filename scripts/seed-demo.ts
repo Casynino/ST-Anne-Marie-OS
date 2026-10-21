@@ -336,7 +336,7 @@ async function main() {
 
   // ───── 9. Admissions: applicants at every stage ─────
   if (!(await db.application.count({ where: { schoolId } }))) {
-    await policy.updateAdmissionPolicy(admin, { requireInterview: "on", requiredDocTypes: ["BIRTH_CERTIFICATE"], admissionFee: "50000", requirePaymentBeforeEnrol: "on", offerValidDays: 14, allowDirectRegistration: "on", interviewMinutes: 30 });
+    await policy.updateAdmissionPolicy(admin, { requireInterview: "on", requiredDocTypes: ["BIRTH_CERTIFICATE"], admissionFee: "0", offerValidDays: 14, allowDirectRegistration: "on", interviewMinutes: 30 });
     const online = async (first: string, last: string, born: string, classId: string) => {
       const k = ++phoneNo;
       const r = await pub.submitOnlineApplication(schoolId, { firstName: first, lastName: last, dateOfBirth: born, gender: "FEMALE", classAppliedId: classId, g1_fullName: `Mama ${last}`, g1_phone: phone("0698"), g1_relationship: "MOTHER", consent: "on", website: "" }, { ip: `10.20.${k % 250}.${(k * 7) % 250}`, userAgent: "demo" } as never);
@@ -362,15 +362,11 @@ async function main() {
     await interviews.scheduleInterview(academic, d.id, { kind: "INTERVIEW", scheduledAt: at(addDays(today, 3)), interviewerId: head.userId, location: "Head teacher's office" }); // interview booked
     const e = await walkIn("Fatuma", "Ali", "2019-11-23", std1.id, "FEMALE"); await papers(e.id, "Fatuma Ali"); await interviewed(e.id, "PASSED"); // waiting for the decision
     const f = await walkIn("Kelvin", "Msuya", "2013-03-30", std7.id); await papers(f.id, "Kelvin Msuya"); await interviewed(f.id, "PASSED");
-    await admissions.recordAdmissionDecision(registrar, f.id, { outcome: "ACCEPTED" });     // offered, waiting for the admission fee
+    await admissions.recordAdmissionDecision(registrar, f.id, { outcome: "ACCEPTED" });     // accepted (no payment is due after acceptance: the application fee is paid first)
     const g = await walkIn("Mariam", "Haji", "2021-01-14", pre.id, "FEMALE"); await papers(g.id, "Mariam Haji"); await interviewed(g.id, "PASSED");
     await admissions.recordAdmissionDecision(registrar, g.id, { outcome: "ACCEPTED" });
-    const gp = await offers.recordAdmissionPayment(finance, g.id, { amount: "50000", method: "CASH" });
-    await offers.verifyAdmissionPayment(finance, gp.payment.id);                             // paid, ready to enrol
     const h = await walkIn("Jonas", "Lyimo", "2012-09-05", formI.id); await papers(h.id, "Jonas Lyimo"); await interviewed(h.id, "PASSED");
     await admissions.recordAdmissionDecision(registrar, h.id, { outcome: "ACCEPTED" });
-    const hp = await offers.recordAdmissionPayment(finance, h.id, { amount: "50000", method: "CASH" });
-    await offers.verifyAdmissionPayment(finance, hp.payment.id);
     await admissions.enrolApplication(registrar, h.id, {});                                  // enrolled, waiting for a class
     const i = await walkIn("Rose", "Kimaro", "2019-07-21", std1.id, "FEMALE"); await papers(i.id, "Rose Kimaro"); await interviewed(i.id, "NOT_PASSED");
     await admissions.recordAdmissionDecision(registrar, i.id, { outcome: "NOT_ACCEPTED", note: "Did not meet the entry requirements this year" });

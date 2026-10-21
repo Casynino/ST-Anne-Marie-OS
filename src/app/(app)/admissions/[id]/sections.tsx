@@ -216,7 +216,12 @@ export function OfferCard({ t, id, status, open, can, userId, offer, account, pa
         {offer && (
           <div className="space-y-1 text-sm">
             <p><span className="text-muted">{t("adm.offer.letterNo")}:</span> <span className="font-medium tabular-nums">{offer.letterNo}</span>{offer.classOffered ? ` · ${offer.classOffered}` : ""}</p>
-            <p><span className="text-muted">{t("adm.offer.fee")}:</span> <span className="font-medium">{offer.feeCents > 0 ? money(offer.feeCents) : t("adm.pay.status.NOT_REQUIRED")}</span>{offer.expiresOn ? ` · ${t("adm.offer.until", { date: displayDate(offer.expiresOn, locale) })}` : ""}</p>
+            {(offer.feeCents > 0 || offer.expiresOn) && (
+              <p>
+                {offer.feeCents > 0 && <><span className="text-muted">{t("adm.offer.fee")}:</span> <span className="font-medium">{money(offer.feeCents)}</span></>}
+                {offer.expiresOn ? `${offer.feeCents > 0 ? " · " : ""}${t("adm.offer.until", { date: displayDate(offer.expiresOn, locale) })}` : ""}
+              </p>
+            )}
             {offer.notes && <p className="text-muted">{offer.notes}</p>}
             {offer.status !== "PENDING_APPROVAL" && <p><a href={`/api/admissions/${id}/offer-letter?lang=${locale}`} target="_blank" rel="noopener" className="font-medium text-link hover:underline">{t("adm.offer.letter")}</a></p>}
           </div>
@@ -272,7 +277,8 @@ export function OfferCard({ t, id, status, open, can, userId, offer, account, pa
           </div>
         )}
 
-        {offer && account && (
+        {/* The admission payment is shown only when the school asks for one (the application fee is paid first, so by default nothing is due after acceptance). */}
+        {offer && account && (account.requiredCents > 0 || payments.length > 0) && (
           <div className="space-y-3 border-t border-line pt-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold">{t("adm.pay.title")}</h3>
