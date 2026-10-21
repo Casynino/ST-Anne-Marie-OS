@@ -36,6 +36,18 @@ describe("teacher home", () => {
     expect((await teacherHome(tNone)).studentCount).toBe(0);
   });
 
+  it("lists the teacher's own students with their class, and nobody else's", async () => {
+    const a = await teacherHome(tA);
+    expect(a.roster).toHaveLength(3);
+    expect(a.rosterTotal).toBe(3);
+    expect(a.roster.every((r) => r.className === "Standard I A" && r.today === null)).toBe(true);
+    const b = await teacherHome(tB);
+    expect(b.roster).toHaveLength(1);
+    expect(b.roster[0]!.className).toBe("Standard I B");
+    expect(b.roster.some((r) => a.roster.some((x) => x.id === r.id))).toBe(false);
+    expect((await teacherHome(tNone)).roster).toEqual([]);
+  });
+
   it("lists the teacher's own classes and subjects", async () => {
     const b = await teacherHome(tB);
     expect(b.classes).toHaveLength(1);

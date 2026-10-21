@@ -5,7 +5,7 @@ import { ArrowLeft, CalendarCheck, ClipboardList, FileDown, GraduationCap, Walle
 import { requireContext, getT } from "@/lib/auth/next";
 import { AppError } from "@/lib/errors";
 import { displayDate } from "@/lib/dates";
-import { childFees, childOverview, myChildren } from "@/server/portal";
+import { childFees, childOverview, childProgress, myChildren } from "@/server/portal";
 import { childAssignments } from "@/server/assignments";
 import { childTimetable } from "@/server/timetable";
 import { isoWeekday, schoolTimezone } from "@/server/learning-access";
@@ -13,7 +13,7 @@ import { getSchoolBasics } from "@/server/settings";
 import { ChildTiles } from "@/components/learning/child-tiles";
 import { toneFor } from "@/components/learning/timetable-grid";
 import { DashHero, Hi } from "@/components/dash/hero";
-import { Cell, DashSection, DashTable, DonutStat, EmptyLine, KpiCard, Panel, Pill } from "@/components/dash/parts";
+import { Cell, DashSection, DashTable, DonutStat, EmptyLine, HBars, KpiCard, Panel, Pill } from "@/components/dash/parts";
 import { formatMoney } from "@/lib/finance/money";
 
 export const metadata: Metadata = { title: "My child" };
@@ -32,13 +32,14 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const [many, fees, homework, tt, school, tz] = await Promise.all([
+  const [many, fees, homework, tt, school, tz, progress] = await Promise.all([
     myChildren(ctx).then((c) => c.length > 1),
     childFees(ctx, studentId),
     childAssignments(ctx, studentId),
     childTimetable(ctx, studentId).catch(() => null),
     getSchoolBasics(ctx.schoolId),
     schoolTimezone(ctx.schoolId),
+    childProgress(ctx, studentId),
   ]);
   const own = ctx.userType === "STUDENT";
   const todoItems = homework.items.filter((i) => !i.closed && !i.submission);
@@ -122,6 +123,29 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
               <DashTable min="18rem" head={[{ label: t("learn.date") }, { label: t("common.status") }]}>
                 {ov.recentAttendance.map((r) => (
                   <tr key={r.id}><Cell>{displayDate(new Date(`${r.date}T00:00:00Z`), ctx.locale)}</Cell><Cell><Pill tone={TONE[r.status]}>{t(`att.status.${r.status}`)}</Pill></Cell></tr>
+                ))}
+              </DashTable>
+            </Panel>
+          </div>
+        )}
+      </DashSection>
+
+      <DashSection id="progress" title={t("fam.progress.title")} subtitle={t("fam.progress.sub")}>
+        {!progress.latest ? <EmptyLine>{t("fam.progress.none")}</EmptyLine> : (
+          <div className="grid gap-5 lg:grid-cols-[22rem_1fr]">
+            <Panel title={t("fam.progress.trend")} subtitle={progress.averageChange === null ? undefined : t(progress.averageChange >= 0 ? "fam.progress.up" : "fam.progress.down", { n: Math.abs(progress.averageChange).toFixed(1) })}>
+              <HBars items={progress.trend.filter((x) => x.average !== null).map((x) => ({ label: x.term, value: Math.round((x.average as number) * 10) / 10 }))} label={t("fam.progress.trend")} summary={t("fam.progress.trend")} format={(n) => n.toFixed(1)} />
+            </Panel>
+            <Panel title={t("fam.progress.subjects")} subtitle={progress.latest.term}>
+              <DashTable min="30rem" head={[{ label: t("learn.subject") }, { label: t("fam.progress.score"), right: true }, { label: t("rc.grade") }, { label: t("fam.progress.classAvg"), right: true }, { label: t("fam.progress.change"), right: true }]}>
+                {progress.latest.subjects.map((x) => (
+                  <tr key={x.id}>
+                    <Cell className="font-semibold text-ink">{x.name}</Cell>
+                    <Cell right>{x.percent.toFixed(1)}%</Cell>
+                    <Cell>{x.grade ?? "—"}</Cell>
+                    <Cell right className="text-muted">{x.classMean === null ? "—" : `${x.classMean.toFixed(1)}%`}</Cell>
+                    <Cell right className={x.change === null ? "text-muted" : x.change > 0 ? "text-ok" : x.change < 0 ? "text-bad" : "text-muted"}>{x.change === null ? "—" : `${x.change > 0 ? "▲ " : x.change < 0 ? "▼ " : ""}${Math.abs(x.change).toFixed(1)}`}</Cell>
+                  </tr>
                 ))}
               </DashTable>
             </Panel>

@@ -97,6 +97,26 @@ export async function childOverview(ctx: AuthContext, studentId: string) {
   };
 }
 
+/**
+ * How a child is doing over time, from the PUBLISHED report cards only (nothing that has not been released to the family):
+ * the average of each term and the subject results of the latest card, with the change since the term before.
+ */
+export async function childProgress(ctx: AuthContext, studentId: string) {
+  await childOrThrow(ctx, studentId);
+  const cards = await db.reportCard.findMany({ where: { schoolId: ctx.schoolId, studentId, status: "PUBLISHED" }, orderBy: { publishedAt: "asc" }, take: 12 });
+  const terms = cards.map((c) => {
+    const s = c.snapshot as unknown as ReportSnapshot;
+    return { id: c.id, term: `${s.term.name} · ${s.term.year}`, average: s.summary.average, grade: s.summary.grade, position: s.summary.position, classSize: s.summary.classSize, subjects: s.subjects.map((x) => ({ id: x.subjectId, name: x.name, percent: x.percent, grade: x.grade, classMean: x.classMean })) };
+  });
+  const latest = terms.at(-1) ?? null;
+  const previous = terms.at(-2) ?? null;
+  return {
+    trend: terms.map((t) => ({ term: t.term, average: t.average })),
+    latest: latest && { term: latest.term, average: latest.average, position: latest.position, classSize: latest.classSize, subjects: latest.subjects.map((x) => ({ ...x, change: previous?.subjects.find((p) => p.id === x.id) ? Math.round((x.percent - previous.subjects.find((p) => p.id === x.id)!.percent) * 10) / 10 : null })) },
+    averageChange: latest && previous && latest.average !== null && previous.average !== null ? Math.round((latest.average - previous.average) * 10) / 10 : null,
+  };
+}
+
 /** A published report card of one of the viewer's children. */
 export async function getMyReportCard(ctx: AuthContext, cardId: string) {
   const ids = await childIds(ctx);

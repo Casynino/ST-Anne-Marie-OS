@@ -10,10 +10,10 @@ import { DashHero, Hi } from "@/components/dash/hero";
 import { Cell, DashSection, DashTable, EmptyLine, KpiCard, Panel, Pill } from "@/components/dash/parts";
 import { toneFor } from "@/components/learning/timetable-grid";
 
-type Props = { t: Translate; locale: "EN" | "SW"; first: string; hour: number; schoolName: string; roleNames: string; today: string; d: DashboardData; th: Awaited<ReturnType<typeof teacherHome>> };
+type Props = { t: Translate; locale: "EN" | "SW"; first: string; hour: number; schoolName: string; portal: string; today: string; d: DashboardData; th: Awaited<ReturnType<typeof teacherHome>> };
 
 /** The teacher's own home: today's lessons, what is waiting for them, and the classes they teach. */
-export function TeacherDashboard({ t, locale, first, hour, schoolName, roleNames, today, d, th }: Props) {
+export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, today, d, th }: Props) {
   const registers = d.myRegisters.filter((r) => r.status !== "FINALISED");
   const sheets = d.exams?.mine ?? [];
   const messages = d.attention.find((a) => a.key === "messagesWaiting");
@@ -34,7 +34,7 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, roleNames
 
   return (
     <>
-      <DashHero photoIndex={4} eyebrow={`${schoolName} · ${roleNames}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
+      <DashHero photoIndex={4} eyebrow={`${schoolName} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
         {bits.length > 0 ? bits.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("tch.hero.calm")}
       </DashHero>
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -87,6 +87,21 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, roleNames
             )}
           </Panel>
         </div>
+      </DashSection>
+
+      <DashSection id="students" title={t("tch.students.title")} subtitle={t("tch.students.sub", { n: th.rosterTotal })}>
+        <Panel title={t("tch.students.title")} subtitle={th.rosterTotal > th.roster.length ? t("tch.students.more", { n: th.roster.length, total: th.rosterTotal }) : undefined} right={<Link href="/students" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+          <DashTable min="34rem" empty={th.roster.length === 0 ? t("tch.students.none") : undefined} head={[{ label: t("learn.student") }, { label: t("learn.class") }, { label: t("tch.students.today") }, { label: t("tch.students.rate"), right: true }]}>
+            {th.roster.map((r) => (
+              <tr key={r.id}>
+                <Cell><Link href={`/students/${r.id}`} className="font-semibold text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Cell>
+                <Cell>{r.className ?? "—"}</Cell>
+                <Cell>{r.today ? <Pill tone={r.today === "PRESENT" ? "ok" : r.today === "ABSENT" ? "bad" : r.today === "LATE" ? "warn" : "info"}>{t(`att.status.${r.today}`)}</Pill> : <span className="text-muted">{t("tch.students.notMarked")}</span>}</Cell>
+                <Cell right className={r.ratePct !== null && r.ratePct < 85 ? "font-semibold text-sun" : ""}>{r.ratePct === null ? "—" : `${r.ratePct}%`}</Cell>
+              </tr>
+            ))}
+          </DashTable>
+        </Panel>
       </DashSection>
 
       <DashSection id="mine" title={t("tch.classes.title")} subtitle={t("tch.classes.sub")}>
