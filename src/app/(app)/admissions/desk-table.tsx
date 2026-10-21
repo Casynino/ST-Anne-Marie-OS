@@ -137,7 +137,7 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                 <td className="whitespace-nowrap px-2 py-3">{r.className ?? "—"}</td>
                 <td className="px-2 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
                 <td className="px-2 py-3 text-muted">{r.assignedTo ?? labels.unassigned}</td>
-                <td className="whitespace-nowrap px-2 py-3 text-right">
+                <td className="whitespace-nowrap px-2 py-3">
                   {r.decide !== "none" && (
                     <span className="inline-flex items-center gap-1.5">
                       <span title={r.decide === "wait" ? r.waitWhy : undefined}>
