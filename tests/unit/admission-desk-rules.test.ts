@@ -23,7 +23,8 @@ describe("the single status of an application", () => {
   });
   it("puts each status in the list it belongs to: review (reviewed with no date included), then interview (only with a confirmed date, or after it)", () => {
     expect((["NEW", "UNDER_REVIEW", "NEEDS_INFO", "REVIEWED"] as const).map(stageOf)).toEqual(["review", "review", "review", "review"]);
-    expect((["INTERVIEW_SCHEDULED", "AWAITING_DECISION", "ACCEPTED"] as const).map(stageOf)).toEqual(["interview", "interview", "interview"]);
+    expect((["INTERVIEW_SCHEDULED", "AWAITING_DECISION"] as const).map(stageOf)).toEqual(["interview", "interview"]);
+    expect(stageOf("ACCEPTED")).toBe("accepted"); // accepted is not in the interview list: it waits for the school fee, then for registration
     expect(stageOf("ENROLLED")).toBe("enrolled");
     expect(stageOf("REJECTED")).toBe("closed");
     expect(stageOf("WITHDRAWN")).toBe("closed");

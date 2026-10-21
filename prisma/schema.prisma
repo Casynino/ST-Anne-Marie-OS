@@ -154,6 +154,8 @@ model School {
   interviews             Interview[]
   admissionOffers        AdmissionOffer[]
   admissionPayments      AdmissionPayment[]
+  applicationExams       ApplicationExam[]
+  applicationExamEvents  ApplicationExamEvent[]
   applicationDrafts      ApplicationDraft[]
   workflowTasks          WorkflowTask[]
   academicConcerns       AcademicConcern[]
@@ -466,9 +468,10 @@ model Subject {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  school          School           @relation(fields: [schoolId], references: [id])
-  classSubjects   ClassSubject[]
-  subjectTeachers SubjectTeacher[]
+  school           School            @relation(fields: [schoolId], references: [id])
+  classSubjects    ClassSubject[]
+  subjectTeachers  SubjectTeacher[]
+  applicationExams ApplicationExam[]
 
   libraryResources LibraryResourceSubject[]
 
@@ -1057,6 +1060,7 @@ model Application {
   offer      AdmissionOffer?
   payments   AdmissionPayment[]
   draft      ApplicationDraft?
+  exams      ApplicationExam[]
 
   @@unique([schoolId, applicationNo])
   @@index([schoolId, status])
@@ -1209,8 +1213,9 @@ model Interview {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  school      School      @relation(fields: [schoolId], references: [id])
-  application Application @relation(fields: [applicationId], references: [id])
+  school      School            @relation(fields: [schoolId], references: [id])
+  application Application       @relation(fields: [applicationId], references: [id])
+  exams       ApplicationExam[]
 
   @@index([schoolId, scheduledAt])
   @@index([applicationId])
@@ -1300,6 +1305,72 @@ model AdmissionPayment {
   @@index([schoolId, status])
   @@index([applicationId])
   @@map("admission_payments")
+}
+
+// ═════════════════════════ Admission examinations (the subjects an applicant sits, each marked by an assigned teacher) ═════════════════════════
+
+enum ExamTaskStatus {
+  ASSIGNED // a teacher is assigned; nothing entered yet
+  DRAFT // the teacher has saved marks but not submitted them
+  SUBMITTED // the teacher submitted the result (final unless the school asks the Academic Office to approve)
+  RETURNED // sent back to the teacher for correction (the only way a submitted result changes)
+  APPROVED // the Academic Office approved it
+  CANCELLED // the assignment was withdrawn (kept for the history)
+}
+
+// One subject of one applicant's interview, marked by one teacher. The marks stay here, separate from the admission decision. Where the
+// stage shows ("awaiting examination", "awaiting marking") it is worked out from this status and the interview time, never stored twice.
+model ApplicationExam {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  schoolId      String         @db.Uuid
+  applicationId String         @db.Uuid
+  interviewId   String         @db.Uuid
+  subjectId     String         @db.Uuid
+  assignedToId  String         @db.Uuid // staff user who marks it
+  maxMark       Decimal        @default(100) @db.Decimal(6, 2)
+  mark          Decimal?       @db.Decimal(6, 2)
+  outcome       String? // a non-numeric result the school has configured (for example "Pass")
+  comment       String? // the teacher's academic comment: internal, never shown on the public site
+  instructions  String?
+  dueOn         DateTime?      @db.Date
+  status        ExamTaskStatus @default(ASSIGNED)
+  returnNote    String?
+  cancelReason  String?
+  submittedAt   DateTime?
+  submittedById String?        @db.Uuid
+  reviewedAt    DateTime?
+  reviewedById  String?        @db.Uuid
+  createdById   String         @db.Uuid
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  school      School                 @relation(fields: [schoolId], references: [id])
+  application Application            @relation(fields: [applicationId], references: [id])
+  interview   Interview              @relation(fields: [interviewId], references: [id])
+  subject     Subject                @relation(fields: [subjectId], references: [id])
+  events      ApplicationExamEvent[]
+
+  @@index([schoolId, assignedToId, status])
+  @@index([applicationId])
+  @@index([interviewId])
+  @@map("application_exams")
+}
+
+// Who assigned, changed, saved, submitted, returned or approved what, with the marks before and after. Append-only (database trigger).
+model ApplicationExamEvent {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @db.Uuid
+  examId    String   @db.Uuid
+  kind      String // ASSIGN | REASSIGN | SAVE | SUBMIT | RETURN | APPROVE | CANCEL
+  byId      String   @db.Uuid
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  school School          @relation(fields: [schoolId], references: [id])
+  exam   ApplicationExam @relation(fields: [examId], references: [id])
+
+  @@index([examId, createdAt])
+  @@map("application_exam_events")
 }
 
 // ═════════════════════════ Hand-offs between departments ═════════════════════════

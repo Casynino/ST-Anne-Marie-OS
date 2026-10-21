@@ -129,6 +129,13 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
               {sheets.map((m) => <tr key={m.id}><Cell><Link href={`/marks/${m.id}`} className="font-semibold text-link hover:underline">{m.subjectName}</Link><span className="block text-xs text-muted">{m.examName}</span></Cell><Cell>{m.className}{m.streamName ? ` ${m.streamName}` : ""}</Cell><Cell right><span className="inline-flex items-center gap-2"><span aria-hidden className="h-1.5 w-20 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full bg-ok" style={{ width: `${m.roster > 0 ? Math.round((m.entered / m.roster) * 100) : 0}%` }} /></span><span className="tabular-nums">{m.entered}/{m.roster}</span></span></Cell><Cell>{m.overdue ? <Pill tone="bad">{t("marks.overdue")}</Pill> : <Pill tone={m.status === "RETURNED" ? "warn" : "neutral"}>{t(`marks.status.${m.status}` as "marks.status.DRAFT")}</Pill>}</Cell></tr>)}
             </DashTable>
           </Panel>
+          {th.applicantExams.length > 0 && (
+            <Panel title={t("appexam.title")} subtitle={t("exam.dash.sub")} className="lg:col-span-2" right={<Link href="/applicant-exams" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+              <DashTable min="30rem" head={[{ label: t("adm.applicant") }, { label: t("exam.col.subject") }, { label: t("exam.col.interview") }, { label: t("common.status") }]}>
+                {th.applicantExams.map((x) => <tr key={x.id}><Cell><Link href={`/applicant-exams/${x.id}`} className="font-semibold text-link hover:underline">{x.applicant}</Link><span className="block text-xs text-muted">{x.applicationNo}</span></Cell><Cell>{x.subject}</Cell><Cell className="whitespace-nowrap text-muted">{displayDate(x.interviewAt, locale)}</Cell><Cell><Pill tone={x.label === "RETURNED" ? "bad" : x.label === "AWAITING_MARKING" ? "warn" : "neutral"}>{t(`exam.st.${x.label}` as "exam.st.SUBMITTED")}</Pill></Cell></tr>)}
+              </DashTable>
+            </Panel>
+          )}
           {th.behaviour.length > 0 && (
             <Panel title={t("tch.beh.title")} subtitle={t("tch.beh.sub")} className="lg:col-span-2" right={<Link href="/behaviour" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
               <DashTable min="30rem" head={[{ label: t("learn.date") }, { label: t("learn.student") }, { label: t("learn.bh.type") }, { label: t("learn.bh.category") }]}>

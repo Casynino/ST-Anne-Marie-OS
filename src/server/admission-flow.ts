@@ -4,7 +4,8 @@ import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { zonedToUtc } from "@/lib/dates";
 import { deskRow } from "@/server/admission-desk";
 import { enrolApplication } from "@/server/admissions";
-import { acceptApplication } from "@/server/admission-offers";
+import { acceptApplication, enrolmentReadiness } from "@/server/admission-offers";
+import { assertExamsComplete } from "@/server/admission-exams";
 import { reviewApplication, verifyDocument } from "@/server/admission-review";
 import { getInterviewDays } from "@/server/interview-days";
 import { recordInterviewResult, scheduleInterview } from "@/server/interviews";
@@ -18,7 +19,16 @@ import { recordInterviewResult, scheduleInterview } from "@/server/interviews";
  * so each rule still applies.
  */
 
-export type Landing = "placement" | "accepted" | "approval" | "blocked";
+/** Where a pass leads: Class placement (enrolled at once), Awaiting payment (the school fee is not verified yet), Registration (something else is still missing), or waiting for approval. */
+export type Landing = "placement" | "payment" | "registration" | "approval" | "blocked";
+
+/** An accepted applicant who could not be registered yet waits for the school fee when that is what is missing, otherwise for registration. */
+async function acceptedLanding(ctx: AuthContext, applicationId: string): Promise<"payment" | "registration"> {
+  const app = await db.application.findFirst({ where: { id: applicationId, schoolId: ctx.schoolId }, select: { id: true, status: true, reviewStatus: true, docsExceptionAt: true, entryType: true } });
+  if (!app) return "registration";
+  const gate = await enrolmentReadiness(db, ctx.schoolId, app);
+  return gate.items.some((i) => i.key === "payment" && !i.ok) ? "payment" : "registration";
+}
 
 /**
  * Accepts the applicant (the offer, with the school's defaults) and enrols them at once, without a class, so they appear in Class placement.
@@ -34,12 +44,12 @@ export async function acceptAndEnrol(ctx: AuthContext, applicationId: string, op
     throw e;
   }
   if (r.status === "PENDING_APPROVAL") return { landing: "approval" };
-  if (!ctx.permissions.has("student.enroll")) return { landing: "accepted" };
+  if (!ctx.permissions.has("student.enroll")) return { landing: await acceptedLanding(ctx, applicationId) };
   try {
     await enrolApplication(ctx, applicationId, {});
     return { landing: "placement" };
   } catch (e) {
-    if (e instanceof AppError && (e.code === "CONFLICT" || e.code === "VALIDATION")) return { landing: "accepted", note: e.message };
+    if (e instanceof AppError && (e.code === "CONFLICT" || e.code === "VALIDATION")) return { landing: await acceptedLanding(ctx, applicationId), note: e.message };
     throw e;
   }
 }
@@ -131,6 +141,7 @@ export async function recordQuickResult(ctx: AuthContext, applicationId: string,
   if (passed && row.pendingDocs > 0 && !input.papersChecked && ctx.permissions.has("admission.review") && ctx.permissions.has("admission.documents.verify")) {
     throw invalid("Please correct the highlighted fields.", { papersChecked: "Tick that you have checked the papers" });
   }
+  await assertExamsComplete(db, ctx.schoolId, applicationId); // a decision waits for every examination result (approved too, when the school asks for approval)
   const iv = await db.interview.findFirst({ where: { schoolId: ctx.schoolId, applicationId, status: "SCHEDULED", kind: "INTERVIEW" }, orderBy: { scheduledAt: "asc" }, select: { id: true } });
   if (!iv) throw conflict("There is no interview waiting for a result.");
   await recordInterviewResult(ctx, iv.id, { status: "COMPLETED", outcome: input.outcome, notes: input.note });

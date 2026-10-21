@@ -1,5 +1,6 @@
 import type { Translate } from "@/lib/i18n";
 import { stageOf } from "@/lib/admissions/rules";
+import { examsAllowDecision } from "@/lib/admissions/exams";
 import type { AuthContext } from "@/lib/auth/context";
 import type { DeskRow } from "@/server/admission-desk";
 import type { QuickLabels, QuickLine, QuickSlot } from "./quick-actions";
@@ -23,9 +24,12 @@ export function quickActs(r: DeskRow, t: Translate, can: Can, now: number): Quic
     out.push({ kind: "REVIEW", why: missing.length ? t("adm.q.wait.incomplete", { list: missing.join(", ") }) : null });
     out.push({ kind: "BACK", why: null });
   }
-  if (r.state === "INTERVIEW_SCHEDULED" && iv) out.push({ kind: "RESULT", why: r.interviewAt && r.interviewAt.getTime() > now ? t("adm.q.wait.date") : null });
-  if (r.state === "AWAITING_DECISION" && decide) out.push({ kind: "ACCEPT", why: null });
-  if (r.state === "ACCEPTED" && can("student.enroll")) out.push({ kind: "ENROL", why: null });
+  // A decision waits for the interview time and for every examination result (approved too, when the school asks for approval).
+  const examsWait = examsAllowDecision(r.exam.state) ? null : t("adm.q.wait.exams");
+  if (r.state === "INTERVIEW_SCHEDULED" && iv) out.push({ kind: "RESULT", why: r.interviewAt && r.interviewAt.getTime() > now ? t("adm.q.wait.date") : examsWait });
+  if (r.state === "AWAITING_DECISION" && decide) out.push({ kind: "ACCEPT", why: examsWait });
+  // Registration needs the school fee verified by Finance first when the school asks for it.
+  if (r.state === "ACCEPTED" && can("student.enroll")) out.push({ kind: "ENROL", why: r.after === "payment" ? t("adm.q.wait.payment") : null });
   if (decide && r.state !== "ACCEPTED" && ["review", "interview"].includes(stageOf(r.state))) out.push({ kind: "DECLINE", why: null });
   return out;
 }

@@ -18,7 +18,7 @@ function Row({ r, t, locale, timezone }: { r: InterviewRow; t: Awaited<ReturnTyp
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
       <span className="w-14 shrink-0 font-semibold tabular-nums">{time}</span>
       <span className="min-w-0 flex-1">
-        <Link href={`/admissions/${r.applicationId}`} className="font-medium text-link hover:underline">{r.applicantName}</Link>
+        <Link href={`/admissions/interviews/${r.id}`} className="font-medium text-link hover:underline">{r.applicantName}</Link>
         <span className="ml-2 text-muted">{r.applicationNo}{r.className ? ` · ${r.className}` : ""}</span>
         <span className="block text-muted">{[r.location, r.method, r.interviewer, `${r.durationMinutes} min`].filter(Boolean).join(" · ")}</span>
       </span>

@@ -22,6 +22,7 @@ export const TASK_KINDS = {
   ASSESSMENT_COORDINATE: { department: "ACADEMIC", dueDays: 5 },
   INTERVIEW_ASSIGNED: { department: "ACADEMIC", dueDays: 0 },
   DECISION_REVIEW: { department: "ADMISSIONS", dueDays: 3 },
+  EXAM_REVIEW: { department: "ACADEMIC", dueDays: 2 },
   OFFER_COMMUNICATE: { department: "ADMISSIONS", dueDays: 2 },
   ADMISSION_PAYMENT: { department: "FINANCE", dueDays: 7 },
   ENROL_APPLICANT: { department: "ADMISSIONS", dueDays: 2 },

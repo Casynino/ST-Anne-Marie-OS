@@ -11,6 +11,7 @@ import { noticeFamily } from "@/server/application-notices";
 import { reviewBlockers } from "@/server/admission-review";
 import { closeTasks, openTask } from "@/server/workflow";
 import { getInterviewDays } from "@/server/interview-days";
+import { assertExamsComplete, moveExams, withdrawOpenExams } from "@/server/admission-exams";
 import { checkbox, optText, optUuid, parse, text } from "@/lib/validation";
 
 /*
@@ -103,6 +104,8 @@ async function create(tx: Tx, ctx: AuthContext, appId: string, d: z.output<typeo
   const i = await tx.interview.create({
     data: { schoolId: ctx.schoolId, applicationId: appId, kind: d.kind, scheduledAt: start, durationMinutes: minutes, location: d.location ?? null, method: d.method ?? null, interviewerId: d.interviewerId ?? null, scheduleNote: d.note ?? null, createdById: ctx.userId, rescheduledFromId: extra.rescheduledFromId ?? null, arrangement: extra.arrangement ?? "SCHEDULED" },
   });
+  // A new date replaces the old appointment: the teachers assigned to the applicant follow to the new interview.
+  if (extra.rescheduledFromId) await moveExams(tx, ctx.schoolId, extra.rescheduledFromId, i.id);
   return i;
 }
 
@@ -302,6 +305,7 @@ export async function cancelInterview(ctx: AuthContext, interviewId: string, inp
     if (!i) throw notFound("Interview");
     if (i.status !== "SCHEDULED") throw conflict("Only a scheduled interview can be cancelled.");
     await tx.interview.update({ where: { id: i.id }, data: { status: "CANCELLED", cancelReason: reason } });
+    await withdrawOpenExams(tx, ctx, i.id, "Interview cancelled");
     await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, kinds: ["INTERVIEW_ASSIGNED"], discriminator: i.id, status: "CANCELLED", by: ctx.userId, note: "Interview cancelled" });
     // With no live or finished interview left, the application goes back to the review stage.
     const remaining = await tx.interview.count({ where: { applicationId: app.id, status: { in: ["SCHEDULED", "COMPLETED"] } } });
@@ -340,6 +344,7 @@ export async function recordInterviewResult(ctx: AuthContext, interviewId: strin
     if (i.status === "CANCELLED") throw conflict("A cancelled interview has no result.");
     if (!["APPLIED", "INTERVIEW"].includes(app.status)) throw conflict("A decision has already been made on this application.");
     if (i.scheduledAt.getTime() > Date.now()) throw conflict("The interview has not taken place yet.");
+    if (d.status === "COMPLETED") await assertExamsComplete(tx, ctx.schoolId, app.id);
     const data: Prisma.InterviewUpdateInput = { status: d.status, outcome: d.status === "COMPLETED" ? d.outcome : null, score: d.score ?? null, notes: d.notes ?? null, recommendation: d.recommendation ?? null, recommendationNote: d.recommendationNote ?? null, completedAt: new Date(), completedById: ctx.userId };
     await tx.interview.update({ where: { id: i.id }, data });
     await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: app.id, kinds: ["INTERVIEW_ASSIGNED"], discriminator: i.id, by: ctx.userId, note: d.status === "NO_SHOW" ? "Applicant did not attend" : `Result recorded: ${d.outcome}` });

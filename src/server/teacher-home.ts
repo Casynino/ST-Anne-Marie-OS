@@ -8,6 +8,7 @@ import { teacherTimetable } from "@/server/timetable";
 import { attendanceRate, emptyCounts } from "@/server/attendance-reports";
 import { getAttendanceSettings } from "@/server/attendance";
 import { getCurrentAcademicContext } from "@/server/academics";
+import { listExams } from "@/server/admission-exams";
 import { parseDateOnly, todayInTimezone } from "@/lib/dates";
 
 /*
@@ -20,7 +21,7 @@ const can = (ctx: AuthContext, p: string) => ctx.permissions.has(p as never);
 export async function teacherHome(ctx: AuthContext) {
   const tz = await schoolTimezone(ctx.schoolId);
   const weekday = isoWeekday(tz);
-  const [tt, units, homework, schemes, plans, behaviour, students] = await Promise.all([
+  const [tt, units, homework, schemes, plans, behaviour, students, applicantExams] = await Promise.all([
     can(ctx, "timetable.read") ? teacherTimetable(ctx, null).catch(() => null) : null,
     can(ctx, "plans.write") || can(ctx, "assignments.manage") ? myTeachingUnits(ctx).catch(() => []) : [],
     can(ctx, "assignments.manage") ? listAssignments(ctx, { state: "OPEN" }).catch(() => []) : [],
@@ -28,6 +29,8 @@ export async function teacherHome(ctx: AuthContext) {
     can(ctx, "plans.write") ? listLessonPlans(ctx, { box: "mine" }).catch(() => []) : [],
     can(ctx, "behaviour.record") ? listBehaviour(ctx).catch(() => []) : [],
     teachingStudentIds(ctx),
+    // The applicants' examinations assigned to this teacher that are still to be marked or corrected.
+    can(ctx, "admission.exam.mark") ? listExams(ctx, { view: "open" }).then((r) => r.rows.filter((x) => x.mine)).catch(() => []) : [],
   ]);
   const periods = tt?.periods ?? [];
   const today = (tt?.lessons ?? [])
@@ -75,5 +78,6 @@ export async function teacherHome(ctx: AuthContext) {
     homework: { open: homework.length, toMark, rows: homework.slice(0, 6) },
     plans: { schemes: schemes.length, lessons: plans.length, needs: planNeeds, returned: [...schemes, ...plans].filter((p) => p.status === "RETURNED").length },
     behaviour: behaviour.slice(0, 5),
+    applicantExams: applicantExams.slice(0, 6),
   };
 }

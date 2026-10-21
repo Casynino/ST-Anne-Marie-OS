@@ -3,7 +3,10 @@ import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { AppError, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
-import { assessmentResolved, completeness, docChecklist, interviewState, stageOf, workflowState, WORKFLOW_STATES, type InterviewState, type Stage, type WorkflowState } from "@/lib/admissions/rules";
+import { admissionAccount, assessmentResolved, completeness, docChecklist, interviewState, stageOf, workflowState, WORKFLOW_STATES, type InterviewState, type Stage, type WorkflowState } from "@/lib/admissions/rules";
+import { examsAllowDecision, interviewStage, type ExamProgressState, type ExamStatus, type InterviewStage } from "@/lib/admissions/exams";
+import { centsOf } from "@/lib/finance/money";
+import { examSummaries, type ExamSummary } from "@/server/admission-exams";
 import { formatDateOnly, parseDateOnly } from "@/lib/dates";
 import type { Table } from "@/lib/export/table";
 import { actorOf, writeAudit } from "@/server/audit";
@@ -18,12 +21,12 @@ import { optUuid, parse } from "@/lib/validation";
  */
 
 export const INTERVIEW_STATES = ["SCHEDULED", "COMPLETED", "WAIVED", "NOT_REQUIRED", "TO_ARRANGE"] as const;
-export type AttentionReason = "OLD_UNREVIEWED" | "RESULT_MISSING" | "DOCS_TO_CHECK";
+export type AttentionReason = "OLD_UNREVIEWED" | "RESULT_MISSING" | "DOCS_TO_CHECK" | "EXAMS_OUTSTANDING";
 const OLD_DAYS = 3;
 export const PAGE_SIZE = 25;
 export const STAGE_NAMES = ["review", "interview"] as const;
 
-export type DeskFilters = { q?: string; state?: string; classId?: string; from?: string; to?: string; interview?: string; assigned?: string; source?: string; attention?: boolean; stage?: string };
+export type DeskFilters = { ivStage?: string; q?: string; state?: string; classId?: string; from?: string; to?: string; interview?: string; assigned?: string; source?: string; attention?: boolean; stage?: string };
 
 export type DeskRow = {
   id: string; applicationNo: string; name: string; classAppliedId: string | null; className: string | null;
@@ -33,7 +36,13 @@ export type DeskRow = {
   assignedToId: string | null; assignedTo: string | null; attention: AttentionReason[]; interviewRequired: boolean;
   /** The live interview (its id), papers still to check, and where an accepted review leads: the interview list, or straight to accepted when nothing is required. */
   interviewId: string | null; pendingDocs: number; afterReview: "interview" | "placement";
+  /** The applicant's examinations (teachers, marks, what is outstanding) and where they stand in the interview list. */
+  exam: { state: ExamProgressState; total: number; final: number; outstanding: ExamSummary["outstanding"]; lines: { subject: string; teacher: string; status: ExamStatus; mark: number | null; maxMark: number }[] };
+  ivStage: InterviewStage | null;
+  /** For an accepted applicant: waiting for the school fee to be verified, or ready for registration (papers and the rest). */
+  after: "payment" | "registration" | null; decidedAt: Date | null;
 };
+const NO_EXAM: DeskRow["exam"] = { state: "NONE", total: 0, final: 0, outstanding: [], lines: [] };
 
 const OPEN = ["APPLIED", "INTERVIEW", "ACCEPTED"] as const;
 const isUuid = (s: string | undefined): s is string => !!s && /^[0-9a-f-]{36}$/i.test(s);
@@ -46,9 +55,15 @@ async function compute(ctx: AuthContext, where: Prisma.ApplicationWhereInput): P
   ]);
   const apps = await db.application.findMany({
     where: { schoolId: ctx.schoolId, ...where }, orderBy: { createdAt: "desc" },
-    select: { id: true, applicationNo: true, firstName: true, middleName: true, lastName: true, status: true, source: true, createdAt: true, classAppliedId: true, guardians: true, reviewStatus: true, docsExceptionAt: true, entryType: true, interviewWaivedAt: true, assignedToId: true },
+    select: { id: true, applicationNo: true, firstName: true, middleName: true, lastName: true, status: true, source: true, createdAt: true, classAppliedId: true, guardians: true, reviewStatus: true, docsExceptionAt: true, entryType: true, interviewWaivedAt: true, assignedToId: true, decidedAt: true },
   });
   const openIds = apps.filter((a) => a.status !== "ENROLLED" && a.status !== "REJECTED" && a.status !== "WITHDRAWN").map((a) => a.id);
+  const acceptedIds = apps.filter((a) => a.status === "ACCEPTED").map((a) => a.id);
+  const [exams, offers, pays] = await Promise.all([
+    examSummaries(db, ctx.schoolId, apps.filter((a) => a.status === "APPLIED" || a.status === "INTERVIEW").map((a) => ({ id: a.id, classAppliedId: a.classAppliedId })), policy),
+    acceptedIds.length ? db.admissionOffer.findMany({ where: { schoolId: ctx.schoolId, applicationId: { in: acceptedIds } }, select: { applicationId: true, feeAmount: true, paymentWaivedAt: true } }) : [],
+    acceptedIds.length ? db.admissionPayment.findMany({ where: { schoolId: ctx.schoolId, applicationId: { in: acceptedIds } }, select: { applicationId: true, status: true, amount: true } }) : [],
+  ]);
   const [docs, interviews, people] = await Promise.all([
     openIds.length ? db.document.findMany({ where: { schoolId: ctx.schoolId, applicationId: { in: openIds }, deletedAt: null }, select: { applicationId: true, docType: true, verification: true, id: true } }) : [],
     openIds.length ? db.interview.findMany({ where: { schoolId: ctx.schoolId, applicationId: { in: openIds } }, select: { id: true, applicationId: true, status: true, kind: true, scheduledAt: true } }) : [],
@@ -63,7 +78,10 @@ async function compute(ctx: AuthContext, where: Prisma.ApplicationWhereInput): P
     const live = myIv.find((i) => i.status === "SCHEDULED") ?? null;
     const need = assessmentFor(policy, cls?.levelId ?? null);
     const doneI = myIv.some((i) => i.status === "COMPLETED" && (i.kind === "INTERVIEW" || i.kind === "ASSESSMENT"));
-    const doneE = myIv.some((i) => i.status === "COMPLETED" && i.kind === "ENTRANCE_EXAM");
+    const sum = exams.get(a.id);
+    const exam: DeskRow["exam"] = sum ? { state: sum.progress.state, total: sum.progress.total, final: sum.progress.final, outstanding: sum.outstanding, lines: sum.lines.map((l) => ({ subject: l.subject, teacher: l.teacher, status: l.status, mark: l.mark, maxMark: l.maxMark })) } : NO_EXAM;
+    // The entrance examination is done when its recorded result exists, or when every subject's result is final.
+    const doneE = myIv.some((i) => i.status === "COMPLETED" && i.kind === "ENTRANCE_EXAM") || (exam.state === "COMPLETE" && exam.total > 0);
     const checklist = docChecklist(requiredDocsFor(policy, a.entryType), myDocs.map((d) => ({ id: d.id, docType: d.docType, verification: d.verification })));
     const comp = open ? completeness({ checklist, hasClass: !!a.classAppliedId, hasContact: !!g?.phone }) : { percent: 100, complete: true, missing: [], checked: 0, required: 0 };
     const resolved = assessmentResolved({ needInterview: need.interview, needExam: need.exam, interviewDone: doneI, examDone: doneE, interviewWaived: !!a.interviewWaivedAt });
@@ -71,9 +89,13 @@ async function compute(ctx: AuthContext, where: Prisma.ApplicationWhereInput): P
     const attention: AttentionReason[] = [];
     if (open && a.status !== "ACCEPTED") {
       if ((state === "NEW" || state === "UNDER_REVIEW") && now - a.createdAt.getTime() > OLD_DAYS * 86_400_000) attention.push("OLD_UNREVIEWED");
-      if (live && live.scheduledAt.getTime() < now) attention.push("RESULT_MISSING");
+      if (live && live.scheduledAt.getTime() < now) attention.push(examsAllowDecision(exam.state) ? "RESULT_MISSING" : "EXAMS_OUTSTANDING");
       if (myDocs.some((d) => d.verification === "PENDING") && a.reviewStatus !== "VERIFIED") attention.push("DOCS_TO_CHECK");
     }
+    // An accepted applicant waits for the school fee when the school asks for it before registration and Finance has not verified enough; otherwise for registration.
+    const offer = offers.find((o) => o.applicationId === a.id);
+    const account = a.status === "ACCEPTED" && offer ? admissionAccount(centsOf(offer.feeAmount), pays.filter((p) => p.applicationId === a.id).map((p) => ({ status: p.status, amountCents: centsOf(p.amount) })), !!offer.paymentWaivedAt) : null;
+    const after: DeskRow["after"] = a.status !== "ACCEPTED" ? null : policy.requirePaymentBeforeEnrol && account && !account.satisfied ? "payment" : "registration";
     return {
       id: a.id, applicationNo: a.applicationNo, name: [a.firstName, a.middleName, a.lastName].filter(Boolean).join(" "), classAppliedId: a.classAppliedId, className: cls?.name ?? null,
       guardianName: g?.fullName ?? null, guardianPhone: g?.phone ?? null, submittedAt: a.createdAt, source: a.source, state,
@@ -81,18 +103,21 @@ async function compute(ctx: AuthContext, where: Prisma.ApplicationWhereInput): P
       interviewId: live?.id ?? null, pendingDocs: myDocs.filter((d) => d.verification === "PENDING").length, afterReview: resolved ? "placement" : "interview",
       completeness: { percent: comp.percent, complete: comp.complete, missing: comp.missing.map((m) => m.key), checked: comp.checked, required: comp.required },
       assignedToId: a.assignedToId, assignedTo: people.find((p) => p.id === a.assignedToId)?.fullName ?? null, attention, interviewRequired: need.interview,
+      exam, ivStage: live ? interviewStage({ interviewAt: live.scheduledAt, now, progress: exam.state }) : state === "AWAITING_DECISION" ? "READY" : null, after, decidedAt: a.decidedAt,
     };
   });
 }
 
-export type DeskCounts = Record<WorkflowState, number> & { total: number; awaitingInterview: number; attention: number; closed: number; stages: Record<"review" | "interview", number> };
+export type DeskCounts = Record<WorkflowState, number> & { total: number; awaitingInterview: number; attention: number; closed: number; stages: Record<"review" | "interview", number>; iv: Record<InterviewStage, number>; accepted: { payment: number; registration: number } };
 
 function countRows(rows: DeskRow[]): DeskCounts {
   const c = Object.fromEntries(WORKFLOW_STATES.map((s) => [s, rows.filter((r) => r.state === s).length])) as Record<WorkflowState, number>;
   const closed = c.REJECTED + c.WITHDRAWN;
   // "total" is the working list: an application that is finished (rejected, withdrawn or enrolled) leaves it; it is still found under its own status, or by searching.
   const stages = { review: rows.filter((r) => stageOf(r.state) === "review").length, interview: rows.filter((r) => stageOf(r.state) === "interview").length };
-  return { ...c, stages, total: rows.length - closed - c.ENROLLED, awaitingInterview: rows.filter((r) => r.state === "REVIEWED" && r.interview === "TO_ARRANGE").length, attention: rows.filter((r) => r.attention.length > 0).length, closed };
+  const iv = Object.fromEntries((["SCHEDULED", "EXAMS", "REVIEW", "READY"] as const).map((k) => [k, rows.filter((r) => stageOf(r.state) === "interview" && r.ivStage === k).length])) as Record<InterviewStage, number>;
+  const accepted = { payment: rows.filter((r) => r.state === "ACCEPTED" && r.after === "payment").length, registration: rows.filter((r) => r.state === "ACCEPTED" && r.after === "registration").length };
+  return { ...c, stages, iv, accepted, total: rows.length - closed - c.ENROLLED, awaitingInterview: rows.filter((r) => r.state === "REVIEWED" && r.interview === "TO_ARRANGE").length, attention: rows.filter((r) => r.attention.length > 0).length, closed };
 }
 
 function sqlWhere(ctx: AuthContext, f: DeskFilters): Prisma.ApplicationWhereInput {
@@ -120,6 +145,12 @@ export async function deskRow(ctx: AuthContext, id: string): Promise<DeskRow> {
   return r;
 }
 
+/** Every accepted applicant who is not enrolled yet, as the desk sees them (Awaiting payment and Registration are views of these). */
+export async function acceptedDesk(ctx: AuthContext): Promise<DeskRow[]> {
+  requirePermission(ctx, "admission.read");
+  return (await compute(ctx, { status: "ACCEPTED" })).filter((r) => r.state === "ACCEPTED");
+}
+
 /** The filters that depend on the worked-out status (the others are applied in the database). */
 function applyDerived(rows: DeskRow[], f: DeskFilters): DeskRow[] {
   let r = rows;
@@ -134,6 +165,7 @@ function applyDerived(rows: DeskRow[], f: DeskFilters): DeskRow[] {
     const stage: Stage = (STAGE_NAMES as readonly string[]).includes(f.stage ?? "") ? (f.stage as Stage) : "review";
     r = r.filter((x) => stageOf(x.state) === stage);
   }
+  if (["SCHEDULED", "EXAMS", "REVIEW", "READY"].includes(f.ivStage ?? "")) r = r.filter((x) => x.ivStage === f.ivStage);
   if ((INTERVIEW_STATES as readonly string[]).includes(f.interview ?? "")) r = r.filter((x) => x.interview === f.interview);
   if (f.attention) r = r.filter((x) => x.attention.length > 0);
   return r;

@@ -67,14 +67,15 @@ export function workflowState(a: { status: AppStatus; review: ReviewState; liveI
 }
 
 /** The two lists an application moves through: under review, then the interview. A pass accepts and enrols at once (Class placement takes over); enrolled and closed ones are finished. */
-export type Stage = "review" | "interview" | "enrolled" | "closed";
+export type Stage = "review" | "interview" | "accepted" | "enrolled" | "closed";
 export const STAGES = ["review", "interview"] as const;
 export function stageOf(state: WorkflowState): Stage {
   switch (state) {
     // Reviewed but with no interview date yet is still under review: only an application with a confirmed date is in the interview list.
     case "NEW": case "UNDER_REVIEW": case "NEEDS_INFO": case "REVIEWED": return "review";
-    // ACCEPTED is only a moment before enrolment; an applicant that could not be enrolled at once stays in this list until they are.
-    case "INTERVIEW_SCHEDULED": case "AWAITING_DECISION": case "ACCEPTED": return "interview";
+    case "INTERVIEW_SCHEDULED": case "AWAITING_DECISION": return "interview";
+    // Accepted is not enrolled: the applicant waits for the school fee to be verified (Awaiting payment), then for registration, which are lists of their own.
+    case "ACCEPTED": return "accepted";
     case "ENROLLED": return "enrolled";
     default: return "closed";
   }

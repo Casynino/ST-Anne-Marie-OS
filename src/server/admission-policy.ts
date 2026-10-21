@@ -39,6 +39,14 @@ export type AdmissionPolicy = {
   paymentNeedsSecondPerson: boolean;
   /** What an applicant to each entry level must sit: an interview, an entrance examination, both or neither. A level not listed follows the school default. */
   assessmentByLevel: Record<string, AssessmentRule>;
+  /** The subjects an applicant sits when the school asks for an entrance examination (subject ids). Staff can add or remove a subject for one applicant. */
+  examSubjects: string[];
+  /** The Academic Office must approve submitted examination results before they count. */
+  examApproval: boolean;
+  /** The maximum mark of an applicant examination unless one is set for it. */
+  examMaxMark: number;
+  /** Non-numeric results the school accepts instead of a mark (for example "Pass", "Absent"). Empty = marks only. */
+  examOutcomes: string[];
 };
 export type AssessmentRule = "NONE" | "INTERVIEW" | "EXAM" | "BOTH";
 const RULES: readonly AssessmentRule[] = ["NONE", "INTERVIEW", "EXAM", "BOTH"];
@@ -57,6 +65,10 @@ export const DEFAULT_POLICY: AdmissionPolicy = {
   interviewMinutes: 30,
   paymentNeedsSecondPerson: false,
   assessmentByLevel: {},
+  examSubjects: [],
+  examApproval: false,
+  examMaxMark: 100,
+  examOutcomes: [],
 };
 
 const KEY = "admission_policy";
@@ -79,6 +91,10 @@ export async function getAdmissionPolicy(client: Db | Tx, schoolId: string): Pro
     interviewMinutes: Number.isInteger(s.interviewMinutes) ? (s.interviewMinutes as number) : d.interviewMinutes,
     paymentNeedsSecondPerson: typeof s.paymentNeedsSecondPerson === "boolean" ? s.paymentNeedsSecondPerson : d.paymentNeedsSecondPerson,
     assessmentByLevel: Object.fromEntries(Object.entries(s.assessmentByLevel ?? {}).filter(([, v]) => (RULES as readonly string[]).includes(v as string))) as Record<string, AssessmentRule>,
+    examSubjects: Array.isArray(s.examSubjects) ? s.examSubjects.filter((x): x is string => typeof x === "string") : d.examSubjects,
+    examApproval: typeof s.examApproval === "boolean" ? s.examApproval : d.examApproval,
+    examMaxMark: typeof s.examMaxMark === "number" && s.examMaxMark > 0 && s.examMaxMark <= 1000 ? s.examMaxMark : d.examMaxMark,
+    examOutcomes: Array.isArray(s.examOutcomes) ? s.examOutcomes.filter((x): x is string => typeof x === "string" && x.trim().length > 0) : d.examOutcomes,
   };
 }
 
@@ -95,6 +111,12 @@ const schema = z.object({
   allowDirectRegistration: checkbox(),
   interviewMinutes: z.coerce.number().int().min(5).max(480),
   paymentNeedsSecondPerson: checkbox(),
+  // The screen always posts examSettings; a caller that leaves it out keeps what is set.
+  examSettings: z.string().optional(),
+  examSubjects: z.preprocess((v) => (v === undefined || v === "" ? [] : Array.isArray(v) ? v : [v]), z.array(z.string().uuid())),
+  examApproval: checkbox(),
+  examMaxMark: z.coerce.number().min(1).max(1000).optional(),
+  examOutcomes: z.string().max(300).optional(),
 });
 
 export async function updateAdmissionPolicy(ctx: AuthContext, input: unknown) {
@@ -115,8 +137,15 @@ export async function updateAdmissionPolicy(ctx: AuthContext, input: unknown) {
   const value: AdmissionPolicy = {
     requireInterview: d.requireInterview, requiredDocTypes: [...new Set(d.requiredDocTypes)], transferDocTypes: [], applicationPhotoRequired: true, applicationFeeCents: 0, admissionFeeCents: fee, requirePaymentBeforeEnrol: d.requirePaymentBeforeEnrol,
     offerValidDays: d.offerValidDays, offerNeedsApproval: d.offerNeedsApproval, allowDirectRegistration: d.allowDirectRegistration, interviewMinutes: d.interviewMinutes, paymentNeedsSecondPerson: d.paymentNeedsSecondPerson, assessmentByLevel: levelIds.length === 0 ? (await getAdmissionPolicy(db, ctx.schoolId)).assessmentByLevel : assessmentByLevel,
+    examSubjects: [], examApproval: false, examMaxMark: 100, examOutcomes: [],
   };
   const before = await getAdmissionPolicy(db, ctx.schoolId);
+  if (d.examSettings === undefined) Object.assign(value, { examSubjects: before.examSubjects, examApproval: before.examApproval, examMaxMark: before.examMaxMark, examOutcomes: before.examOutcomes });
+  else {
+    const subjects = [...new Set(d.examSubjects)];
+    if (subjects.length && (await db.subject.count({ where: { schoolId: ctx.schoolId, id: { in: subjects }, isActive: true } })) !== subjects.length) throw invalid("Please correct the highlighted fields.", { examSubjects: "Choose subjects the school teaches" });
+    Object.assign(value, { examSubjects: subjects, examApproval: d.examApproval, examMaxMark: d.examMaxMark ?? 100, examOutcomes: [...new Set((d.examOutcomes ?? "").split(",").map((x) => x.trim()).filter(Boolean))].slice(0, 12) });
+  }
   // Absent = keep what is set; present but empty = no application fee.
   const applicationFee = d.applicationFee === undefined ? before.applicationFeeCents : d.applicationFee === "" ? 0 : parseAmount(d.applicationFee);
   if (applicationFee === null) throw invalid("Please correct the highlighted fields.", { applicationFee: "Enter an amount such as 0 or 10000" });

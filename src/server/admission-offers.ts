@@ -5,6 +5,7 @@ import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib
 import { admissionAccount } from "@/lib/admissions/rules";
 import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { centsOf, decimalOf, formatMoney, parseAmount } from "@/lib/finance/money";
+import { examBlock, examSummaryOf } from "@/server/admission-exams";
 import { actorOf, writeAudit } from "@/server/audit";
 import { assessmentFor, getAdmissionPolicy } from "@/server/admission-policy";
 import { reviewBlockers, documentReadiness } from "@/server/admission-review";
@@ -84,16 +85,23 @@ export async function acceptanceReadiness(
   const completed = await client.interview.findMany({ where: { applicationId: app.id, status: "COMPLETED" }, orderBy: { scheduledAt: "desc" }, select: { kind: true, outcome: true } });
   const levelId = app.classAppliedId ? (await client.schoolClass.findFirst({ where: { id: app.classAppliedId, schoolId }, select: { levelId: true } }))?.levelId ?? null : null;
   const need = assessmentFor(policy, levelId);
+  const examsSummary = await examSummaryOf(client, schoolId, app.id, policy);
+  const examsDone = examsSummary.progress.state === "COMPLETE" && examsSummary.progress.total > 0;
   const unmet: string[] = [];
   for (const [required, kind, name] of [[need.interview, "INTERVIEW", "interview"], [need.exam, "ENTRANCE_EXAM", "entrance examination"]] as const) {
     if (!required) continue;
     if (kind === "INTERVIEW" && app.interviewWaivedAt) continue;
     const latest = completed.find((c) => c.kind === kind || (kind === "INTERVIEW" && c.kind === "ASSESSMENT"));
+    // Every subject of the entrance examination marked and final counts as the examination done: the office then decides.
+    if (!latest && kind === "ENTRANCE_EXAM" && examsDone) continue;
     if (!latest) unmet.push(`The school requires a passed ${name} first.`);
     else if (latest.outcome !== "PASSED") unmet.push(`The latest ${name} result is ${latest.outcome}.`);
   }
   // When nothing is required, the decision still may not quietly go against a recorded result.
   if (!need.interview && !need.exam && completed[0] && completed[0].outcome !== "PASSED") unmet.push(`The latest assessment result is ${completed[0].outcome}.`);
+  // Examination results the office has asked teachers for must all be in (and approved, when the school asks for approval) before a decision.
+  const examProblem = examBlock(examsSummary);
+  if (examProblem) unmet.push(examProblem);
   const interview = unmet.length ? unmet.join(" ") : null;
   return { hard, live, interview, ready: hard.length === 0 && !live && !interview };
 }

@@ -209,7 +209,7 @@ export async function quickDecisionAction(_: ActionState, form: FormData) {
     const t = makeT(ctx.locale);
     // Where an accepted applicant ended up, in words: Class placement when enrolled at once, otherwise still in the Accepted list (with the reason).
     const where = (r: { landing?: flow.Landing; note?: string }) =>
-      r.landing === "placement" ? t("adm.q.done.toPlacement") : r.landing === "approval" ? t("adm.accept.pending") : r.landing === "accepted" ? t("adm.q.done.toAcceptedNote", { note: r.note ?? "" }).trim() : r.landing === "blocked" ? t("adm.q.done.blocked", { note: r.note ?? "" }).trim() : null;
+      r.landing === "placement" ? t("adm.q.done.toPlacement") : r.landing === "approval" ? t("adm.accept.pending") : r.landing === "payment" ? t("adm.q.done.toPayment") : r.landing === "registration" ? t("adm.q.done.toRegistration", { note: r.note ?? "" }).trim() : r.landing === "blocked" ? t("adm.q.done.blocked", { note: r.note ?? "" }).trim() : null;
     switch (str(i.kind)) {
       case "REVIEW": {
         const r = await flow.acceptReview(ctx, id, { papersChecked: str(i.papersChecked) === "on", scheduledAt: str(i.slot) || str(i.scheduledAt) || undefined });
@@ -217,7 +217,7 @@ export async function quickDecisionAction(_: ActionState, form: FormData) {
       }
       case "ACCEPT": {
         const r = await flow.acceptAndEnrol(ctx, id, { strict: true });
-        return { message: where(r) ?? t("adm.q.done.toAcceptedNote", { note: "" }).trim() };
+        return { message: where(r) ?? t("adm.q.done.toRegistration", { note: "" }).trim() };
       }
       case "ENROL":
         await flow.enrolNow(ctx, id);

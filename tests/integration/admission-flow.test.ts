@@ -12,6 +12,7 @@ import * as desk from "@/server/admission-desk";
 import * as documents from "@/server/documents";
 import * as flow from "@/server/admission-flow";
 import * as days from "@/server/interview-days";
+import * as stages from "@/server/admission-stages";
 import * as offers from "@/server/admission-offers";
 import * as policy from "@/server/admission-policy";
 import * as pub from "@/server/public-applications";
@@ -177,12 +178,13 @@ describe("the steps an application takes", () => {
     expect(await lists(a.id)).toEqual({ review: false, interview: false });
   });
 
-  it("an accepted applicant that could not be enrolled at once stays in the interview list until they are enrolled", async () => {
+  it("an accepted applicant that could not be enrolled at once leaves the interview list and waits for registration until they are enrolled", async () => {
     const a = await newApp();
     await flow.acceptReview(rehema, a.id, { papersChecked: true, scheduledAt: dayAt(16) });
     await db.interview.updateMany({ where: { applicationId: a.id }, data: { status: "COMPLETED", outcome: "PASSED", scheduledAt: new Date(Date.now() - 86_400_000) } });
     await offers.acceptApplication(rehema, a.id, {}); // accepted only (not enrolled)
-    expect(await lists(a.id)).toEqual({ review: false, interview: true });
+    expect(await lists(a.id)).toEqual({ review: false, interview: false });
+    expect((await stages.acceptedList(rehema, "registration")).map((r) => r.id)).toContain(a.id); // no fee is asked, so it waits for registration, not for payment
     expect(await code(flow.enrolNow(teacher, a.id))).toBe("FORBIDDEN");
     await flow.enrolNow(rehema, a.id);
     expect(await lists(a.id)).toEqual({ review: false, interview: false });

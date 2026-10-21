@@ -12,8 +12,10 @@ export type DeskLine = QuickLine & {
   applicationNo: string; className: string | null; guardian: string | null; phone: string | null; submitted: string; online: boolean;
   state: string; stateLabel: string; stateTone: "neutral" | "ok" | "warn" | "bad" | "brand"; step: number; stepLabel: string;
   interviewLabel: string; percent: number; attention: string[];
+  /** The screen that fits the stage this application is at, and a one-line summary of its examinations. */
+  viewHref: string; exams: string | null;
 };
-export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "status" | "online" | "dismiss", string> & { quick: QuickLabels };
+export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "status" | "online" | "dismiss" | "exams", string> & { quick: QuickLabels };
 
 /**
  * The applications of the desk, one row each, with the buttons for the step the application is at. Each button asks in a pop-up first, and
@@ -37,18 +39,18 @@ export function DeskTable({ rows, labels, quick, empty, slots, view }: {
         <table className="w-full min-w-[56rem] text-left text-sm">
           <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
             <tr>
-              {(view === "interview" ? [labels.applicant, labels.interview, labels.class, labels.guardian, q.column] : [labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, q.column]).map((h, i) => <th key={i} scope="col" className="px-1.5 py-3 font-medium">{h}</th>)}
+              {(view === "interview" ? [labels.applicant, labels.interview, labels.exams, labels.class, labels.guardian, q.column] : [labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, q.column]).map((h, i) => <th key={i} scope="col" className="px-1.5 py-3 font-medium">{h}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {rows.map((r) => (
               <tr
                 key={r.id}
-                onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,label,select")) router.push(`/admissions/${r.id}`); }}
+                onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,label,select")) router.push(r.viewHref); }}
                 className="cursor-pointer hover:bg-canvas"
               >
                 <td className="min-w-36 px-1.5 py-3">
-                  <Link href={`/admissions/${r.id}`} className="font-semibold text-link hover:underline">{r.name}</Link>
+                  <Link href={r.viewHref} className="font-semibold text-link hover:underline">{r.name}</Link>
                   <span className="block text-xs tabular-nums text-muted">{r.applicationNo}</span><span className="block text-xs text-muted">{r.submitted}{r.online ? ` · ${labels.online}` : ""}</span>
                 </td>
                 {view === "review" && (
@@ -78,11 +80,12 @@ export function DeskTable({ rows, labels, quick, empty, slots, view }: {
                     <><span className="block">{r.interviewLabel}</span>{r.interviewDetail && <span className="block whitespace-nowrap text-xs text-muted">{r.interviewDetail}</span>}</>
                   )}
                 </td>
+                {view === "interview" && <td className="min-w-40 px-1.5 py-3 text-sm text-muted">{r.exams ?? "—"}</td>}
                 <td className="whitespace-nowrap px-1.5 py-3">{r.className ?? "—"}</td>
                 <td className="px-1.5 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
                 <td className="whitespace-nowrap px-1.5 py-3">
                   <span className="inline-flex items-center gap-1.5">
-                    <Link href={`/admissions/${r.id}`} aria-label={`${q.view}: ${r.name}`} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-brand-500 hover:bg-tint"><Eye className="size-3.5 text-link" aria-hidden />{q.view}</Link>
+                    <Link href={r.viewHref} aria-label={`${q.view}: ${r.name}`} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-brand-500 hover:bg-tint"><Eye className="size-3.5 text-link" aria-hidden />{q.view}</Link>
                     <ActionButtons row={r} labels={q} open={open} />
                   </span>
                 </td>

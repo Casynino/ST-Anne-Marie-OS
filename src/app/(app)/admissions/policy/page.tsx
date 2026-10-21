@@ -16,7 +16,7 @@ export default async function PolicyPage() {
   const ctx = await requireContext();
   const t = await getT();
   if (!ctx.permissions.has("school.settings.read")) return <NoAccess t={t} />;
-  const [p, school, setup, levels] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), getSchoolBasics(ctx.schoolId), paymentSetup(ctx.schoolId), db.academicLevel.findMany({ where: { schoolId: ctx.schoolId }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true } })]);
+  const [p, school, setup, levels, subjects] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), getSchoolBasics(ctx.schoolId), paymentSetup(ctx.schoolId), db.academicLevel.findMany({ where: { schoolId: ctx.schoolId }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true } }), db.subject.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } })]);
   const edit = ctx.permissions.has("school.settings.update");
   return (
     <>
@@ -35,6 +35,26 @@ export default async function PolicyPage() {
               </div>
             </fieldset>
           )}
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">{t("adm.policy.exam.title")}</legend>
+            <p className="text-sm text-muted">{t("adm.policy.exam.hint")}</p>
+            <input type="hidden" name="examSettings" value="1" />
+            {subjects.length > 0 && (
+              <div className="grid gap-1 sm:grid-cols-2">
+                {subjects.map((x) => (
+                  <label key={x.id} className="flex min-h-11 cursor-pointer items-center gap-3 text-base">
+                    <input type="checkbox" name="examSubjects" value={x.id} defaultChecked={p.examSubjects.includes(x.id)} className="size-5 rounded border-line accent-brand-700" />
+                    {x.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            <Field name="examApproval" type="checkbox" label={t("adm.policy.exam.approval")} defaultValue={p.examApproval} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field name="examMaxMark" type="number" label={t("adm.policy.exam.max")} defaultValue={String(p.examMaxMark)} />
+              <Field name="examOutcomes" label={t("adm.policy.exam.outcomes")} optionalLabel={t("common.optional")} defaultValue={p.examOutcomes.join(", ")} />
+            </div>
+          </fieldset>
           <fieldset className="space-y-1">
             <legend className="text-sm font-medium">{t("adm.policy.requiredDocs")}</legend>
             <p className="mb-1 text-sm text-muted">{t("adm.policy.requiredDocs.hint")}</p>
