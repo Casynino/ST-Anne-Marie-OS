@@ -19,7 +19,8 @@ export default async function ReceivedPage({ searchParams }: { searchParams: Pro
           <p className="display mt-1 select-all text-4xl tracking-wide">{ref}</p>
         </div>
       )}
-      <p className="mt-6"><Link href="/apply/track" className="font-semibold text-heading hover:underline">{t("apply.received.track")}</Link></p>
+      <p className="mt-6"><Link href="/login" className="font-semibold text-heading hover:underline">{t("apply.received.signIn")}</Link></p>
+      <p className="mt-3"><Link href="/apply/track" className="font-semibold text-heading hover:underline">{t("apply.received.track")}</Link></p>
     </div>
   );
 }

@@ -30,7 +30,7 @@ export type CollectionsPoint = { date: string; cents: number };
 export type FinancePanel = {
   term: { id: string; name: string };
   billed: number; collected: number; outstanding: number; overdue: number; credit: number; expenses: number; ratePct: number | null;
-  received: { today: number; week: number; month: number }; dueSoon: { amount: number; students: number }; admissionFees: { verified: number; pending: number }; netOperating: number;
+  received: { today: number; week: number; month: number }; dueSoon: { amount: number; students: number }; admissionFees: { verified: number; pending: number; application: number }; netOperating: number;
   invoices: { total: number; noCharge: number; unpaid: number; partial: number; paid: number };
   trend: CollectionsPoint[];
   topArrears: { studentId: string; name: string; admissionNo: string; className: string | null; overdue: number; outstanding: number }[];

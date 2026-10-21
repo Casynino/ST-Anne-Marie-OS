@@ -2,7 +2,8 @@
 
 import { publicRun, type ActionState } from "@/lib/action";
 import { AppError } from "@/lib/errors";
-import { getLocale, getRequestMeta, getT } from "@/lib/auth/next";
+import { getContext, getLocale, getRequestMeta, getT, setSessionCookie } from "@/lib/auth/next";
+import { authenticate } from "@/lib/auth/login";
 import { displayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
 import { getPublicSchool } from "@/server/website";
@@ -13,8 +14,20 @@ export async function submitApplicationAction(_prev: ActionState, form: FormData
   return publicRun(form, async (input) => {
     const school = await getPublicSchool();
     if (!school) throw new AppError("NOT_FOUND", "The school is not set up yet.");
-    const { applicationNo } = await submitOnlineApplication(school.id, input, await getRequestMeta());
-    return { redirectTo: applicationNo ? `/apply/received?ref=${encodeURIComponent(applicationNo)}` : "/apply/received" };
+    const meta = await getRequestMeta();
+    const me = await getContext();
+    const r = await submitOnlineApplication(school.id, input, meta, { userId: me?.userType === "GUARDIAN" && me.schoolId === school.id ? me.userId : null });
+    // A family that just signed up is signed in with the details they typed, so they land straight on their application.
+    if (r.accountCreated) {
+      try {
+        const login = await authenticate(String(input.g1_email ?? ""), String(input.password ?? ""), meta);
+        await setSessionCookie(login.token);
+      } catch {
+        return { redirectTo: "/login" };
+      }
+    }
+    if (r.draftId) return { redirectTo: `/family/applications/${r.draftId}` };
+    return { redirectTo: r.applicationNo ? `/apply/received?ref=${encodeURIComponent(r.applicationNo)}` : "/apply/received" };
   });
 }
 

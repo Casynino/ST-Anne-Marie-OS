@@ -34,6 +34,7 @@ export const TASK_KINDS = {
   STAFF_ONBOARDING: { department: "HR", dueDays: 7 },
   TEACHING_ASSIGNMENT: { department: "ACADEMIC", dueDays: 5 },
   PAYROLL_ONBOARDING: { department: "FINANCE", dueDays: 7 },
+  APPLICATION_FEE_HOLD: { department: "FINANCE", dueDays: 2 },
   INSTALMENT_DUE: { department: "FINANCE", dueDays: 0 },
   INSTALMENT_OVERDUE: { department: "FINANCE", dueDays: 0 },
 } as const satisfies Record<string, { department: TaskDepartment; dueDays: number }>;
@@ -211,6 +212,7 @@ export function taskHref(t: { relatedType: string; relatedId: string }): string 
     case "Application": return `/admissions/${t.relatedId}`;
     case "Student": return `/students/${t.relatedId}`;
     case "AdmissionPayment": return "/finance/admissions";
+    case "ApplicationDraft": return "/finance/application-fees";
     case "Invoice": return `/finance/invoices/${t.relatedId}`;
     case "AcademicConcern": return `/academic-office/concerns/${t.relatedId}`;
     case "ClassTransfer": return "/academic-office/transfers";

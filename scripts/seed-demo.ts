@@ -18,6 +18,7 @@ import { todayInTimezone } from "../src/lib/dates";
 import * as academics from "../src/server/academics";
 import * as admissions from "../src/server/admissions";
 import * as assignments from "../src/server/assignments";
+import * as fee from "../src/server/application-fee";
 import * as att from "../src/server/attendance";
 import * as behaviour from "../src/server/behaviour";
 import * as concerns from "../src/server/concerns";
@@ -425,12 +426,35 @@ async function main() {
     await website.createEvent(admin, { title: "Sports day", startsOn: addDays(today, 20), isPublic: "" });
   }
 
+  // ───── 12. Online application fee: one family has paid, one has not ─────
+  if (!(await db.applicationDraft.count({ where: { schoolId } }))) {
+    process.env.PAYMENTS_SANDBOX = "1"; // local testing only: lets this script stand in for the payment provider
+    const p = await policy.getAdmissionPolicy(db, schoolId);
+    const levels = await db.academicLevel.findMany({ where: { schoolId }, select: { id: true } });
+    await policy.updateAdmissionPolicy(admin, {
+      requireInterview: p.requireInterview ? "on" : "", requiredDocTypes: p.requiredDocTypes, admissionFee: String(p.admissionFeeCents / 100), requirePaymentBeforeEnrol: p.requirePaymentBeforeEnrol ? "on" : "",
+      offerValidDays: p.offerValidDays, offerNeedsApproval: p.offerNeedsApproval ? "on" : "", allowDirectRegistration: p.allowDirectRegistration ? "on" : "", interviewMinutes: p.interviewMinutes,
+      paymentNeedsSecondPerson: p.paymentNeedsSecondPerson ? "on" : "", applicationFee: "10000", ...Object.fromEntries(levels.map((l) => [`assessment_${l.id}`, p.assessmentByLevel[l.id] ?? ""])),
+    });
+    const meta = () => ({ ip: `10.30.${Math.floor(rnd() * 250)}.${Math.floor(rnd() * 250)}`, userAgent: "demo" });
+    const family = async (n: number, first: string, last: string, born: string, classId: string) => {
+      const r = await pub.submitOnlineApplication(schoolId, { firstName: first, lastName: last, dateOfBirth: born, gender: "FEMALE", classAppliedId: classId, g1_fullName: `Mama ${last}`, g1_phone: phone("0697"), g1_email: `applicant${n}@${DOMAIN}`, g1_relationship: "MOTHER", password: PASSWORD, password2: PASSWORD, consent: "on", website: "" }, meta());
+      return db.applicationDraft.findUniqueOrThrow({ where: { id: r.draftId! } });
+    };
+    const paid = await family(1, "Happiness", "Swai", "2019-09-12", std1.id);
+    await fee.confirmApplicationFee({ schoolId, reference: paid.reference, provider: "sandbox", providerEventId: `SBX-${randomUUID()}`, amountCents: 1_000_000, currency: school.currency, meta: meta() }); // paid: the office has it
+    await family(2, "Elias", "Komba", "2012-05-20", formI.id); // saved, waiting for payment
+    log("online application fee (one paid, one waiting)");
+  }
+
   console.log(`\nDemo school is ready. Every account below uses the password: ${PASSWORD}`);
   console.table([
     { department: "(owner)", signIn: `admin@${DOMAIN}`, note: "your own admin account, password unchanged" },
     ...STAFF.map((s) => ({ department: s.jobTitle, signIn: s.email, note: s.fullName })),
     { department: "Parent", signIn: `parent@${DOMAIN}`, note: "parent of a Form I A student" },
     { department: "Student", signIn: `student@${DOMAIN}`, note: "a Form I A student" },
+    { department: "Applicant (paid)", signIn: `applicant1@${DOMAIN}`, note: "applied online and paid the fee" },
+    { department: "Applicant (not paid)", signIn: `applicant2@${DOMAIN}`, note: "applied online, fee still to pay" },
   ]);
 }
 

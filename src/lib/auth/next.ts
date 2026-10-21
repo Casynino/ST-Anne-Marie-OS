@@ -47,3 +47,14 @@ export async function getT(): Promise<Translate> {
 }
 
 export const hasAny = (ctx: AuthContext, perms: readonly PermissionKey[]) => perms.some((p) => ctx.permissions.has(p));
+
+/** Starts the browser session after a successful sign-in (also used when a family signs up while applying). */
+export async function setSessionCookie(token: string) {
+  (await cookies()).set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  });
+}

@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { myChildren } from "@/server/portal";
+import { myApplications } from "@/server/application-fee";
 import { getSchoolBasics } from "@/server/settings";
 import { listPublicNews } from "@/server/website";
 import { DashHero, Hi } from "@/components/dash/hero";
@@ -17,6 +18,8 @@ export default async function FamilyHome() {
   const t = await getT();
   const children = await myChildren(ctx);
   if (children.length === 1) redirect(`/family/${children[0]!.id}`);
+  // A family that has only applied (no child enrolled yet) lands on its applications.
+  if (children.length === 0 && (await myApplications(ctx)).length > 0) redirect("/family/applications");
   const [news, school] = await Promise.all([listPublicNews(ctx.schoolId, { limit: 3 }), getSchoolBasics(ctx.schoolId)]);
   const first = ctx.fullName.split(" ")[0] ?? ctx.fullName;
   return (

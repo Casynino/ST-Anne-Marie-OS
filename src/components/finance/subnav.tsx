@@ -11,6 +11,7 @@ export function FinanceNav({ ctx, t, current, unmatched = 0 }: { ctx: AuthContex
     { href: "/finance/payments", label: t("fin.nav.payments"), show: has("fees.read") },
     { href: "/finance/refunds", label: t("fin.nav.refunds"), show: has("fees.read") },
     { href: "/finance/admissions", label: t("fin.nav.admissions"), show: has("admission.payment.record") || has("admission.payment.verify") },
+    { href: "/finance/application-fees", label: t("fin.nav.applicationFees"), show: has("finance.reports") || has("admission.payment.verify") || has("admission.payment.record") },
     { href: "/finance/reconciliation", label: t("fin.nav.reconciliation"), show: has("finance.reconcile"), badge: unmatched },
     { href: "/finance/fees", label: t("fin.nav.fees"), show: has("fees.read") },
     { href: "/finance/expenses", label: t("fin.nav.expenses"), show: has("expense.read") },

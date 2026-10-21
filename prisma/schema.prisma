@@ -153,6 +153,7 @@ model School {
   interviews             Interview[]
   admissionOffers        AdmissionOffer[]
   admissionPayments      AdmissionPayment[]
+  applicationDrafts      ApplicationDraft[]
   workflowTasks          WorkflowTask[]
   academicConcerns       AcademicConcern[]
   classTransfers         ClassTransfer[]
@@ -210,13 +211,14 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  school   School     @relation(fields: [schoolId], references: [id])
-  branch   Branch?    @relation(fields: [branchId], references: [id])
-  roles    UserRole[]
-  sessions Session[]
-  staff    Staff?
-  guardian Guardian?
-  student  Student?
+  school            School             @relation(fields: [schoolId], references: [id])
+  branch            Branch?            @relation(fields: [branchId], references: [id])
+  roles             UserRole[]
+  sessions          Session[]
+  staff             Staff?
+  guardian          Guardian?
+  student           Student?
+  applicationDrafts ApplicationDraft[]
 
   @@index([schoolId, type])
   @@map("users")
@@ -1025,6 +1027,7 @@ model Application {
   interviews Interview[]
   offer      AdmissionOffer?
   payments   AdmissionPayment[]
+  draft      ApplicationDraft?
 
   @@unique([schoolId, applicationNo])
   @@index([schoolId, status])
@@ -2724,4 +2727,44 @@ model JobRun {
 
   @@index([name, finishedAt])
   @@map("job_runs")
+}
+
+// ═════════════════════════ Online application fee ═════════════════════════
+// A family applying online first gets an account, then pays the application fee; the application reaches the Admissions Office only once the fee
+// is confirmed by the payment provider. The draft keeps exactly what the family entered, the fee, and the confirmation. Rules in the migration SQL.
+
+enum ApplicationDraftStatus {
+  AWAITING_PAYMENT // saved with the family's account, not yet visible to the Admissions Office
+  SUBMITTED // the fee was confirmed (or no fee is charged) and the application exists
+  PAID_HOLD // money arrived but the application could not be created: waits for a person
+  CANCELLED // the family withdrew it before paying
+}
+
+model ApplicationDraft {
+  id              String                 @id @default(uuid(7)) @db.Uuid
+  schoolId        String                 @db.Uuid
+  userId          String                 @db.Uuid
+  /// What the payer quotes to the provider; the provider's notification returns it.
+  reference       String
+  payload         Json
+  feeAmount       Decimal                @db.Decimal(14, 2)
+  status          ApplicationDraftStatus @default(AWAITING_PAYMENT)
+  paymentProvider String?
+  paymentEventId  String?
+  paidAmount      Decimal?               @db.Decimal(14, 2)
+  paidAt          DateTime?
+  receiptNo       String?
+  applicationId   String?                @unique @db.Uuid
+  holdNote        String?
+  createdAt       DateTime               @default(now())
+
+  school      School       @relation(fields: [schoolId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  application Application? @relation(fields: [applicationId], references: [id])
+
+  @@unique([schoolId, reference])
+  @@unique([schoolId, paymentProvider, paymentEventId])
+  @@index([schoolId, userId])
+  @@index([schoolId, status])
+  @@map("application_drafts")
 }

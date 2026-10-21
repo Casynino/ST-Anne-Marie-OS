@@ -10,6 +10,7 @@ import { LanguageSwitch } from "@/components/language-switch";
 import { initialsOf } from "@/lib/site";
 import { countMyUnread } from "@/server/notifications";
 import { countMyUnreadThreads } from "@/server/messaging";
+import { myApplications } from "@/server/application-fee";
 import { ThemeRoot, getTheme } from "@/components/theme-root";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -18,9 +19,10 @@ export default async function PortalLayout({ children }: { children: React.React
   const ctx = await requireContext();
   const theme = await getTheme();
   if (ctx.userType === "STAFF") redirect("/dashboard");
-  const [t, locale, school, logo, unread, unreadThreads] = await Promise.all([getT(), getLocale(), getSchoolBasics(ctx.schoolId), getBrandLogo(ctx.schoolId), countMyUnread(ctx), countMyUnreadThreads(ctx)]);
+  const [t, locale, school, logo, unread, unreadThreads, applications] = await Promise.all([getT(), getLocale(), getSchoolBasics(ctx.schoolId), getBrandLogo(ctx.schoolId), countMyUnread(ctx), countMyUnreadThreads(ctx), myApplications(ctx)]);
   const nav = [
     { href: "/family", label: t("fam.nav.home"), badge: 0 },
+    ...(applications.length > 0 ? [{ href: "/family/applications", label: t("apf.nav"), badge: applications.filter((a) => a.draftStatus === "AWAITING_PAYMENT").length }] : []),
     { href: "/family/inbox", label: t("fam.inbox"), badge: unread },
     ...(ctx.userType === "GUARDIAN" ? [{ href: "/family/messages", label: t("msg.title"), badge: unreadThreads }] : []),
     { href: "/family/calendar", label: t("cal.title"), badge: 0 },

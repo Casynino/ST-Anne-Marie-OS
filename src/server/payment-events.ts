@@ -8,6 +8,7 @@ import { centsOf, formatMoney } from "@/lib/finance/money";
 import { getProvider, getProviders, type NormalizedEvent } from "@/lib/payments/providers";
 import { actorOf, writeAudit, type AuditActor } from "@/server/audit";
 import { postPaymentTx } from "@/server/payments";
+import { confirmApplicationFee, isFeeReference } from "@/server/application-fee";
 import { optUuid, parse, text, uuid } from "@/lib/validation";
 
 export const MAX_WEBHOOK_BYTES = 256 * 1024;
@@ -32,6 +33,19 @@ async function matchReference(schoolId: string, reference: string | null) {
   ]);
   const students = [...new Set([...byAdmission.map((s) => s.id), ...byInvoice.map((i) => i.studentId)])];
   return { students, invoiceId: students.length === 1 && byInvoice.length === 1 ? byInvoice[0]!.id : null };
+}
+
+
+/**
+ * A payment whose reference is an online application fee (APF-XXXXXXXX) confirms that application's fee instead of being matched to a student.
+ * Returns null when the reference is not a known draft, so it falls back to the normal matching and reconciliation queue.
+ */
+async function settleApplicationFee(schoolId: string, provider: string, event: NormalizedEvent, eventId: string, meta: RequestMeta): Promise<Reply | null> {
+  const r = await confirmApplicationFee({ schoolId, reference: event.reference!, provider, providerEventId: event.providerEventId, amountCents: event.amountCents!, currency: event.currency, at: event.occurredAt, meta });
+  if (r.outcome === "UNKNOWN") return null;
+  const done = r.outcome === "SUBMITTED" || r.outcome === "ALREADY" || r.outcome === "HOLD";
+  await db.paymentEvent.update({ where: { id: eventId }, data: { status: done ? "POSTED" : "UNMATCHED", note: done ? `Application fee ${event.reference}${r.outcome === "HOLD" ? " (held for review)" : ""}` : (r.note ?? r.outcome), processedAt: new Date() } });
+  return { status: 200, body: { status: done ? "POSTED" : r.outcome } };
 }
 
 /**
@@ -72,6 +86,10 @@ export async function processProviderEvent(providerKey: string, rawBody: string,
   } catch (e) {
     if (isUnique(e)) {
       const existing = await db.paymentEvent.findUnique({ where: { schoolId_provider_providerEventId: { schoolId: school.id, provider: provider.key, providerEventId: event.providerEventId } } });
+      // A retry of an application-fee notification that could not be settled the first time is settled now (settling is idempotent).
+      if (existing && existing.status === "UNMATCHED" && event.status === "SUCCESS" && isFeeReference(existing.reference) && event.amountCents !== null) {
+        try { const again = await settleApplicationFee(school.id, provider.key, event, existing.id, meta); if (again) return again; } catch { return { status: 500, body: { error: "Could not record the payment" } }; }
+      }
       return { status: 200, body: { duplicate: true, status: existing?.status ?? null } };
     }
     throw e;
@@ -81,6 +99,16 @@ export async function processProviderEvent(providerKey: string, rawBody: string,
   const note = (n: string) => db.paymentEvent.update({ where: { id: eventId }, data: { note: n, processedAt: new Date() } });
   if (event.amountCents === null || event.amountCents <= 0) { await note("Amount missing or not positive"); return { status: 200, body: { status: "UNMATCHED" } }; }
   if (event.currency !== school.currency) { await note(`Currency ${event.currency ?? "(none)"} is not ${school.currency}`); return { status: 200, body: { status: "UNMATCHED" } }; }
+  if (isFeeReference(event.reference)) {
+    try {
+      const settled = await settleApplicationFee(school.id, provider.key, event, eventId, meta);
+      if (settled) return settled;
+    } catch (e) {
+      console.error(JSON.stringify({ level: "error", msg: "application_fee_confirm_failed", provider: provider.key, error: e instanceof Error ? e.message : String(e) }));
+      await note("Could not confirm the application fee; it will be retried").catch(() => undefined);
+      return { status: 500, body: { error: "Could not record the payment" } };
+    }
+  }
   const match = await matchReference(school.id, event.reference);
   if (match.students.length !== 1) { await note(match.students.length === 0 ? "No student matches the reference" : "The reference matches more than one student"); return { status: 200, body: { status: "UNMATCHED" } }; }
 

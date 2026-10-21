@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { linkApplicantAccount } from "@/server/applicant-link";
 import { Prisma } from "@/generated/prisma/client";
 import type { ApplicationStatus } from "@/generated/prisma/client";
 import { db, type Tx } from "@/lib/db";
@@ -299,6 +300,7 @@ export async function enrolApplication(ctx: AuthContext, applicationId: string, 
       if (!gate.ready) throw conflict(`This applicant cannot be enrolled yet. ${gate.items.filter((i) => !i.ok).map((i) => i.message).join(" ")}`);
       const student = await createStudentInTx(tx, ctx, prepared, { source: "admission", applicationId });
       await tx.application.update({ where: { id: applicationId }, data: { status: "ENROLLED", studentId: student.id } });
+      await linkApplicantAccount(tx, ctx.schoolId, applicationId, student.id); // the family's account becomes the guardian's portal account
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "ACCEPTED", toStatus: "ENROLLED", byUserId: ctx.userId } });
       await tx.document.updateMany({ where: { schoolId: ctx.schoolId, applicationId, studentId: null }, data: { studentId: student.id } });
       await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "Application", relatedId: applicationId, kinds: ["ENROL_APPLICANT", "OFFER_COMMUNICATE", "ADMISSION_PAYMENT"], by: ctx.userId, note: `Enrolled as ${student.admissionNo}` });

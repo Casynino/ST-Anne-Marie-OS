@@ -17,6 +17,8 @@ export type AdmissionPolicy = {
   requireInterview: boolean;
   /** Document types that must be verified before an interview, an offer and enrolment. */
   requiredDocTypes: string[];
+  /** The fee a family pays online before an application is submitted, in cents (0 = no application fee). */
+  applicationFeeCents: number;
   /** The admission fee put on a new offer, in cents (0 = no admission fee). */
   admissionFeeCents: number;
   /** Enrolment needs the admission fee verified (or a recorded exception). */
@@ -40,6 +42,7 @@ const RULES: readonly AssessmentRule[] = ["NONE", "INTERVIEW", "EXAM", "BOTH"];
 export const DEFAULT_POLICY: AdmissionPolicy = {
   requireInterview: false,
   requiredDocTypes: [],
+  applicationFeeCents: 0,
   admissionFeeCents: 0,
   requirePaymentBeforeEnrol: true,
   offerValidDays: 0,
@@ -59,6 +62,7 @@ export async function getAdmissionPolicy(client: Db | Tx, schoolId: string): Pro
   return {
     requireInterview: typeof s.requireInterview === "boolean" ? s.requireInterview : d.requireInterview,
     requiredDocTypes: Array.isArray(s.requiredDocTypes) ? s.requiredDocTypes.filter((x): x is string => (DOCUMENT_TYPES as readonly string[]).includes(x as string)) : d.requiredDocTypes,
+    applicationFeeCents: Number.isInteger(s.applicationFeeCents) && (s.applicationFeeCents as number) >= 0 ? (s.applicationFeeCents as number) : d.applicationFeeCents,
     admissionFeeCents: Number.isInteger(s.admissionFeeCents) && (s.admissionFeeCents as number) >= 0 ? (s.admissionFeeCents as number) : d.admissionFeeCents,
     requirePaymentBeforeEnrol: typeof s.requirePaymentBeforeEnrol === "boolean" ? s.requirePaymentBeforeEnrol : d.requirePaymentBeforeEnrol,
     offerValidDays: Number.isInteger(s.offerValidDays) ? (s.offerValidDays as number) : d.offerValidDays,
@@ -73,6 +77,7 @@ export async function getAdmissionPolicy(client: Db | Tx, schoolId: string): Pro
 const schema = z.object({
   requireInterview: checkbox(),
   requiredDocTypes: z.preprocess((v) => (v === undefined || v === "" ? [] : Array.isArray(v) ? v : [v]), z.array(z.enum(DOCUMENT_TYPES))),
+  applicationFee: z.union([z.string(), z.number()]).optional(),
   admissionFee: z.preprocess((v) => (v === "" || v === undefined ? "0" : v), z.union([z.string(), z.number()])),
   requirePaymentBeforeEnrol: checkbox(),
   offerValidDays: z.coerce.number().int().min(0).max(365),
@@ -98,10 +103,14 @@ export async function updateAdmissionPolicy(ctx: AuthContext, input: unknown) {
     assessmentByLevel[id] = v as AssessmentRule;
   }
   const value: AdmissionPolicy = {
-    requireInterview: d.requireInterview, requiredDocTypes: [...new Set(d.requiredDocTypes)], admissionFeeCents: fee, requirePaymentBeforeEnrol: d.requirePaymentBeforeEnrol,
+    requireInterview: d.requireInterview, requiredDocTypes: [...new Set(d.requiredDocTypes)], applicationFeeCents: 0, admissionFeeCents: fee, requirePaymentBeforeEnrol: d.requirePaymentBeforeEnrol,
     offerValidDays: d.offerValidDays, offerNeedsApproval: d.offerNeedsApproval, allowDirectRegistration: d.allowDirectRegistration, interviewMinutes: d.interviewMinutes, paymentNeedsSecondPerson: d.paymentNeedsSecondPerson, assessmentByLevel: levelIds.length === 0 ? (await getAdmissionPolicy(db, ctx.schoolId)).assessmentByLevel : assessmentByLevel,
   };
   const before = await getAdmissionPolicy(db, ctx.schoolId);
+  // Absent = keep what is set; present but empty = no application fee.
+  const applicationFee = d.applicationFee === undefined ? before.applicationFeeCents : d.applicationFee === "" ? 0 : parseAmount(d.applicationFee);
+  if (applicationFee === null) throw invalid("Please correct the highlighted fields.", { applicationFee: "Enter an amount such as 0 or 10000" });
+  value.applicationFeeCents = applicationFee;
   await db.$transaction(async (tx) => {
     await tx.schoolSetting.upsert({ where: { schoolId_key: { schoolId: ctx.schoolId, key: KEY } }, create: { schoolId: ctx.schoolId, key: KEY, value, updatedById: ctx.userId }, update: { value, updatedById: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "settings.admission_policy_update", entityType: "SchoolSetting", entityId: KEY, changes: { before, after: value } });

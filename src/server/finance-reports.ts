@@ -42,10 +42,12 @@ export async function financeOverview(ctx: AuthContext, input: unknown = {}) {
   const weekStart = new Date(new Date(`${today}T00:00:00Z`).getTime() - 6 * dayMs);
   const monthStart = new Date(`${today.slice(0, 8)}01T00:00:00Z`);
   const sumSince = async (from: Date) => centsOf((await db.payment.aggregate({ where: { schoolId: ctx.schoolId, status: "POSTED", receivedOn: { gte: from, lte: new Date(`${today}T00:00:00Z`) } }, _sum: { amount: true } }))._sum.amount);
-  const [receivedToday, receivedWeek, receivedMonth, admissionVerified, admissionPending] = await Promise.all([
+  const [receivedToday, receivedWeek, receivedMonth, admissionVerified, admissionPending, applicationPaid] = await Promise.all([
     sumSince(new Date(`${today}T00:00:00Z`)), sumSince(weekStart), sumSince(monthStart),
     db.admissionPayment.aggregate({ where: { schoolId: ctx.schoolId, status: "VERIFIED", verifiedAt: { gte: term.startsOn, lt: new Date(term.endsOn.getTime() + dayMs) } }, _sum: { amount: true } }),
     db.admissionPayment.aggregate({ where: { schoolId: ctx.schoolId, status: "PENDING" }, _sum: { amount: true } }),
+    // Online application fees confirmed by the payment provider (never a family's word) in this term.
+    db.applicationDraft.aggregate({ where: { schoolId: ctx.schoolId, paidAt: { gte: term.startsOn, lt: new Date(term.endsOn.getTime() + dayMs) } }, _sum: { paidAmount: true } }),
   ]);
   const [collected, byMethod, refundsPaid, expense, credit] = await Promise.all([
     db.payment.aggregate({ where: { schoolId: ctx.schoolId, status: "POSTED", receivedOn: range }, _sum: { amount: true }, _count: true }),
@@ -66,8 +68,8 @@ export async function financeOverview(ctx: AuthContext, input: unknown = {}) {
     received: { today: receivedToday, week: receivedWeek, month: receivedMonth },
     dueSoon: { amount: dueSoonAmount, students: dueSoonStudents.size },
     // Admission fees are paid by applicants and kept apart from school fees; they join only the cash position below.
-    admissionFees: { verified: centsOf(admissionVerified._sum.amount), pending: centsOf(admissionPending._sum.amount) },
-    netOperating: collectedC + centsOf(admissionVerified._sum.amount) - refundsC - expenseC,
+    admissionFees: { verified: centsOf(admissionVerified._sum.amount), pending: centsOf(admissionPending._sum.amount), application: centsOf(applicationPaid._sum.paidAmount) },
+    netOperating: collectedC + centsOf(admissionVerified._sum.amount) + centsOf(applicationPaid._sum.paidAmount) - refundsC - expenseC,
   };
 }
 

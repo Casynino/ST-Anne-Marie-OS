@@ -13,8 +13,8 @@ import { dateOnly, optDateOnly, optText, optUuid, parse, text, uuid } from "@/li
 
 const isUnique = (e: unknown) => (e as { code?: string })?.code === "P2002";
 
-/** Concurrency-safe numbers (INV/2026/00001, RCT/2026/00001; ADM = admission offer letter, ARC = admission payment receipt, REC = job candidate): the counter row is locked until commit and numbers are never reused. */
-export async function allocateNumber(tx: Tx, schoolId: string, prefix: "INV" | "RCT" | "ADM" | "ARC" | "REC", year: number): Promise<string> {
+/** Concurrency-safe numbers (INV/2026/00001, RCT/2026/00001; ADM = admission offer letter, ARC = admission payment receipt, APR = online application fee receipt, REC = job candidate): the counter row is locked until commit and numbers are never reused. */
+export async function allocateNumber(tx: Tx, schoolId: string, prefix: "INV" | "RCT" | "ADM" | "ARC" | "REC" | "APR", year: number): Promise<string> {
   const rows = await tx.$queryRaw<{ lastValue: number }[]>`
     INSERT INTO admission_counters ("schoolId", "scope", "lastValue")
     VALUES (${schoolId}::uuid, ${`${prefix}:${year}`}, 1)
