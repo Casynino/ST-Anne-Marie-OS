@@ -105,12 +105,60 @@ export default async function MyApplicationPage({ params }: { params: Promise<{ 
           )}
           {a.draftStatus === "CANCELLED" && <Card><p className="text-sm text-muted">{t("apf.cancelled")}</p></Card>}
 
+          {awaiting && (
+            <Card title={t("apf.pay.title")}>
+              {!a.checklist.complete ? (
+                <div>
+                  <p className="text-sm">{t("apf.pay.locked")} <a href="#files" className="font-semibold text-link hover:underline">{t("apf.pay.goFiles")}</a></p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-warn">
+                    {a.checklist.photo.required && !a.checklist.photo.present && <li>{t("apf.photo.title")}</li>}
+                    {a.checklist.papers.filter((p) => !p.present).map((p) => <li key={p.docType}>{t(`doc.type.${p.docType}` as "doc.type.OTHER")}</li>)}
+                  </ul>
+                </div>
+              ) : !confirmed ? (
+                <div>
+                  <p className="text-sm">{t("apf.confirm.body")}</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-4"><ActionForm action={confirmApplicationAction} submitLabel={t("apf.confirm.button")}><input type="hidden" name="id" value={a.id} /></ActionForm><Link href={`/family/applications/${a.id}/edit`} className="text-sm font-semibold text-link hover:underline">{t("apf.edit")}</Link></div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-muted">{t("apf.pay.intro")}</p>
+                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div><dt className="text-xs text-muted">{t("apf.pay.amount")}</dt><dd className="text-2xl font-semibold tabular-nums">{money(a.feeCents)}</dd></div>
+                    <div><dt className="text-xs text-muted">{t("apf.pay.reference")}</dt><dd className="font-mono text-2xl font-semibold tracking-wider">{a.reference}</dd></div>
+                  </dl>
+                  {a.ready && a.instructions && (
+                    <div className="mt-4 rounded-xl border border-line bg-canvas p-4">
+                      <p className="text-sm font-semibold">{t("apf.pay.how")}</p>
+                      <p className="mt-1 whitespace-pre-line text-sm">{a.instructions}</p>
+                      <p className="mt-2 text-sm text-muted">{t("apf.pay.useReference", { reference: a.reference })}</p>
+                    </div>
+                  )}
+                  {!a.ready && <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warn">{t("apf.pay.notReady")}</p>}
+                  <p className="mt-4 text-sm text-muted">{t("apf.pay.after")}</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <LinkButton href={`/family/applications/${a.id}`} variant="secondary">{t("apf.pay.check")}</LinkButton>
+                    <Link href={`/family/applications/${a.id}/edit`} className="text-sm font-semibold text-link hover:underline">{t("apf.pay.change")}</Link>
+                  </div>
+                  {a.sandbox && (
+                    <div className="mt-5 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 p-4">
+                      <p className="text-sm font-semibold text-warn">{t("apf.sandbox.title")}</p>
+                      <p className="mb-3 text-sm text-warn">{t("apf.sandbox.body")}</p>
+                      <ActionForm action={sandboxPayAction} submitLabel={t("apf.sandbox.button")}><input type="hidden" name="id" value={a.id} /></ActionForm>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          )}
+
           <Card title={t("apf.review.title")} actions={awaiting ? <LinkButton href={`/family/applications/${a.id}/edit`} variant="secondary"><Pencil className="size-4" aria-hidden /> {t("apf.edit")}</LinkButton> : undefined}>
             {awaiting && <p className="mb-4 text-sm text-muted">{t("apf.review.intro")}</p>}
             <div className="space-y-6">
               <section aria-labelledby="rv-child">
                 <h3 id="rv-child" className="mb-2 text-sm font-semibold text-brand-700">{t("apply.child")}</h3>
                 <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+                  <Item label={t("apply.entry.title")} value={f.entryType === "TRANSFER" ? t("apply.entry.transfer") : t("apply.entry.new")} />
                   <Item label={t("student.firstName")} value={f.firstName} />
                   <Item label={t("student.middleName")} value={f.middleName} />
                   <Item label={t("student.lastName")} value={f.lastName} />
@@ -122,7 +170,9 @@ export default async function MyApplicationPage({ params }: { params: Promise<{ 
                   <Item label={t("student.birthCert")} value={f.birthCertificateNo} />
                   <Item label={t("student.previousSchool")} value={f.previousSchool} />
                   <Item label={t("apply.previousClass")} value={f.previousClass} />
+                  <Item label={t("apply.transfer.admissionNo")} value={f.previousAdmissionNo} />
                   <Item label={t("common.address")} value={f.address} />
+                  <div className="sm:col-span-3"><Item label={t("apply.transfer.reason")} value={f.entryType === "TRANSFER" ? f.transferReason : null} /></div>
                   <div className="sm:col-span-3"><Item label={t("apply.health")} value={f.healthNotes} /></div>
                 </dl>
               </section>
@@ -162,7 +212,7 @@ export default async function MyApplicationPage({ params }: { params: Promise<{ 
           </Card>
 
           {a.draftStatus !== "CANCELLED" && (
-            <Card title={t("apf.files.title")}>
+            <div id="files" className="scroll-mt-24"><Card title={t("apf.files.title")}>
               <p className="mb-4 text-sm text-muted">{awaiting ? t("apf.files.intro") : t("apf.files.later")}</p>
               <div className="grid gap-5 sm:grid-cols-[9rem_1fr]">
                 <div>
@@ -204,55 +254,9 @@ export default async function MyApplicationPage({ params }: { params: Promise<{ 
                 </ActionForm>
                 {extraDocs.length > 0 && <ul className="mt-3 divide-y divide-line">{extraDocs.map(fileRow)}</ul>}
               </div>
-            </Card>
+            </Card></div>
           )}
 
-          {awaiting && (
-            <Card title={t("apf.pay.title")}>
-              {!a.checklist.complete ? (
-                <div>
-                  <p className="text-sm">{t("apf.pay.locked")}</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-warn">
-                    {a.checklist.photo.required && !a.checklist.photo.present && <li>{t("apf.photo.title")}</li>}
-                    {a.checklist.papers.filter((p) => !p.present).map((p) => <li key={p.docType}>{t(`doc.type.${p.docType}` as "doc.type.OTHER")}</li>)}
-                  </ul>
-                </div>
-              ) : !confirmed ? (
-                <div>
-                  <p className="text-sm">{t("apf.confirm.body")}</p>
-                  <div className="mt-4"><ActionForm action={confirmApplicationAction} submitLabel={t("apf.confirm.button")}><input type="hidden" name="id" value={a.id} /></ActionForm></div>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm text-muted">{t("apf.pay.intro")}</p>
-                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div><dt className="text-xs text-muted">{t("apf.pay.amount")}</dt><dd className="text-2xl font-semibold tabular-nums">{money(a.feeCents)}</dd></div>
-                    <div><dt className="text-xs text-muted">{t("apf.pay.reference")}</dt><dd className="font-mono text-2xl font-semibold tracking-wider">{a.reference}</dd></div>
-                  </dl>
-                  {a.ready && a.instructions && (
-                    <div className="mt-4 rounded-xl border border-line bg-canvas p-4">
-                      <p className="text-sm font-semibold">{t("apf.pay.how")}</p>
-                      <p className="mt-1 whitespace-pre-line text-sm">{a.instructions}</p>
-                      <p className="mt-2 text-sm text-muted">{t("apf.pay.useReference", { reference: a.reference })}</p>
-                    </div>
-                  )}
-                  {!a.ready && <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warn">{t("apf.pay.notReady")}</p>}
-                  <p className="mt-4 text-sm text-muted">{t("apf.pay.after")}</p>
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <LinkButton href={`/family/applications/${a.id}`} variant="secondary">{t("apf.pay.check")}</LinkButton>
-                    <Link href={`/family/applications/${a.id}/edit`} className="text-sm font-semibold text-link hover:underline">{t("apf.pay.change")}</Link>
-                  </div>
-                  {a.sandbox && (
-                    <div className="mt-5 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 p-4">
-                      <p className="text-sm font-semibold text-warn">{t("apf.sandbox.title")}</p>
-                      <p className="mb-3 text-sm text-warn">{t("apf.sandbox.body")}</p>
-                      <ActionForm action={sandboxPayAction} submitLabel={t("apf.sandbox.button")}><input type="hidden" name="id" value={a.id} /></ActionForm>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Card>
-          )}
         </div>
         <div className="space-y-5">
           <Card title={t("apf.details")}>

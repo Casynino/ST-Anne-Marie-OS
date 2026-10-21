@@ -4,9 +4,11 @@ import type { AuthContext } from "@/lib/auth/context";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { getStorage } from "@/lib/storage";
 import { actorOf, writeAudit } from "@/server/audit";
-import { getAdmissionPolicy } from "@/server/admission-policy";
+import { getAdmissionPolicy, requiredDocsFor } from "@/server/admission-policy";
 import { getMyApplication } from "@/server/application-fee";
-import { DOCUMENT_TYPES, persistDocument, sniffType } from "@/server/documents";
+import { DOCUMENT_TYPES, MAX_DOCUMENT_BYTES, persistDocument, sniffType } from "@/server/documents";
+import type { AuditActor } from "@/server/audit";
+import type { RequestMeta } from "@/lib/auth/context";
 import { assertNoOpenDuplicate, onlineSchema, prepareOnline, toStored, type StoredForm } from "@/server/online-application";
 import { parse } from "@/lib/validation";
 
@@ -30,10 +32,10 @@ async function liveDocuments(schoolId: string, draftId: string) {
 }
 
 /** What still has to be added before the family can confirm: the photo (when the school asks for it) and each required paper. */
-export function checklist(policy: { applicationPhotoRequired: boolean; requiredDocTypes: string[] }, docs: { docType: string }[]) {
+export function checklist(policy: { applicationPhotoRequired: boolean; requiredDocTypes: string[]; transferDocTypes: string[] }, docs: { docType: string }[], entryType?: string | null) {
   const have = new Set(docs.map((d) => d.docType));
   const photo = { required: policy.applicationPhotoRequired, present: have.has("PASSPORT_PHOTO") };
-  const papers = policy.requiredDocTypes.filter((t) => t !== "PASSPORT_PHOTO").map((docType) => ({ docType, present: have.has(docType) }));
+  const papers = requiredDocsFor(policy, entryType).filter((t) => t !== "PASSPORT_PHOTO").map((docType) => ({ docType, present: have.has(docType) }));
   return { photo, papers, complete: (!photo.required || photo.present) && papers.every((p) => p.present) };
 }
 
@@ -42,7 +44,7 @@ export async function getApplicationReview(ctx: AuthContext, id: string) {
   const base = await getMyApplication(ctx, id);
   const row = await ownDraft(ctx, id);
   const [policy, docs] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), liveDocuments(ctx.schoolId, id)]);
-  return { ...base, form: row.payload as unknown as StoredForm, documents: docs, checklist: checklist(policy, docs), confirmedAt: row.confirmedAt, photoId: docs.find((d) => d.docType === "PASSPORT_PHOTO")?.id ?? null };
+  return { ...base, form: row.payload as unknown as StoredForm, documents: docs, checklist: checklist(policy, docs, (row.payload as unknown as StoredForm).entryType), confirmedAt: row.confirmedAt, photoId: docs.find((d) => d.docType === "PASSPORT_PHOTO")?.id ?? null };
 }
 
 /** The family corrects its application before paying. Changing anything takes back the confirmation. */
@@ -69,7 +71,7 @@ export async function confirmMyApplication(ctx: AuthContext, id: string) {
   const row = await ownDraft(ctx, id);
   if (row.status !== "AWAITING_PAYMENT") throw conflict("This application is not waiting for payment.");
   const [policy, docs] = await Promise.all([getAdmissionPolicy(db, ctx.schoolId), liveDocuments(ctx.schoolId, id)]);
-  const c = checklist(policy, docs);
+  const c = checklist(policy, docs, (row.payload as unknown as StoredForm).entryType);
   if (!c.complete) throw invalid("Add the photo and the papers listed below first.", { files: "Something is missing" });
   await db.$transaction(async (tx) => {
     await tx.applicationDraft.update({ where: { id }, data: { confirmedAt: new Date() } });
@@ -116,4 +118,42 @@ export async function downloadMyDocument(ctx: AuthContext, documentId: string) {
   const storage = getStorage();
   if (!storage) throw invalid("File storage is not configured.");
   return { bytes: await storage.get(doc.storageKey), mimeType: doc.mimeType, fileName: doc.fileName };
+}
+
+// ───────────────────────── Files sent with the first page of the form ─────────────────────────
+
+export type IncomingFile = { docType: string; fileName: string; bytes: Buffer };
+const fieldOf = (docType: string) => (docType === "PASSPORT_PHOTO" ? "photo" : `paper_${docType}`);
+
+/**
+ * Checks the photo and papers that came with the application form, before anything is saved: the passport photo (when the school asks for
+ * it) and every paper the school requires must be there, each file must be a PDF or picture decided from its own bytes and within the size
+ * limit, and the photo must be a picture. Errors name the form field so the family sees which file to fix.
+ */
+export async function checkIncomingFiles(schoolId: string, files: IncomingFile[], entryType?: string | null) {
+  const policy = await getAdmissionPolicy(db, schoolId);
+  const given = files.filter((f) => f.bytes.length > 0);
+  const have = new Set(given.map((f) => f.docType));
+  const errors: Record<string, string> = {};
+  if (policy.applicationPhotoRequired && !have.has("PASSPORT_PHOTO")) errors.photo = "Add the child's passport photo";
+  for (const t of requiredDocsFor(policy, entryType)) if (t !== "PASSPORT_PHOTO" && !have.has(t)) errors[fieldOf(t)] = "Add this paper";
+  for (const f of given) {
+    const type = sniffType(f.bytes);
+    if (f.bytes.length > MAX_DOCUMENT_BYTES) errors[fieldOf(f.docType)] = `The file is too large (limit ${Math.floor(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB)`;
+    else if (!type) errors[fieldOf(f.docType)] = "Only PDF, JPEG, PNG or WebP files are accepted";
+    else if (f.docType === "PASSPORT_PHOTO" && !IMAGE_MIMES.includes(type.mime)) errors.photo = "The photo must be a picture (JPEG, PNG or WebP)";
+  }
+  if (Object.keys(errors).length) throw invalid("Please correct the highlighted fields.", errors);
+  if (given.length > 0 && !getStorage()) throw invalid("File storage is not set up yet. Please contact the school office.");
+}
+
+/** Saves the checked files on the family's draft (and on the application when it already exists). A file that fails to save is reported in the log and left for the family to add again on its page. */
+export async function saveIncomingFiles(a: { schoolId: string; userId: string | null; draftId: string; applicationId: string | null; files: IncomingFile[]; actor: AuditActor }) {
+  for (const f of a.files.filter((x) => x.bytes.length > 0)) {
+    try {
+      await persistDocument({ schoolId: a.schoolId, actor: a.actor, owner: a.applicationId ? { applicationId: a.applicationId, draftId: a.draftId } : { draftId: a.draftId }, docType: f.docType, fileName: f.fileName, bytes: f.bytes, uploadedById: a.userId });
+    } catch (e) {
+      console.error(JSON.stringify({ level: "error", msg: "application_file_save_failed", draftId: a.draftId, docType: f.docType, error: e instanceof Error ? e.message.slice(0, 200) : String(e) }));
+    }
+  }
 }

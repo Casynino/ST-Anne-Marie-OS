@@ -12,6 +12,7 @@ import { centsOf } from "@/lib/finance/money";
 import { getFeeSettings } from "@/server/fees";
 import { hashPassword, validatePasswordStrength } from "@/lib/auth/password";
 import { applicationFeeInfo, newFeeReference } from "@/server/application-fee";
+import { checkIncomingFiles, saveIncomingFiles, type IncomingFile } from "@/server/application-draft";
 import { assertNoOpenDuplicate, DUPLICATE_MESSAGE, STATUS_PUBLIC, insertOnlineApplication, isUniqueViolation, onlineSchema, prepareOnline, toStored, type StoredForm } from "@/server/online-application";
 import { loadWebsiteSettings } from "@/server/website";
 import { parse, phoneField } from "@/lib/validation";
@@ -56,7 +57,7 @@ const ACCOUNT_TAKEN = "We could not create an account with these details. If you
  * family's new account and only reaches the office once the payment provider confirms the fee (`confirmApplicationFee`). A family that is
  * already signed in applies under its own account. Everything is enforced here because the request is unauthenticated.
  */
-export async function submitOnlineApplication(schoolId: string, input: Record<string, unknown>, meta: RequestMeta, opts: { userId?: string | null } = {}): Promise<SubmitResult> {
+export async function submitOnlineApplication(schoolId: string, input: Record<string, unknown>, meta: RequestMeta, opts: { userId?: string | null; /** The photo and papers sent with the form. Left out = not asked for (old-style callers); given (even empty) = the school's requirements are enforced. */ files?: IncomingFile[] } = {}): Promise<SubmitResult> {
   // Honeypot: real people never see or fill this field. Pretend success so bots learn nothing.
   if (typeof input.website === "string" && input.website.trim() !== "") return { applicationNo: null };
 
@@ -89,9 +90,11 @@ export async function submitOnlineApplication(schoolId: string, input: Record<st
     passwordHash = await hashPassword(typedPassword);
   }
   const stored = toStored(d);
+  const files = opts.files ?? [];
+  if (opts.files && (feeInfo.feeCents > 0 || wantsAccount || opts.userId)) await checkIncomingFiles(school.id, opts.files, d.entryType);
 
   try {
-    return await db.$transaction(async (tx) => {
+    const result = await db.$transaction(async (tx) => {
       let userId = opts.userId ?? null;
       if (wantsAccount) {
         const role = await tx.role.findFirst({ where: { schoolId: school.id, key: "parent" }, select: { id: true } });
@@ -119,6 +122,12 @@ export async function submitOnlineApplication(schoolId: string, input: Record<st
       await writeAudit(tx, { schoolId: school.id, actorId: null, actorName: "Online applicant", meta }, { action: "admission.application_draft", entityType: "ApplicationDraft", entityId: draft.id, summary: `${d.firstName} ${d.lastName} (${draft.reference})`, changes: { feeCents: feeInfo.feeCents } });
       return { applicationNo: null, draftId: draft.id, accountCreated: wantsAccount };
     });
+    // The photo and papers that came with the form belong to the family's draft (and to the application when it was sent at once).
+    if (result.draftId && files.length > 0) {
+      const row = await db.applicationDraft.findUniqueOrThrow({ where: { id: result.draftId }, select: { userId: true, applicationId: true } });
+      await saveIncomingFiles({ schoolId: school.id, userId: row.userId, draftId: result.draftId, applicationId: row.applicationId, files, actor: { schoolId: school.id, actorId: null, actorName: "Online applicant", meta } });
+    }
+    return result;
   } catch (e) {
     if (isUniqueViolation(e)) {
       const target = JSON.stringify((e as { meta?: { target?: unknown } }).meta?.target ?? (e as Error).message ?? "");

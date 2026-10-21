@@ -7,7 +7,10 @@ import { getSite } from "@/lib/site";
 import { listApplyClasses } from "@/server/public-applications";
 import { RELATIONSHIPS } from "@/server/guardians";
 import { ApplicationFields } from "@/components/site/application-fields";
-import { ActionForm, Field } from "@/components/form";
+import { getAdmissionPolicy } from "@/server/admission-policy";
+import { db } from "@/lib/db";
+import { ActionForm, Field, FileField } from "@/components/form";
+import { EntryTypeProvider, WhenTransfer } from "@/components/site/entry-type";
 import { ButtonLink, PageHero } from "@/components/site/blocks";
 import { submitApplicationAction } from "../actions";
 
@@ -27,7 +30,7 @@ export default async function ApplyPage() {
       </>
     );
   }
-  const [fee, me] = await Promise.all([applicationFeeInfo(site.school.id), getContext()]);
+  const [fee, me, policy] = await Promise.all([applicationFeeInfo(site.school.id), getContext(), getAdmissionPolicy(db, site.school.id)]);
   // With a fee but no way for families to pay it yet, the form is not offered (an application could never be completed).
   if (fee.feeCents > 0 && !fee.ready) {
     return (
@@ -55,7 +58,26 @@ export default async function ApplyPage() {
           </div>
         )}
         <ActionForm action={submitApplicationAction} submitLabel={fee.feeCents > 0 ? t("apply.submit.pay") : t("apply.submit")} className="space-y-8">
+          <EntryTypeProvider defaultKind="NEW">
           <ApplicationFields t={t} classOptions={classOptions} relOptions={relOptions} emailRequired={needsAccount} variant="site" />
+
+          <fieldset className="space-y-4 border border-line bg-surface p-5 sm:p-7">
+            <legend className="display px-2 text-3xl">{t("apf.files.title")}</legend>
+            <p className="text-sm text-muted">{t("apply.files.body")}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FileField name="photo" label={t("apf.photo.title")} accept="image/jpeg,image/png,image/webp" required={policy.applicationPhotoRequired} optionalLabel={t("common.optional")} hint={t("apf.photo.hint")} />
+              {policy.requiredDocTypes.filter((d) => d !== "PASSPORT_PHOTO").map((d) => (
+                <FileField key={d} name={`paper_${d}`} label={t(`doc.type.${d}` as "doc.type.OTHER")} accept="application/pdf,image/jpeg,image/png,image/webp" required hint={t("apf.papers.hint")} />
+              ))}
+              <WhenTransfer>
+                {policy.transferDocTypes.filter((d) => d !== "PASSPORT_PHOTO" && !policy.requiredDocTypes.includes(d)).map((d) => (
+                  <FileField key={d} name={`paper_${d}`} label={t(`doc.type.${d}` as "doc.type.OTHER")} accept="application/pdf,image/jpeg,image/png,image/webp" required hint={t("apf.papers.hint")} />
+                ))}
+              </WhenTransfer>
+              <FileField name="paper_OTHER" label={t("apf.papers.other")} accept="application/pdf,image/jpeg,image/png,image/webp" optionalLabel={t("common.optional")} hint={t("apf.papers.hint")} />
+            </div>
+          </fieldset>
+          </EntryTypeProvider>
 
           {needsAccount ? (
             <fieldset className="space-y-4 border border-line bg-surface p-5 sm:p-7">

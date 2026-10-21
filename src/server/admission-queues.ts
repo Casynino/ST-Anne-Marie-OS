@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
 import { admissionAccount, docChecklist, docsComplete } from "@/lib/admissions/rules";
 import { centsOf } from "@/lib/finance/money";
-import { getAdmissionPolicy } from "@/server/admission-policy";
+import { getAdmissionPolicy, requiredDocsFor } from "@/server/admission-policy";
 import { enrolmentReadiness } from "@/server/admission-offers";
 import { taskCounts } from "@/server/workflow";
 
@@ -28,7 +28,7 @@ async function derive(ctx: AuthContext): Promise<Derived[]> {
   const apps = await db.application.findMany({
     where: { schoolId: ctx.schoolId, status: { in: ["APPLIED", "INTERVIEW", "ACCEPTED"] } },
     select: {
-      id: true, status: true, source: true, reviewStatus: true, docsExceptionAt: true,
+      id: true, status: true, source: true, entryType: true, reviewStatus: true, docsExceptionAt: true,
       documents: { where: { deletedAt: null }, select: { id: true, docType: true, verification: true } },
       interviews: { select: { status: true, outcome: true, scheduledAt: true } },
       offer: { select: { status: true, feeAmount: true, paymentWaivedAt: true } },
@@ -37,13 +37,13 @@ async function derive(ctx: AuthContext): Promise<Derived[]> {
   });
   const out: Derived[] = [];
   for (const a of apps) {
-    const checklist = docChecklist(policy.requiredDocTypes, a.documents);
+    const checklist = docChecklist(requiredDocsFor(policy, a.entryType), a.documents);
     const live = a.interviews.find((i) => i.status === "SCHEDULED") ?? null;
     const done = a.interviews.filter((i) => i.status === "COMPLETED").sort((x, y) => y.scheduledAt.getTime() - x.scheduledAt.getTime());
     const account = a.offer ? admissionAccount(centsOf(a.offer.feeAmount), a.payments.map((p) => ({ status: p.status, amountCents: centsOf(p.amount) })), !!a.offer.paymentWaivedAt) : null;
     const docsOk = docsComplete(checklist) || !!a.docsExceptionAt;
     let eligible = false;
-    if (a.status === "ACCEPTED" && a.offer?.status === "ISSUED") eligible = (await enrolmentReadiness(db, ctx.schoolId, { id: a.id, status: a.status, reviewStatus: a.reviewStatus, docsExceptionAt: a.docsExceptionAt })).ready;
+    if (a.status === "ACCEPTED" && a.offer?.status === "ISSUED") eligible = (await enrolmentReadiness(db, ctx.schoolId, { id: a.id, status: a.status, reviewStatus: a.reviewStatus, docsExceptionAt: a.docsExceptionAt, entryType: a.entryType })).ready;
     out.push({
       id: a.id, status: a.status as Derived["status"], source: a.source, review: a.reviewStatus, docsOk, docsPending: a.documents.some((d) => d.verification === "PENDING"),
       liveInterviewAt: live?.scheduledAt ?? null, latestOutcome: done[0]?.outcome ?? null, hasCompletedInterview: done.length > 0, offerStatus: a.offer?.status ?? null, account, eligible,

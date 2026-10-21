@@ -336,7 +336,7 @@ export async function loadAdmissionAccount(client: Db | Tx, schoolId: string, ap
 export type ReadinessItem = { key: "offer" | "offerValid" | "payment" | "documents" | "review"; ok: boolean; message: string };
 
 /** Everything that must be true before the Admissions Office can enrol this applicant, each with a plain sentence. */
-export async function enrolmentReadiness(client: Db | Tx, schoolId: string, app: { id: string; status: string; reviewStatus: string; docsExceptionAt: Date | null }) {
+export async function enrolmentReadiness(client: Db | Tx, schoolId: string, app: { id: string; status: string; reviewStatus: string; docsExceptionAt: Date | null; entryType?: string | null }) {
   const [policy, { offer, account }, today] = await Promise.all([getAdmissionPolicy(client, schoolId), loadAdmissionAccount(client, schoolId, app.id), todayOf(client, schoolId)]);
   const items: ReadinessItem[] = [];
   items.push({ key: "offer", ok: app.status === "ACCEPTED" && offer?.status === "ISSUED", message: offer?.status === "PENDING_APPROVAL" ? "The offer is waiting for approval." : app.status === "ACCEPTED" && offer?.status === "ISSUED" ? "An admission offer has been issued." : "There is no issued admission offer." });

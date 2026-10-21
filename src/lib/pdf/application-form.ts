@@ -10,7 +10,7 @@ import { A4, fonts, header, logoOf, type PdfLogo, type SchoolHeader } from "@/li
 
 export type ApplicationFormDoc = {
   school: SchoolHeader; applicationNo: string; submittedOn: string; className: string | null;
-  child: { name: string; dateOfBirth: string; gender: string; nationality: string | null; religion: string | null; birthCertificateNo: string | null; previousSchool: string | null; previousClass: string | null; address: string | null; healthNotes: string | null };
+  child: { entry: string; transferReason: string | null; previousAdmissionNo: string | null; name: string; dateOfBirth: string; gender: string; nationality: string | null; religion: string | null; birthCertificateNo: string | null; previousSchool: string | null; previousClass: string | null; address: string | null; healthNotes: string | null };
   /** The child's passport photo when it is a JPEG or PNG (the PDF format cannot embed other picture types). */
   photo: { bytes: Uint8Array; type: "png" | "jpg" } | null;
   guardians: { name: string; relationship: string; phone: string; email: string | null; occupation: string | null }[];
@@ -22,7 +22,7 @@ export type ApplicationFormDoc = {
 };
 export type ApplicationFormLabels = {
   title: string; applicationNo: string; submitted: string; classApplied: string; child: string; name: string; dateOfBirth: string; gender: string; nationality: string; previousSchool: string; address: string;
-  guardians: string; relationship: string; phone: string; email: string; religion: string; birthCert: string; previousClass: string; health: string; occupation: string; emergency: string; guardian2: string; files: string; fee: string; amountPaid: string; paidOn: string; reference: string; receiptNo: string; testNote: string;
+  entry: string; transferReason: string; previousAdmissionNo: string; guardians: string; relationship: string; phone: string; email: string; religion: string; birthCert: string; previousClass: string; health: string; occupation: string; emergency: string; guardian2: string; files: string; fee: string; amountPaid: string; paidOn: string; reference: string; receiptNo: string; testNote: string;
   documents: string; documentsIntro: string; consent: string; keep: string;
 };
 
@@ -76,6 +76,7 @@ export async function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Appli
       narrow = 100;
     } catch { /* an unreadable picture is simply left out */ }
   }
+  row(L.entry, d.child.entry, narrow);
   row(L.name, d.child.name, narrow);
   row(L.classApplied, d.className, narrow);
   row(L.dateOfBirth, d.child.dateOfBirth, narrow);
@@ -85,6 +86,8 @@ export async function renderApplicationForm(pdf: PDFDocument, f: Fonts, d: Appli
   row(L.birthCert, d.child.birthCertificateNo, narrow);
   row(L.previousSchool, d.child.previousSchool, narrow);
   row(L.previousClass, d.child.previousClass);
+  row(L.previousAdmissionNo, d.child.previousAdmissionNo);
+  row(L.transferReason, d.child.transferReason);
   row(L.address, d.child.address);
   row(L.health, d.child.healthNotes);
   if (narrow && y > photoTop - 118) y = photoTop - 118; // keep the next section below the photo

@@ -5,7 +5,7 @@ import { conflict, invalid, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { docChecklist, docsComplete } from "@/lib/admissions/rules";
 import { actorOf, writeAudit } from "@/server/audit";
-import { assessmentFor, getAdmissionPolicy } from "@/server/admission-policy";
+import { assessmentFor, getAdmissionPolicy, requiredDocsFor } from "@/server/admission-policy";
 import { closeTasks, openTask } from "@/server/workflow";
 import { optText, parse, text } from "@/lib/validation";
 
@@ -17,10 +17,10 @@ import { optText, parse, text } from "@/lib/validation";
 const OPEN: readonly ApplicationStatus[] = ["APPLIED", "INTERVIEW", "ACCEPTED"];
 
 /** The required documents of an application and where each one stands. `ok` is true when all are verified or an exception was recorded. */
-export async function documentReadiness(client: Db | Tx, schoolId: string, app: { id: string; docsExceptionAt: Date | null }) {
+export async function documentReadiness(client: Db | Tx, schoolId: string, app: { id: string; docsExceptionAt: Date | null; entryType?: string | null }) {
   const policy = await getAdmissionPolicy(client, schoolId);
   const docs = await client.document.findMany({ where: { schoolId, applicationId: app.id, deletedAt: null }, select: { id: true, docType: true, verification: true } });
-  const checklist = docChecklist(policy.requiredDocTypes, docs);
+  const checklist = docChecklist(requiredDocsFor(policy, app.entryType), docs);
   const complete = docsComplete(checklist);
   return { checklist, complete, excepted: !complete && !!app.docsExceptionAt, ok: complete || !!app.docsExceptionAt };
 }

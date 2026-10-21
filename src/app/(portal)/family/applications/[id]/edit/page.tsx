@@ -7,6 +7,7 @@ import { listApplyClasses } from "@/server/public-applications";
 import { RELATIONSHIPS } from "@/server/guardians";
 import { ActionForm } from "@/components/form";
 import { ApplicationFields } from "@/components/site/application-fields";
+import { EntryTypeProvider } from "@/components/site/entry-type";
 import { LinkButton, PageHeader } from "@/components/ui";
 import { updateApplicationAction } from "../../actions";
 
@@ -29,7 +30,9 @@ export default async function EditApplicationPage({ params }: { params: Promise<
       <div className="max-w-4xl">
         <ActionForm action={updateApplicationAction} submitLabel={t("common.save")} className="space-y-6">
           <input type="hidden" name="id" value={id} />
-          <ApplicationFields t={t} classOptions={classOptions} relOptions={relOptions} d={a.form} emailRequired={false} variant="portal" />
+          <EntryTypeProvider defaultKind={a.form.entryType === "TRANSFER" ? "TRANSFER" : "NEW"}>
+            <ApplicationFields t={t} classOptions={classOptions} relOptions={relOptions} d={a.form} emailRequired={false} variant="portal" />
+          </EntryTypeProvider>
         </ActionForm>
       </div>
     </>

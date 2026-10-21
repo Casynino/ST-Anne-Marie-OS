@@ -25,9 +25,13 @@ export const onlineSchema = z
     dateOfBirth: dateOnly(),
     gender: z.enum(["MALE", "FEMALE"]),
     classAppliedId: uuid(),
+    /** NEW = first time at a school; TRANSFER = coming from another school (then the previous school, class, reason and transfer papers are needed). */
+    entryType: z.preprocess((v) => (v === "" || v === undefined ? "NEW" : v), z.enum(["NEW", "TRANSFER"])),
     previousSchool: optText(150),
     /** The last class the child completed, so the school can place them correctly. */
     previousClass: optText(60),
+    transferReason: optText(500),
+    previousAdmissionNo: optText(40),
     nationality: optText(60),
     religion: optText(60),
     birthCertificateNo: optText(40),
@@ -59,6 +63,11 @@ export const onlineSchema = z
       if (!v.g2_fullName) c.addIssue({ code: "custom", path: ["g2_fullName"], message: "Required" });
       if (!v.g2_phone) c.addIssue({ code: "custom", path: ["g2_phone"], message: "Required" });
       if (!v.g2_relationship) c.addIssue({ code: "custom", path: ["g2_relationship"], message: "Required" });
+    }
+    if (v.entryType === "TRANSFER") {
+      if (!v.previousSchool) c.addIssue({ code: "custom", path: ["previousSchool"], message: "Required for a transfer" });
+      if (!v.previousClass) c.addIssue({ code: "custom", path: ["previousClass"], message: "Required for a transfer" });
+      if (!v.transferReason) c.addIssue({ code: "custom", path: ["transferReason"], message: "Say why the child is changing school" });
     }
     const anyEc = v.ec_name || v.ec_phone || v.ec_relationship;
     if (anyEc) {
@@ -140,8 +149,11 @@ export async function insertOnlineApplication(tx: Tx, schoolId: string, d: Onlin
       nationality: d.nationality,
       religion: d.religion,
       birthCertificateNo: d.birthCertificateNo,
+      entryType: d.entryType,
       previousSchool: d.previousSchool,
       previousClass: d.previousClass,
+      transferReason: d.entryType === "TRANSFER" ? d.transferReason : undefined,
+      previousAdmissionNo: d.entryType === "TRANSFER" ? d.previousAdmissionNo : undefined,
       healthNotes: d.healthNotes,
       emergencyContact: d.ec_name ? ({ name: d.ec_name, phone: d.ec_phone, relationship: d.ec_relationship } as Prisma.InputJsonValue) : undefined,
       address: d.address,

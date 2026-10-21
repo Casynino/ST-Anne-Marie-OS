@@ -1019,6 +1019,9 @@ model Application {
   // The recorded admission decision while it is not yet final (Deferred, Further assessment, Awaiting decision). Accepted and Not accepted
   // show in the status itself (an offer exists, or the application is rejected).
   decisionOutcome     AdmissionDecision?
+  entryType           String             @default("NEW") // NEW (first time at a school) or TRANSFER (from another school)
+  transferReason      String?
+  previousAdmissionNo String?
   previousClass       String?
   healthNotes         String?
   emergencyContact    Json?

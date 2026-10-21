@@ -9,7 +9,7 @@ import { getApplication, OPEN_STATUSES } from "@/server/admissions";
 import { listClasses } from "@/server/academics";
 import { listDocuments, DOCUMENT_TYPES, MAX_DOCUMENT_BYTES } from "@/server/documents";
 import { getSchoolBasics } from "@/server/settings";
-import { getAdmissionPolicy } from "@/server/admission-policy";
+import { getAdmissionPolicy, requiredDocsFor } from "@/server/admission-policy";
 import { documentReadiness } from "@/server/admission-review";
 import { enrolmentReadiness, loadAdmissionAccount } from "@/server/admission-offers";
 import { interviewsOfApplication, listInterviewers } from "@/server/interviews";
@@ -97,7 +97,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
           )}
 
           <DocsReviewCard
-            t={t} id={id} open={open} can={can} required={policy.requiredDocTypes} checklist={docsReady.checklist}
+            t={t} id={id} open={open} can={can} required={requiredDocsFor(policy, app.entryType)} checklist={docsReady.checklist}
             docs={docs.map((d) => ({ id: d.id, docType: d.docType, fileName: d.fileName, verification: d.verification, verificationNote: d.verificationNote }))}
             review={{ status: app.reviewStatus, note: app.reviewNote, by: reviewer?.fullName ?? null, at: app.reviewedAt, locale: ctx.locale, timezone: school.timezone }}
             exception={app.docsExceptionAt ? { reason: app.docsExceptionReason ?? "", by: exceptionUser?.fullName ?? null } : null}
@@ -186,7 +186,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                 { label: t("student.religion"), value: app.religion },
                 { label: t("student.birthCert"), value: app.birthCertificateNo },
                 { label: t("student.previousSchool"), value: app.previousSchool },
+                { label: t("apply.entry.title"), value: app.entryType === "TRANSFER" ? t("apply.entry.transfer") : t("apply.entry.new") },
                 { label: t("apply.previousClass"), value: app.previousClass },
+                { label: t("apply.transfer.admissionNo"), value: app.previousAdmissionNo },
+                { label: t("apply.transfer.reason"), value: app.entryType === "TRANSFER" ? app.transferReason : null },
                 { label: t("common.address"), value: app.address },
                 { label: t("adm.emergency"), value: emergency ? `${emergency.name} (${emergency.relationship}) ${emergency.phone}` : null },
                 { label: t("adm.health"), value: app.healthNotes },

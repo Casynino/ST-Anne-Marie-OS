@@ -223,3 +223,8 @@ Nino sent two briefs: (1) admissions, finance and administrative control with an
 - The Admissions Office sees the photo, the new details and the papers on the application. Health information is shown only to staff who may read medical notes. At enrolment the emergency contact is copied to the student, and so is the health note when the person enrolling may write medical notes.
 - Migration `phase12_application_details` (applications: previous class, health notes, emergency contact; drafts: confirmed time; documents: draft link). Run it on Neon together with `phase12_application_fee` when Nino says so.
 - Tests: `tests/integration/application-fee.test.ts` now has 25.
+
+## The online form as the whole entry point (2026-10-21)
+- The first page now collects everything: **type of admission** (new to school, or transfer from another school), the child, previous school and last class, health and special needs, guardians, emergency contact, the child's passport photo and the papers. A transfer must also say why the child is changing school and attach the transfer letter and the last report (which papers is set in Admissions → Policy → "Extra papers for a child transferring"). Files are checked before anything is saved, and the family then reviews, can change, and presses "Continue to payment".
+- The office's own document check asks for the transfer papers on a transfer application. Migration `phase12_application_entry_type` (run on Neon with the other two `phase12_*` migrations when Nino says so).
+- Tests: `tests/integration/application-fee.test.ts` has 34.

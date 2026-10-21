@@ -47,6 +47,18 @@ export default async function PolicyPage() {
               ))}
             </div>
           </fieldset>
+          <fieldset className="space-y-1">
+            <legend className="text-sm font-medium">{t("adm.policy.transferDocs")}</legend>
+            <p className="mb-1 text-sm text-muted">{t("adm.policy.transferDocs.hint")}</p>
+            <div className="grid gap-1 sm:grid-cols-2">
+              {DOCUMENT_TYPES.map((d) => (
+                <label key={d} className="flex min-h-11 cursor-pointer items-center gap-3 text-base">
+                  <input type="checkbox" name="transferDocTypes" value={d} defaultChecked={p.transferDocTypes.includes(d)} className="size-5 rounded border-line accent-brand-700" />
+                  {t(`doc.type.${d}`)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <Field name="applicationFee" label={`${t("adm.policy.appFee")} (${school.currency})`} defaultValue={p.applicationFeeCents / 100} hint={t("adm.policy.appFee.hint")} />
           {p.applicationFeeCents > 0 && !setup.ready && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warn">{t("adm.policy.appFee.notReady")}</p>}
           {setup.sandbox && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-warn">{t("adm.policy.appFee.sandbox")}</p>}

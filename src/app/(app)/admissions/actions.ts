@@ -165,5 +165,5 @@ export async function placeStudentAction(_: ActionState, form: FormData) {
   });
 }
 export async function updatePolicyAction(_: ActionState, form: FormData) {
-  return run(form, async (ctx, i) => { await policy.updateAdmissionPolicy(ctx, { ...i, requiredDocTypes: form.getAll("requiredDocTypes").map(String) }); return saved(ctx); });
+  return run(form, async (ctx, i) => { await policy.updateAdmissionPolicy(ctx, { ...i, requiredDocTypes: form.getAll("requiredDocTypes").map(String), transferDocTypes: form.getAll("transferDocTypes").map(String) }); return saved(ctx); });
 }

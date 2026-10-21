@@ -17,6 +17,7 @@ import * as fee from "@/server/application-fee";
 import { applicationFormPdf, applicationReceiptPdf } from "@/server/application-pdf";
 import * as policy from "@/server/admission-policy";
 import { financeOverview } from "@/server/finance-reports";
+import { documentReadiness } from "@/server/admission-review";
 import { processProviderEvent } from "@/server/payment-events";
 import * as pub from "@/server/public-applications";
 import * as website from "@/server/website";
@@ -34,7 +35,7 @@ let setup: Awaited<ReturnType<typeof createCurrentYearAcademics>>;
 let n = 710000 + Math.floor(Math.random() * 8_000_000); // phones and emails are unique across the persistent test database
 const code = async (p: Promise<unknown>) => ((await p.then(() => null, (e) => e)) as AppError | null)?.code ?? null;
 const meta = () => ({ ip: `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`, userAgent: "t" });
-const POLICY = { requireInterview: "", requiredDocTypes: [], admissionFee: "0", requirePaymentBeforeEnrol: "on", offerValidDays: 0, allowDirectRegistration: "on", interviewMinutes: 30, applicationPhotoRequired: "on" };
+const POLICY = { requireInterview: "", requiredDocTypes: [], admissionFee: "0", requirePaymentBeforeEnrol: "on", offerValidDays: 0, allowDirectRegistration: "on", interviewMinutes: 30, applicationPhotoRequired: "on", transferDocTypes: ["TRANSFER_LETTER", "PREVIOUS_REPORT"] };
 const PASSWORD = "Sunrise2026ok";
 // A real 1x1 PNG and a minimal PDF, so the file type checks (decided from the bytes) are exercised.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
@@ -48,7 +49,7 @@ function form(extra: Record<string, unknown> = {}) {
     password: PASSWORD, password2: PASSWORD, consent: "on", website: "", ...extra,
   };
 }
-const apply = (input: Record<string, unknown>, opts: { userId?: string | null } = {}) => pub.submitOnlineApplication(school.id, input, meta(), opts);
+const apply = (input: Record<string, unknown>, opts: Parameters<typeof pub.submitOnlineApplication>[3] = {}) => pub.submitOnlineApplication(school.id, input, meta(), opts);
 const draftOf = (id: string) => db.applicationDraft.findUniqueOrThrow({ where: { id } });
 async function familyOf(draftId: string) {
   const d = await draftOf(draftId);
@@ -403,5 +404,109 @@ describe("review, change, add the photo and papers, confirm", () => {
     const student = await admissions.enrolApplication(registrar, appId, {});
     expect((await db.student.findUniqueOrThrow({ where: { id: student.id } })).medicalNotes).toBe("Eczema");
     expect((await db.application.findUniqueOrThrow({ where: { id: appId } })).healthNotes).toBe("Eczema");
+  });
+});
+
+describe("the photo and papers on the first page of the form", () => {
+  const errOf = (p: Promise<unknown>) => p.then(() => null, (e) => e as AppError);
+
+  it("the form is refused, and no account is made, when the photo is missing", async () => {
+    const input = form();
+    const e = await errOf(apply(input, { files: [] }));
+    expect(e).toBeInstanceOf(AppError);
+    expect(e!.code).toBe("VALIDATION");
+    expect(e!.fieldErrors).toMatchObject({ photo: expect.stringMatching(/photo/i) });
+    expect(await db.user.count({ where: { schoolId: school.id, email: input.g1_email as string } })).toBe(0);
+    expect(await db.applicationDraft.count({ where: { schoolId: school.id, payload: { path: ["firstName"], equals: input.firstName as string } } })).toBe(0);
+  });
+
+  it("the photo must be a picture and every file is checked by its bytes", async () => {
+    const pdfAsPhoto = await errOf(apply(form(), { files: [{ docType: "PASSPORT_PHOTO", fileName: "scan.pdf", bytes: PDF }] }));
+    expect(pdfAsPhoto!.fieldErrors).toMatchObject({ photo: expect.stringMatching(/picture/i) });
+    const junk = await errOf(apply(form(), { files: [{ docType: "PASSPORT_PHOTO", fileName: "x.png", bytes: Buffer.from("not a picture") }] }));
+    expect(junk!.fieldErrors).toHaveProperty("photo");
+  });
+
+  it("with the photo, the draft is ready to confirm straight away and shows the photo", async () => {
+    const r = await apply(form(), { files: [{ docType: "PASSPORT_PHOTO", fileName: "child.png", bytes: PNG }, { docType: "OTHER", fileName: "extra.pdf", bytes: PDF }] });
+    const fam = await familyOf(r.draftId!);
+    const review = await draft.getApplicationReview(fam, r.draftId!);
+    expect(review.checklist.complete).toBe(true);
+    expect(review.photoId).not.toBeNull();
+    expect(review.documents.map((d) => d.docType).sort()).toEqual(["OTHER", "PASSPORT_PHOTO"]);
+    expect(review.confirmedAt).toBeNull(); // the family still decides to continue
+    await draft.confirmMyApplication(fam, r.draftId!);
+    expect((await draftOf(r.draftId!)).confirmedAt).not.toBeNull();
+  });
+
+  it("the papers the school requires are needed on the first page too", async () => {
+    await policy.updateAdmissionPolicy(admin, { ...POLICY, requiredDocTypes: ["BIRTH_CERTIFICATE"], applicationFee: "10000" });
+    try {
+      const photo = { docType: "PASSPORT_PHOTO", fileName: "child.png", bytes: PNG };
+      const missing = await errOf(apply(form(), { files: [photo] }));
+      expect(missing!.fieldErrors).toMatchObject({ paper_BIRTH_CERTIFICATE: expect.any(String) });
+      expect((await apply(form(), { files: [photo, { docType: "BIRTH_CERTIFICATE", fileName: "bc.pdf", bytes: PDF }] })).draftId).toBeTruthy();
+    } finally {
+      await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000" });
+    }
+  });
+
+  it("when the school does not ask for a photo, the form needs no files", async () => {
+    await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000", applicationPhotoRequired: "" });
+    try {
+      expect((await apply(form(), { files: [] })).draftId).toBeTruthy();
+    } finally {
+      await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000" });
+    }
+  });
+});
+
+describe("a child transferring from another school", () => {
+  const errOf = (p: Promise<unknown>) => p.then(() => null, (e) => e as AppError);
+  const photo = { docType: "PASSPORT_PHOTO", fileName: "child.png", bytes: PNG };
+  const transfer = (extra: Record<string, unknown> = {}) => form({ entryType: "TRANSFER", previousSchool: "Sunrise Primary", previousClass: "Standard V", transferReason: "The family has moved house", previousAdmissionNo: "SP/2021/044", ...extra });
+
+  it("must say where from, which class and why", async () => {
+    const e = await errOf(apply(form({ entryType: "TRANSFER" }), { files: [photo] }));
+    expect(e!.code).toBe("VALIDATION");
+    expect(e!.fieldErrors).toMatchObject({ previousSchool: expect.any(String), previousClass: expect.any(String), transferReason: expect.any(String) });
+  });
+
+  it("must add the transfer letter and the last report, which a new child does not need", async () => {
+    const e = await errOf(apply(transfer(), { files: [photo] }));
+    expect(e!.fieldErrors).toMatchObject({ paper_TRANSFER_LETTER: expect.any(String), paper_PREVIOUS_REPORT: expect.any(String) });
+    expect((await apply(form(), { files: [photo] })).draftId).toBeTruthy(); // a new child: just the photo
+  });
+
+  it("is kept as a transfer, with its papers, and reaches the office as one", async () => {
+    const files = [photo, { docType: "TRANSFER_LETTER", fileName: "letter.pdf", bytes: PDF }, { docType: "PREVIOUS_REPORT", fileName: "report.pdf", bytes: PDF }];
+    const r = await apply(transfer(), { files });
+    const fam = await familyOf(r.draftId!);
+    const review = await draft.getApplicationReview(fam, r.draftId!);
+    expect(review.form).toMatchObject({ entryType: "TRANSFER", previousSchool: "Sunrise Primary", transferReason: "The family has moved house" });
+    expect(review.checklist.papers.map((p) => p.docType).sort()).toEqual(["PREVIOUS_REPORT", "TRANSFER_LETTER"]);
+    expect(review.checklist.complete).toBe(true);
+    await fee.sandboxPay(fam, r.draftId!, meta());
+    const app = await db.application.findUniqueOrThrow({ where: { id: (await draftOf(r.draftId!)).applicationId! } });
+    expect(app).toMatchObject({ entryType: "TRANSFER", previousSchool: "Sunrise Primary", previousClass: "Standard V", transferReason: "The family has moved house", previousAdmissionNo: "SP/2021/044" });
+    // The office's own document check also asks for the transfer papers.
+    const ready = await documentReadiness(db, school.id, { id: app.id, docsExceptionAt: null, entryType: app.entryType });
+    expect(ready.checklist.map((c) => c.docType)).toEqual(expect.arrayContaining(["TRANSFER_LETTER", "PREVIOUS_REPORT"]));
+    const forNew = await documentReadiness(db, school.id, { id: app.id, docsExceptionAt: null, entryType: "NEW" });
+    expect(forNew.checklist.map((c) => c.docType)).not.toContain("TRANSFER_LETTER");
+  });
+
+  it("a new child's transfer fields are not kept, and the school can change which transfer papers it asks for", async () => {
+    const r = await apply(form({ transferReason: "ignored", previousAdmissionNo: "X1" }), { files: [photo] });
+    const fam = await familyOf(r.draftId!);
+    await fee.sandboxPay(fam, r.draftId!, meta());
+    const app = await db.application.findUniqueOrThrow({ where: { id: (await draftOf(r.draftId!)).applicationId! } });
+    expect(app).toMatchObject({ entryType: "NEW", transferReason: null, previousAdmissionNo: null });
+    await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000", transferDocTypes: ["TRANSFER_LETTER"] });
+    try {
+      expect((await apply(transfer(), { files: [photo, { docType: "TRANSFER_LETTER", fileName: "letter.pdf", bytes: PDF }] })).draftId).toBeTruthy(); // the report is no longer asked for
+    } finally {
+      await policy.updateAdmissionPolicy(admin, { ...POLICY, applicationFee: "10000" });
+    }
   });
 });

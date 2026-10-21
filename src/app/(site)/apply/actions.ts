@@ -9,6 +9,7 @@ import { formatMoney } from "@/lib/finance/money";
 import { getPublicSchool } from "@/server/website";
 import { submitOnlineApplication, trackApplication, uploadApplicantDocument } from "@/server/public-applications";
 import { MAX_DOCUMENT_BYTES } from "@/server/documents";
+import type { IncomingFile } from "@/server/application-draft";
 
 export async function submitApplicationAction(_prev: ActionState, form: FormData): Promise<ActionState> {
   return publicRun(form, async (input) => {
@@ -16,7 +17,14 @@ export async function submitApplicationAction(_prev: ActionState, form: FormData
     if (!school) throw new AppError("NOT_FOUND", "The school is not set up yet.");
     const meta = await getRequestMeta();
     const me = await getContext();
-    const r = await submitOnlineApplication(school.id, input, meta, { userId: me?.userType === "GUARDIAN" && me.schoolId === school.id ? me.userId : null });
+    // The child's photo and the papers sent with the form (empty file boxes are ignored).
+    const files: IncomingFile[] = [];
+    for (const [key, value] of form.entries()) {
+      if (!(value instanceof File) || value.size === 0) continue;
+      if (key === "photo") files.push({ docType: "PASSPORT_PHOTO", fileName: value.name, bytes: Buffer.from(await value.arrayBuffer()) });
+      else if (key.startsWith("paper_")) files.push({ docType: key.slice(6), fileName: value.name, bytes: Buffer.from(await value.arrayBuffer()) });
+    }
+    const r = await submitOnlineApplication(school.id, input, meta, { userId: me?.userType === "GUARDIAN" && me.schoolId === school.id ? me.userId : null, files });
     // A family that just signed up is signed in with the details they typed, so they land straight on their application.
     if (r.accountCreated) {
       try {

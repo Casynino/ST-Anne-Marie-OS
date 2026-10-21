@@ -40,7 +40,7 @@ export async function applicationFormDocument(ctx: AuthContext, draftId: string,
   return {
     school: { name: school.name, motto: school.motto, address: school.address, phone: school.phone, email: school.email },
     applicationNo: draft.application.applicationNo, submittedOn: longDate(draft.paidAt ?? draft.createdAt, locale, school.timezone), className: cls?.name ?? null,
-    child: { name: [p.firstName, p.middleName, p.lastName].filter(Boolean).join(" "), dateOfBirth: longDate(new Date(p.dateOfBirth), locale, "UTC"), gender: t(p.gender === "MALE" ? "student.male" : "student.female"), nationality: p.nationality ?? null, religion: p.religion ?? null, birthCertificateNo: p.birthCertificateNo ?? null, previousSchool: p.previousSchool ?? null, previousClass: p.previousClass ?? null, address: p.address ?? null, healthNotes: p.healthNotes ?? null },
+    child: { entry: t(p.entryType === "TRANSFER" ? "apply.entry.transfer" : "apply.entry.new"), transferReason: p.entryType === "TRANSFER" ? (p.transferReason ?? null) : null, previousAdmissionNo: p.entryType === "TRANSFER" ? (p.previousAdmissionNo ?? null) : null, name: [p.firstName, p.middleName, p.lastName].filter(Boolean).join(" "), dateOfBirth: longDate(new Date(p.dateOfBirth), locale, "UTC"), gender: t(p.gender === "MALE" ? "student.male" : "student.female"), nationality: p.nationality ?? null, religion: p.religion ?? null, birthCertificateNo: p.birthCertificateNo ?? null, previousSchool: p.previousSchool ?? null, previousClass: p.previousClass ?? null, address: p.address ?? null, healthNotes: p.healthNotes ?? null },
     photo: photoDoc && photoBytes ? { bytes: new Uint8Array(photoBytes), type: photoDoc.mimeType === "image/png" ? "png" : "jpg" } : null,
     emergency: p.ec_name && p.ec_phone ? { name: p.ec_name, relationship: p.ec_relationship ?? "", phone: p.ec_phone } : null,
     files: files.map((x) => ({ label: t(x.docType === "PASSPORT_PHOTO" ? "apf.pdf.photoAdded" : (`doc.type.${x.docType}` as "doc.type.OTHER")), fileName: x.fileName })),
@@ -57,6 +57,7 @@ export function applicationFormLabels(locale: Locale) {
   return {
     title: t("apf.pdf.title"), applicationNo: t("adm.applicationNo"), submitted: t("apf.pdf.submitted"), classApplied: t("apply.class"), child: t("apply.child"), name: t("apf.pdf.name"), dateOfBirth: t("student.dob"), gender: t("student.gender"),
     nationality: t("student.nationality"), previousSchool: t("student.previousSchool"), address: t("common.address"), guardians: t("apply.guardian"), relationship: t("apply.relationship"), phone: t("common.phone"), email: t("common.email"),
+    entry: t("apply.entry.title"), transferReason: t("apply.transfer.reason"), previousAdmissionNo: t("apply.transfer.admissionNo"),
     religion: t("apf.pdf.religion"), birthCert: t("apf.pdf.birthCert"), previousClass: t("apf.pdf.previousClass"), health: t("apf.pdf.health"), occupation: t("apf.pdf.occupation"), emergency: t("apf.pdf.emergency"), guardian2: t("apf.pdf.guardian2"), files: t("apf.pdf.files"),
     fee: t("apf.pdf.fee"), amountPaid: t("apf.pdf.amountPaid"), paidOn: t("apf.pdf.paidOn"), reference: t("fin.pdf.reference"), receiptNo: t("fin.pdf.receiptNo"), testNote: t("apf.pdf.testNote"),
     documents: t("apf.pdf.documents"), documentsIntro: t("apf.pdf.documentsIntro"), consent: t("apf.pdf.consent"), keep: t("apf.pdf.keep"),

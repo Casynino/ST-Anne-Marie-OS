@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Translate } from "@/lib/i18n";
 import { Field } from "@/components/form";
 import type { StoredForm } from "@/server/online-application";
+import { EntryTypeChoice, PreviousSchoolSection } from "@/components/site/entry-type";
 
 type Option = { value: string; label: string };
 
@@ -20,6 +21,10 @@ export function ApplicationFields({ t, classOptions, relOptions, d = {}, emailRe
   const hasEmergency = Boolean(d.ec_name || d.ec_phone);
   return (
     <>
+      <Section title={t("apply.entry.title")}>
+        <EntryTypeChoice labels={{ name: t("apply.entry.title"), newTitle: t("apply.entry.new"), newBody: t("apply.entry.new.body"), transferTitle: t("apply.entry.transfer"), transferBody: t("apply.entry.transfer.body") }} />
+      </Section>
+
       <Section title={t("apply.child")}>
         <div className="grid gap-4 sm:grid-cols-3">
           <Field name="firstName" label={t("student.firstName")} defaultValue={d.firstName} required autoComplete="off" />
@@ -31,12 +36,17 @@ export function ApplicationFields({ t, classOptions, relOptions, d = {}, emailRe
           <Field name="nationality" label={t("student.nationality")} defaultValue={d.nationality} optionalLabel={t("common.optional")} />
           <Field name="religion" label={t("student.religion")} defaultValue={d.religion} optionalLabel={t("common.optional")} />
           <Field name="birthCertificateNo" label={t("student.birthCert")} defaultValue={d.birthCertificateNo} optionalLabel={t("common.optional")} />
-          <Field name="previousSchool" label={t("student.previousSchool")} defaultValue={d.previousSchool} optionalLabel={t("common.optional")} className="sm:col-span-2" />
-          <Field name="previousClass" label={t("apply.previousClass")} defaultValue={d.previousClass} optionalLabel={t("common.optional")} hint={t("apply.previousClass.hint")} />
           <Field name="address" label={t("common.address")} defaultValue={d.address} optionalLabel={t("common.optional")} className="sm:col-span-3" />
           <Field name="healthNotes" label={t("apply.health")} type="textarea" defaultValue={d.healthNotes} optionalLabel={t("common.optional")} hint={t("apply.health.hint")} className="sm:col-span-3" />
         </div>
       </Section>
+
+      <PreviousSchoolSection
+        box={box}
+        legend={legend}
+        d={d}
+        labels={{ title: t("apply.previous.title"), hintNew: t("apply.previous.hintNew"), hintTransfer: t("apply.previous.hintTransfer"), school: t("student.previousSchool"), class: t("apply.previousClass"), classHint: t("apply.previousClass.hint"), reason: t("apply.transfer.reason"), reasonHint: t("apply.transfer.reason.hint"), admissionNo: t("apply.transfer.admissionNo"), optional: t("common.optional") }}
+      />
 
       <Section title={t("apply.guardian")}>
         <div className="grid gap-4 sm:grid-cols-2">

@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ["pg"],
   // Document uploads (default limit 4 MB, see DOCUMENT_MAX_BYTES) and CSV imports go through server actions.
-  experimental: { serverActions: { bodySizeLimit: "6mb" } },
+  experimental: { serverActions: { bodySizeLimit: "20mb" } },
   async headers() {
     return [{ source: "/:path*", headers: process.env.NODE_ENV === "production" ? [...securityHeaders, { key: "Content-Security-Policy", value: csp }] : securityHeaders }];
   },

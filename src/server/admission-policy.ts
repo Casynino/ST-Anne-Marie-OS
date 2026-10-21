@@ -17,6 +17,8 @@ export type AdmissionPolicy = {
   requireInterview: boolean;
   /** Document types that must be verified before an interview, an offer and enrolment. */
   requiredDocTypes: string[];
+  /** Papers a child TRANSFERRING from another school must add as well (for example the transfer letter and the last report). */
+  transferDocTypes: string[];
   /** An online application must come with a passport photo of the child before the family can confirm and pay. */
   applicationPhotoRequired: boolean;
   /** The fee a family pays online before an application is submitted, in cents (0 = no application fee). */
@@ -44,6 +46,7 @@ const RULES: readonly AssessmentRule[] = ["NONE", "INTERVIEW", "EXAM", "BOTH"];
 export const DEFAULT_POLICY: AdmissionPolicy = {
   requireInterview: false,
   requiredDocTypes: [],
+  transferDocTypes: ["TRANSFER_LETTER", "PREVIOUS_REPORT"],
   applicationPhotoRequired: true,
   applicationFeeCents: 0,
   admissionFeeCents: 0,
@@ -65,6 +68,7 @@ export async function getAdmissionPolicy(client: Db | Tx, schoolId: string): Pro
   return {
     requireInterview: typeof s.requireInterview === "boolean" ? s.requireInterview : d.requireInterview,
     requiredDocTypes: Array.isArray(s.requiredDocTypes) ? s.requiredDocTypes.filter((x): x is string => (DOCUMENT_TYPES as readonly string[]).includes(x as string)) : d.requiredDocTypes,
+    transferDocTypes: Array.isArray(s.transferDocTypes) ? s.transferDocTypes.filter((x): x is string => (DOCUMENT_TYPES as readonly string[]).includes(x as string)) : d.transferDocTypes,
     applicationPhotoRequired: typeof s.applicationPhotoRequired === "boolean" ? s.applicationPhotoRequired : d.applicationPhotoRequired,
     applicationFeeCents: Number.isInteger(s.applicationFeeCents) && (s.applicationFeeCents as number) >= 0 ? (s.applicationFeeCents as number) : d.applicationFeeCents,
     admissionFeeCents: Number.isInteger(s.admissionFeeCents) && (s.admissionFeeCents as number) >= 0 ? (s.admissionFeeCents as number) : d.admissionFeeCents,
@@ -81,6 +85,7 @@ export async function getAdmissionPolicy(client: Db | Tx, schoolId: string): Pro
 const schema = z.object({
   requireInterview: checkbox(),
   requiredDocTypes: z.preprocess((v) => (v === undefined || v === "" ? [] : Array.isArray(v) ? v : [v]), z.array(z.enum(DOCUMENT_TYPES))),
+  transferDocTypes: z.preprocess((v) => (v === undefined || v === "" ? undefined : Array.isArray(v) ? v : [v]), z.array(z.enum(DOCUMENT_TYPES)).optional()),
   applicationFee: z.union([z.string(), z.number()]).optional(),
   applicationPhotoRequired: z.preprocess((v) => (v === undefined ? undefined : v === true || v === "on" || v === "true"), z.boolean().optional()),
   admissionFee: z.preprocess((v) => (v === "" || v === undefined ? "0" : v), z.union([z.string(), z.number()])),
@@ -108,7 +113,7 @@ export async function updateAdmissionPolicy(ctx: AuthContext, input: unknown) {
     assessmentByLevel[id] = v as AssessmentRule;
   }
   const value: AdmissionPolicy = {
-    requireInterview: d.requireInterview, requiredDocTypes: [...new Set(d.requiredDocTypes)], applicationPhotoRequired: true, applicationFeeCents: 0, admissionFeeCents: fee, requirePaymentBeforeEnrol: d.requirePaymentBeforeEnrol,
+    requireInterview: d.requireInterview, requiredDocTypes: [...new Set(d.requiredDocTypes)], transferDocTypes: [], applicationPhotoRequired: true, applicationFeeCents: 0, admissionFeeCents: fee, requirePaymentBeforeEnrol: d.requirePaymentBeforeEnrol,
     offerValidDays: d.offerValidDays, offerNeedsApproval: d.offerNeedsApproval, allowDirectRegistration: d.allowDirectRegistration, interviewMinutes: d.interviewMinutes, paymentNeedsSecondPerson: d.paymentNeedsSecondPerson, assessmentByLevel: levelIds.length === 0 ? (await getAdmissionPolicy(db, ctx.schoolId)).assessmentByLevel : assessmentByLevel,
   };
   const before = await getAdmissionPolicy(db, ctx.schoolId);
@@ -116,6 +121,8 @@ export async function updateAdmissionPolicy(ctx: AuthContext, input: unknown) {
   const applicationFee = d.applicationFee === undefined ? before.applicationFeeCents : d.applicationFee === "" ? 0 : parseAmount(d.applicationFee);
   if (applicationFee === null) throw invalid("Please correct the highlighted fields.", { applicationFee: "Enter an amount such as 0 or 10000" });
   value.applicationFeeCents = applicationFee;
+  // The screen posts the fee field, so then an empty list means none are required; a caller that leaves both out keeps what is set.
+  value.transferDocTypes = d.applicationFee !== undefined ? [...new Set(d.transferDocTypes ?? [])] : before.transferDocTypes;
   // The screen always posts the fee field, so an unticked box then means "not required"; a caller that leaves both out keeps what is set.
   value.applicationPhotoRequired = d.applicationFee !== undefined ? d.applicationPhotoRequired === true : before.applicationPhotoRequired;
   await db.$transaction(async (tx) => {
@@ -129,4 +136,9 @@ export function assessmentFor(policy: AdmissionPolicy, levelId: string | null): 
   const rule = levelId ? policy.assessmentByLevel[levelId] : undefined;
   if (!rule) return { interview: policy.requireInterview, exam: false };
   return { interview: rule === "INTERVIEW" || rule === "BOTH", exam: rule === "EXAM" || rule === "BOTH" };
+}
+
+/** The papers an application needs for its kind: the school's required papers, and for a transfer also the transfer papers. */
+export function requiredDocsFor(policy: Pick<AdmissionPolicy, "requiredDocTypes" | "transferDocTypes">, entryType: string | null | undefined): string[] {
+  return [...new Set([...policy.requiredDocTypes, ...(entryType === "TRANSFER" ? policy.transferDocTypes : [])])];
 }

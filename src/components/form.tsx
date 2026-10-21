@@ -193,6 +193,25 @@ export function Field({
   );
 }
 
+/** A file input that shows the field's error like every other field. After a failed send the browser clears it, so the person picks the file again. */
+export function FileField({ name, label, hint, required, accept, optionalLabel, className }: { name: string; label: string; hint?: string; required?: boolean; accept?: string; optionalLabel?: string; className?: string }) {
+  const { errors } = useContext(Ctx);
+  const id = useId();
+  const error = errors?.[name];
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink">
+        {label}
+        {required ? <span aria-hidden className="ml-0.5 text-bad"> *</span> : null}
+        {!required && optionalLabel ? <span className="ml-1 font-normal text-muted">({optionalLabel})</span> : null}
+      </label>
+      <input id={id} name={name} type="file" accept={accept} required={required} aria-invalid={error ? true : undefined} aria-describedby={[hint ? `${id}-hint` : null, error ? `${id}-err` : null].filter(Boolean).join(" ") || undefined} className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-2 file:text-sm file:font-medium file:text-link`} />
+      {hint && <p id={`${id}-hint`} className="mt-1 text-sm text-muted">{hint}</p>}
+      {error && <p id={`${id}-err`} className="mt-1 text-sm text-bad">{error}</p>}
+    </div>
+  );
+}
+
 /** Simple multi-checkbox group (used for roles and permissions). */
 export function CheckGroup({ name, options, selected, disabled }: { name: string; options: { value: string; label: string; hint?: string; disabled?: boolean }[]; selected: string[]; disabled?: boolean }) {
   return (
