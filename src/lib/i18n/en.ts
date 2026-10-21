@@ -4165,6 +4165,20 @@ export const en = {
   "appexam.title": "Applicant examinations",
   "appexam.none": "No applicant examinations here.",
   "appexam.back": "Back to applicant examinations",
+  "adm.reg.registered": "Registered",
+  "adm.reg.studentId": "Student ID",
+  "adm.reg.inClass": "Class",
+  "adm.reg.noClassYet": "No class yet: waiting in Class placement",
+  "adm.reg.openStudent": "Open the student record",
+  "adm.reg.confirmTitle": "Register the student",
+  "adm.reg.confirmSub": "These details come from the application form, so nothing is typed again. Check them, correct anything that is wrong with Edit details, then register.",
+  "adm.reg.edit": "Edit details",
+  "adm.reg.classLabel": "Class",
+  "adm.reg.classHint": "The class the family applied for is chosen for you. Choose another if needed. If a class is full you will be told.",
+  "adm.reg.classLater": "Leave the class for later (Class placement)",
+  "adm.reg.go": "Register and give the Student ID",
+  "adm.reg.full": "{class} is full ({n}/{cap}). Choose another class or leave it for later.",
+  "adm.reg.blocked": "Registration can start when everything above is done.",
 } as const;
 
 export type MessageKey = keyof typeof en;

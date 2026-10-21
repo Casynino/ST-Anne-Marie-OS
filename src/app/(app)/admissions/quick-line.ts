@@ -28,8 +28,7 @@ export function quickActs(r: DeskRow, t: Translate, can: Can, now: number): Quic
   const examsWait = examsAllowDecision(r.exam.state) ? null : t("adm.q.wait.exams");
   if (r.state === "INTERVIEW_SCHEDULED" && iv) out.push({ kind: "RESULT", why: r.interviewAt && r.interviewAt.getTime() > now ? t("adm.q.wait.date") : examsWait });
   if (r.state === "AWAITING_DECISION" && decide) out.push({ kind: "ACCEPT", why: examsWait });
-  // Registration needs the school fee verified by Finance first when the school asks for it.
-  if (r.state === "ACCEPTED" && can("student.enroll")) out.push({ kind: "ENROL", why: r.after === "payment" ? t("adm.q.wait.payment") : null });
+  // Registering an accepted applicant is done on the accepted applicant's own page (it confirms the details and the class), not by a button here.
   if (decide && r.state !== "ACCEPTED" && ["review", "interview"].includes(stageOf(r.state))) out.push({ kind: "DECLINE", why: null });
   return out;
 }

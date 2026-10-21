@@ -3,6 +3,7 @@ import { notFound } from "@/lib/errors";
 import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
 import { centsOf } from "@/lib/finance/money";
 import { acceptedDesk, deskRow, type DeskRow } from "@/server/admission-desk";
+import { getApplication } from "@/server/admissions";
 import { enrolmentReadiness, loadAdmissionAccount, type ReadinessItem } from "@/server/admission-offers";
 import { examSummaryOf, eligibleTeachers, type ExamSummary } from "@/server/admission-exams";
 import { getAdmissionPolicy } from "@/server/admission-policy";
@@ -45,10 +46,51 @@ export async function acceptedCounts(ctx: AuthContext): Promise<{ payment: numbe
   return { payment: rows.filter((r) => r.after === "payment").length, registration: rows.filter((r) => r.after === "registration").length };
 }
 
+export type PlacementChoices = {
+  options: { value: string; label: string; full: boolean }[];
+  /** The class the family applied for (with the least-filled stream when it has streams), or "" when that class is full or none was asked for. */
+  preferred: string; appliedClass: string | null; appliedFull: { count: number; capacity: number } | null;
+};
 export type AcceptedDetail = AcceptedRow & {
   row: DeskRow; offerStatus: string | null; waived: boolean; classOffered: string | null; instructions: string; reference: string;
   payments: { id: string; amountCents: number; method: string; reference: string | null; paidOn: Date; status: string; receiptNo: string | null }[];
+  /** Everything the family gave on the application form, so registration confirms it instead of typing it again. */
+  application: Awaited<ReturnType<typeof getApplication>>; placement: PlacementChoices;
 };
+
+/** The classes (and streams) a student can be registered into, how full each is, and the one to preselect: the class applied for. */
+export async function placementChoices(ctx: AuthContext, classAppliedId: string | null): Promise<PlacementChoices> {
+  const year = await db.academicYear.findFirst({ where: { schoolId: ctx.schoolId, isCurrent: true }, select: { id: true } });
+  const [classes, counts] = await Promise.all([
+    db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: { sortOrder: "asc" }, include: { streams: { orderBy: { name: "asc" } } } }),
+    year ? db.studentEnrollment.groupBy({ by: ["classId", "streamId"], where: { schoolId: ctx.schoolId, academicYearId: year.id, status: "ACTIVE" }, _count: { _all: true } }) : [],
+  ]);
+  const inClass = (id: string) => counts.filter((c) => c.classId === id).reduce((n, c) => n + c._count._all, 0);
+  const inStream = (classId: string, streamId: string) => counts.find((c) => c.classId === classId && c.streamId === streamId)?._count._all ?? 0;
+  const full = (c: { id: string; capacity: number | null }) => !!c.capacity && inClass(c.id) >= c.capacity;
+  const options = classes.flatMap((c) => {
+    const note = c.capacity ? ` (${inClass(c.id)}/${c.capacity}${full(c) ? " full" : ""})` : "";
+    return c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}`, full: full(c) })) : [{ value: c.id, label: `${c.name}${note}`, full: full(c) }];
+  });
+  const applied = classAppliedId ? classes.find((c) => c.id === classAppliedId) ?? null : null;
+  let preferred = "";
+  if (applied && !full(applied)) preferred = applied.streams.length ? `${applied.id}|${[...applied.streams].sort((a, b) => inStream(applied.id, a.id) - inStream(applied.id, b.id))[0]!.id}` : applied.id;
+  return { options, preferred, appliedClass: applied?.name ?? null, appliedFull: applied && full(applied) ? { count: inClass(applied.id), capacity: applied.capacity! } : null };
+}
+
+/** Someone registered from the accepted list: their Student ID and class, shown instead of the registration form. null when they are not registered. */
+export async function registeredSummary(ctx: AuthContext, applicationId: string) {
+  requirePermission(ctx, "admission.read");
+  const app = await db.application.findFirst({ where: { id: applicationId, schoolId: ctx.schoolId, status: "ENROLLED" }, select: { applicationNo: true, firstName: true, lastName: true, studentId: true } });
+  if (!app?.studentId) return null;
+  const year = await db.academicYear.findFirst({ where: { schoolId: ctx.schoolId, isCurrent: true }, select: { id: true } });
+  const [student, enrolment] = await Promise.all([
+    db.student.findFirst({ where: { id: app.studentId, schoolId: ctx.schoolId }, select: { id: true, admissionNo: true } }),
+    year ? db.studentEnrollment.findFirst({ where: { schoolId: ctx.schoolId, studentId: app.studentId, academicYearId: year.id, status: "ACTIVE" }, select: { class: { select: { name: true } }, stream: { select: { name: true } } } }) : null,
+  ]);
+  if (!student) return null;
+  return { applicationNo: app.applicationNo, name: `${app.firstName} ${app.lastName}`, studentId: student.id, admissionNo: student.admissionNo, className: enrolment ? `${enrolment.class.name}${enrolment.stream ? ` – ${enrolment.stream.name}` : ""}` : null };
+}
 
 /** The admission and payment view of one accepted applicant. Anybody who is not (or no longer) in this stage gets "not found": their own stage view is elsewhere. */
 export async function acceptedDetail(ctx: AuthContext, applicationId: string): Promise<AcceptedDetail> {
@@ -56,12 +98,13 @@ export async function acceptedDetail(ctx: AuthContext, applicationId: string): P
   const row = await deskRow(ctx, applicationId);
   if (row.state !== "ACCEPTED") throw notFound("Accepted applicant");
   const base = await toAccepted(ctx, row);
-  const [{ offer, payments }, setup, classOffered] = await Promise.all([
+  const [{ offer, payments }, setup, classOffered, application, placement] = await Promise.all([
     loadAdmissionAccount(db, ctx.schoolId, applicationId), paymentSetup(ctx.schoolId),
     db.admissionOffer.findFirst({ where: { applicationId, schoolId: ctx.schoolId }, select: { classOfferedId: true } }).then((o) => (o?.classOfferedId ? db.schoolClass.findFirst({ where: { id: o.classOfferedId, schoolId: ctx.schoolId }, select: { name: true } }) : null)),
+    getApplication(ctx, applicationId), placementChoices(ctx, row.classAppliedId),
   ]);
   return {
-    ...base, row, offerStatus: offer?.status ?? null, waived: !!offer?.paymentWaivedAt, classOffered: classOffered?.name ?? null, instructions: setup.instructions, reference: row.applicationNo,
+    ...base, row, application, placement, offerStatus: offer?.status ?? null, waived: !!offer?.paymentWaivedAt, classOffered: classOffered?.name ?? null, instructions: setup.instructions, reference: row.applicationNo,
     payments: payments.map((p) => ({ id: p.id, amountCents: centsOf(p.amount), method: p.method, reference: p.reference, paidOn: p.paidOn, status: p.status, receiptNo: p.receiptNo })),
   };
 }

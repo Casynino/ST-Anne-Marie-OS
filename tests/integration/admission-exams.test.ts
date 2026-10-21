@@ -428,3 +428,54 @@ describe("who sees which examinations", () => {
     expect((await taskOf(iv.id, english.id)).id).toBe(eng.id);
   });
 });
+
+describe("registering an accepted applicant", () => {
+  /** An applicant who passed, with the school fee verified by Finance: waiting in Registration. */
+  async function readyToRegister(classId: string) {
+    await setPolicy({ fee: "50000" });
+    const { a, iv } = await interviewed(classId);
+    await pastInterview(iv.id);
+    expect(await flow.recordQuickResult(rehema, a.id, { outcome: "PASSED" })).toMatchObject({ landing: "payment" });
+    const { payment } = await offers.recordAdmissionPayment(finance, a.id, { amount: "50000", method: "CASH", reference: `REG-${a.id.slice(-8)}` });
+    await offers.verifyAdmissionPayment(finance, payment.id);
+    return a;
+  }
+
+  it("shows what the family wrote, preselects the class applied for, gives the Student ID and the class at once; a full class is refused; the class can wait; the page never goes missing afterwards", async () => {
+    const levelId = (await db.schoolClass.findUniqueOrThrow({ where: { id: nurseryClassId } })).levelId;
+    const tiny = await academics.createClass(admin, { levelId, name: "Tiny Nursery", sortOrder: 5, capacity: 1 });
+
+    const first = await readyToRegister(tiny.id);
+    const detail = await stages.acceptedDetail(rehema, first.id);
+    expect(detail.application).toMatchObject({ firstName: first.firstName, lastName: first.lastName, className: "Tiny Nursery" }); // the form's data, nothing retyped
+    expect(detail.application.guardians[0]?.fullName).toMatch(/^Parent /);
+    expect(detail.placement).toMatchObject({ preferred: tiny.id, appliedClass: "Tiny Nursery", appliedFull: null });
+    await admissions.enrolApplication(rehema, first.id, { classId: tiny.id });
+    const done = await stages.registeredSummary(rehema, first.id);
+    expect(done).toMatchObject({ className: "Tiny Nursery" });
+    expect(done?.admissionNo).toBeTruthy();
+    expect(await db.studentEnrollment.count({ where: { studentId: done!.studentId, classId: tiny.id, status: "ACTIVE" } })).toBe(1);
+    expect(await code(stages.acceptedDetail(rehema, first.id))).toBe("NOT_FOUND"); // the page then shows the registered view, not a missing page
+    expect(await stages.registeredSummary(rehema, "0199aaaa-0000-7000-8000-000000000000")).toBeNull();
+
+    // the class is now full: nothing preselected, the choice says so, registering into it is refused and creates nothing
+    const second = await readyToRegister(tiny.id);
+    const d2 = await stages.acceptedDetail(rehema, second.id);
+    expect(d2.placement).toMatchObject({ preferred: "", appliedFull: { count: 1, capacity: 1 } });
+    expect(d2.placement.options.find((o) => o.value === tiny.id)).toMatchObject({ full: true });
+    const refused = await admissions.enrolApplication(rehema, second.id, { classId: tiny.id }).then(() => null, (e: AppError) => e);
+    expect(refused?.code).toBe("CONFLICT");
+    expect(refused?.message).toMatch(/full/);
+    expect((await db.application.findUniqueOrThrow({ where: { id: second.id } })).studentId).toBeNull();
+    await admissions.enrolApplication(rehema, second.id, { classId: nurseryClassId }); // another class works
+
+    // or the class is left for later: the student has the ID and waits in Class placement
+    const third = await readyToRegister(tiny.id);
+    await admissions.enrolApplication(rehema, third.id, {});
+    const later = await stages.registeredSummary(rehema, third.id);
+    expect(later?.className).toBeNull();
+    expect(later?.admissionNo).toBeTruthy();
+    expect((await awaitingPlacement(rehema)).map((x) => x.id)).toContain(later!.studentId);
+    await setPolicy();
+  });
+});

@@ -6,19 +6,21 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { AppError } from "@/lib/errors";
 import { displayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
-import { acceptedDetail, type AcceptedDetail } from "@/server/admission-stages";
+import { acceptedDetail, registeredSummary, type AcceptedDetail } from "@/server/admission-stages";
 import { AdmissionsNav } from "@/components/admissions/subnav";
+import { ActionForm, Field } from "@/components/form";
 import { Badge, Card, DefList, EmptyState, LinkButton, NoAccess, PageHeader } from "@/components/ui";
-import { QuickBar } from "../../quick-actions";
-import { missingLabels, quickActs, quickLabels } from "../../quick-line";
-import { quickDecisionAction } from "../../actions";
+import { enrolApplicationAction } from "../../actions";
+import { ConfirmBoxes } from "../../[id]/parts";
 
 export const metadata: Metadata = { title: "Admission and payment" };
 const PAY_TONE = { VERIFIED: "ok", PENDING: "warn", REJECTED: "bad", REVERSED: "bad" } as const;
 
 /**
  * The admission and payment view of an accepted applicant: the decision, the school fee and what Finance has verified, and what still has to
- * be true before registration. Registering is a separate step (the official student record and Student ID); a class is given after that.
+ * be true before registration. Registering shows what the family wrote on the application form (nothing is typed again, and anything can be
+ * corrected first) and the class they applied for; the student gets the permanent Student ID at that moment. Once registered, this address
+ * shows the Student ID and class instead of going missing.
  */
 export default async function AcceptedPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireContext();
@@ -30,22 +32,33 @@ export default async function AcceptedPage({ params }: { params: Promise<{ id: s
   try {
     d = await acceptedDetail(ctx, id);
   } catch (e) {
-    if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
+    if (e instanceof AppError && e.code === "NOT_FOUND") {
+      // Registered already: show the result, never a missing page.
+      const done = await registeredSummary(ctx, id);
+      if (!done) notFound();
+      return (
+        <>
+          <PageHeader title={done.name} subtitle={`${done.applicationNo} · ${t("adm.reg.registered")}`} actions={<LinkButton href={`/admissions/${id}`} variant="secondary">{t("adm.iw.details")}</LinkButton>} />
+          <AdmissionsNav ctx={ctx} t={t} current="/admissions/registration" />
+          <Card title={t("adm.reg.registered")}>
+            <DefList items={[{ label: t("adm.reg.studentId"), value: done.admissionNo }, { label: t("adm.reg.inClass"), value: done.className ?? t("adm.reg.noClassYet") }]} />
+            <p className="mt-4 text-sm"><Link href={`/students/${done.studentId}`} className="font-medium text-link hover:underline">{t("adm.reg.openStudent")}</Link>{!done.className && <> · <Link href="/admissions/placement" className="font-medium text-link hover:underline">{t("adm.nav.placement")}</Link></>}</p>
+          </Card>
+        </>
+      );
+    }
     if (e instanceof AppError) return <EmptyState>{e.message}</EmptyState>;
     throw e;
   }
   const can = (p: Parameters<typeof ctx.permissions.has>[0]) => ctx.permissions.has(p);
-  const row = d.row;
+  const app = d.application;
+  const ready = d.remaining.length === 0;
+  const emergency = app.emergencyContact as { name?: string; phone?: string; relationship?: string } | null;
+  const pl = d.placement;
   return (
     <>
       <PageHeader title={d.name} subtitle={`${d.applicationNo} · ${t(d.after === "payment" ? "adm.awaiting.title" : "adm.reg.title")}`} actions={<LinkButton href={`/admissions/${id}`} variant="secondary">{t("adm.iw.details")}</LinkButton>} />
       <AdmissionsNav ctx={ctx} t={t} current={d.after === "payment" ? "/admissions/payment" : "/admissions/registration"} />
-      <div className="mb-5">
-        <QuickBar
-          line={{ id, name: d.name, className2: d.className ?? t("adm.noClass"), classId: row.classAppliedId, acts: quickActs(row, t, can, Date.now()), afterReview: row.afterReview, pendingDocs: row.pendingDocs, missing: missingLabels(row, t), interviewDetail: null }}
-          labels={quickLabels(t)} dismiss={t("adm.bulk.dismiss")} quick={quickDecisionAction} slots={[]}
-        />
-      </div>
       <div className="grid gap-5 xl:grid-cols-[1fr_22rem]">
         <div className="space-y-5">
           <Card title={t("adm.acc.registerChecks")}>
@@ -57,7 +70,44 @@ export default async function AcceptedPage({ params }: { params: Promise<{ id: s
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-sm text-muted">{t("adm.acc.registerNote")}</p>
+          </Card>
+
+          <Card title={t("adm.reg.confirmTitle")} actions={can("admission.create") ? <LinkButton href={`/admissions/${id}/edit`} variant="secondary">{t("adm.reg.edit")}</LinkButton> : undefined}>
+            <p className="mb-4 text-sm text-muted">{t("adm.reg.confirmSub")}</p>
+            <DefList items={[
+              { label: t("adm.applicant"), value: [app.firstName, app.middleName, app.lastName].filter(Boolean).join(" ") },
+              { label: t("student.dob"), value: displayDate(app.dateOfBirth, ctx.locale) },
+              { label: t("student.gender"), value: app.gender === "MALE" ? t("student.male") : t("student.female") },
+              { label: t("adm.classApplied"), value: app.className },
+              { label: t("student.nationality"), value: app.nationality },
+              { label: t("student.religion"), value: app.religion },
+              { label: t("student.birthCert"), value: app.birthCertificateNo },
+              { label: t("student.previousSchool"), value: app.previousSchool },
+              { label: t("common.address"), value: app.address },
+              { label: t("adm.emergency"), value: emergency?.name ? `${emergency.name} (${emergency.relationship ?? ""}) ${emergency.phone ?? ""}` : null },
+            ]} />
+            <h3 className="mb-1 mt-5 text-xs uppercase tracking-wide text-muted">{t("adm.guardians")}</h3>
+            <ul className="divide-y divide-line text-sm">
+              {app.guardians.map((g, i) => (
+                <li key={i} className="py-2">
+                  <p className="font-medium">{g.fullName ?? "—"}{g.relationship && <span className="font-normal text-muted"> · {t(`student.rel.${g.relationship as "FATHER"}`)}</span>}</p>
+                  <p className="text-muted">{[g.phone, g.email].filter(Boolean).join(" · ")}</p>
+                </li>
+              ))}
+            </ul>
+
+            {can("admission.enrol") && (
+              ready ? (
+                <ActionForm action={enrolApplicationAction} submitLabel={t("adm.reg.go")} className="mt-5 space-y-3 border-t border-line pt-4">
+                  <input type="hidden" name="id" value={id} />
+                  {pl.appliedFull && <p role="status" className="rounded-lg border border-warn/40 bg-amber-50 px-3 py-2 text-sm text-warn">{t("adm.reg.full", { class: pl.appliedClass ?? "", n: String(pl.appliedFull.count), cap: String(pl.appliedFull.capacity) })}</p>}
+                  {can("student.enroll") && <Field name="placement" type="select" label={t("adm.reg.classLabel")} hint={t("adm.reg.classHint")} options={pl.options.map((o) => ({ value: o.value, label: o.label }))} defaultValue={pl.preferred} placeholder={t("adm.reg.classLater")} />}
+                  {can("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} optionalLabel={t("common.optional")} /></>}
+                  <Field name="admissionDate" label={t("student.admissionDate")} type="date" optionalLabel={t("common.optional")} />
+                  <ConfirmBoxes duplicate={t("student.confirmDuplicate")} sharedPhone={t("adm.confirmSharedPhone")} />
+                </ActionForm>
+              ) : <p className="mt-5 border-t border-line pt-4 text-sm text-muted">{t("adm.reg.blocked")}</p>
+            )}
           </Card>
 
           <Card title={t("adm.acc.payment")} actions={d.accountStatus ? <Badge tone={d.accountStatus === "PAID" || d.accountStatus === "NOT_REQUIRED" || d.accountStatus === "WAIVED" ? "ok" : "warn"}>{t(`adm.pay.status.${d.accountStatus}` as "adm.pay.status.PAID")}</Badge> : undefined}>
