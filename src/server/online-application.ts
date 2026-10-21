@@ -79,7 +79,8 @@ type SchoolLite = { id: string; timezone: string };
 export async function prepareOnline(school: SchoolLite, d: OnlineForm) {
   const today = parseDateOnly(todayInTimezone(school.timezone)) as Date;
   const age = ageOn(d.dateOfBirth, today);
-  if (d.dateOfBirth >= today || age > 25) throw invalid("Please correct the highlighted fields.", { dateOfBirth: "Enter the child's real date of birth" });
+  if (d.dateOfBirth >= today) throw invalid("Please correct the highlighted fields.", { dateOfBirth: "The date of birth must be in the past" });
+  if (age > 25) throw invalid("Please correct the highlighted fields.", { dateOfBirth: "The applicant must be 25 years old or younger. Check the year." });
   const cls = await db.schoolClass.findFirst({ where: { id: d.classAppliedId, schoolId: school.id, isActive: true }, select: { id: true } });
   if (!cls) throw invalid("Please correct the highlighted fields.", { classAppliedId: "Choose a class from the list" });
   const intake = await db.academicYear.findFirst({ where: { schoolId: school.id, endsOn: { gte: today } }, orderBy: { startsOn: "asc" }, select: { id: true } });
