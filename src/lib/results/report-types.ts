@@ -5,7 +5,7 @@ export type ReportSnapshot = {
   student: { id: string; admissionNo: string; name: string; gender: string; dateOfBirth: string };
   term: { id: string; name: string; year: string; startsOn: string; endsOn: string };
   class: { id: string; name: string; stream: string | null; level: string };
-  scale: { name: string; bands: { grade: string; min: number; max: number; points: number | null }[]; passMark: number | null; divisionBestN: number | null };
+  scale: { name: string; bands: { grade: string; min: number; max: number; points: number | null }[]; passMark: number | null; divisionBestN: number | null; /** Added later: older cards do not have it. */ divisions?: { division: string; minPoints: number; maxPoints: number }[] };
   policy: { absentAs: "EXCLUDE" | "ZERO"; positionBy: "AVERAGE" | "TOTAL"; decimals: number };
   exams: { id: string; name: string; weight: number }[];
   subjects: {

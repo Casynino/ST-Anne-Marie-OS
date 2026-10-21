@@ -175,7 +175,7 @@ export async function buildSnapshots(client: Db | Tx, schoolId: string, opts: { 
       student: { id: r.studentId, admissionNo: r.student.admissionNo, name: r.student.name, gender: info?.gender ?? "", dateOfBirth: info ? formatDateOnly(info.dateOfBirth) : "" },
       term: { id: term.id, name: term.name, year: term.academicYear.name, startsOn: formatDateOnly(term.startsOn), endsOn: formatDateOnly(term.endsOn) },
       class: { id: res.class.id, name: res.class.name, stream: r.streamName, level: res.class.level },
-      scale: { name: scale.name, bands: scale.bands, passMark: scale.passMark, divisionBestN: scale.divisionBestN },
+      scale: { name: scale.name, bands: scale.bands, passMark: scale.passMark, divisionBestN: scale.divisionBestN, divisions: scale.divisions },
       policy: { absentAs: res.policy.absentAs, positionBy: res.policy.positionBy, decimals: res.policy.decimals },
       exams: res.exams.map((e) => ({ id: e.id, name: e.name, weight: e.weight })),
       subjects: r.subjects.map((l) => {

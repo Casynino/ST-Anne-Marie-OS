@@ -99,7 +99,7 @@ export async function computeClassResults(client: Db | Tx, schoolId: string, opt
   return {
     basis, term: { id: term.id, name: term.name, year: term.academicYear.name }, class: { id: cls.id, name: cls.name, level: cls.level.name }, streams: cls.streams,
     stream: opts.streamId ? (streamName.get(opts.streamId) ?? null) : null,
-    scale: scale ? { id: scale.id, name: scale.name, bands: scale.bands, divisionBestN: scale.divisionBestN, passMark: scale.passMark } : null,
+    scale: scale ? { id: scale.id, name: scale.name, bands: scale.bands, divisionBestN: scale.divisionBestN, passMark: scale.passMark, divisions: scale.divisions } : null,
     policy: settings, subjects: subjectRows, exams: exams.map((e) => ({ id: e.id, name: e.name, weight: Number(e.weight), category: e.category })),
     coverage, rows, examMarks: perExam,
     summaries: Object.fromEntries(subjectRows.map((s) => [s.id, subjectSummary(results, s.id, settings.decimals)])),

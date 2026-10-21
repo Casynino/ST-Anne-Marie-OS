@@ -16,6 +16,10 @@ export function pdfLabels(locale: Locale): PdfLabels {
     attendance: t("rc.attendance"), attDays: t("rc.attDays"), attPresent: t("rc.attPresent"), attAbsent: t("rc.attAbsent"), attLate: t("rc.attLate"), attExcused: t("rc.attExcused"), attRate: t("rc.attRate"), attNone: t("rc.attNone"),
     remarkClass: t("rc.remarkClass"), remarkHead: t("rc.remarkHead"), noRemark: t("rc.noRemark"), signClass: t("rc.signClass"), signHead: t("rc.signHead"), signParent: t("rc.signParent"), stamp: t("rc.stamp"), date: t("rc.date"),
     key: t("rc.key"), generated: t("rc.generated", { date: "{date}" }), incNote: t("rc.incNote"),
+    ref: t("rcp.ref"), name: t("rcp.name"), dear: t("rcp.dear"), re: t("rcp.re"), marks: t("rcp.marks"), gradeRow: t("rcp.gradeRow"), termResult: t("rcp.termResult"), classMean: t("rcp.classMean"), subjectPos: t("rcp.subjectPos"),
+    tot: t("rcp.tot"), av: t("rcp.av"), div: t("rcp.div"), pts: t("rcp.pts"), veryGood: t("rcp.veryGood"), good: t("rcp.good"), weak: t("rcp.weak"), fail: t("rcp.fail"),
+    commentClass: t("rcp.commentClass"), commentLead: t("rcp.commentLead"), teacherName: t("rcp.teacherName"), signature: t("rcp.signature"), headName: t("rcp.headName"), officialStamp: t("rcp.officialStamp"), cut: t("rcp.cut"),
+    ackTitle: t("rcp.ackTitle"), ack: t("rcp.ack", { name: "{name}", class: "{class}", term: "{term}" }), ackName: t("rcp.ackName"),
   };
 }
 
