@@ -160,7 +160,7 @@ export async function updateOfficeDraftAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await office.updateOfficeDraft(ctx, str(i.id), i); return { redirectTo: `/admissions/drafts/${str(i.id)}` }; });
 }
 export async function cancelOfficeDraftAction(_: ActionState, form: FormData) {
-  return run(form, async (ctx, i) => { await office.cancelOfficeDraft(ctx, str(i.id), { reason: i.reason }); return { redirectTo: "/admissions/drafts" }; });
+  return run(form, async (ctx, i) => { await office.cancelOfficeDraft(ctx, str(i.id), { reason: i.reason }); return { redirectTo: "/admissions" }; });
 }
 export async function uploadOfficeDraftDocumentAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {

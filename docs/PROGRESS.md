@@ -273,4 +273,4 @@ Nino sent two briefs: (1) admissions, finance and administrative control with an
 - **Database and access:** migration `phase17_interview_days` (interview creator may be empty) and the new permission `admission.window.manage` (Registrar, Head Teacher): on each database run the migration, then `npm run db:bootstrap`. Neon only when Nino says: `phase12_*`, `phase13_library`, `phase14_admissions_desk`, `phase15_office_application`, `phase16_registrar_attendance_view_only`, `phase17_interview_days`, then bootstrap.
 - **Tests:** `tests/unit/interview-days.test.ts` (3), `tests/integration/interview-days.test.ts` (7).
 - **Open:** the unpaid-form list is still called "Waiting for fee" (office forms must wait for the fee to get a reference and printout); a family on a window gets one date per application (no choosing between days); Swahili text needs a native read-through.
-
+- Removed the "Waiting for fee" tab and list from Admissions (Nino: no application waits for payment). Unpaid office forms are kept by Finance (Finance > Application fees) until the family pays; only paid applications reach the Admissions list.
