@@ -109,6 +109,18 @@ describe("the steps an application takes", () => {
     expect((await desk.loadDesk(rehema, { state: "ENROLLED" }, 1)).rows.map((r) => r.id)).toContain(a.id);
   });
 
+  it("a reviewed application with no date is still under review: Accept only asks for the date, and the Under review tab lists it with the others", async () => {
+    const a = await newApp();
+    await review.verifyDocument(rehema, (await db.document.findFirstOrThrow({ where: { applicationId: a.id } })).id, { status: "VERIFIED" });
+    await review.reviewApplication(rehema, a.id, { decision: "VERIFIED" });
+    expect((await desk.loadDesk(rehema, {}, 1)).rows.find((r) => r.id === a.id)?.state).toBe("REVIEWED");
+    expect((await desk.loadDesk(rehema, { state: "UNDER_REVIEW" }, 1)).rows.map((r) => r.id)).toContain(a.id); // one simple status for everything waiting to be accepted
+    expect(await lists(a.id)).toEqual({ review: true, interview: false });
+    expect(await code(flow.acceptReview(rehema, a.id, {}))).toBe("VALIDATION"); // the date
+    expect(await flow.acceptReview(rehema, a.id, { scheduledAt: dayAt(20) })).toMatchObject({ state: "INTERVIEW_SCHEDULED", already: false }); // papers were already checked: no tick
+    expect(await lists(a.id)).toEqual({ review: false, interview: true });
+  });
+
   it("an interview day is a group session: several applicants accepted onto it share its hall", async () => {
     await days.addInterviewDay(rehema, { name: "Group day", on: ymd(26), time: "14:00", venue: "Hall C", capacity: 3 });
     const a = await newApp();

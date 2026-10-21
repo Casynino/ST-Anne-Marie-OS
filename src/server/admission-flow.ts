@@ -95,7 +95,7 @@ export async function giveInterviewDate(ctx: AuthContext, applicationId: string,
 export async function acceptReview(ctx: AuthContext, applicationId: string, input: { papersChecked?: boolean; scheduledAt?: string } = {}): Promise<{ state: string; already: boolean; landing?: Landing; note?: string }> {
   requirePermission(ctx, "admission.documents.verify");
   const row = await deskRow(ctx, applicationId);
-  if (row.state !== "NEW" && row.state !== "UNDER_REVIEW") return { state: row.state, already: true };
+  if (row.state !== "NEW" && row.state !== "UNDER_REVIEW" && row.state !== "REVIEWED") return { state: row.state, already: true };
   // An application that came with its interview date (from an application window) keeps it; one without a date needs one chosen now.
   const hasDate = row.interviewAt !== null;
   const toInterview = row.afterReview === "interview" || hasDate;
@@ -158,7 +158,7 @@ export async function recordQuickResult(ctx: AuthContext, applicationId: string,
 export async function sendBack(ctx: AuthContext, applicationId: string, note: string | undefined): Promise<{ told: "account" | "phone" }> {
   requirePermission(ctx, "admission.documents.verify");
   const row = await deskRow(ctx, applicationId);
-  if (row.state !== "NEW" && row.state !== "UNDER_REVIEW") throw conflict("Only an application under review can be sent back.");
+  if (row.state !== "NEW" && row.state !== "UNDER_REVIEW" && row.state !== "REVIEWED") throw conflict("Only an application under review can be sent back.");
   await reviewApplication(ctx, applicationId, { decision: "RETURNED", note });
   const n = await db.applicationNotice.findFirst({ where: { schoolId: ctx.schoolId, applicationId, kind: "INFO_NEEDED" }, orderBy: { createdAt: "desc" }, select: { status: true } });
   return { told: n?.status === "SENT_IN_APP" ? "account" : "phone" };

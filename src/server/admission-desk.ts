@@ -126,6 +126,7 @@ function applyDerived(rows: DeskRow[], f: DeskFilters): DeskRow[] {
   const searching = !!(f.q ?? "").trim();
   if (f.state === "AWAITING_INTERVIEW") r = r.filter((x) => x.state === "REVIEWED" && x.interview === "TO_ARRANGE");
   else if (f.state === "CLOSED") r = r.filter((x) => x.state === "REJECTED" || x.state === "WITHDRAWN");
+  else if (f.state === "UNDER_REVIEW") r = r.filter((x) => x.state === "NEW" || x.state === "UNDER_REVIEW" || x.state === "REVIEWED"); // one simple status for everything waiting to be accepted
   else if ((WORKFLOW_STATES as readonly string[]).includes(f.state ?? "")) r = r.filter((x) => x.state === f.state);
   else if (!searching) {
     // Each application is in one list: under review, then the interview, then accepted. Enrolled, declined and withdrawn ones are finished

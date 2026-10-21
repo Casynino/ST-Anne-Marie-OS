@@ -13,7 +13,7 @@ import { LinkButton, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { inputClass } from "@/components/form";
 import { stageOf, workflowProgress, type Stage, type WorkflowState } from "@/lib/admissions/rules";
 import { DeskTable, type DeskLabels, type DeskLine } from "./desk-table";
-import { bulkDeskAction, quickDecisionAction } from "./actions";
+import { quickDecisionAction } from "./actions";
 import { Pipeline, type PipelineTab } from "./pipeline";
 import { DeskFilters as FilterRow } from "./desk-filters";
 
@@ -58,7 +58,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
   const onAll = !sp.state && sp.attention !== "1";
   const tabs: PipelineTab[] = [
     mk("all", t("adm.stage.all"), c.stages[listStage], href({ stage: listStage === "review" ? undefined : listStage }), onAll && inList),
-    ...(stage === "review" ? [mk("NEW", t("adm.tab.NEW"), c.NEW, href({ state: "NEW" }), sp.state === "NEW"), mk("UNDER_REVIEW", t("adm.tab.UNDER_REVIEW"), c.UNDER_REVIEW, href({ state: "UNDER_REVIEW" }), sp.state === "UNDER_REVIEW"), mk("REVIEWED", t("adm.tab.REVIEWED"), c.REVIEWED, href({ state: "REVIEWED" }), sp.state === "REVIEWED"), mk("NEEDS_INFO", t("adm.tab.NEEDS_INFO"), c.NEEDS_INFO, href({ state: "NEEDS_INFO" }), sp.state === "NEEDS_INFO", { color: "var(--color-warn)" })] : []),
+    ...(stage === "review" ? [mk("UNDER_REVIEW", t("adm.tab.UNDER_REVIEW"), c.NEW + c.UNDER_REVIEW + c.REVIEWED, href({ state: "UNDER_REVIEW" }), sp.state === "UNDER_REVIEW"), mk("NEEDS_INFO", t("adm.tab.NEEDS_INFO"), c.NEEDS_INFO, href({ state: "NEEDS_INFO" }), sp.state === "NEEDS_INFO", { color: "var(--color-warn)" })] : []),
     ...(stage === "interview" ? [mk("AWAITING_DECISION", t("adm.tab.AWAITING_DECISION"), c.AWAITING_DECISION, href({ state: "AWAITING_DECISION" }), sp.state === "AWAITING_DECISION"), ...(c.ACCEPTED > 0 ? [mk("ACCEPTED", t("adm.tab.TOENROL"), c.ACCEPTED, href({ state: "ACCEPTED" }), sp.state === "ACCEPTED", { color: "var(--color-warn)" })] : [])] : []),
     mk("attention", t("adm.tab.ATTENTION"), c.attention, href({ attention: "1", stage: listStage === "review" ? undefined : listStage }), sp.attention === "1", { color: "var(--color-warn)", alert: true }),
     mk("ENROLLED", t("adm.tab.ENROLLED"), c.ENROLLED, href({ state: "ENROLLED" }), sp.state === "ENROLLED", { color: "var(--color-brand-800)" }),
@@ -74,13 +74,12 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
     const out: DeskLine["acts"] = [];
     const decide = can("admission.review"), verify = can("admission.documents.verify"), iv = can("admission.interview.manage");
     // Under review: accept only an application that is complete; anything missing is sent back to the family (who resend it), so nothing incomplete is accepted.
-    if ((r.state === "NEW" || r.state === "UNDER_REVIEW") && verify) {
+    if ((r.state === "NEW" || r.state === "UNDER_REVIEW" || r.state === "REVIEWED") && verify) {
       const missing = r.completeness.missing.map((k) => (k.startsWith("doc:") ? t(`doc.type.${k.slice(4) as "OTHER"}`) : k === "class" ? t("adm.missing.class") : t("adm.missing.contact")));
       out.push({ kind: "REVIEW", why: missing.length ? t("adm.q.wait.incomplete", { list: missing.join(", ") }) : null });
       out.push({ kind: "BACK", why: null });
     }
     // Sent back: it waits for the family, who send it again from their account (it then returns under review by itself); nothing to press here.
-    if (r.state === "REVIEWED" && iv && r.interview === "TO_ARRANGE") out.push({ kind: "DATE", why: null });
     if (r.state === "INTERVIEW_SCHEDULED" && iv) out.push({ kind: "RESULT", why: r.interviewAt && r.interviewAt.getTime() > now ? t("adm.q.wait.date") : null });
     if (r.state === "AWAITING_DECISION" && decide) out.push({ kind: "ACCEPT", why: null });
     if (r.state === "ACCEPTED" && can("student.enroll")) out.push({ kind: "ENROL", why: null });
@@ -97,8 +96,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
   }));
   const labels: DeskLabels = {
     applicant: t("adm.applicant"), guardian: t("adm.guardian"), class: t("adm.classApplied"), submitted: t("adm.appliedOn"), complete: t("adm.col.complete"), interview: t("adm.col.interview"), status: t("common.status"),
-    online: t("adm.online"), selectAll: t("adm.bulk.selectAll"), start: t("adm.bulk.start"), review: t("adm.bulk.review"), go: t("adm.bulk.go"), cancel: t("adm.bulk.cancel"), dismiss: t("adm.bulk.dismiss"),
-    never: t("adm.bulk.never"),
+    online: t("adm.online"), dismiss: t("adm.bulk.dismiss"),
     quick: {
       column: t("adm.col.action"), view: t("common.view"), accept: t("adm.q.accept"), decline: t("adm.q.decline"), date: t("adm.q.date"), result: t("adm.q.result"),
       acceptQ: t("adm.accept.confirm", { name: "{name}", class: "{class}" }), acceptAfter: t("adm.q.accept.after"), declineQ: t("adm.q.decline.q", { name: "{name}" }), declineReason: t("adm.q.decline.reason"), declineGo: t("adm.q.decline.go"),
@@ -109,9 +107,6 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
       back: t("adm.q.back"), backQ: t("adm.q.back.q", { name: "{name}" }), backNote: t("adm.q.back.note"), backDefault: t("adm.q.back.default", { list: "{list}" }), backAfter: t("adm.q.back.after"), backGo: t("adm.q.back.go"),
       enrol: t("adm.q.enrol"), enrolQ: t("adm.q.enrol.q", { name: "{name}" }), enrolAfter: t("adm.q.enrol.after"), enrolGo: t("adm.q.enrol.go"),
     },
-    selected: t("adm.bulk.selected", { n: "{n}" }), selectRow: t("adm.bulk.selectRow", { name: "{name}" }),
-    confirm: { START_REVIEW: t("adm.bulk.confirm.START_REVIEW", { n: "{n}" }), MARK_REVIEWED: t("adm.bulk.confirm.MARK_REVIEWED", { n: "{n}" }) },
-    done: t("adm.bulk.done", { n: "{n}" }), unchanged: t("adm.bulk.unchanged", { n: "{n}" }), failed: t("adm.bulk.failed", { n: "{n}" }),
   };
   const filtersOn = !!(sp.q || sp.classId || sp.from || sp.to || sp.interview || sp.source);
   const SEL = `${inputClass} !min-h-10 !w-auto !py-1.5 !text-sm`;
@@ -147,7 +142,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
         </select>
         <button className="inline-flex min-h-10 items-center rounded-md border border-line px-3 text-sm font-semibold hover:border-brand-500">{t("common.filter")}</button>
       </FilterRow>
-      <DeskTable rows={lines} labels={labels} canVerify={can("admission.documents.verify")} action={bulkDeskAction} quick={quickDecisionAction} view={stage === "interview" ? "interview" : "review"} empty={t("adm.none")} slots={slotRows.map((x) => ({ value: x.local, classIds: x.classIds, label: `${x.when}${x.name ? ` · ${x.name}` : ""}${x.venue ? ` · ${x.venue}` : ""}${x.count > 0 ? ` (${x.count})` : ""}` }))} />
+      <DeskTable rows={lines} labels={labels} quick={quickDecisionAction} view={stage === "interview" ? "interview" : "review"} empty={t("adm.none")} slots={slotRows.map((x) => ({ value: x.local, classIds: x.classIds, label: `${x.when}${x.name ? ` · ${x.name}` : ""}${x.venue ? ` · ${x.venue}` : ""}${x.count > 0 ? ` (${x.count})` : ""}` }))} />
       <Pagination page={desk.page} pageSize={desk.pageSize} total={desk.total} basePath="/admissions" params={{ ...keep, state: sp.state, stage: sp.stage, attention: sp.attention }} t={t} />
     </>
   );

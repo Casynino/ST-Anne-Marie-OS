@@ -12,27 +12,21 @@ export type DeskLine = {
   state: string; stateLabel: string; stateTone: "neutral" | "ok" | "warn" | "bad" | "brand"; step: number; stepLabel: string; className2: string; classId: string | null; acts: { kind: Kind; why: string | null }[]; afterReview: "interview" | "placement"; pendingDocs: number;
   interviewLabel: string; interviewDetail: string | null; percent: number; missing: string[]; attention: string[];
 };
-type Mode = "START_REVIEW" | "MARK_REVIEWED";
 type Kind = "REVIEW" | "ACCEPT" | "DECLINE" | "DATE" | "RESULT" | "ENROL" | "BACK";
 export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "date" | "result" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel" | "reviewQ" | "reviewToInterview" | "reviewToAccepted" | "reviewHasDate" | "papersChecked" | "dateQ" | "dateSlot" | "dateOther" | "dateWhen" | "dateGo" | "resultQ" | "resultPassed" | "resultNot" | "resultNote" | "resultGo" | "resultHint" | "enrol" | "enrolQ" | "enrolAfter" | "enrolGo" | "back" | "backQ" | "backNote" | "backDefault" | "backAfter" | "backGo", string>;
-export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "status" | "online" | "selectAll" | "start" | "review" | "go" | "cancel" | "dismiss" | "never", string>
-  & { quick: QuickLabels; selected: string; selectRow: string; confirm: Record<Mode, string>; done: string; unchanged: string; failed: string };
+export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "status" | "online" | "dismiss", string> & { quick: QuickLabels };
 
 /**
  * The applications of the desk, one row each, with a tick box on every row. Ticking some shows what can be done with them together
  * (start the review, mark as reviewed, give to a reviewer). A consequential action asks first, and afterwards the result says what was
  * done, what needed nothing and what could not be done and why. Accepting is never offered here.
  */
-export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots, view }: {
-  /** "interview": everyone listed has a confirmed interview date, so only the date, class and guardian are shown (no status, no completeness, no ticking). */
-  view: "review" | "interview"; empty: string; slots: { value: string; label: string; classIds: string[] | null }[]; rows: DeskLine[]; labels: DeskLabels; canVerify: boolean;
-  action: (prev: ActionState, form: FormData) => Promise<ActionState>;
+export function DeskTable({ rows, labels, quick, empty, slots, view }: {
+  /** "interview": everyone listed has a confirmed interview date, so only the date, class and guardian are shown (no status, no completeness). */
+  view: "review" | "interview"; empty: string; slots: { value: string; label: string; classIds: string[] | null }[]; rows: DeskLine[]; labels: DeskLabels;
   quick: (prev: ActionState, form: FormData) => Promise<ActionState>;
 }) {
   const router = useRouter();
-  const [picked, setPicked] = useState<string[]>([]);
-  const [mode, setMode] = useState<Mode | null>(null);
-  const [state, formAction, pending] = useActionState(async (prev: ActionState, form: FormData) => { const r = await action(prev, form); if (r?.ok) { setPicked([]); setMode(null); } return r; }, null);
   // Accept and Decline sit on the row of the application; each asks in a pop-up first, and the server applies the same rules as the full page.
   const [ask, setAsk] = useState<{ row: DeskLine; kind: Kind } | null>(null);
   const [slot, setSlot] = useState("");
@@ -56,11 +50,6 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
     if (ask && !d.open) d.showModal();
     if (!ask && d.open) d.close();
   }, [ask]);
-  const all = rows.length > 0 && picked.length === rows.length;
-  const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-  const outcome = state?.ok && state.data ? state.data : null;
-  const problems: { no: string; reason: string }[] = outcome?.problems ? JSON.parse(outcome.problems) : [];
-  const selectable = canVerify && view === "review";
 
   // The interview date: one of the days the school set, or another date and time. Used when giving a date and when accepting an application under review.
   const dateFields = (
@@ -85,41 +74,8 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
 
   return (
     <div className="space-y-3">
-      {outcome && (
-        <div role="status" className="rounded-xl border border-line bg-surface p-4 text-sm">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <span className="font-semibold text-ok">{labels.done.replace("{n}", outcome.done ?? "0")}</span>
-            <span className="text-muted">{labels.unchanged.replace("{n}", outcome.unchanged ?? "0")}</span>
-            <span className={Number(outcome.failed) > 0 ? "font-semibold text-bad" : "text-muted"}>{labels.failed.replace("{n}", outcome.failed ?? "0")}</span>
-            <Link href="?" className="ml-auto text-link hover:underline">{labels.dismiss}</Link>
-          </div>
-          {problems.length > 0 && <ul className="mt-2 list-disc space-y-0.5 pl-5 text-muted">{problems.map((p, i) => <li key={i}><span className="font-medium tabular-nums text-ink">{p.no}</span>: {p.reason}</li>)}</ul>}
-        </div>
-      )}
       {done && (
         <p role="status" className="flex flex-wrap items-center gap-x-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm"><span className="font-semibold text-ok">{done.name}</span><span>{done.text}</span><button type="button" onClick={() => setDone(null)} className="ml-auto text-link hover:underline">{labels.dismiss}</button></p>
-      )}
-      {state && !state.ok && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{state.error}</p>}
-
-      {selectable && picked.length > 0 && (
-        <form action={formAction} className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-brand-500/50 bg-surface p-3 text-sm shadow-[var(--shadow-lift)]">
-          {picked.map((id) => <input key={id} type="hidden" name="ids" value={id} />)}
-          <input type="hidden" name="action" value={mode ?? ""} />
-          <span className="font-semibold">{labels.selected.replace("{n}", String(picked.length))}</span>
-          {!mode ? (
-            <>
-              {canVerify && <button type="button" onClick={() => setMode("START_REVIEW")} className="min-h-10 rounded-md border border-line px-3 font-semibold hover:border-brand-500">{labels.start}</button>}
-              {canVerify && <button type="button" onClick={() => setMode("MARK_REVIEWED")} className="min-h-10 rounded-md border border-line px-3 font-semibold hover:border-brand-500">{labels.review}</button>}
-              <span className="ml-auto text-xs text-muted">{labels.never}</span>
-            </>
-          ) : (
-            <>
-              <span className="basis-full text-ink sm:basis-auto">{labels.confirm[mode].replace("{n}", String(picked.length))}</span>
-              <button disabled={pending} className="min-h-10 rounded-md bg-brand-700 px-4 font-semibold text-white hover:bg-brand-800 disabled:opacity-60">{labels.go}</button>
-              <button type="button" onClick={() => setMode(null)} className="min-h-10 px-2 text-muted hover:text-ink">{labels.cancel}</button>
-            </>
-          )}
-        </form>
       )}
 
       {rows.length === 0 ? <EmptyState>{empty}</EmptyState> : (
@@ -127,7 +83,6 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
         <table className="w-full min-w-[56rem] text-left text-sm">
           <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
             <tr>
-              {selectable && <th scope="col" className="w-10 px-1.5 py-3"><input type="checkbox" aria-label={labels.selectAll} checked={all} onChange={() => setPicked(all ? [] : rows.map((r) => r.id))} className="size-4 accent-brand-600" /></th>}
               {(view === "interview" ? [labels.applicant, labels.interview, labels.class, labels.guardian, q.column] : [labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, q.column]).map((h, i) => <th key={i} scope="col" className="px-1.5 py-3 font-medium">{h}</th>)}
             </tr>
           </thead>
@@ -136,9 +91,8 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
               <tr
                 key={r.id}
                 onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,label,select")) router.push(`/admissions/${r.id}`); }}
-                className={`cursor-pointer ${picked.includes(r.id) ? "bg-tint" : "hover:bg-canvas"}`}
+                className="cursor-pointer hover:bg-canvas"
               >
-                {selectable && <td className="px-1.5 py-3"><input type="checkbox" aria-label={labels.selectRow.replace("{name}", r.name)} checked={picked.includes(r.id)} onChange={() => toggle(r.id)} className="size-4 accent-brand-600" /></td>}
                 <td className="min-w-36 px-1.5 py-3">
                   <Link href={`/admissions/${r.id}`} className="font-semibold text-link hover:underline">{r.name}</Link>
                   <span className="block text-xs tabular-nums text-muted">{r.applicationNo}</span><span className="block text-xs text-muted">{r.submitted}{r.online ? ` · ${labels.online}` : ""}</span>
@@ -149,9 +103,6 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
                   <span className="flex items-center gap-1.5">
                     <Badge tone={r.stateTone}>{r.stateLabel}</Badge>
                     {r.attention.length > 0 && <span title={r.attention.join("\n")} className="inline-flex text-warn"><AlertTriangle className="size-4" aria-label={r.attention.join(", ")} /></span>}
-                  </span>
-                  <span role="img" aria-label={r.stepLabel} title={r.stepLabel} className="mt-1.5 flex w-24 gap-0.5">
-                    {[1, 2, 3, 4, 5].map((n) => <span key={n} className={`h-1 flex-1 rounded-sm ${n <= r.step ? (r.stateTone === "bad" ? "bg-bad" : "bg-brand-500") : "bg-line"}`} />)}
                   </span>
                 </td>
                 <td className="px-1.5 py-3" title={r.missing.join(", ")}>
