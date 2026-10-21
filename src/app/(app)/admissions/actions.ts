@@ -197,7 +197,7 @@ export async function recordCompletedInterviewAction(_: ActionState, form: FormD
   return run(form, async (ctx, i) => { await interviews.recordCompletedInterview(ctx, str(i.id), { kind: i.kind, heldAt: i.heldAt, outcome: i.outcome, score: i.score, notes: i.notes, interviewerId: i.interviewerId, recommendation: i.recommendation }); return saved(ctx); });
 }
 /**
- * The quick action on a row of the desk: Accept, Decline or Ask for more details. Each one goes through the same service as the full
+ * The quick action on a row of the desk: Accept or Decline. Each one goes through the same service as the full
  * application page, so every rule (papers verified, interview result, reason required, second-person approval) is checked there.
  */
 export async function quickDecisionAction(_: ActionState, form: FormData) {
@@ -212,9 +212,6 @@ export async function quickDecisionAction(_: ActionState, form: FormData) {
       case "DECLINE":
         await admissions.transitionApplication(ctx, id, { to: "REJECTED", reason: i.reason });
         return { message: t("adm.q.done.decline") };
-      case "ASK":
-        await review.reviewApplication(ctx, id, { decision: "RETURNED", note: i.note });
-        return { message: t("adm.q.done.ask") };
       default:
         throw new AppError("VALIDATION", "Choose what to do with this application.");
     }
