@@ -3871,4 +3871,8 @@ export const sw: Record<MessageKey, string> = {
   "adm.q.done.decline": "Maombi yamekataliwa.",
   "adm.q.done.ask": "Ombi limehifadhiwa. Maombi sasa yanaonyesha Inahitaji taarifa.",
   "adm.q.for": "Kwa {name}",
+  "adm.panel.close": "Funga",
+  "adm.panel.open": "Fungua maombi yote",
+  "adm.panel.none": "Hakuna cha kuamua hapa. Fungua maombi kuona hatua zinazofuata.",
+  "adm.panel.missing": "Bado inahitajika",
 };

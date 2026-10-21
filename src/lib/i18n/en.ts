@@ -3869,6 +3869,10 @@ export const en = {
   "adm.q.done.decline": "The application was declined.",
   "adm.q.done.ask": "The request is recorded. The application now shows Needs more information.",
   "adm.q.for": "For {name}",
+  "adm.panel.close": "Close",
+  "adm.panel.open": "Open the full application",
+  "adm.panel.none": "Nothing to decide here. Open the application for the next steps.",
+  "adm.panel.missing": "Still needed",
 } as const;
 
 export type MessageKey = keyof typeof en;

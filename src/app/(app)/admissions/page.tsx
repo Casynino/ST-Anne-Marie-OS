@@ -8,7 +8,7 @@ import { loadDesk, INTERVIEW_STATES, type DeskFilters } from "@/server/admission
 import { listReviewers } from "@/server/admission-review";
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { ExportMenu } from "@/components/export-menu";
-import { EmptyState, LinkButton, NoAccess, PageHeader, Pagination } from "@/components/ui";
+import { LinkButton, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { inputClass } from "@/components/form";
 import { workflowProgress } from "@/lib/admissions/rules";
 import { DeskTable, type DeskLabels, type DeskLine } from "./desk-table";
@@ -78,7 +78,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
     online: t("adm.online"), selectAll: t("adm.bulk.selectAll"), start: t("adm.bulk.start"), review: t("adm.bulk.review"), assign: t("adm.bulk.assign"), assignTo: t("adm.bulk.assignTo"), go: t("adm.bulk.go"), cancel: t("adm.bulk.cancel"), dismiss: t("adm.bulk.dismiss"),
     never: t("adm.bulk.never"), unassigned: t("adm.unassigned"), choose: t("common.select"),
     quick: {
-      column: t("adm.col.action"), accept: t("adm.q.accept"), decline: t("adm.q.decline"), ask: t("adm.q.ask"),
+      close: t("adm.panel.close"), openFull: t("adm.panel.open"), none: t("adm.panel.none"), missing: t("adm.panel.missing"), accept: t("adm.q.accept"), decline: t("adm.q.decline"), ask: t("adm.q.ask"),
       acceptQ: t("adm.accept.confirm", { name: "{name}", class: "{class}" }), acceptAfter: t("adm.accept.after"), declineQ: t("adm.q.decline.q", { name: "{name}" }), declineReason: t("adm.q.decline.reason"), declineGo: t("adm.q.decline.go"),
       askQ: t("adm.q.ask.q", { name: "{name}" }), askGo: t("adm.q.ask.go"), askAfter: t("adm.q.ask.after"), confirm: t("adm.accept.go"), open: t("adm.q.open"), cancel: t("adm.bulk.cancel"),
     },
@@ -125,11 +125,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
         </select>
         <button className="inline-flex min-h-10 items-center rounded-md border border-line px-3 text-sm font-semibold hover:border-brand-500">{t("common.filter")}</button>
       </FilterRow>
-      {lines.length === 0 ? (
-        <EmptyState>{t("adm.none")}</EmptyState>
-      ) : (
-        <DeskTable rows={lines} labels={labels} reviewers={reviewers} canVerify={can("admission.documents.verify")} canAssign={can("admission.review")} action={bulkDeskAction} quick={quickDecisionAction} />
-      )}
+      <DeskTable rows={lines} labels={labels} reviewers={reviewers} canVerify={can("admission.documents.verify")} canAssign={can("admission.review")} action={bulkDeskAction} quick={quickDecisionAction} empty={t("adm.none")} />
       <Pagination page={desk.page} pageSize={desk.pageSize} total={desk.total} basePath="/admissions" params={{ ...keep, state: sp.state, attention: sp.attention }} t={t} />
     </>
   );
