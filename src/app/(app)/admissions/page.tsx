@@ -76,7 +76,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
     online: t("adm.online"), selectAll: t("adm.bulk.selectAll"), start: t("adm.bulk.start"), review: t("adm.bulk.review"), assign: t("adm.bulk.assign"), assignTo: t("adm.bulk.assignTo"), go: t("adm.bulk.go"), cancel: t("adm.bulk.cancel"), dismiss: t("adm.bulk.dismiss"),
     never: t("adm.bulk.never"), unassigned: t("adm.unassigned"), choose: t("common.select"),
     quick: {
-      column: t("adm.col.action"), accept: t("adm.q.accept"), decline: t("adm.q.decline"),
+      column: t("adm.col.action"), view: t("common.view"), accept: t("adm.q.accept"), decline: t("adm.q.decline"),
       acceptQ: t("adm.accept.confirm", { name: "{name}", class: "{class}" }), acceptAfter: t("adm.accept.after"), declineQ: t("adm.q.decline.q", { name: "{name}" }), declineReason: t("adm.q.decline.reason"), declineGo: t("adm.q.decline.go"),
       confirm: t("adm.accept.go"), open: t("adm.q.open"), cancel: t("adm.bulk.cancel"),
     },

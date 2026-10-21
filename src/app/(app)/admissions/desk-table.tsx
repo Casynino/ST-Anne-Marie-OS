@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Ban, Check } from "lucide-react";
+import { AlertTriangle, Ban, Check, Eye } from "lucide-react";
 import type { ActionState } from "@/lib/action";
 import { Badge, EmptyState } from "@/components/ui";
 
@@ -13,7 +14,7 @@ export type DeskLine = {
 };
 type Mode = "START_REVIEW" | "MARK_REVIEWED" | "ASSIGN";
 type Kind = "ACCEPT" | "DECLINE";
-export type QuickLabels = Record<"column" | "accept" | "decline" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel", string>;
+export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel", string>;
 export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "assigned" | "status" | "online" | "selectAll" | "start" | "review" | "assign" | "assignTo" | "go" | "cancel" | "dismiss" | "never" | "unassigned" | "choose", string>
   & { quick: QuickLabels; selected: string; selectRow: string; confirm: Record<Mode, string>; done: string; unchanged: string; failed: string };
 
@@ -27,6 +28,7 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
   quick: (prev: ActionState, form: FormData) => Promise<ActionState>;
 }) {
+  const router = useRouter();
   const [picked, setPicked] = useState<string[]>([]);
   const [mode, setMode] = useState<Mode | null>(null);
   const [state, formAction, pending] = useActionState(async (prev: ActionState, form: FormData) => { const r = await action(prev, form); if (r?.ok) { setPicked([]); setMode(null); } return r; }, null);
@@ -108,19 +110,23 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
         <table className="w-full min-w-[56rem] text-left text-sm">
           <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
             <tr>
-              {selectable && <th scope="col" className="w-10 px-2 py-3"><input type="checkbox" aria-label={labels.selectAll} checked={all} onChange={() => setPicked(all ? [] : rows.map((r) => r.id))} className="size-4 accent-brand-600" /></th>}
-              {[labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, labels.assigned, q.column].map((h, i) => <th key={i} scope="col" className="px-2 py-3 font-medium">{h}</th>)}
+              {selectable && <th scope="col" className="w-10 px-1.5 py-3"><input type="checkbox" aria-label={labels.selectAll} checked={all} onChange={() => setPicked(all ? [] : rows.map((r) => r.id))} className="size-4 accent-brand-600" /></th>}
+              {[labels.applicant, labels.status, labels.complete, labels.interview, labels.class, labels.guardian, labels.assigned, q.column].map((h, i) => <th key={i} scope="col" className="px-1.5 py-3 font-medium">{h}</th>)}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {rows.map((r) => (
-              <tr key={r.id} className={picked.includes(r.id) ? "bg-tint" : "hover:bg-canvas"}>
-                {selectable && <td className="px-2 py-3"><input type="checkbox" aria-label={labels.selectRow.replace("{name}", r.name)} checked={picked.includes(r.id)} onChange={() => toggle(r.id)} className="size-4 accent-brand-600" /></td>}
-                <td className="min-w-36 px-2 py-3">
+              <tr
+                key={r.id}
+                onClick={(e) => { if (!(e.target as HTMLElement).closest("a,button,input,label,select")) router.push(`/admissions/${r.id}`); }}
+                className={`cursor-pointer ${picked.includes(r.id) ? "bg-tint" : "hover:bg-canvas"}`}
+              >
+                {selectable && <td className="px-1.5 py-3"><input type="checkbox" aria-label={labels.selectRow.replace("{name}", r.name)} checked={picked.includes(r.id)} onChange={() => toggle(r.id)} className="size-4 accent-brand-600" /></td>}
+                <td className="min-w-36 px-1.5 py-3">
                   <Link href={`/admissions/${r.id}`} className="font-semibold text-link hover:underline">{r.name}</Link>
                   <span className="block text-xs tabular-nums text-muted">{r.applicationNo}</span><span className="block text-xs text-muted">{r.submitted}{r.online ? ` · ${labels.online}` : ""}</span>
                 </td>
-                <td className="px-2 py-3">
+                <td className="px-1.5 py-3">
                   <span className="flex items-center gap-1.5">
                     <Badge tone={r.stateTone}>{r.stateLabel}</Badge>
                     {r.attention.length > 0 && <span title={r.attention.join("\n")} className="inline-flex text-warn"><AlertTriangle className="size-4" aria-label={r.attention.join(", ")} /></span>}
@@ -129,23 +135,26 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                     {[1, 2, 3, 4, 5].map((n) => <span key={n} className={`h-1 flex-1 rounded-sm ${n <= r.step ? (r.stateTone === "bad" ? "bg-bad" : "bg-brand-500") : "bg-line"}`} />)}
                   </span>
                 </td>
-                <td className="px-2 py-3" title={r.missing.join(", ")}>
+                <td className="px-1.5 py-3" title={r.missing.join(", ")}>
                   <span className="flex items-center gap-2"><span aria-hidden className="h-1.5 w-12 overflow-hidden rounded-sm bg-line"><span className="block h-full" style={{ width: `${r.percent}%`, background: r.percent === 100 ? "var(--color-ok)" : r.percent >= 60 ? "var(--color-warn)" : "var(--color-bad)" }} /></span><span className="tabular-nums">{r.percent}%</span></span>
                   {r.missing.length > 0 && <span className="block max-w-[11rem] truncate text-xs text-muted">{r.missing.join(", ")}</span>}
                 </td>
-                <td className="px-2 py-3"><span className="block">{r.interviewLabel}</span>{r.interviewDetail && <span className="block whitespace-nowrap text-xs text-muted">{r.interviewDetail}</span>}</td>
-                <td className="whitespace-nowrap px-2 py-3">{r.className ?? "—"}</td>
-                <td className="px-2 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
-                <td className="px-2 py-3 text-muted">{r.assignedTo ?? labels.unassigned}</td>
-                <td className="whitespace-nowrap px-2 py-3">
-                  {r.decide !== "none" && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span title={r.decide === "wait" ? r.waitWhy : undefined}>
-                        <button type="button" disabled={r.decide === "wait"} aria-label={`${q.accept}: ${r.name}`} onClick={() => openAsk(r, "ACCEPT")} className="group inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-ok/60 hover:bg-ok/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:bg-surface"><Check className="size-3.5 text-ok group-disabled:text-muted" aria-hidden />{q.accept}</button>
-                      </span>
-                      {r.canDecline && <button type="button" aria-label={`${q.decline}: ${r.name}`} onClick={() => openAsk(r, "DECLINE")} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-bad/60 hover:bg-bad/10"><Ban className="size-3.5 text-bad" aria-hidden />{q.decline}</button>}
-                    </span>
-                  )}
+                <td className="px-1.5 py-3"><span className="block">{r.interviewLabel}</span>{r.interviewDetail && <span className="block whitespace-nowrap text-xs text-muted">{r.interviewDetail}</span>}</td>
+                <td className="whitespace-nowrap px-1.5 py-3">{r.className ?? "—"}</td>
+                <td className="px-1.5 py-3"><span className="block">{r.guardian ?? "—"}</span><span className="block text-xs tabular-nums text-muted">{r.phone ?? ""}</span></td>
+                <td className="px-1.5 py-3 text-muted">{r.assignedTo ?? labels.unassigned}</td>
+                <td className="whitespace-nowrap px-1.5 py-3">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Link href={`/admissions/${r.id}`} aria-label={`${q.view}: ${r.name}`} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-brand-500 hover:bg-tint"><Eye className="size-3.5 text-link" aria-hidden />{q.view}</Link>
+                    {r.decide !== "none" && (
+                      <>
+                        <span title={r.decide === "wait" ? r.waitWhy : undefined}>
+                          <button type="button" disabled={r.decide === "wait"} aria-label={`${q.accept}: ${r.name}`} onClick={() => openAsk(r, "ACCEPT")} className="group inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-ok/60 hover:bg-ok/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:bg-surface"><Check className="size-3.5 text-ok group-disabled:text-muted" aria-hidden />{q.accept}</button>
+                        </span>
+                        {r.canDecline && <button type="button" aria-label={`${q.decline}: ${r.name}`} onClick={() => openAsk(r, "DECLINE")} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-bad/60 hover:bg-bad/10"><Ban className="size-3.5 text-bad" aria-hidden />{q.decline}</button>}
+                      </>
+                    )}
+                  </span>
                 </td>
               </tr>
             ))}

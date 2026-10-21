@@ -3855,7 +3855,7 @@ export const en = {
   "adm.f.to.short": "To",
   "adm.progress": "Progress: step {n} of 5",
   "adm.f.more": "More filters",
-  "adm.col.action": "Decision",
+  "adm.col.action": "Actions",
   "adm.q.accept": "Accept",
   "adm.q.decline": "Decline",
   "adm.q.decline.q": "Decline {name}? The family is told the application was not accepted.",
