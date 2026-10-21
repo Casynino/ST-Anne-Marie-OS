@@ -27,7 +27,11 @@ export default async function BroadcastPage({ params }: { params: Promise<{ id: 
   const channel = (c: "IN_APP" | "SMS") => d.deliveries.filter((x) => x.channel === c);
   return (
     <>
-      <PageHeader title={b.title} subtitle={`${t(`comm.kind.${b.kind}` as never)} · ${t("comm.by", { name: d.author })} · ${displayDateTime(b.sendAt, school.timezone)}`} actions={<Link href="/communication" className="text-sm font-medium text-link hover:underline">{t("comm.title")}</Link>} />
+      <PageHeader title={b.title} subtitle={`${t(`comm.kind.${b.kind}` as never)} · ${t("comm.by", { name: d.author })} · ${displayDateTime(b.sendAt, school.timezone)}`} actions={<span className="flex flex-wrap items-center gap-4">
+        <a href={`/api/communication/${b.id}/letter?lang=EN`} target="_blank" rel="noopener" className="text-sm font-medium text-link hover:underline">{t("letter.print")}{b.bodySw ? " (EN)" : ""}</a>
+        {b.bodySw && <a href={`/api/communication/${b.id}/letter?lang=SW`} target="_blank" rel="noopener" className="text-sm font-medium text-link hover:underline">{t("letter.print")} (SW)</a>}
+        <Link href="/communication" className="text-sm font-medium text-link hover:underline">{t("comm.title")}</Link>
+      </span>} />
       <CommunicationNav ctx={ctx} t={t} current="/communication" />
       {b.cancelledAt && <div role="note" className="mb-4 rounded-lg border border-bad/30 bg-red-50 px-4 py-3 text-sm text-bad">{t("comm.cancelledNote", { when: displayDateTime(b.cancelledAt, school.timezone) })}</div>}
       <div className="grid gap-6 lg:grid-cols-2">

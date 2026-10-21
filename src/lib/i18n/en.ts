@@ -2540,6 +2540,14 @@ export const en = {
   "fin.sheet.termN": "Term {n}",
   "fin.sheet.print": "Print fee table",
   "fin.sheet.printOne": "Print",
+  "letter.ref": "Ref",
+  "letter.date": "Date",
+  "letter.to": "To",
+  "letter.re": "Re",
+  "letter.toParents": "All parents and guardians",
+  "letter.toClasses": "Parents and guardians of {classes}",
+  "letter.closing": "Yours faithfully,",
+  "letter.print": "Print as a letter",
 } as const;
 
 export type MessageKey = keyof typeof en;

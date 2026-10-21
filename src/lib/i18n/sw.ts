@@ -2542,4 +2542,12 @@ export const sw: Record<MessageKey, string> = {
   "fin.sheet.termN": "Muhula {n}",
   "fin.sheet.print": "Chapisha jedwali la ada",
   "fin.sheet.printOne": "Chapisha",
+  "letter.ref": "Kumb. Na.",
+  "letter.date": "Tarehe",
+  "letter.to": "Kwa",
+  "letter.re": "YAH",
+  "letter.toParents": "Wazazi na Walezi wote",
+  "letter.toClasses": "Wazazi na Walezi wa {classes}",
+  "letter.closing": "Wako mwaminifu,",
+  "letter.print": "Chapisha kama barua",
 };

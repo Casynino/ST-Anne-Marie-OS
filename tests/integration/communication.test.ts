@@ -16,6 +16,7 @@ import * as portal from "@/server/portal";
 import * as msg from "@/server/messaging";
 import { processSmsReport } from "@/server/sms-reports";
 import { calendarFor } from "@/server/calendar";
+import { letterDocument, letterPdf } from "@/server/letter";
 import { createCurrentYearAcademics, createTestSchool, createTestUser, guardianFor, studentInput } from "../helpers";
 
 let school: Awaited<ReturnType<typeof createTestSchool>>;
@@ -399,3 +400,27 @@ async function studentName(id: string) {
   const s = await db.student.findUniqueOrThrow({ where: { id } });
   return [s.firstName, s.middleName, s.lastName].filter(Boolean).join(" ");
 }
+
+describe("the printed letter", () => {
+  it("uses the school's own words in the chosen language, names the audience and the sender", async () => {
+    const all = await comm.createBroadcast(head, { kind: "ANNOUNCEMENT", title: "Opening day", bodyEn: "Schools open on Monday.", bodySw: "Shule zinafunguliwa Jumatatu.", audience: { type: "ALL" } });
+    const en = await letterDocument(head, all.id, "EN");
+    expect(en).toMatchObject({ subject: "Opening day", body: "Schools open on Monday.", to: "All parents and guardians", signer: { name: head.fullName } });
+    expect(en.reference).toMatch(/^LTR\/\d{4}\/[0-9A-F]{6}$/);
+    expect((await letterDocument(head, all.id, "EN")).reference).toBe(en.reference); // stable
+    const sw = await letterDocument(head, all.id, "SW");
+    expect(sw).toMatchObject({ body: "Shule zinafunguliwa Jumatatu.", to: "Wazazi na Walezi wote" });
+    const cls = await comm.createBroadcast(head, { kind: "ANNOUNCEMENT", title: "Class trip", bodyEn: "Trip on Friday.", audience: { type: "CLASS", classIds: [setup.cls.id] } });
+    expect((await letterDocument(head, cls.id, "SW")).body).toBe("Trip on Friday."); // no Kiswahili text: the English text is used
+    expect((await letterDocument(head, cls.id, "EN")).to).toContain((await db.schoolClass.findUniqueOrThrow({ where: { id: setup.cls.id }, select: { name: true } })).name);
+    expect(Buffer.from(await letterPdf(head, all.id, "SW")).subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
+  it("needs comms.read and never reads another school's message", async () => {
+    const b = await db.broadcast.findFirstOrThrow({ where: { schoolId: school.id, title: "Opening day" } });
+    expect(await code(letterDocument(teacherB, b.id, "EN"))).toBe("FORBIDDEN");
+    const other = await createTestSchool();
+    const otherHead = (await createTestUser(other.id, ["head_teacher"])).ctx;
+    expect(await code(letterDocument(otherHead, b.id, "EN"))).toBe("NOT_FOUND");
+  });
+});
