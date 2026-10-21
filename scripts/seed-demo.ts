@@ -447,6 +447,33 @@ async function main() {
     log("online application fee (one paid, one waiting)");
   }
 
+  // ───── 13. The "About" story (public website) ─────
+  // Written only from facts the school's own posters state (name, motto, place, levels, what families can expect). It has no history, dates or
+  // numbers: the school adds those itself in Website settings. It still needs the school's confirmation before the live site uses it.
+  {
+    const cur = await website.getWebsiteSettings(admin);
+    if (!cur.en.about) {
+      const flat: Record<string, unknown> = { applicationsOpen: cur.applicationsOpen ? "on" : "" };
+      for (const lang of ["en", "sw"] as const) for (const [k, v] of Object.entries(cur[lang])) flat[`${lang}_${k}`] = v;
+      for (const k of ["phone", "phone2", "email", "address", "hours", "whatsapp", "facebook", "instagram", "youtube", "mapUrl", "logoPath", "heroImagePath", "heroImage2Path", "heroImage3Path", "aboutImagePath", "ogImagePath"] as const) if (cur[k]) flat[k] = cur[k];
+      if (cur.gallery?.length) flat.gallery = cur.gallery.map((g) => (g.caption ? `${g.path} | ${g.caption}` : g.path)).join("\n");
+      flat.en_about = [
+        "St Anne Marie Schools is a school at Mbezi Kimara, Kwa Msuguri, in Dar es Salaam. Our motto is \"Superb Education\", and our promise to every family is a strong foundation for the future.",
+        "We welcome children at every stage of school: nursery, primary, O-Level and A-Level. A child can start with us when small and grow, step by step, in the same school community.",
+        "Families can expect quality education, experienced teachers, a supportive learning environment, and care for each child's character and talents. We believe school is not only about marks. It is about helping every student learn, discover their talents and build a bright future.",
+        "If you would like to know more, visit us, call the school office, or start an application online. We would be glad to meet you.",
+      ].join("\n\n");
+      flat.sw_about = [
+        "St Anne Marie Schools ni shule iliyopo Mbezi Kimara, Kwa Msuguri, Dar es Salaam. Kauli mbiu yetu ni \"Superb Education\", na ahadi yetu kwa kila familia ni msingi imara kwa maisha ya baadaye.",
+        "Tunapokea watoto katika kila hatua ya shule: chekechea, shule ya msingi, O-Level na A-Level. Mtoto anaweza kuanza nasi akiwa mdogo na kukua hatua kwa hatua katika jumuiya ile ile ya shule.",
+        "Familia zinaweza kutarajia elimu bora, walimu wenye uzoefu, mazingira mazuri ya kujifunzia, na kujali tabia na vipaji vya kila mtoto. Tunaamini shule si alama tu. Ni kumsaidia kila mwanafunzi kujifunza, kugundua vipaji vyake na kujenga maisha mazuri ya baadaye.",
+        "Ukitaka kujua zaidi, tutembelee, piga simu ofisi ya shule, au anza ombi mtandaoni. Tungefurahi kukukaribisha.",
+      ].join("\n\n");
+      await website.updateWebsiteSettings(admin, flat);
+      log("About story (from the school's posters)");
+    }
+  }
+
   console.log(`\nDemo school is ready. Every account below uses the password: ${PASSWORD}`);
   console.table([
     { department: "(owner)", signIn: `admin@${DOMAIN}`, note: "your own admin account, password unchanged" },

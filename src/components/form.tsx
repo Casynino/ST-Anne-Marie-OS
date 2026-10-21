@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useActionState, useContext, useId, type ReactNode } from "react";
+import { createContext, useActionState, useContext, useId, useState, type ReactNode } from "react";
 import { AlertCircle, CheckCircle2, KeyRound } from "lucide-react";
 import type { ActionState } from "@/lib/action";
 
@@ -20,6 +20,7 @@ export function ActionForm({
   tone = "primary",
   confirm,
   successTitle,
+  buttonClassName,
 }: {
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
   children?: ReactNode;
@@ -32,6 +33,8 @@ export function ActionForm({
   confirm?: string;
   /** When set, a successful submit replaces the form with this title + the server message (used by public forms). */
   successTitle?: string;
+  /** Extra classes for the submit button (for example `w-full`). */
+  buttonClassName?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
   const failed = state && !state.ok ? state : null;
@@ -89,7 +92,7 @@ export function ActionForm({
                   }`
                 : `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-base font-semibold text-white disabled:opacity-60 ${
                     tone === "danger" ? "bg-bad hover:bg-red-800" : "bg-brand-700 hover:bg-brand-800"
-                  }`
+                  } ${buttonClassName ?? ""}`
             }
           >
             {pending ? "…" : submitLabel}
@@ -177,7 +180,7 @@ export function Field({
           ))}
         </select>
       ) : (
-        <input {...common} type={type} defaultValue={type === "password" ? undefined : value} placeholder={placeholder} autoComplete={autoComplete} min={min} max={max} inputMode={type === "tel" ? "tel" : undefined} className={inputClass} />
+        <input {...common} type={type} defaultValue={type === "password" ? undefined : value} placeholder={placeholder} autoComplete={autoComplete} min={min} max={max} inputMode={type === "tel" ? "tel" : undefined} autoCapitalize={autoComplete === "username" ? "none" : undefined} autoCorrect={autoComplete === "username" ? "off" : undefined} spellCheck={autoComplete === "username" ? false : undefined} className={inputClass} />
       )}
       {hint && (
         <p id={`${id}-hint`} className="mt-1 text-sm text-muted">
@@ -189,6 +192,27 @@ export function Field({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/** A password box with a Show/Hide button, so a typing mistake on a phone can be seen and fixed. */
+export function PasswordField({ name, label, autoComplete, required, showLabel, hideLabel, className }: { name: string; label: string; autoComplete?: string; required?: boolean; showLabel: string; hideLabel: string; className?: string }) {
+  const { errors } = useContext(Ctx);
+  const id = useId();
+  const [shown, setShown] = useState(false);
+  const error = errors?.[name];
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-ink">
+        {label}
+        {required ? <span aria-hidden className="ml-0.5 text-bad"> *</span> : null}
+      </label>
+      <div className="relative">
+        <input id={id} name={name} type={shown ? "text" : "password"} required={required} autoComplete={autoComplete} autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-invalid={error ? true : undefined} className={`${inputClass} pr-20`} />
+        <button type="button" onClick={() => setShown((v) => !v)} aria-pressed={shown} className="absolute inset-y-0 right-0 min-w-16 px-3 text-sm font-semibold text-link hover:underline">{shown ? hideLabel : showLabel}</button>
+      </div>
+      {error && <p className="mt-1 text-sm text-bad">{error}</p>}
     </div>
   );
 }

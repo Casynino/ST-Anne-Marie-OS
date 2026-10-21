@@ -108,11 +108,11 @@ export function SiteHeader({
               const link = (
                 <Link href={l.href} aria-current={active ? "page" : undefined} className={`relative inline-flex h-full items-center gap-1.5 px-4 text-[13px] font-bold uppercase tracking-[.1em] transition-colors ${active ? "text-sun" : "text-white hover:text-sun"}`}>
                   {l.label}
-                  {l.items && l.items.length > 0 && <ChevronDown className="size-3.5 opacity-70 transition-transform duration-300 group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden />}
+                  {l.items && l.items.length > 1 && <ChevronDown className="size-3.5 opacity-70 transition-transform duration-300 group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden />}
                   <span aria-hidden className={`absolute inset-x-4 bottom-0 h-[3px] origin-left bg-sun transition-transform duration-300 ${active ? "scale-x-100" : "scale-x-0"}`} />
                 </Link>
               );
-              if (!l.items || l.items.length === 0) return <div key={l.href} className="flex">{link}</div>;
+              if (!l.items || l.items.length <= 1) return <div key={l.href} className="flex">{link}</div>; // one entry would only repeat the parent link
               return (
                 <div key={l.href} className="group relative flex">
                   {link}
