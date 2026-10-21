@@ -183,7 +183,14 @@ export async function listClasses(ctx: AuthContext) {
   });
 }
 
-const classSchema = z.object({ levelId: uuid(), name: text(60), nameSw: optText(60), sortOrder: z.coerce.number().int().min(0).max(999).default(0) });
+const classSchema = z.object({
+  levelId: uuid(),
+  name: text(60),
+  nameSw: optText(60),
+  sortOrder: z.coerce.number().int().min(0).max(999).default(0),
+  /** Most active students the class takes in a year; empty = no limit. A form that does not send the field leaves it as it is. */
+  capacity: z.preprocess((v) => (v === "" ? null : v), z.coerce.number().int().min(1).max(500).nullable().optional()),
+});
 
 export async function createClass(ctx: AuthContext, input: unknown) {
   requirePermission(ctx, "academic.manage");
@@ -228,7 +235,7 @@ export async function updateClass(ctx: AuthContext, classId: string, input: unkn
   if (clash) throw invalid("Please correct the highlighted fields.", { name: "A class with this name already exists" });
   await db.$transaction(async (tx) => {
     await tx.schoolClass.update({ where: { id: classId }, data });
-    await audit(tx, ctx, "class.update", "SchoolClass", classId, data.name, diffFields(cls, data, ["name", "nameSw", "levelId", "sortOrder", "isActive"]));
+    await audit(tx, ctx, "class.update", "SchoolClass", classId, data.name, diffFields(cls, data, ["name", "nameSw", "levelId", "sortOrder", "isActive", "capacity"]));
   });
 }
 

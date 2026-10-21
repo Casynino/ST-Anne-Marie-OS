@@ -6,6 +6,7 @@ import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { actorOf, diffFields, writeAudit } from "@/server/audit";
 import { getAdmissionSettings, type AdmissionSettings } from "@/server/settings";
+import { getAdmissionPolicy } from "@/server/admission-policy";
 import { teachingScope } from "@/server/academics";
 import { guardianLinkSchema, resolveGuardian } from "@/server/guardians";
 import { checkbox, dateOnly, optDateOnly, optText, optUuid, parse, phoneField, text, uuid } from "@/lib/validation";
@@ -94,6 +95,8 @@ const createSchema = z.object({
   guardians: z.array(guardianLinkSchema).min(1, "Add at least one guardian").max(6),
   emergencyContacts: z.array(emergencyContactSchema).max(3).default([]),
   confirmDuplicate: checkbox().default(false),
+  overrideCapacity: checkbox().default(false),
+  overrideReason: optText(300),
 });
 
 export type CreateStudentInput = z.input<typeof createSchema>;
@@ -113,6 +116,22 @@ async function resolveEnrollmentTarget(tx: Tx | typeof db, schoolId: string, d: 
     throw invalid("Select a stream for this class.", { streamId: "Required for this class" });
   }
   return year;
+}
+
+/**
+ * A class with a capacity cannot take more active students than that number in the year. Going over needs the explicit override (permission
+ * `class.capacity_override` and a reason); the override is returned so it can be written to the audit entry. `excludeStudentId` keeps a
+ * student who is moving between streams of the same class from being counted twice.
+ */
+async function assertCapacity(tx: Tx | typeof db, ctx: AuthContext, target: { academicYearId: string; classId: string }, o: { overrideCapacity: boolean; overrideReason?: string }, excludeStudentId?: string): Promise<{ capacityOverride: string } | null> {
+  const cls = await tx.schoolClass.findFirst({ where: { id: target.classId, schoolId: ctx.schoolId }, select: { name: true, capacity: true } });
+  if (!cls || cls.capacity === null) return null;
+  const count = await tx.studentEnrollment.count({ where: { schoolId: ctx.schoolId, academicYearId: target.academicYearId, classId: target.classId, status: "ACTIVE", ...(excludeStudentId ? { studentId: { not: excludeStudentId } } : {}) } });
+  if (count < cls.capacity) return null;
+  if (!o.overrideCapacity) throw conflict(`${cls.name} is full (${count} of ${cls.capacity}). Choose another class, or ask someone who is allowed to place a student in a full class.`);
+  requirePermission(ctx, "class.capacity_override");
+  if (!o.overrideReason) throw invalid("Say why the class capacity is being exceeded.", { overrideReason: "Required" });
+  return { capacityOverride: `${cls.name} ${count + 1}/${cls.capacity}: ${o.overrideReason}` };
 }
 
 type ParsedCreate = z.output<typeof createSchema>;
@@ -158,6 +177,7 @@ export async function createStudentInTx(tx: Tx, ctx: AuthContext, p: PreparedStu
   }
 
   const year = d.classId ? await resolveEnrollmentTarget(tx, ctx.schoolId, { classId: d.classId, streamId: d.streamId }) : null;
+  const capacity = year && d.classId ? await assertCapacity(tx, ctx, { academicYearId: year.id, classId: d.classId }, { overrideCapacity: d.overrideCapacity, overrideReason: d.overrideReason }) : null;
 
   const settings = await getAdmissionSettings(tx, ctx.schoolId);
   const admissionNo = await allocateAdmissionNo(tx, ctx.schoolId, settings, admissionDate.getUTCFullYear());
@@ -219,6 +239,7 @@ export async function createStudentInTx(tx: Tx, ctx: AuthContext, p: PreparedStu
       streamId: d.streamId ?? null,
       guardianCount: d.guardians.length,
       duplicateConfirmed: d.confirmDuplicate,
+      ...(capacity ?? {}),
       ...(audit.source ? { source: audit.source } : {}),
       ...(audit.applicationId ? { applicationId: audit.applicationId } : {}),
     },
@@ -226,9 +247,16 @@ export async function createStudentInTx(tx: Tx, ctx: AuthContext, p: PreparedStu
   return student;
 }
 
+/**
+ * Direct registration, without an application (for example to bring in the students a school already has). Once the school has switched this
+ * off in the admission policy, new students come only through admissions (offer, verified admission payment, enrolment) unless the person
+ * holds the `admission.override` permission; the audit entry then says it was a direct registration.
+ */
 export async function createStudent(ctx: AuthContext, input: unknown) {
   const prepared = await prepareStudent(ctx, input);
-  return db.$transaction((tx) => createStudentInTx(tx, ctx, prepared));
+  const policy = await getAdmissionPolicy(db, ctx.schoolId);
+  if (!policy.allowDirectRegistration) requirePermission(ctx, "admission.override");
+  return db.$transaction((tx) => createStudentInTx(tx, ctx, prepared, { source: "direct" }));
 }
 
 // ───────────────────────── Update ─────────────────────────
@@ -278,7 +306,7 @@ export async function updateStudent(ctx: AuthContext, studentId: string, input: 
 
 // ───────────────────────── Enrollment & status ─────────────────────────
 
-const enrollSchema = z.object({ academicYearId: optUuid(), classId: uuid(), streamId: optUuid() });
+const enrollSchema = z.object({ academicYearId: optUuid(), classId: uuid(), streamId: optUuid(), overrideCapacity: checkbox().default(false), overrideReason: optText(300) });
 
 /**
  * Places a student in a class/stream for an academic year. Never overwrites history: an existing
@@ -303,6 +331,7 @@ export async function enrollStudent(ctx: AuthContext, studentId: string, input: 
     if (sameYear && sameYear.classId === d.classId && (sameYear.streamId ?? null) === (d.streamId ?? null)) {
       throw conflict("The student is already in this class.");
     }
+    const capacity = await assertCapacity(tx, ctx, { academicYearId: year.id, classId: d.classId }, { overrideCapacity: d.overrideCapacity, overrideReason: d.overrideReason }, studentId);
     for (const e of active) {
       const closedOn = e.startedOn > today ? e.startedOn : today;
       await tx.studentEnrollment.update({
@@ -319,7 +348,7 @@ export async function enrollStudent(ctx: AuthContext, studentId: string, input: 
       entityType: "Student",
       entityId: studentId,
       summary: `${student.firstName} ${student.lastName} (${student.admissionNo})`,
-      changes: { enrollmentId: created.id, academicYearId: year.id, classId: d.classId, streamId: d.streamId ?? null, previous: active.map((e) => ({ classId: e.classId, streamId: e.streamId })) },
+      changes: { enrollmentId: created.id, academicYearId: year.id, classId: d.classId, streamId: d.streamId ?? null, previous: active.map((e) => ({ classId: e.classId, streamId: e.streamId })), ...(capacity ?? {}) },
     });
   });
 }

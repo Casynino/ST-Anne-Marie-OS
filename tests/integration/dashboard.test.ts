@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import * as academics from "@/server/academics";
 import * as students from "@/server/students";
 import * as admissions from "@/server/admissions";
+import * as offers from "@/server/admission-offers";
 import * as enq from "@/server/enquiries";
 import { getDashboard } from "@/server/dashboard";
 import { ensureDefaultSession } from "@/server/attendance";
@@ -72,7 +73,7 @@ describe("dashboard figures come from real records", () => {
   it("shows the admissions pipeline, recent applications and new enquiries with correct counts", async () => {
     const mk = (k: number) => admissions.createApplication(admin, { firstName: `App${k}`, lastName: "Pipeline", dateOfBirth: "2014-03-1" + k, gender: "FEMALE", classAppliedId: setup.cls.id, guardians: [{ fullName: `P${k}`, phone: `07${String(60000000 + k + Math.floor(Math.random() * 1000) * 10).slice(-8)}`, relationship: "MOTHER", isPrimary: "on" }] });
     const [a1, a2, a3] = [await mk(1), await mk(2), await mk(3)];
-    await admissions.transitionApplication(admin, a2.id, { to: "ACCEPTED" });
+    await offers.issueOffer(admin, a2.id, {});
     await admissions.transitionApplication(admin, a3.id, { to: "REJECTED", reason: "Test" });
     await enq.submitEnquiry(school.id, { name: "Visitor", phone: "0712345600", message: "Please call me about admissions.", consent: "on", website: "" }, { ip: `203.0.113.${Math.floor(Math.random() * 200)}x${Math.random()}`, userAgent: "t" });
 

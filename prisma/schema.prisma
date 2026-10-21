@@ -150,6 +150,9 @@ model School {
   learningFiles          LearningFile[]
   portfolioItems         PortfolioItem[]
   behaviourRecords       BehaviourRecord[]
+  interviews             Interview[]
+  admissionOffers        AdmissionOffer[]
+  admissionPayments      AdmissionPayment[]
 
   @@map("schools")
 }
@@ -404,6 +407,7 @@ model SchoolClass {
   nameSw    String?
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
+  capacity  Int? // maximum active students in the current year; null = no limit
   createdAt DateTime @default(now())
 
   school          School              @relation(fields: [schoolId], references: [id])
@@ -996,9 +1000,23 @@ model Application {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  school    School             @relation(fields: [schoolId], references: [id])
-  events    ApplicationEvent[]
-  documents Document[]
+  // Admissions Office review (separate from the status above): are the details and papers in order?
+  submittedOn         DateTime?    @db.Date // the day a paper form was handed in (staff-entered applications)
+  reviewStatus        ReviewStatus @default(PENDING)
+  reviewNote          String?
+  reviewedById        String?      @db.Uuid
+  reviewedAt          DateTime?
+  // Recorded exception: the papers are not complete but an authorised person lets the application go on.
+  docsExceptionReason String?
+  docsExceptionById   String?      @db.Uuid
+  docsExceptionAt     DateTime?
+
+  school     School             @relation(fields: [schoolId], references: [id])
+  events     ApplicationEvent[]
+  documents  Document[]
+  interviews Interview[]
+  offer      AdmissionOffer?
+  payments   AdmissionPayment[]
 
   @@unique([schoolId, applicationNo])
   @@index([schoolId, status])
@@ -1014,6 +1032,7 @@ model ApplicationEvent {
   toStatus      ApplicationStatus
   reason        String?
   byUserId      String?            @db.Uuid // null when the applicant submitted online
+  kind          String             @default("STATUS") // STATUS | REVIEW | DOCUMENT | INTERVIEW | OFFER | PAYMENT | EXCEPTION
   createdAt     DateTime           @default(now())
 
   school      School      @relation(fields: [schoolId], references: [id])
@@ -1041,12 +1060,155 @@ model Document {
   deletedAt     DateTime?
   deletedById   String?   @db.Uuid
 
+  verification     DocVerification @default(PENDING)
+  verifiedById     String?         @db.Uuid
+  verifiedAt       DateTime?
+  verificationNote String?
+
   school      School       @relation(fields: [schoolId], references: [id])
   application Application? @relation(fields: [applicationId], references: [id])
 
   @@index([schoolId, applicationId])
   @@index([schoolId, studentId])
   @@map("documents")
+}
+
+// ═════════════════════════ Admissions workflow: review, interviews, offers, admission payments ═════════════════════════
+
+enum ReviewStatus {
+  PENDING
+  VERIFIED
+  RETURNED // sent back to the applicant for correction or more information
+}
+
+enum DocVerification {
+  PENDING
+  VERIFIED
+  NEEDS_CORRECTION
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum InterviewOutcome {
+  PASSED
+  NOT_PASSED
+  DEFERRED
+  FURTHER_ASSESSMENT
+  AWAITING_DECISION
+}
+
+enum OfferStatus {
+  PENDING_APPROVAL
+  ISSUED
+  DECLINED
+  WITHDRAWN
+}
+
+enum AdmissionPaymentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  REVERSED
+}
+
+// One row per appointment. A rescheduled interview is cancelled and a new row points back to it (history is kept).
+model Interview {
+  id                String            @id @default(uuid(7)) @db.Uuid
+  schoolId          String            @db.Uuid
+  applicationId     String            @db.Uuid
+  scheduledAt       DateTime
+  durationMinutes   Int               @default(30)
+  location          String?
+  method            String? // free text, for example "In person" or "Phone"
+  interviewerId     String?           @db.Uuid // staff user responsible
+  status            InterviewStatus   @default(SCHEDULED)
+  outcome           InterviewOutcome?
+  score             Int? // optional 0-100
+  notes             String? // restricted: needs admission.interview.notes
+  scheduleNote      String?
+  cancelReason      String?
+  rescheduledFromId String?           @db.Uuid
+  completedAt       DateTime?
+  completedById     String?           @db.Uuid
+  createdById       String            @db.Uuid
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  school      School      @relation(fields: [schoolId], references: [id])
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@index([schoolId, scheduledAt])
+  @@index([applicationId])
+  @@index([interviewerId, scheduledAt])
+  @@map("interviews")
+}
+
+// The decision to admit, with the admission payment required before enrolment. One per application.
+model AdmissionOffer {
+  id                  String      @id @default(uuid(7)) @db.Uuid
+  schoolId            String      @db.Uuid
+  applicationId       String      @unique @db.Uuid
+  status              OfferStatus @default(ISSUED)
+  letterNo            String
+  classOfferedId      String?     @db.Uuid
+  feeAmount           Decimal     @db.Decimal(14, 2) // required admission payment (0 = none)
+  expiresOn           DateTime?   @db.Date
+  notes               String? // shown on the letter
+  issuedAt            DateTime    @default(now())
+  issuedById          String      @db.Uuid
+  approvedAt          DateTime?
+  approvedById        String?     @db.Uuid
+  respondedAt         DateTime?
+  responseNote        String?
+  // Recorded exception: enrolment may go ahead although the required payment has not been verified.
+  paymentWaivedAt     DateTime?
+  paymentWaivedById   String?     @db.Uuid
+  paymentWaiverReason String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  school      School      @relation(fields: [schoolId], references: [id])
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@unique([schoolId, letterNo])
+  @@map("admission_offers")
+}
+
+// Money paid by an applicant. It is not part of the student's school-fee ledger (admission fee is separate from recurring fees)
+// and counts only after Finance verifies it. Never edited or deleted: reject or reverse with a reason.
+model AdmissionPayment {
+  id             String                 @id @default(uuid(7)) @db.Uuid
+  schoolId       String                 @db.Uuid
+  applicationId  String                 @db.Uuid
+  amount         Decimal                @db.Decimal(14, 2)
+  method         PaymentMethod
+  reference      String?
+  paidOn         DateTime               @db.Date
+  payerName      String?
+  notes          String?
+  status         AdmissionPaymentStatus @default(PENDING)
+  receiptNo      String?
+  idempotencyKey String?
+  recordedById   String                 @db.Uuid
+  recordedAt     DateTime               @default(now())
+  verifiedById   String?                @db.Uuid
+  verifiedAt     DateTime?
+  rejectReason   String?
+  reversedById   String?                @db.Uuid
+  reversedAt     DateTime?
+  reverseReason  String?
+
+  school      School      @relation(fields: [schoolId], references: [id])
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@index([schoolId, status])
+  @@index([applicationId])
+  @@map("admission_payments")
 }
 
 // ═════════════════════════ Phase 2: Bulk import ═════════════════════════

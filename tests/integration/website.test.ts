@@ -5,6 +5,7 @@ import { AppError } from "@/lib/errors";
 import * as website from "@/server/website";
 import * as pub from "@/server/public-applications";
 import * as admissions from "@/server/admissions";
+import * as offers from "@/server/admission-offers";
 import { createTestAcademics, createTestSchool, createTestUser } from "../helpers";
 import type { AuthContext } from "@/lib/auth/context";
 
@@ -86,7 +87,7 @@ describe("online application", () => {
 
     // Staff can review and enrol it through the normal Phase 2 workflow: accepted != enrolled.
     expect((await admissions.getApplication(admin, app.id)).events[0]).toMatchObject({ byApplicant: true });
-    await admissions.transitionApplication(admin, app.id, { to: "ACCEPTED" });
+    await offers.issueOffer(admin, app.id, {});
     expect(await db.student.count({ where: { schoolId: school.id } })).toBe(0);
     await admissions.enrolApplication(admin, app.id, {});
     const student = await db.student.findFirstOrThrow({ where: { schoolId: school.id, firstName: app.firstName } });

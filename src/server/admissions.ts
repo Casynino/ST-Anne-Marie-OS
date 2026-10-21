@@ -8,13 +8,15 @@ import { formatDateOnly, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { actorOf, diffFields, writeAudit } from "@/server/audit";
 import { guardianLinkSchema, type GuardianLinkInput } from "@/server/guardians";
 import { createStudentInTx, prepareStudent } from "@/server/students";
+import { enrolmentReadiness } from "@/server/admission-offers";
 import { checkbox, dateOnly, optDateOnly, optText, optUuid, parse, text } from "@/lib/validation";
 
 /*
- * Admissions workflow: Applied → (Interview/Assessment) → Accepted → Enrolled, plus Rejected / Withdrawn
- * (reason required, audited). ACCEPTED is not ENROLLED: the Student record and admission number exist only
- * after the enrol step, which runs the same registration rules as direct student registration.
- * Interview is optional (APPLIED → ACCEPTED is allowed) until the school decides it must be mandatory.
+ * Admissions workflow: Applied → (Interview) → Accepted → Enrolled, plus Rejected / Withdrawn (reason required, audited).
+ * Interviews are scheduled in `interviews.ts` (which moves an application to INTERVIEW), and ACCEPTED is only reached by issuing an
+ * offer in `admission-offers.ts`. ACCEPTED is not ENROLLED: the Student record and admission number exist only after the enrol step,
+ * which needs `enrolmentReadiness` to pass (offer live, admission payment verified or excepted, papers verified or excepted) and then
+ * runs the same registration rules as direct student registration.
  */
 
 export const OPEN_STATUSES = ["APPLIED", "INTERVIEW", "ACCEPTED"] as const satisfies readonly ApplicationStatus[];
@@ -36,7 +38,7 @@ const shape = {
   assessmentNotes: optText(1000),
   guardians: z.array(guardianLinkSchema).min(1, "Add at least one guardian").max(3),
 };
-const createSchema = z.object({ ...shape, confirmDuplicate: checkbox().default(false) });
+const createSchema = z.object({ ...shape, submittedOn: optDateOnly(), confirmDuplicate: checkbox().default(false) });
 const updateSchema = z.object({ ...shape, guardians: shape.guardians.optional(), confirmDuplicate: checkbox().default(false) });
 
 const isUniqueViolation = (e: unknown) => {
@@ -106,6 +108,7 @@ export async function createApplication(ctx: AuthContext, input: unknown) {
   const d = parse(createSchema, input);
   const today = await schoolToday(ctx.schoolId);
   if (d.dateOfBirth >= today) throw invalid("Please correct the highlighted fields.", { dateOfBirth: "Date of birth must be in the past" });
+  if (d.submittedOn && d.submittedOn > today) throw invalid("Please correct the highlighted fields.", { submittedOn: "The date cannot be in the future" });
   await assertRefs(db, ctx.schoolId, d);
   try {
     return await db.$transaction(async (tx) => {
@@ -113,7 +116,7 @@ export async function createApplication(ctx: AuthContext, input: unknown) {
       const applicationNo = await allocateApplicationNo(tx, ctx.schoolId, today.getUTCFullYear());
       const { confirmDuplicate: _c, guardians, ...fields } = d;
       const app = await tx.application.create({
-        data: { ...fields, guardians: guardians as unknown as Prisma.InputJsonValue, schoolId: ctx.schoolId, applicationNo, createdById: ctx.userId },
+        data: { ...fields, guardians: guardians as unknown as Prisma.InputJsonValue, schoolId: ctx.schoolId, applicationNo, createdById: ctx.userId, submittedOn: d.submittedOn ?? today },
       });
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId: app.id, toStatus: "APPLIED", byUserId: ctx.userId } });
       await writeAudit(tx, actorOf(ctx), {
@@ -121,7 +124,7 @@ export async function createApplication(ctx: AuthContext, input: unknown) {
         entityType: "Application",
         entityId: app.id,
         summary: `${app.firstName} ${app.lastName} (${applicationNo})`,
-        changes: { applicationNo, duplicateConfirmed: d.confirmDuplicate },
+        changes: { applicationNo, duplicateConfirmed: d.confirmDuplicate, channel: "PHYSICAL", submittedOn: formatDateOnly(d.submittedOn ?? today) },
       });
       return app;
     });
@@ -164,47 +167,38 @@ async function lockApplication(tx: Tx, schoolId: string, id: string) {
 
 // ───────────────────────── Status transitions ─────────────────────────
 
-const ALLOWED: Record<string, readonly ApplicationStatus[]> = {
-  APPLIED: ["INTERVIEW", "ACCEPTED", "REJECTED", "WITHDRAWN"],
-  INTERVIEW: ["ACCEPTED", "REJECTED", "WITHDRAWN"],
-  ACCEPTED: ["REJECTED", "WITHDRAWN"],
-};
+const CLOSABLE: readonly ApplicationStatus[] = ["APPLIED", "INTERVIEW", "ACCEPTED"];
 
-const transitionSchema = z.object({
-  to: z.enum(["INTERVIEW", "ACCEPTED", "REJECTED", "WITHDRAWN"]),
-  reason: optText(500),
-  interviewOn: optDateOnly(),
-  assessmentNotes: optText(1000),
-});
+const transitionSchema = z.object({ to: z.enum(["REJECTED", "WITHDRAWN"]), reason: optText(500), assessmentNotes: optText(1000) });
 
-/** Moves an application along the workflow. Rejecting or withdrawing needs a reason. ENROLLED only via `enrolApplication`. */
+/**
+ * Closes an application as Rejected or Withdrawn (a reason is required). Interviews and offers are set aside with it, so nothing stays
+ * scheduled for someone who is no longer applying. Interview, ACCEPTED and ENROLLED are reached only through their own steps.
+ */
 export async function transitionApplication(ctx: AuthContext, applicationId: string, input: unknown) {
   const d = parse(transitionSchema, input);
   if (d.to === "WITHDRAWN") {
     if (!ctx.permissions.has("admission.review") && !ctx.permissions.has("admission.create")) requirePermission(ctx, "admission.review");
   } else requirePermission(ctx, "admission.review");
-  if ((d.to === "REJECTED" || d.to === "WITHDRAWN") && !d.reason) throw invalid("A reason is required.", { reason: "Required" });
+  if (!d.reason) throw invalid("A reason is required.", { reason: "Required" });
 
   await db.$transaction(async (tx) => {
     const app = await lockApplication(tx, ctx.schoolId, applicationId);
-    if (!(ALLOWED[app.status] ?? []).includes(d.to)) throw conflict(`An application that is ${app.status.toLowerCase()} cannot be moved to ${d.to.toLowerCase()}.`);
-    const closing = d.to === "REJECTED" || d.to === "WITHDRAWN";
+    if (!CLOSABLE.includes(app.status)) throw conflict(`An application that is ${app.status.toLowerCase()} cannot be moved to ${d.to.toLowerCase()}.`);
     await tx.application.update({
       where: { id: applicationId },
-      data: {
-        status: d.to,
-        ...(d.to === "INTERVIEW" ? { interviewOn: d.interviewOn ?? null } : {}),
-        ...(d.assessmentNotes ? { assessmentNotes: d.assessmentNotes } : {}),
-        ...(closing || d.to === "ACCEPTED" ? { decisionReason: d.reason ?? null, decidedAt: new Date(), decidedById: ctx.userId } : {}),
-      },
+      data: { status: d.to, ...(d.assessmentNotes ? { assessmentNotes: d.assessmentNotes } : {}), decisionReason: d.reason, decidedAt: new Date(), decidedById: ctx.userId },
     });
+    await tx.interview.updateMany({ where: { applicationId, status: "SCHEDULED" }, data: { status: "CANCELLED", cancelReason: `Application ${d.to.toLowerCase()}` } });
+    await tx.admissionOffer.updateMany({ where: { applicationId, status: { in: ["ISSUED", "PENDING_APPROVAL"] } }, data: { status: "WITHDRAWN", respondedAt: new Date(), responseNote: `Application ${d.to.toLowerCase()}: ${d.reason}` } });
+    const heldMoney = await tx.admissionPayment.count({ where: { applicationId, status: "VERIFIED" } });
     await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: app.status, toStatus: d.to, reason: d.reason, byUserId: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), {
       action: `admission.${d.to.toLowerCase()}`,
       entityType: "Application",
       entityId: applicationId,
       summary: `${app.firstName} ${app.lastName} (${app.applicationNo})`,
-      changes: { from: app.status, to: d.to, ...(d.interviewOn ? { interviewOn: formatDateOnly(d.interviewOn) } : {}) },
+      changes: { from: app.status, to: d.to, verifiedAdmissionPayments: heldMoney },
       reason: d.reason,
     });
   });
@@ -212,12 +206,20 @@ export async function transitionApplication(ctx: AuthContext, applicationId: str
 
 // ───────────────────────── Enrol ─────────────────────────
 
-const enrolSchema = z.object({ classId: optUuid(), streamId: optUuid(), admissionDate: optDateOnly(), confirmDuplicate: checkbox().default(false), confirmSharedPhone: checkbox().default(false) });
+const enrolSchema = z.object({
+  classId: optUuid(),
+  streamId: optUuid(),
+  admissionDate: optDateOnly(),
+  confirmDuplicate: checkbox().default(false),
+  confirmSharedPhone: checkbox().default(false),
+  overrideCapacity: checkbox().default(false),
+  overrideReason: optText(300),
+});
 
 /**
- * Creates the Student (with admission number, guardians and class placement) from an ACCEPTED application,
- * atomically with marking the application ENROLLED. If anything fails nothing is created, and two people
- * pressing Enrol at once cannot create two students.
+ * Creates the Student (with admission number and guardians; the class placement is optional and can follow as its own step) from an
+ * ACCEPTED application, atomically with marking the application ENROLLED. The gate (`enrolmentReadiness`) is checked again inside the
+ * transaction after the row is locked. If anything fails nothing is created, and two people pressing Enrol at once cannot create two students.
  */
 export async function enrolApplication(ctx: AuthContext, applicationId: string, input: unknown) {
   requirePermission(ctx, "admission.enrol");
@@ -230,7 +232,8 @@ export async function enrolApplication(ctx: AuthContext, applicationId: string, 
     const parsed = guardianLinkSchema.parse(g) as GuardianLinkInput;
     return d.confirmSharedPhone && !parsed.guardianId ? { ...parsed, allowSharedPhone: true } : parsed;
   });
-  const classId = d.classId ?? snapshot.classAppliedId ?? undefined;
+  // Placement is a separate step unless a class is chosen here: the class the family asked for is only a preference.
+  const classId = d.classId;
   const prepared = await prepareStudent(ctx, {
     firstName: snapshot.firstName,
     middleName: snapshot.middleName ?? undefined,
@@ -247,13 +250,17 @@ export async function enrolApplication(ctx: AuthContext, applicationId: string, 
     streamId: d.streamId,
     guardians,
     confirmDuplicate: d.confirmDuplicate,
+    overrideCapacity: d.overrideCapacity,
+    overrideReason: d.overrideReason,
   });
 
   return db.$transaction(
     async (tx) => {
       const app = await lockApplication(tx, ctx.schoolId, applicationId);
       if (app.status === "ENROLLED") throw conflict("This applicant has already been enrolled.");
-      if (app.status !== "ACCEPTED") throw conflict("Only accepted applicants can be enrolled. Accept the application first.");
+      if (app.status !== "ACCEPTED") throw conflict("Only accepted applicants can be enrolled. Make an admission offer first.");
+      const gate = await enrolmentReadiness(tx, ctx.schoolId, app);
+      if (!gate.ready) throw conflict(`This applicant cannot be enrolled yet. ${gate.items.filter((i) => !i.ok).map((i) => i.message).join(" ")}`);
       const student = await createStudentInTx(tx, ctx, prepared, { source: "admission", applicationId });
       await tx.application.update({ where: { id: applicationId }, data: { status: "ENROLLED", studentId: student.id } });
       await tx.applicationEvent.create({ data: { schoolId: ctx.schoolId, applicationId, fromStatus: "ACCEPTED", toStatus: "ENROLLED", byUserId: ctx.userId } });
@@ -263,7 +270,7 @@ export async function enrolApplication(ctx: AuthContext, applicationId: string, 
         entityType: "Application",
         entityId: applicationId,
         summary: `${app.firstName} ${app.lastName} (${app.applicationNo} → ${student.admissionNo})`,
-        changes: { studentId: student.id, admissionNo: student.admissionNo },
+        changes: { studentId: student.id, admissionNo: student.admissionNo, placedInClass: Boolean(classId), admissionPayment: gate.account?.status ?? null, paymentWaived: gate.offer?.paymentWaivedAt ? gate.offer.paymentWaiverReason : null },
       });
       return student;
     },

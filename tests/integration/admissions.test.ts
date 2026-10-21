@@ -6,7 +6,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { AppError } from "@/lib/errors";
 import * as admissions from "@/server/admissions";
+import * as offers from "@/server/admission-offers";
 import * as documents from "@/server/documents";
+import * as interviews from "@/server/interviews";
 import * as students from "@/server/students";
 import { LocalDiskStorage } from "@/lib/storage/local";
 import { setStorageForTests } from "@/lib/storage";
@@ -29,7 +31,7 @@ const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a
 
 async function accepted(k = next(), extra: Record<string, unknown> = {}) {
   const app = await admissions.createApplication(registrar, appInput(k, extra));
-  await admissions.transitionApplication(registrar, app.id, { to: "ACCEPTED" });
+  await offers.issueOffer(registrar, app.id, {}); // the default policy needs no interview, papers or admission fee
   return app;
 }
 
@@ -108,24 +110,29 @@ describe("applications and duplicate prevention", () => {
 describe("workflow", () => {
   it("follows Applied → Interview → Accepted, requires reasons to reject/withdraw, and keeps a history", async () => {
     const app = await admissions.createApplication(registrar, appInput(next()));
-    await admissions.transitionApplication(registrar, app.id, { to: "INTERVIEW", interviewOn: "2026-11-02" });
-    await admissions.transitionApplication(registrar, app.id, { to: "ACCEPTED" });
-    expect(await code(admissions.transitionApplication(registrar, app.id, { to: "INTERVIEW" }))).toBe("CONFLICT"); // cannot go back
+    await interviews.scheduleInterview(registrar, app.id, { scheduledAt: new Date(Date.now() + 3 * 86_400_000).toISOString() }); // moves the application to Interview
+    expect((await admissions.getApplication(registrar, app.id)).status).toBe("INTERVIEW");
+    expect(await code(offers.issueOffer(registrar, app.id, {}))).toBe("CONFLICT"); // an interview is still scheduled: record its result first
+    await interviews.cancelInterview(registrar, (await db.interview.findFirstOrThrow({ where: { applicationId: app.id } })).id, { reason: "Family asked to wait" });
+    expect((await admissions.getApplication(registrar, app.id)).status).toBe("APPLIED"); // nothing left scheduled, so back to review
+    await offers.issueOffer(registrar, app.id, {});
     expect(await code(admissions.transitionApplication(registrar, app.id, { to: "REJECTED" }))).toBe("VALIDATION"); // reason required
     expect(await code(admissions.transitionApplication(registrar, app.id, { to: "ENROLLED" }))).toBe("VALIDATION"); // only via enrol
+    expect(await code(admissions.transitionApplication(registrar, app.id, { to: "ACCEPTED" }))).toBe("VALIDATION"); // only by issuing an offer
     await admissions.transitionApplication(registrar, app.id, { to: "WITHDRAWN", reason: "Family moved away" });
-    expect(await code(admissions.transitionApplication(registrar, app.id, { to: "ACCEPTED" }))).toBe("CONFLICT"); // closed
+    expect(await code(admissions.transitionApplication(registrar, app.id, { to: "REJECTED", reason: "x" }))).toBe("CONFLICT"); // closed
     const detail = await admissions.getApplication(registrar, app.id);
-    expect(detail.events.map((e) => e.toStatus)).toEqual(["APPLIED", "INTERVIEW", "ACCEPTED", "WITHDRAWN"]);
+    expect(detail.events.filter((e) => e.kind === "STATUS").map((e) => e.toStatus)).toEqual(["APPLIED", "INTERVIEW", "APPLIED", "ACCEPTED", "WITHDRAWN"]);
     expect(detail.decisionReason).toBe("Family moved away");
+    expect((await db.admissionOffer.findFirstOrThrow({ where: { applicationId: app.id } })).status).toBe("WITHDRAWN"); // the offer closes with the application
     expect(await db.auditLog.count({ where: { schoolId: school.id, entityId: app.id, reason: "Family moved away" } })).toBe(1);
   });
 
   it("enforces permissions: reviewers decide, teachers and accountants cannot even read", async () => {
     const app = await admissions.createApplication(registrar, appInput(next()));
-    expect(await code(admissions.transitionApplication(teacher, app.id, { to: "ACCEPTED" }))).toBe("FORBIDDEN");
+    expect(await code(offers.issueOffer(teacher, app.id, {}))).toBe("FORBIDDEN");
     expect(await code(admissions.getApplication(accountant, app.id))).toBe("FORBIDDEN");
-    await admissions.transitionApplication(headTeacher, app.id, { to: "ACCEPTED" }); // head teacher holds admission.review
+    await offers.issueOffer(headTeacher, app.id, {}); // head teacher holds admission.review
     expect(await code(admissions.enrolApplication(headTeacher, app.id, {}))).toBe("FORBIDDEN"); // but not admission.enrol
   });
 
@@ -134,7 +141,7 @@ describe("workflow", () => {
     const otherAdmin = (await createTestUser(other.id, ["super_admin"])).ctx;
     const app = await admissions.createApplication(registrar, appInput(next()));
     expect(await code(admissions.getApplication(otherAdmin, app.id))).toBe("NOT_FOUND");
-    expect(await code(admissions.transitionApplication(otherAdmin, app.id, { to: "ACCEPTED" }))).toBe("NOT_FOUND");
+    expect(await code(offers.issueOffer(otherAdmin, app.id, {}))).toBe("NOT_FOUND");
     expect(await code(admissions.enrolApplication(otherAdmin, app.id, {}))).toBe("NOT_FOUND");
     expect((await admissions.listApplications(otherAdmin)).total).toBe(0);
   });
@@ -144,7 +151,7 @@ describe("enrolment (accepted ≠ enrolled)", () => {
   it("creates the student only at the enrol step, with admission number, guardians and class placement", async () => {
     const app = await accepted();
     expect(await db.student.count({ where: { schoolId: school.id, firstName: app.firstName } })).toBe(0);
-    const student = await admissions.enrolApplication(registrar, app.id, {});
+    const student = await admissions.enrolApplication(registrar, app.id, { classId: setup.cls.id });
     expect(student.admissionNo).toMatch(new RegExp(`^${school.code}/${new Date().getUTCFullYear()}/\\d{4}$`));
     const profile = await students.getStudentProfile(registrar, student.id);
     expect(profile.guardians).toHaveLength(1);
@@ -181,7 +188,7 @@ describe("enrolment (accepted ≠ enrolled)", () => {
   it("asks for confirmation when the applicant matches an existing student, and for a shared guardian phone", async () => {
     const k = next();
     const first = await admissions.createApplication(registrar, appInput(k, { dateOfBirth: "2017-07-07" }));
-    await admissions.transitionApplication(registrar, first.id, { to: "ACCEPTED" });
+    await offers.issueOffer(registrar, first.id, {});
     await admissions.enrolApplication(registrar, first.id, {});
     // A different child with the same guardian phone: needs explicit confirmation at enrolment.
     const sibling = await accepted(next(), { guardians: [{ ...guardian(k), fullName: "Someone Else" }] });
