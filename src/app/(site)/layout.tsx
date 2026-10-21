@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getContext, getLocale, getT } from "@/lib/auth/next";
+import { homeFor } from "@/lib/auth/home";
 import { baseUrl, getSite, initialsOf, schoolJsonLd, telHref } from "@/lib/site";
 import { LanguageSwitch } from "@/components/language-switch";
 import { SiteHeader, type SiteLink, type SiteSubLink } from "@/components/site/site-header";
@@ -58,14 +59,14 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         links={links}
         motto={site.school.motto}
         quickLabel={t("site.nav.quick")}
-        quickLinks={[{ href: ctx ? "/dashboard" : "/portal", label: ctx ? t("site.nav.dashboard") : t("site.nav.portal") }, { href: "/apply/form", label: t("site.nav.apply") }, { href: "/apply/track", label: t("site.admissions.track") }, { href: "/apply/visit", label: t("site.nav.visit") }, { href: "/login", label: t("site.nav.signIn") }]}
+        quickLinks={[{ href: ctx ? homeFor(ctx.userType) : "/portal", label: ctx ? t("site.nav.myPortal") : t("site.nav.portal") }, { href: "/apply/form", label: t("site.nav.apply") }, { href: "/apply/track", label: t("site.admissions.track") }, { href: "/apply/visit", label: t("site.nav.visit") }, { href: "/login", label: t("site.nav.signIn") }]}
         searchLabel={t("site.nav.search")}
         calendarLabel={t("site.nav.calendar")}
         applyLabel={t("site.nav.apply")}
         applyShortLabel={t("site.nav.applyShort")}
         applyHref="/apply/form"
-        portalLabel={ctx ? t("site.nav.dashboard") : t("site.nav.portal")}
-        portalHref={ctx ? "/dashboard" : "/portal"}
+        portalLabel={ctx ? t("site.nav.myPortal") : t("site.nav.portal")}
+        portalHref={ctx ? homeFor(ctx.userType) : "/portal"}
         menuLabel={t("nav.menu")}
         closeLabel={t("nav.close")}
         skipLabel={t("site.skip")}
