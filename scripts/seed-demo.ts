@@ -28,6 +28,7 @@ import * as expenses from "../src/server/expenses";
 import * as fees from "../src/server/fees";
 import * as grading from "../src/server/grading";
 import * as interviews from "../src/server/interviews";
+import * as interviewDays from "../src/server/interview-days";
 import * as invoices from "../src/server/invoices";
 import * as library from "../src/server/library";
 import * as libraryIds from "../src/server/library-identity";
@@ -529,6 +530,43 @@ async function main() {
       }
     }
     if (made) log("attendance registers for today:", made);
+  }
+
+  // ───── 16. Admissions: complete applicants, so every step of the three lists can be tried (accept, give a date, record a result, accept again) ─────
+  if (!(await db.application.findFirst({ where: { schoolId, firstName: "Neema", lastName: "Kilimo" }, select: { id: true } }))) {
+    const walkIn = (first: string, last: string, born: string, classId: string, gender = "FEMALE") =>
+      admissions.createApplication(registrar, { firstName: first, lastName: last, dateOfBirth: born, gender, classAppliedId: classId, guardians: [{ fullName: `Mama ${last}`, phone: phone("0698"), relationship: "MOTHER", isPrimary: "on" }] });
+    // the birth certificate is uploaded; "checked" also verifies it and passes the review
+    const paper = async (id: string, label: string, mode: "waiting" | "verified" | "reviewed" = "waiting") => {
+      const doc = await documents.uploadDocument(registrar, { applicationId: id }, { docType: "BIRTH_CERTIFICATE", fileName: "birth-certificate.pdf", bytes: await samplePdf(`Birth certificate - ${label}`) });
+      if (mode !== "waiting") await review.verifyDocument(registrar, doc.id, { status: "VERIFIED" });
+      if (mode === "reviewed") await review.reviewApplication(registrar, id, { decision: "VERIFIED" });
+    };
+    const heldInterview = async (id: string) => {
+      const i = await interviews.scheduleInterview(academic, id, { kind: "INTERVIEW", scheduledAt: at(addDays(today, 2)), interviewerId: head.userId, location: "Head teacher's office" });
+      await db.interview.update({ where: { id: i.id }, data: { scheduledAt: new Date(Date.now() - 3_600_000) } });
+      return i;
+    };
+    // an interview day set in advance, so one applicant below arrives with a date
+    if (!(await interviewDays.getInterviewDays(db, schoolId)).some((d) => d.on >= today)) await interviewDays.addInterviewDay(registrar, { on: addDays(today, 24), time: "09:00", venue: "Main hall", until: addDays(today, 20), capacity: 30 });
+
+    // under review (every paper is there, so Accept works)
+    await paper((await walkIn("Neema", "Kilimo", "2018-03-09", std1.id)).id, "Neema Kilimo");
+    await paper((await walkIn("Joseph", "Mushi", "2012-07-21", formI.id, "MALE")).id, "Joseph Mushi");
+    await paper((await walkIn("Aisha", "Salim", "2021-02-14", pre.id)).id, "Aisha Salim", "verified");
+    const withDate = await walkIn("Hamisi", "Bakari", "2015-11-02", std4.id, "MALE");
+    await paper(withDate.id, "Hamisi Bakari");
+    await db.$transaction((tx) => interviewDays.placeOnInterviewDay(tx, schoolId, withDate.id, { ip: null, userAgent: "demo" }));   // arrives with the interview day's date
+    // in the interview list
+    await paper((await walkIn("Grace", "Nyerere", "2014-05-30", std4.id)).id, "Grace Nyerere", "reviewed");                      // no date yet: Set date
+    const komba = await walkIn("Peter", "Komba", "2012-01-17", formI.id, "MALE");
+    await paper(komba.id, "Peter Komba", "reviewed");
+    await heldInterview(komba.id);                                                                                                  // the interview has taken place: Result
+    const hassan = await walkIn("Amina", "Hassan", "2021-09-08", pre.id);
+    await paper(hassan.id, "Amina Hassan", "reviewed");
+    const hi = await heldInterview(hassan.id);
+    await interviews.recordInterviewResult(head, hi.id, { status: "COMPLETED", outcome: "PASSED", score: 88, notes: "Bright and calm", recommendation: "RECOMMEND", recommendationNote: "Suitable for the class applied" }); // passed: Accept
+    log("admissions applicants ready to accept");
   }
 
   console.log(`\nDemo school is ready. Every account below uses the password: ${PASSWORD}`);
