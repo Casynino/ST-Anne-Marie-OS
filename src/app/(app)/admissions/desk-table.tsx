@@ -3,18 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Ban, Check, Eye } from "lucide-react";
+import { AlertTriangle, Ban, CalendarPlus, Check, ClipboardCheck, Eye } from "lucide-react";
 import type { ActionState } from "@/lib/action";
 import { Badge, EmptyState } from "@/components/ui";
 
 export type DeskLine = {
   id: string; applicationNo: string; name: string; className: string | null; guardian: string | null; phone: string | null; submitted: string; online: boolean;
-  state: string; stateLabel: string; stateTone: "neutral" | "ok" | "warn" | "bad" | "brand"; step: number; stepLabel: string; className2: string; decide: "none" | "ready" | "wait"; waitWhy: string; canDecline: boolean;
+  state: string; stateLabel: string; stateTone: "neutral" | "ok" | "warn" | "bad" | "brand"; step: number; stepLabel: string; className2: string; acts: { kind: Kind; why: string | null }[]; afterReview: "interview" | "accepted"; pendingDocs: number;
   interviewLabel: string; interviewDetail: string | null; percent: number; missing: string[]; assignedTo: string | null; attention: string[];
 };
 type Mode = "START_REVIEW" | "MARK_REVIEWED" | "ASSIGN";
-type Kind = "ACCEPT" | "DECLINE";
-export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel", string>;
+type Kind = "REVIEW" | "ACCEPT" | "DECLINE" | "DATE" | "RESULT";
+export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "date" | "result" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel" | "reviewQ" | "reviewToInterview" | "reviewToAccepted" | "papersChecked" | "dateQ" | "dateSlot" | "dateOther" | "dateWhen" | "dateGo" | "resultQ" | "resultPassed" | "resultNot" | "resultNote" | "resultGo", string>;
 export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "assigned" | "status" | "online" | "selectAll" | "start" | "review" | "assign" | "assignTo" | "go" | "cancel" | "dismiss" | "never" | "unassigned" | "choose", string>
   & { quick: QuickLabels; selected: string; selectRow: string; confirm: Record<Mode, string>; done: string; unchanged: string; failed: string };
 
@@ -23,8 +23,8 @@ export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted"
  * (start the review, mark as reviewed, give to a reviewer). A consequential action asks first, and afterwards the result says what was
  * done, what needed nothing and what could not be done and why. Accepting is never offered here.
  */
-export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, action, quick, empty }: {
-  empty: string; rows: DeskLine[]; labels: DeskLabels; reviewers: { id: string; fullName: string }[]; canVerify: boolean; canAssign: boolean;
+export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, action, quick, empty, slots }: {
+  empty: string; slots: { value: string; label: string }[]; rows: DeskLine[]; labels: DeskLabels; reviewers: { id: string; fullName: string }[]; canVerify: boolean; canAssign: boolean;
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
   quick: (prev: ActionState, form: FormData) => Promise<ActionState>;
 }) {
@@ -33,7 +33,8 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
   const [mode, setMode] = useState<Mode | null>(null);
   const [state, formAction, pending] = useActionState(async (prev: ActionState, form: FormData) => { const r = await action(prev, form); if (r?.ok) { setPicked([]); setMode(null); } return r; }, null);
   // Accept and Decline sit on the row of the application; each asks in a pop-up first, and the server applies the same rules as the full page.
-  const [ask, setAsk] = useState<{ id: string; kind: Kind; name: string; cls: string } | null>(null);
+  const [ask, setAsk] = useState<{ row: DeskLine; kind: Kind } | null>(null);
+  const [slot, setSlot] = useState("");
   const [done, setDone] = useState<{ name: string; text: string } | null>(null);
   const [fail, setFail] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -45,7 +46,7 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
     return r;
   }, null);
   const q = labels.quick;
-  const openAsk = (r: DeskLine, kind: Kind) => { setDone(null); setFail(null); setAsk({ id: r.id, kind, name: r.name, cls: r.className2 }); };
+  const openAsk = (r: DeskLine, kind: Kind) => { setDone(null); setFail(null); setSlot(slots[0]?.value ?? ""); setAsk({ row: r, kind }); };
   const closeAsk = () => { setAsk(null); setFail(null); };
   useEffect(() => {
     const d = dialog.current;
@@ -146,14 +147,19 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
                 <td className="whitespace-nowrap px-1.5 py-3">
                   <span className="inline-flex items-center gap-1.5">
                     <Link href={`/admissions/${r.id}`} aria-label={`${q.view}: ${r.name}`} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-brand-500 hover:bg-tint"><Eye className="size-3.5 text-link" aria-hidden />{q.view}</Link>
-                    {r.decide !== "none" && (
-                      <>
-                        <span title={r.decide === "wait" ? r.waitWhy : undefined}>
-                          <button type="button" disabled={r.decide === "wait"} aria-label={`${q.accept}: ${r.name}`} onClick={() => openAsk(r, "ACCEPT")} className="group inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-ok/60 hover:bg-ok/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:bg-surface"><Check className="size-3.5 text-ok group-disabled:text-muted" aria-hidden />{q.accept}</button>
+                    {r.acts.map((a) => {
+                      const text = a.kind === "DECLINE" ? q.decline : a.kind === "DATE" ? q.date : a.kind === "RESULT" ? q.result : q.accept;
+                      const Icon = a.kind === "DECLINE" ? Ban : a.kind === "DATE" ? CalendarPlus : a.kind === "RESULT" ? ClipboardCheck : Check;
+                      const tone = a.kind === "DECLINE" ? "text-bad" : a.kind === "DATE" || a.kind === "RESULT" ? "text-link" : "text-ok";
+                      const hover = a.kind === "DECLINE" ? "hover:border-bad/60 hover:bg-bad/10" : a.kind === "DATE" || a.kind === "RESULT" ? "hover:border-brand-500 hover:bg-tint" : "hover:border-ok/60 hover:bg-ok/10";
+                      return (
+                        <span key={a.kind} title={a.why ?? undefined}>
+                          <button type="button" disabled={a.why !== null} aria-label={`${text}: ${r.name}`} onClick={() => openAsk(r, a.kind)} className={`group inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors ${hover} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:bg-surface`}>
+                            <Icon className={`size-3.5 ${tone} group-disabled:text-muted`} aria-hidden />{text}
+                          </button>
                         </span>
-                        {r.canDecline && <button type="button" aria-label={`${q.decline}: ${r.name}`} onClick={() => openAsk(r, "DECLINE")} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-bad/60 hover:bg-bad/10"><Ban className="size-3.5 text-bad" aria-hidden />{q.decline}</button>}
-                      </>
-                    )}
+                      );
+                    })}
                   </span>
                 </td>
               </tr>
@@ -163,20 +169,58 @@ export function DeskTable({ rows, labels, reviewers, canVerify, canAssign, actio
       </div>
       )}
 
-      <dialog ref={dialog} onClose={closeAsk} className="m-auto w-[min(30rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-0 text-ink shadow-[var(--shadow-lift)] backdrop:bg-black/60">
+      <dialog ref={dialog} onClose={closeAsk} className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface p-0 text-ink shadow-[var(--shadow-lift)] backdrop:bg-black/60">
         {ask && (
           <form action={quickForm} className="space-y-4 p-5">
-            <input type="hidden" name="id" value={ask.id} />
-            <input type="hidden" name="name" value={ask.name} />
+            <input type="hidden" name="id" value={ask.row.id} />
+            <input type="hidden" name="name" value={ask.row.name} />
             <input type="hidden" name="kind" value={ask.kind} />
-            <h2 className="text-lg font-semibold text-heading">{(ask.kind === "ACCEPT" ? q.acceptQ : q.declineQ).replace("{name}", ask.name).replace("{class}", ask.cls)}</h2>
+            <h2 className="text-lg font-semibold text-heading">
+              {(ask.kind === "REVIEW" ? q.reviewQ : ask.kind === "ACCEPT" ? q.acceptQ : ask.kind === "DECLINE" ? q.declineQ : ask.kind === "DATE" ? q.dateQ : q.resultQ).replace("{name}", ask.row.name).replace("{class}", ask.row.className2)}
+            </h2>
+            {ask.kind === "REVIEW" && (
+              <>
+                <p className="text-sm text-muted">{ask.row.afterReview === "accepted" ? q.reviewToAccepted : q.reviewToInterview}</p>
+                {ask.row.pendingDocs > 0 && (
+                  <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="papersChecked" required className="mt-1 size-4 accent-brand-600" /><span>{q.papersChecked.replace("{n}", String(ask.row.pendingDocs))}</span></label>
+                )}
+              </>
+            )}
             {ask.kind === "ACCEPT" && <p className="text-sm text-muted">{q.acceptAfter}</p>}
             {ask.kind === "DECLINE" && <input name="reason" required maxLength={300} autoFocus aria-label={q.declineReason} placeholder={q.declineReason} className="min-h-11 w-full rounded-md border border-line bg-surface px-3" />}
-            {fail && <p role="alert" className="rounded-md border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{fail} <Link href={`/admissions/${ask.id}`} className="font-semibold underline">{q.open}</Link></p>}
+            {ask.kind === "DATE" && (
+              <div className="space-y-3 text-sm">
+                {slots.length > 0 && (
+                  <label className="block">
+                    <span className="font-medium">{q.dateSlot}</span>
+                    <select name="slot" value={slot} onChange={(e) => setSlot(e.target.value)} className="mt-1 block min-h-11 w-full rounded-md border border-line bg-surface px-3">
+                      {slots.map((x) => <option key={x.value} value={x.value}>{x.label}</option>)}
+                      <option value="">{q.dateOther}</option>
+                    </select>
+                  </label>
+                )}
+                {(slots.length === 0 || slot === "") && (
+                  <label className="block">
+                    <span className="font-medium">{q.dateWhen}</span>
+                    <input type="datetime-local" name="scheduledAt" required autoFocus className="mt-1 block min-h-11 w-full rounded-md border border-line bg-surface px-3" />
+                  </label>
+                )}
+              </div>
+            )}
+            {ask.kind === "RESULT" && (
+              <div className="space-y-3 text-sm">
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2"><input type="radio" name="outcome" value="PASSED" required className="size-4 accent-brand-600" />{q.resultPassed}</label>
+                  <label className="flex items-center gap-2"><input type="radio" name="outcome" value="NOT_PASSED" className="size-4 accent-brand-600" />{q.resultNot}</label>
+                </div>
+                <input name="note" maxLength={500} aria-label={q.resultNote} placeholder={q.resultNote} className="min-h-11 w-full rounded-md border border-line bg-surface px-3" />
+              </div>
+            )}
+            {fail && <p role="alert" className="rounded-md border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{fail} <Link href={`/admissions/${ask.row.id}`} className="font-semibold underline">{q.open}</Link></p>}
             <div className="flex justify-end gap-2">
               <button type="button" onClick={closeAsk} className="min-h-10 rounded-md px-4 text-sm text-muted hover:text-ink">{q.cancel}</button>
               <button disabled={quickPending} className={`min-h-10 rounded-md px-4 text-sm font-semibold text-white disabled:opacity-60 ${ask.kind === "DECLINE" ? "bg-bad hover:opacity-90" : "bg-brand-700 hover:bg-brand-800"}`}>
-                {ask.kind === "ACCEPT" ? q.confirm : q.declineGo}
+                {ask.kind === "DECLINE" ? q.declineGo : ask.kind === "DATE" ? q.dateGo : ask.kind === "RESULT" ? q.resultGo : q.confirm}
               </button>
             </div>
           </form>

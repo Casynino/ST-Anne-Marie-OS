@@ -12,6 +12,7 @@ import * as office from "@/server/office-application";
 import type { IncomingFile } from "@/server/application-draft";
 import * as interviews from "@/server/interviews";
 import * as interviewDays from "@/server/interview-days";
+import * as flow from "@/server/admission-flow";
 import { setApplicationsOpen } from "@/server/website";
 import * as offers from "@/server/admission-offers";
 import * as policy from "@/server/admission-policy";
@@ -207,13 +208,23 @@ export async function quickDecisionAction(_: ActionState, form: FormData) {
     const id = str(i.id);
     const t = makeT(ctx.locale);
     switch (str(i.kind)) {
+      case "REVIEW": {
+        const r = await flow.acceptReview(ctx, id, { papersChecked: str(i.papersChecked) === "on" });
+        return { message: t(r.already ? "adm.q.done.already" : r.state === "ACCEPTED" ? "adm.q.done.toAccepted" : r.state === "AWAITING_DECISION" ? "adm.q.done.toDecision" : "adm.q.done.toInterview") };
+      }
       case "ACCEPT": {
         const r = await offers.acceptApplication(ctx, id, {});
-        return { message: t(r.already ? "adm.accept.already" : r.status === "PENDING_APPROVAL" ? "adm.accept.pending" : "adm.accept.done") };
+        return { message: t(r.already ? "adm.accept.already" : r.status === "PENDING_APPROVAL" ? "adm.accept.pending" : "adm.q.done.toAccepted") };
       }
       case "DECLINE":
         await admissions.transitionApplication(ctx, id, { to: "REJECTED", reason: i.reason });
         return { message: t("adm.q.done.decline") };
+      case "DATE":
+        await flow.giveInterviewDate(ctx, id, str(i.slot) || str(i.scheduledAt));
+        return { message: t("adm.q.done.date") };
+      case "RESULT":
+        await flow.recordQuickResult(ctx, id, { outcome: str(i.outcome), note: str(i.note) || undefined });
+        return { message: t("adm.q.done.result") };
       default:
         throw new AppError("VALIDATION", "Choose what to do with this application.");
     }

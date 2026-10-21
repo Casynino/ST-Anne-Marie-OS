@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessmentResolved, completeness, interviewState, workflowProgress, workflowState, WORKFLOW_STATES } from "@/lib/admissions/rules";
+import { assessmentResolved, completeness, interviewState, stageOf, workflowProgress, workflowState, WORKFLOW_STATES } from "@/lib/admissions/rules";
 
 const base = { status: "APPLIED" as const, review: "PENDING" as const, liveInterview: false, assessmentResolved: false };
 
@@ -12,10 +12,19 @@ describe("the single status of an application", () => {
     expect(workflowState({ ...base, review: "VERIFIED", assessmentResolved: true })).toBe("AWAITING_DECISION");
     expect(workflowState({ ...base, assessmentResolved: true })).toBe("NEW"); // reviewed first, whatever the interview says
   });
-  it("shows a live interview, but a returned application stays 'needs more information'", () => {
+  it("shows a live interview only once the application has been reviewed; a date that came with it does not skip the review", () => {
     expect(workflowState({ ...base, review: "VERIFIED", liveInterview: true })).toBe("INTERVIEW_SCHEDULED");
-    expect(workflowState({ ...base, status: "INTERVIEW", review: "PENDING", liveInterview: true })).toBe("INTERVIEW_SCHEDULED");
+    expect(workflowState({ ...base, status: "INTERVIEW", review: "PENDING", liveInterview: true })).toBe("NEW");
+    expect(workflowState({ ...base, status: "INTERVIEW", review: "IN_REVIEW", liveInterview: true })).toBe("UNDER_REVIEW");
     expect(workflowState({ ...base, review: "RETURNED", liveInterview: true })).toBe("NEEDS_INFO");
+  });
+  it("puts each status in the list it belongs to: review, interview, accepted", () => {
+    expect((["NEW", "UNDER_REVIEW", "NEEDS_INFO"] as const).map(stageOf)).toEqual(["review", "review", "review"]);
+    expect((["REVIEWED", "INTERVIEW_SCHEDULED", "AWAITING_DECISION"] as const).map(stageOf)).toEqual(["interview", "interview", "interview"]);
+    expect(stageOf("ACCEPTED")).toBe("accepted");
+    expect(stageOf("ENROLLED")).toBe("enrolled");
+    expect(stageOf("REJECTED")).toBe("closed");
+    expect(stageOf("WITHDRAWN")).toBe("closed");
   });
   it("closed and accepted applications show their final status", () => {
     for (const s of ["ACCEPTED", "ENROLLED", "REJECTED", "WITHDRAWN"] as const) expect(workflowState({ ...base, status: s, review: "VERIFIED", liveInterview: true })).toBe(s);

@@ -274,3 +274,9 @@ Nino sent two briefs: (1) admissions, finance and administrative control with an
 - **Tests:** `tests/unit/interview-days.test.ts` (3), `tests/integration/interview-days.test.ts` (7).
 - **Open:** the unpaid-form list is still called "Waiting for fee" (office forms must wait for the fee to get a reference and printout); a family on a window gets one date per application (no choosing between days); Swahili text needs a native read-through.
 - Removed the "Waiting for fee" tab and list from Admissions (Nino: no application waits for payment). Unpaid office forms are kept by Finance (Finance > Application fees) until the family pays; only paid applications reach the Admissions list.
+
+## Admissions in three lists (2026-10-21)
+- **Done (Nino's logic):** Applications (under review) -> Interviews -> Accepted. Accept at the review sends an application on to the Interviews list; there it is given a date (some come with one from an interview day), the result is recorded after the interview, and Accept puts it in the Accepted list. Each application is in one list only; enrolled and declined ones have their own tabs and are found by search. Counts show in the tabs. The old interview schedule is now "Interview calendar" (it also holds the application window and the interview days).
+- **Tests:** `tests/integration/admission-flow.test.ts` (4), rules tests updated; full suite run before commit.
+- **Open:** a Needs-info application waits for the family and has only Decline in the list (View to continue); the Accepted list has no row buttons (View, then Class placement and Finance take over).
+

@@ -6,8 +6,8 @@ export type PipelineTab = { key: string; label: string; n: number; to: string; o
  * Where every application stands, at a glance: a slim bar cut by stage (width = how many), and under it one line of tabs, each with the
  * colour of its part of the bar and its count. Choosing a tab filters the list.
  */
-export function Pipeline({ tabs, label }: { tabs: PipelineTab[]; label: string }) {
-  const parts = tabs.map((x) => ({ ...x, w: x.key === "all" || x.key === "attention" ? 0 : (x.bar ?? x.n) })).filter((x) => x.w > 0);
+export function Pipeline({ tabs, label, segments }: { tabs: PipelineTab[]; label: string; segments?: Pick<PipelineTab, "key" | "label" | "n" | "to" | "color">[] }) {
+  const parts = (segments ?? tabs.map((x) => ({ ...x, n: x.key === "all" || x.key === "attention" ? 0 : (x.bar ?? x.n) }))).map((x) => ({ ...x, w: x.n })).filter((x) => x.w > 0);
   const total = parts.reduce((n, x) => n + x.w, 0);
   return (
     <div className="mb-4">

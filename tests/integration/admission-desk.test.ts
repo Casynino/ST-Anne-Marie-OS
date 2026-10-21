@@ -105,7 +105,11 @@ describe("scenario 2: schedule an interview", () => {
     const familyUser = (await db.applicationDraft.findFirstOrThrow({ where: { applicationId: app.id } })).userId;
     await verifiedDocs(app.id);
     const iv = await interviews.scheduleInterview(rehema, app.id, { scheduledAt: inDays(3), location: "Room 2" });
+    // a date that is set while the application is still under review shows in the Interview column, but the application stays in the review list
     let r = await row(app.id);
+    expect(r).toMatchObject({ state: "NEW", interview: "SCHEDULED" });
+    await review.reviewApplication(rehema, app.id, { decision: "VERIFIED" });
+    r = await row(app.id);
     expect(r).toMatchObject({ state: "INTERVIEW_SCHEDULED", interview: "SCHEDULED" });
     expect(r.interviewAt?.getTime()).toBe(new Date(inDays(3)).getTime());
     expect((await notices(app.id)).map((x) => [x.kind, x.status])).toEqual([["INTERVIEW", "SENT_IN_APP"]]);

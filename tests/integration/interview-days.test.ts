@@ -84,8 +84,9 @@ describe("placing a paid application on an interview day", () => {
     const iv = await liveInterview(a.applicationId);
     expect(iv).toMatchObject({ kind: "INTERVIEW", arrangement: "DAY", createdById: null, location: "Main hall" });
     expect((await db.application.findUniqueOrThrow({ where: { id: a.applicationId } })).status).toBe("INTERVIEW");
-    const row = (await desk.loadDesk(rehema, { state: "INTERVIEW_SCHEDULED" }, 1)).rows.find((r) => r.id === a.applicationId);
-    expect(row?.interview).toBe("SCHEDULED");
+    // it comes with its date but is still under review: the date shows in the Interview column and the application stays in the review list
+    const row = (await desk.loadDesk(rehema, {}, 1)).rows.find((r) => r.id === a.applicationId);
+    expect(row).toMatchObject({ state: "NEW", interview: "SCHEDULED" });
     expect(row?.interviewAt?.getTime()).toBe(iv!.scheduledAt.getTime());
     const notes = await db.applicationNotice.findMany({ where: { applicationId: a.applicationId } });
     expect(notes.map((x) => [x.kind, x.status])).toEqual([["INTERVIEW", "NO_ACCOUNT"]]);

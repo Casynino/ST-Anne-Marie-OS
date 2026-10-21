@@ -58,9 +58,24 @@ export type WorkflowState = (typeof WORKFLOW_STATES)[number];
 export function workflowState(a: { status: AppStatus; review: ReviewState; liveInterview: boolean; assessmentResolved: boolean }): WorkflowState {
   if (a.status === "ACCEPTED" || a.status === "ENROLLED" || a.status === "REJECTED" || a.status === "WITHDRAWN") return a.status;
   if (a.review === "RETURNED") return "NEEDS_INFO";
+  // An application is reviewed first (accepted or declined); only then does it go on to the interview. A date that came with the application
+  // (an interview day set in advance) does not skip the review: it shows in the Interview column while the application is still under review.
+  if (a.review !== "VERIFIED") return a.review === "IN_REVIEW" ? "UNDER_REVIEW" : "NEW";
   if (a.liveInterview) return "INTERVIEW_SCHEDULED";
-  if (a.review === "VERIFIED") return a.assessmentResolved ? "AWAITING_DECISION" : "REVIEWED";
-  return a.review === "IN_REVIEW" ? "UNDER_REVIEW" : "NEW";
+  return a.assessmentResolved ? "AWAITING_DECISION" : "REVIEWED";
+}
+
+/** The three lists an application moves through: under review, then the interview, then accepted (enrolled and closed ones are finished). */
+export type Stage = "review" | "interview" | "accepted" | "enrolled" | "closed";
+export const STAGES = ["review", "interview", "accepted"] as const;
+export function stageOf(state: WorkflowState): Stage {
+  switch (state) {
+    case "NEW": case "UNDER_REVIEW": case "NEEDS_INFO": return "review";
+    case "REVIEWED": case "INTERVIEW_SCHEDULED": case "AWAITING_DECISION": return "interview";
+    case "ACCEPTED": return "accepted";
+    case "ENROLLED": return "enrolled";
+    default: return "closed";
+  }
 }
 
 export type InterviewState = "SCHEDULED" | "COMPLETED" | "WAIVED" | "NOT_REQUIRED" | "TO_ARRANGE";
