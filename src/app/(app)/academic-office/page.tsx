@@ -2,12 +2,18 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AlertTriangle, CalendarDays, ClipboardCheck, FileCheck, GraduationCap, HeartHandshake, ListChecks, MoveRight, Users } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
+import { portalLabelKey } from "@/lib/auth/portal";
 import { displayDate, displayDateTime } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
 import { academicDesk } from "@/server/academic-office";
 import { ActionForm, Field } from "@/components/form";
 import { Cell, DashSection, DashTable, DonutStat, EmptyLine, HBars, KpiCard, Panel, Pill, StackedBars } from "@/components/dash/parts";
-import { Badge, LinkButton, NoAccess, PageHeader } from "@/components/ui";
+import { Badge, LinkButton, NoAccess } from "@/components/ui";
+import { DashHero, Hi } from "@/components/dash/hero";
+import { JumpNav } from "@/components/dash/jump-nav";
+import { QuickSection, quickItems } from "../dashboard/quick";
+import { AreaChart } from "@/components/dash/charts-client";
+import { Ring, StageBar } from "@/components/dash/viz";
 import { updateAcademicSettingsAction } from "./actions";
 
 export const metadata: Metadata = { title: "Academic Office" };
@@ -21,27 +27,36 @@ export default async function AcademicOfficePage() {
   const att = d.attendance;
   const perf = d.performance;
   const fmt = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), ctx.locale);
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: school.timezone }).format(new Date()));
 
   return (
     <>
-      <PageHeader
-        title={t("ac.title")}
-        subtitle={`${d.year ? d.year.name : t("ac.noYear")}${d.term ? ` · ${d.term.name}` : ""}`}
-        actions={<div className="flex flex-wrap gap-2">
-          {can("concern.manage") && <LinkButton href="/academic-office/concerns" variant="secondary"><HeartHandshake className="size-4" aria-hidden /> {t("ac.concerns")}</LinkButton>}
-          {(can("transfer.request") || can("transfer.approve")) && <LinkButton href="/academic-office/transfers" variant="secondary"><MoveRight className="size-4" aria-hidden /> {t("ac.transfers")}</LinkButton>}
-          <LinkButton href="/admissions/placement" variant="secondary"><GraduationCap className="size-4" aria-hidden /> {t("adm.nav.placement")}</LinkButton>
-          <LinkButton href="/tasks" variant="secondary"><ListChecks className="size-4" aria-hidden /> {t("nav.tasks")}</LinkButton>
-        </div>}
-      />
+      <DashHero photoIndex={3} eyebrow={`${school.name} · ${t(portalLabelKey("academic"))}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}>
+        {[
+          <><Hi>{d.students.enrolled.toLocaleString()}</Hi> {t("dash.hero.students")}</>,
+          ...(att && att.rate !== null ? [<>{t("dash.hero.attendance")} <Hi tone={att.rate >= 90 ? "ok" : "warn"}>{att.rate}%</Hi></>] : []),
+          ...(d.students.awaitingPlacement > 0 ? [<><Hi tone="warn">{d.students.awaitingPlacement}</Hi> {t("ac.kpi.placement").toLowerCase()}</>] : []),
+          ...(d.students.openConcerns > 0 ? [<><Hi tone="warn">{d.students.openConcerns}</Hi> {t("ac.kpi.concerns").toLowerCase()}</>] : []),
+        ].map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>)}
+      </DashHero>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {can("concern.manage") && <LinkButton href="/academic-office/concerns" variant="secondary"><HeartHandshake className="size-4" aria-hidden /> {t("ac.concerns")}</LinkButton>}
+        {(can("transfer.request") || can("transfer.approve")) && <LinkButton href="/academic-office/transfers" variant="secondary"><MoveRight className="size-4" aria-hidden /> {t("ac.transfers")}</LinkButton>}
+        <LinkButton href="/admissions/placement" variant="secondary"><GraduationCap className="size-4" aria-hidden /> {t("adm.nav.placement")}</LinkButton>
+        <LinkButton href="/tasks" variant="secondary"><ListChecks className="size-4" aria-hidden /> {t("nav.tasks")}</LinkButton>
+        <span className="ml-auto text-sm text-muted">{d.year ? d.year.name : t("ac.noYear")}{d.term ? ` · ${d.term.name}` : ""}</span>
+      </div>
+      <JumpNav label={t("dash.jump")} items={[{ id: "quick", label: t("dash.quick.title") }, { id: "alerts", label: t("ac.alerts") }, { id: "students", label: t("ac.students") }, { id: "attendance", label: t("ac.attendance") }, { id: "performance", label: t("ac.performance") }, ...(d.teachers ? [{ id: "teachers", label: t("ac.teachers") }] : []), { id: "calendar", label: t("ac.calendar") }]} />
 
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("ac.title")}>
+      <ul className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("ac.title")}>
         <li><KpiCard icon={GraduationCap} label={t("ac.kpi.enrolled")} value={d.students.enrolled.toLocaleString()} caption={t("ac.kpi.enrolled.cap")} href="/students" openLabel={t("dash.kpi.open")} pill={{ text: t("dash.pill.active"), tone: "brand" }} /></li>
         <li><KpiCard icon={Users} label={t("ac.kpi.placement")} value={d.students.awaitingPlacement} caption={t("ac.kpi.placement.cap")} href="/admissions/placement" openLabel={t("dash.kpi.open")} pill={d.students.awaitingPlacement > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
         <li><KpiCard icon={HeartHandshake} label={t("ac.kpi.concerns")} value={d.students.openConcerns} caption={t("ac.kpi.concerns.cap")} href="/academic-office/concerns" openLabel={t("dash.kpi.open")} pill={d.students.openConcerns > 0 ? { text: t("dash.pill.watch"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
         <li><KpiCard icon={MoveRight} label={t("ac.kpi.transfers")} value={d.students.pendingTransfers} caption={t("ac.kpi.transfers.cap", { n: d.students.transfersThisTerm })} href="/academic-office/transfers" openLabel={t("dash.kpi.open")} pill={d.students.pendingTransfers > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
         <li><KpiCard icon={ListChecks} label={t("ac.kpi.tasks")} value={d.tasks?.open ?? 0} caption={d.tasks && d.tasks.overdue > 0 ? t("ac.kpi.tasks.overdue", { n: d.tasks.overdue }) : t("ac.kpi.tasks.cap")} href="/tasks?department=ACADEMIC" openLabel={t("dash.kpi.open")} pill={d.tasks && d.tasks.overdue > 0 ? { text: t("dash.pill.overdue"), tone: "bad" } : { text: t("dash.pill.onTrack"), tone: "ok" }} /></li>
       </ul>
+
+      <QuickSection t={t} items={quickItems("academic", t, (p) => can(p as never), d.alerts.map((a) => ({ key: a.key, count: a.count })))} />
 
       <DashSection id="alerts" title={t("ac.alerts")} subtitle={t("ac.alerts.sub")}>
         {d.alerts.length === 0 ? <EmptyLine>{t("ac.alerts.none")}</EmptyLine> : (
@@ -69,10 +84,15 @@ export default async function AcademicOfficePage() {
         {!att ? <EmptyLine>{t("ac.attendance.none")}</EmptyLine> : (
           <div className="grid gap-5 lg:grid-cols-3">
             <Panel title={t("ac.attendance.today")} subtitle={t("ac.attendance.registers", { done: att.finalised, total: att.total })} right={<Link href="/attendance" className="text-sm font-semibold text-link hover:underline">{t("dash.kpi.open")}</Link>}>
-              {att.finalised === 0 ? <EmptyLine>{t("ac.attendance.notYet")}</EmptyLine> : <DonutStat label={t("ac.attendance.today")} center={att.rate === null ? "—" : `${att.rate}%`} caption={t("dash.chart.attendance")} segments={[{ label: t("att.status.PRESENT"), value: att.counts.PRESENT, color: "#0f9462" }, { label: t("att.status.LATE"), value: att.counts.LATE, color: "#e0a100" }, { label: t("att.status.ABSENT"), value: att.counts.ABSENT, color: "#e5604d" }, { label: t("att.status.EXCUSED"), value: att.counts.EXCUSED, color: "#8b95a1" }]} />}
+              {att.finalised === 0 ? <EmptyLine>{t("ac.attendance.notYet")}</EmptyLine> : (
+                <div className="flex flex-col items-center gap-5">
+                  <Ring value={att.rate} size={156} stroke={9} tone={att.rate !== null && att.rate >= 90 ? "ok" : "warn"} label={t("ac.attendance.today")}><span><span className="block text-4xl font-semibold tabular-nums text-heading">{att.rate === null ? "—" : `${att.rate}%`}</span><span className="block text-[10px] font-bold uppercase tracking-[.16em] text-muted">{t("att.status.PRESENT")}</span></span></Ring>
+                  <ul className="w-full space-y-2.5 text-sm">{([[t("att.status.PRESENT"), att.counts.PRESENT, "#2fd08f"], [t("att.status.LATE"), att.counts.LATE, "#f3b94c"], [t("att.status.ABSENT"), att.counts.ABSENT, "#ff8574"], [t("att.status.EXCUSED"), att.counts.EXCUSED, "#8b80ff"]] as const).map(([label, value, color]) => <li key={label} className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 text-ink/90"><span aria-hidden className="size-2.5 rounded-full" style={{ background: color }} />{label}</span><span className="font-semibold tabular-nums text-ink">{value}</span></li>)}</ul>
+                </div>
+              )}
             </Panel>
             <Panel title={t("ac.attendance.trend")} subtitle={t("ac.attendance.trend.sub")} className="lg:col-span-2">
-              {att.trend.length === 0 ? <EmptyLine>{t("dash.chart.attendance.empty")}</EmptyLine> : <StackedBars points={att.trend.map((p) => ({ key: p.date, label: fmt(p.date).slice(0, 6), parts: { n: p.rate } }))} series={[{ key: "n", label: t("dash.chart.attendance") }]} every={2} format={(n) => `${n}%`} label={t("ac.attendance.trend")} summary={t("ac.attendance.trend.sub")} />}
+              {att.trend.length < 2 ? <EmptyLine>{t("dash.chart.attendance.empty")}</EmptyLine> : <AreaChart label={t("ac.attendance.trend")} summary={t("ac.attendance.trend.sub")} kind="percent" yMin={Math.max(0, Math.floor((Math.min(...att.trend.map((p) => p.rate)) - 5) / 10) * 10)} yMax={100} goal={{ value: 90, label: t("dash.pulse.goal", { n: 90 }) }} periodLabel={t("dash.period.label")} periods={att.trend.length > 7 ? [{ label: t("dash.period.7"), count: 7 }, { label: t("dash.period.14"), count: 14 }] : undefined} points={att.trend.map((p) => ({ key: p.date, label: fmt(p.date).slice(0, 6), value: p.rate }))} />}
             </Panel>
             <Panel title={t("ac.attendance.missing")} subtitle={t("ac.attendance.missing.sub")} className="lg:col-span-2">
               <DashTable empty={att.missing.length === 0 ? t("ac.attendance.allDone") : undefined} min="28rem" head={[{ label: t("learn.class") }, { label: t("dash.attToday.students"), right: true }, { label: t("ac.teachers") }]}>
@@ -95,8 +115,11 @@ export default async function AcademicOfficePage() {
             <Panel title={t("ac.units")} subtitle={t("ac.units.sub", { total: perf.units.total })} right={<Link href="/marks" className="text-sm font-semibold text-link hover:underline">{t("dash.kpi.open")}</Link>}>
               {perf.units.total === 0 ? <EmptyLine>{t("ac.units.none")}</EmptyLine> : (
                 <>
-                  <HBars items={(["DRAFT", "RETURNED", "SUBMITTED", "APPROVED", "LOCKED"] as const).map((s) => ({ label: t(`marks.status.${s}` as "marks.status.DRAFT"), value: perf.units.byStatus[s] ?? 0 }))} label={t("ac.units")} summary={t("ac.units.sub", { total: perf.units.total })} />
-                  <p className="mt-3 text-sm text-muted">{t("ac.units.missing", { n: perf.units.missingMarks })} · {t("ac.units.overdue", { n: perf.units.overdue })}</p>
+                  <div className="flex flex-wrap items-center gap-6">
+                    <Ring value={Math.round(((perf.units.byStatus.LOCKED ?? 0) / perf.units.total) * 100)} size={116} stroke={9} tone="indigo" label={t("marks.status.LOCKED")}><span><span className="block text-3xl font-semibold tabular-nums text-heading">{Math.round(((perf.units.byStatus.LOCKED ?? 0) / perf.units.total) * 100)}%</span><span className="block text-[10px] font-bold uppercase tracking-[.14em] text-muted">{t("marks.status.LOCKED")}</span></span></Ring>
+                    <div className="min-w-[14rem] flex-1"><StageBar label={t("ac.units")} summary={t("ac.units.sub", { total: perf.units.total })} items={(["DRAFT", "RETURNED", "SUBMITTED", "APPROVED", "LOCKED"] as const).map((k) => ({ label: t(`marks.status.${k}` as "marks.status.DRAFT"), value: perf.units.byStatus[k] ?? 0, color: { DRAFT: "#4b5a52", RETURNED: "#f3b94c", SUBMITTED: "#14a3b8", APPROVED: "#8b80ff", LOCKED: "#2fd08f" }[k] }))} /></div>
+                  </div>
+                  <p className="mt-4 text-sm text-muted">{t("ac.units.missing", { n: perf.units.missingMarks })} · {t("ac.units.overdue", { n: perf.units.overdue })}</p>
                 </>
               )}
             </Panel>

@@ -41,7 +41,7 @@ function Groups({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collaps
                     {active && <span aria-hidden className="absolute inset-y-2 left-0 w-1 rounded-full bg-sun" />}
                     <Icon className="size-5 shrink-0" aria-hidden />
                     {collapsed ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
-                    {!!item.badge && <span className={`ml-auto rounded-full bg-sun px-2 py-0.5 text-[11px] font-bold text-brand-950 ${collapsed ? "absolute right-1 top-1 ml-0 px-1.5" : ""}`}>{item.badge}</span>}
+                    {!!item.badge && <span className={`ml-auto rounded-md bg-sun px-2 py-0.5 text-[11px] font-bold text-brand-950 ${collapsed ? "absolute right-1 top-1 ml-0 px-1.5" : ""}`}>{item.badge}</span>}
                   </Link>
                 </li>
               );

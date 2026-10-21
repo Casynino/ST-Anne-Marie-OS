@@ -242,3 +242,11 @@ Nino sent two briefs: (1) admissions, finance and administrative control with an
 - **Tests:** `tests/unit/library-access.test.ts` (11) and `tests/integration/library.test.ts` (32); full suite 616 passing, `tsc` clean, production build OK. Browser checks: visitor, student, teacher, administrator and academic-office views, direct-URL denial, mobile layout.
 - **Open:** large uploads in production need a direct-to-storage upload; Swahili text needs a native read-through; categories are the starting set until the school confirms them; no email or SMS to send PINs (the school prints or tells them).
 
+## Department homes redesigned, plain controls (2026-10-21)
+- **Every home** (Administrator, Head Teacher, Accountant, Registrar, Academic Office, Teacher) now has the same clear structure with its own data: hero, jump bar, **Quick access** tiles (only pages the person may open, with a number when something waits), KPI cards with trend lines and progress rings, then charts and tables. Shared charts: smooth attendance area with a 90% target and 7/14-day switch, daily takings bars with a 7-day average line, donuts with printed amounts, stage bars (admissions, invoices, mark sheets), class capacity bars, "every class right now" with filter tabs, avatar tables.
+- **Administrator** also sees the activity block from the system page (sign-ins and actions per day, busiest hours, where the work happens, recent sign-ins, who is online, who is not using the system) and "Accounts by role". Set-up progress is a ring.
+- **Plain controls:** the public header is text links plus one rectangular "Apply online" button, the NOTICE badge and EN/SW pill are gone, decorative circles removed, status chips and tabs are rectangles.
+- New data: applications per day (`applicationsDaily`) and class capacity fill (`classFill`) in `school-overview.ts`, `accountsByRole` in `admin-home.ts`. No schema change.
+- Tests: full suite 616 passing, `tsc` clean, production build OK. One existing flaky test (`ops.test.ts`, random address collisions in the shared test database) was made reliable. Browser-checked all six homes at desktop width, phone width for the public header and academic office.
+- Kiswahili for the new labels needs a native read-through.
+

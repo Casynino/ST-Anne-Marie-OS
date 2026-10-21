@@ -17,7 +17,7 @@ export function AttentionTabs({ rows, areas, allLabel }: { rows: AttentionRow[];
       {tabs.length > 2 && (
         <div role="tablist" className="flex flex-wrap gap-2 border-b border-line p-3">
           {tabs.map((tab) => (
-            <button key={tab.id} role="tab" aria-selected={area === tab.id} type="button" onClick={() => setArea(tab.id)} className={`inline-flex min-h-9 items-center gap-2 rounded-full px-3.5 text-sm font-medium transition-colors ${area === tab.id ? "bg-sun text-brand-950" : "border border-line text-ink hover:bg-canvas"}`}>
+            <button key={tab.id} role="tab" aria-selected={area === tab.id} type="button" onClick={() => setArea(tab.id)} className={`inline-flex min-h-9 items-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors ${area === tab.id ? "bg-sun text-brand-950" : "border border-line text-ink hover:bg-canvas"}`}>
               {tab.label}<span className={`text-xs ${area === tab.id ? "text-brand-950/70" : "text-muted"}`}>{counts(tab.id)}</span>
             </button>
           ))}

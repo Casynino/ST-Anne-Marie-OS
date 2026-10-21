@@ -52,7 +52,7 @@ export function SiteHeader({
 
   return (
     <>
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-full focus:bg-sun focus:px-4 focus:py-2 focus:text-[#10200f]">{skipLabel}</a>
+      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-sun focus:px-4 focus:py-2 focus:text-[#10200f]">{skipLabel}</a>
       {topSlot}
 
       {/* Identity row: sticky on phones, scrolls away on larger screens (the navigation bar below stays) */}
@@ -66,30 +66,29 @@ export function SiteHeader({
             </span>
           </Link>
 
-          {/* One size, one shape: every control is 44px high, text is 15px semibold in normal case, links and buttons are pills. */}
+          {/* Plain and clear: links are text, the only filled control is Apply online (a rectangle). Every control is 44px high. */}
           <div className="ml-auto hidden items-center gap-1.5 xl:flex">
-            <Link href="/calendar" className="inline-flex h-11 items-center gap-2 rounded-full px-4 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint"><CalendarDays className="size-[18px]" aria-hidden />{calendarLabel}</Link>
+            <Link href="/calendar" className="inline-flex h-11 items-center gap-2 rounded-md px-3 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint"><CalendarDays className="size-[18px]" aria-hidden />{calendarLabel}</Link>
             <div className="group relative">
-              <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint">{quickLabel}<ChevronDown className="size-4 transition-transform group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden /></button>
+              <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-md px-3 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint">{quickLabel}<ChevronDown className="size-4 transition-transform group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden /></button>
               <div className="invisible absolute right-0 top-full z-50 w-64 pt-2 opacity-0 transition-[opacity,visibility] duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-                <ul className="rounded-2xl border-t-4 border-sun bg-white p-2 shadow-[var(--shadow-lift)]">
-                  {quickLinks.map((q) => <li key={q.href}><Link href={q.href} className="flex min-h-11 items-center rounded-xl px-3 text-[15px] font-semibold text-brand-900 transition-colors hover:bg-tint">{q.label}</Link></li>)}
+                <ul className="rounded-md border-t-4 border-sun bg-white p-2 shadow-[var(--shadow-lift)]">
+                  {quickLinks.map((q) => <li key={q.href}><Link href={q.href} className="flex min-h-11 items-center rounded px-3 text-[15px] font-semibold text-brand-900 transition-colors hover:bg-tint">{q.label}</Link></li>)}
                 </ul>
               </div>
             </div>
-            <Link href="/search" aria-label={searchLabel} title={searchLabel} className="inline-flex size-11 items-center justify-center rounded-full text-brand-800 transition-colors hover:bg-tint"><Search className="size-[18px]" aria-hidden /></Link>
+            <Link href="/search" aria-label={searchLabel} title={searchLabel} className="inline-flex size-11 items-center justify-center rounded-md text-brand-800 transition-colors hover:bg-tint"><Search className="size-[18px]" aria-hidden /></Link>
             <div className="ml-1">{languageSwitch}</div>
-            <span aria-hidden className="mx-3 h-6 w-px bg-line" />
-            <Link href={portalHref} className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full border-2 border-brand-700 px-5 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-brand-700 hover:text-white">
-              {signedIn && <span aria-hidden className="-ml-2 grid size-7 shrink-0 place-items-center rounded-full bg-brand-700 text-[11px] font-bold text-white">{portalLabel.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("")}</span>}
+            <span aria-hidden className="mx-2 h-6 w-px bg-line" />
+            <Link href={portalHref} className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-md px-3 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint">
               <span className="max-w-[11rem] truncate">{portalLabel}</span>
             </Link>
-            <Link href={applyHref} className="inline-flex h-11 items-center whitespace-nowrap rounded-full bg-sun px-5 text-[15px] font-semibold text-[#10200f] transition-colors hover:bg-sun-600">{applyLabel}</Link>
+            <Link href={applyHref} className="inline-flex h-11 items-center whitespace-nowrap rounded-md bg-sun px-5 text-[15px] font-semibold text-[#10200f] transition-colors hover:bg-sun-600">{applyLabel}</Link>
           </div>
 
           <div className="ml-auto flex items-center gap-2 xl:hidden">
-            <Link href={applyHref} className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full bg-sun px-4 text-sm font-bold text-[#10200f]"><span className="sm:hidden">{applyShortLabel}</span><span className="hidden sm:inline">{applyLabel}</span></Link>
-            <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="site-menu" aria-label={open ? closeLabel : menuLabel} className="inline-flex size-11 items-center justify-center rounded-full bg-brand-800 text-white">
+            <Link href={applyHref} className="inline-flex min-h-11 items-center whitespace-nowrap rounded-md bg-sun px-4 text-sm font-bold text-[#10200f]"><span className="sm:hidden">{applyShortLabel}</span><span className="hidden sm:inline">{applyLabel}</span></Link>
+            <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="site-menu" aria-label={open ? closeLabel : menuLabel} className="inline-flex size-11 items-center justify-center rounded-md bg-brand-800 text-white">
               <span aria-hidden className="relative block h-3 w-5"><span className={`absolute inset-x-0 h-0.5 rounded bg-current transition-transform duration-300 ${open ? "top-1 rotate-45" : "top-0"}`} /><span className={`absolute inset-x-0 top-1 h-0.5 rounded bg-current transition-opacity ${open ? "opacity-0" : ""}`} /><span className={`absolute inset-x-0 h-0.5 rounded bg-current transition-transform duration-300 ${open ? "top-1 -rotate-45" : "top-2"}`} /></span>
             </button>
           </div>

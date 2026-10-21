@@ -43,3 +43,13 @@ export async function adminHome(ctx: AuthContext) {
   ];
   return { items, doneCount: items.filter((i) => i.done).length, people: { staff, parents, students: studentAccounts, neverSignedIn } };
 }
+
+/** Accounts grouped by what they do: each role with how many people hold it and how many of them are active. Staff roles only (parents and students are counted in `people`). */
+export async function accountsByRole(ctx: AuthContext) {
+  requirePermission(ctx, "user.read");
+  const roles = await db.role.findMany({ where: { schoolId: ctx.schoolId, key: { notIn: ["parent", "student"] } }, select: { id: true, key: true, name: true, description: true, users: { select: { user: { select: { status: true, type: true } } } } } });
+  return roles
+    .map((r) => { const staff = r.users.filter((u) => u.user.type === "STAFF"); return { key: r.key, name: r.name, description: r.description, total: staff.length, active: staff.filter((u) => u.user.status === "ACTIVE").length }; })
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+}

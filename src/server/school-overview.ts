@@ -121,5 +121,32 @@ export async function staffByRole(ctx: AuthContext) {
   return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value }));
 }
 
+/** Applications received per day for the last `days` days (school time zone). */
+export async function applicationsDaily(ctx: AuthContext, days = 30) {
+  if (!can(ctx, "admission.read")) return null;
+  const tz = await schoolTimezone(ctx.schoolId);
+  const today = parseDateOnly(todayInTimezone(tz)) as Date;
+  const from = new Date(today.getTime() - (days - 1) * DAY - DAY);
+  const rows = await db.$queryRaw<{ d: string; n: bigint }[]>`
+    SELECT to_char(((a."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${tz}), 'YYYY-MM-DD') AS d, count(*) AS n
+    FROM applications a WHERE a."schoolId" = ${ctx.schoolId}::uuid AND a."createdAt" >= ${from} GROUP BY 1`;
+  return lastDays(today, days).map((date) => ({ date, count: Number(rows.find((r) => r.d === date)?.n ?? 0) }));
+}
+
+/** How full each class is, for classes that have a capacity set (current year, active enrolments). */
+export async function classFill(ctx: AuthContext) {
+  if (!can(ctx, "student.read")) return null;
+  const year = await db.academicYear.findFirst({ where: { schoolId: ctx.schoolId, isCurrent: true }, select: { id: true } });
+  if (!year) return null;
+  const [classes, counts] = await Promise.all([
+    db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, capacity: { not: null } }, select: { id: true, name: true, capacity: true, sortOrder: true, level: { select: { sortOrder: true } } } }),
+    db.studentEnrollment.groupBy({ by: ["classId"], where: { schoolId: ctx.schoolId, academicYearId: year.id, status: "ACTIVE" }, _count: { _all: true } }),
+  ]);
+  if (classes.length === 0) return null;
+  return classes
+    .sort((a, b) => a.level.sortOrder - b.level.sortOrder || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+    .map((c) => ({ name: c.name, count: counts.find((x) => x.classId === c.id)?._count._all ?? 0, capacity: c.capacity as number }));
+}
+
 /** Fees billed and received per class for the current term. */
 export { classCollectionReport } from "@/server/finance-reports";

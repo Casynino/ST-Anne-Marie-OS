@@ -10,15 +10,19 @@ import { getSchoolBasics } from "@/server/settings";
 import { formatMoney } from "@/lib/finance/money";
 import { Card, EmptyState, LinkButton } from "@/components/ui";
 import { DashHero, Hi } from "@/components/dash/hero";
+import { JumpNav } from "@/components/dash/jump-nav";
+import { ActivityBlock } from "@/components/dash/activity";
 import { teacherHome } from "@/server/teacher-home";
 import { headHome } from "@/server/head-home";
-import { adminHome } from "@/server/admin-home";
+import { accountsByRole, adminHome } from "@/server/admin-home";
+import { activityPanel } from "@/server/ops";
 import * as ov from "@/server/school-overview";
 import { classCollectionReport } from "@/server/finance-reports";
 import { admissionOverview, admissionQueues } from "@/server/admission-queues";
 import { TeacherDashboard } from "./teacher";
 import { AccountantDashboard, HeadDashboard, RegistrarDashboard, SetupSection, type HomeProps } from "./roles";
-import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LatestSection, LearningSection, MyRegistersSection, ResultsSection, StudentsSection, type DashEnv, type Overview } from "./sections";
+import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LatestSection, LearningSection, MyRegistersSection, PeopleSection, PulseSection, ResultsSection, StudentsSection, type DashEnv, type Overview } from "./sections";
+import { QuickSection, jumpItems, quickItems } from "./quick";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -47,11 +51,11 @@ export default async function DashboardPage() {
 
   if (kind === "teacher") {
     const th = await teacherHome(ctx);
-    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} />;
+    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} quick={quickItems("teacher", t, can, d.attention)} />;
   }
 
   // School data panels: each is gated by the permission of its detail screen and fails alone, never the whole page.
-  const [byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles, admOverview, admQueues] = await Promise.all([
+  const [byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles, admOverview, admQueues, applications, fill] = await Promise.all([
     optional("students", () => ov.studentsByClassGender(ctx)),
     optional("attendance", () => ov.attendanceDaily(ctx)),
     optional("absent", () => ov.absentToday(ctx)),
@@ -64,8 +68,10 @@ export default async function DashboardPage() {
     optional("staff", () => ov.staffByRole(ctx)),
     can("admission.read") ? optional("admissionOverview", () => admissionOverview(ctx)) : null,
     optional("admissionQueues", () => admissionQueues(ctx)),
+    optional("applications", () => ov.applicationsDaily(ctx)),
+    optional("fill", () => ov.classFill(ctx)),
   ]);
-  const o: Overview = { byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles };
+  const o: Overview = { byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles, applications, fill };
   const fmtDay = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), locale).slice(0, 6);
   const money = (c: number) => formatMoney(c, school.currency);
   const env: DashEnv = { t, locale, money, fmtDay, school: { timezone: school.timezone, currency: school.currency, name: school.name }, d, o, adm: { overview: admOverview, queues: admQueues ?? [] } };
@@ -76,7 +82,10 @@ export default async function DashboardPage() {
   if (kind === "registrar") return <RegistrarDashboard props={props} />;
 
   // Administrator (and staff with a custom role): the school overview, with the set-up checklist for people who run the school.
-  const setup = kind === "admin" ? await optional("setup", () => adminHome(ctx)) : null;
+  const [setup, act, accounts] = kind === "admin"
+    ? await Promise.all([optional("setup", () => adminHome(ctx)), can("audit.read") ? optional("activity", () => activityPanel(ctx)) : null, can("user.read") ? optional("accounts", () => accountsByRole(ctx)) : null])
+    : [null, null, null];
+  const ago = (when: Date) => { const m = Math.round((Date.now() - when.getTime()) / 60000); return m < 1 ? t("dash.ago.now") : m < 60 ? t("dash.ago.min", { n: m }) : m < 48 * 60 ? t("dash.ago.hours", { n: Math.round(m / 60) }) : t("dash.ago.days", { n: Math.round(m / 1440) }); };
   const nothingToShow = d.kpis.length === 0 && !d.finance && !d.exams && !d.enrollmentByClass && !d.pipeline && !d.attendanceTrend && !d.recentApplications && !d.activity && d.myRegisters.length === 0;
   const enrolled = d.kpis.find((k) => k.key === "enrolled");
   const attKpi = d.kpis.find((k) => k.key === "attendanceToday")?.value;
@@ -86,19 +95,10 @@ export default async function DashboardPage() {
     ...(d.finance ? [<><Hi>{money(d.finance.collected)}</Hi> {t("dash.hero.received")}</>, ...(d.finance.outstanding > 0 ? [<><Hi tone="warn">{money(d.finance.outstanding)}</Hi> {t("dash.hero.owed")}</>] : [])] : []),
     ...(d.pipeline && (d.pipeline.find((p) => p.label === "APPLIED")?.value ?? 0) > 0 ? [<><Hi tone="warn">{d.pipeline.find((p) => p.label === "APPLIED")!.value}</Hi> {t("dash.hero.applications")}</>] : []),
   ];
-  const chips = [
-    setup && { id: "setup", label: t("setup.title") },
-    d.attention.length > 0 && { id: "attention", label: t("dash.attention.title") },
-    d.attendanceByClass && d.attendanceByClass.length > 0 && { id: "classes", label: t("dash.sec.classes") },
-    d.kpis.length > 0 && { id: "school", label: t("dash.sec.school") },
-    (byGender || attDaily || absent) && { id: "students", label: t("dash.sec.students") },
-    d.finance && { id: "fees", label: t("dash.sec.fees") },
-    d.exams && { id: "results", label: t("dash.sec.results") },
-    (d.pipeline || d.recentApplications) && { id: "admissions", label: t("dash.sec.admissions") },
-    (homework || behaviour) && { id: "learning", label: t("dash.sec.learning") },
-    (events || staffRoles) && { id: "calendar", label: t("dash.sec.calendar") },
-    d.activity && { id: "latest", label: t("dash.sec.latest") },
-  ].filter(Boolean) as { id: string; label: string }[];
+  const chips = jumpItems(env, ["setup", "quick", "attention", "school", "pulse", "classes", "students", "fees", "results", "admissions", "learning", "activity", "people", "calendar", "latest"], {
+    setup: !!setup && t("setup.title"), activity: !!act && t("dash.sec.activity"), people: !!accounts && accounts.length > 0 && t("dash.sec.people"), latest: !!d.activity && t("dash.sec.latest"),
+  });
+  const quick = quickItems(kind === "admin" ? "admin" : "staff", t, can, d.attention);
 
   return (
     <>
@@ -111,11 +111,7 @@ export default async function DashboardPage() {
         {can("attendance.take") && <LinkButton href="/attendance" variant="secondary"><ClipboardCheck className="size-4" aria-hidden /> {t("dash.takeAttendance")}</LinkButton>}
         <span className="ml-auto inline-flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" aria-hidden />{displayDate(new Date(`${d.today}T00:00:00Z`), locale)}{d.year ? ` · ${d.year.name}` : ""}{d.term ? ` · ${d.term.name}` : ""}</span>
       </div>
-      {chips.length > 0 && (
-        <nav aria-label={t("dash.jump")} className="mt-4 flex flex-wrap gap-2">
-          {chips.map((c) => <a key={c.id} href={`#${c.id}`} className="inline-flex min-h-9 items-center rounded-full border border-line bg-surface px-3.5 text-sm font-medium text-ink hover:border-brand-500 hover:text-link">{c.label}</a>)}
-        </nav>
-      )}
+      <JumpNav items={chips} label={t("dash.jump")} />
 
       {d.needsSetup && !setup && (
         <Card className="mb-5 mt-5 border-amber-200 bg-amber-50">
@@ -127,9 +123,11 @@ export default async function DashboardPage() {
       {nothingToShow && <EmptyState><p className="font-semibold text-ink">{t("dash.empty.title")}</p><p className="mt-1">{t("dash.empty.body")}</p></EmptyState>}
 
       {setup && <SetupSection env={env} setup={setup} />}
+      <QuickSection t={t} items={quick} />
       <QueueSection env={env} />
       <KpiSection env={env} />
       <AttentionSection env={env} />
+      <PulseSection env={env} />
       <ClassesSection env={env} />
       <MyRegistersSection env={env} />
       <StudentsSection env={env} />
@@ -137,6 +135,8 @@ export default async function DashboardPage() {
       <ResultsSection env={env} />
       <AdmissionsSection env={env} />
       <LearningSection env={env} />
+      {act && <ActivityBlock t={t} act={act} failed24={act.failed24} fmtDay={fmtDay} ago={ago} />}
+      <PeopleSection env={env} accounts={accounts} />
       <CalendarSection env={env} />
       <LatestSection env={env} />
     </>

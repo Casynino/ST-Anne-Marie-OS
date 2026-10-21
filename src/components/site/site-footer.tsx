@@ -36,9 +36,9 @@ export function SiteFooter({ t, site, links }: { t: Translate; site: PublicSite;
           {intro && <p className="mt-5 max-w-xs text-[15px] leading-relaxed text-white/70">{intro}</p>}
           {(social.facebook || social.instagram || social.youtube) && (
             <ul className="mt-5 flex flex-wrap gap-3 text-sm font-bold">
-              {social.facebook && <li><a className="rounded-full border border-white/30 px-4 py-2 hover:border-sun hover:text-sun" href={social.facebook} target="_blank" rel="noopener noreferrer">Facebook</a></li>}
-              {social.instagram && <li><a className="rounded-full border border-white/30 px-4 py-2 hover:border-sun hover:text-sun" href={social.instagram} target="_blank" rel="noopener noreferrer">Instagram</a></li>}
-              {social.youtube && <li><a className="rounded-full border border-white/30 px-4 py-2 hover:border-sun hover:text-sun" href={social.youtube} target="_blank" rel="noopener noreferrer">YouTube</a></li>}
+              {social.facebook && <li><a className="rounded-md border border-white/30 px-4 py-2 hover:border-sun hover:text-sun" href={social.facebook} target="_blank" rel="noopener noreferrer">Facebook</a></li>}
+              {social.instagram && <li><a className="rounded-md border border-white/30 px-4 py-2 hover:border-sun hover:text-sun" href={social.instagram} target="_blank" rel="noopener noreferrer">Instagram</a></li>}
+              {social.youtube && <li><a className="rounded-md border border-white/30 px-4 py-2 hover:border-sun hover:text-sun" href={social.youtube} target="_blank" rel="noopener noreferrer">YouTube</a></li>}
             </ul>
           )}
         </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowRight, type LucideIcon } from "lucide-react";
+import { Ring, Spark, type VizTone } from "./viz";
 
 /** Section heading in the dashboard: a bold title with a one-line purpose, closed by a hairline. */
 export function DashSection({ id, eyebrow, title, subtitle, children }: { id: string; eyebrow?: string; title: string; subtitle?: string; children: ReactNode }) {
@@ -29,16 +30,19 @@ const PILL = {
 export type PillTone = keyof typeof PILL;
 export const Pill = ({ tone = "neutral", children }: { tone?: PillTone; children: ReactNode }) => <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-[.12em] ring-1 ring-inset ${PILL[tone]}`}>{children}</span>;
 
-/** A headline number: small capital label, big figure, one line of context and a status pill. */
-export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLabel }: { label: string; value: ReactNode; caption?: string; pill?: { text: string; tone: PillTone }; icon: LucideIcon; href?: string; openLabel?: string }) {
+/** A headline number: small capital label, big figure, one line of context and a status pill. It can carry a trend line (`spark`) or a progress ring (`ring`, a percentage) when the numbers exist. */
+export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLabel, spark, ring, tone = "ok" }: { label: string; value: ReactNode; caption?: string; pill?: { text: string; tone: PillTone }; icon: LucideIcon; href?: string; openLabel?: string; spark?: number[]; ring?: number | null; tone?: VizTone }) {
   const body = (
     <>
       <span className="flex items-start justify-between gap-3">
         <span className="text-[11px] font-bold uppercase tracking-[.14em] text-muted">{label}</span>
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-600/12 text-link"><Icon className="size-[1.15rem]" aria-hidden /></span>
+        {ring !== undefined && ring !== null
+          ? <Ring value={ring} size={46} stroke={12} tone={tone} label={label}><span className="text-[10px] font-semibold tabular-nums text-ink">{Math.round(ring)}%</span></Ring>
+          : <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-600/12 text-link"><Icon className="size-[1.15rem]" aria-hidden /></span>}
       </span>
-      <span className="mt-2 block text-4xl font-semibold tabular-nums tracking-tight text-ink">{value}</span>
+      <span className={`mt-2 block font-semibold tabular-nums tracking-tight text-ink ${typeof value === "string" && value.length > 9 ? "whitespace-nowrap text-[1.4rem] leading-9" : "text-4xl"}`}>{value}</span>
       {caption && <span className="mt-0.5 block text-sm text-muted">{caption}</span>}
+      {spark && spark.length > 1 && <span className="mt-3 block"><Spark values={spark} tone={tone} /></span>}
       <span className="mt-auto flex items-center justify-between gap-2 pt-4">
         {pill ? <Pill tone={pill.tone}>{pill.text}</Pill> : <span />}
         {href && openLabel && <span className="inline-flex items-center gap-1 text-xs font-semibold text-link group-hover:underline">{openLabel}<ArrowRight className="size-3.5" aria-hidden /></span>}
@@ -139,7 +143,7 @@ export function DashTable({ head, children, empty, min = "28rem" }: { head: { la
 export const Cell = ({ children, right, className = "" }: { children?: ReactNode; right?: boolean; className?: string }) => <td className={`px-5 py-3 align-middle ${right ? "text-right tabular-nums" : ""} ${className}`}>{children}</td>;
 
 /** Ring chart with a big figure in the middle and a legend of counts (never colour alone). */
-export function DonutStat({ segments, center, caption, label }: { segments: { label: string; value: number; color: string }[]; center: ReactNode; caption?: string; label: string }) {
+export function DonutStat({ segments, center, caption, label }: { segments: { label: string; value: number; color: string; text?: string }[]; center: ReactNode; caption?: string; label: string }) {
   const total = segments.reduce((n, s) => n + s.value, 0);
   const R = 52, C = 2 * Math.PI * R;
   let offset = 0;
@@ -158,7 +162,7 @@ export function DonutStat({ segments, center, caption, label }: { segments: { la
         <div className="absolute inset-0 grid place-items-center text-center"><div><div className="text-3xl font-semibold tabular-nums text-heading">{center}</div>{caption && <div className="text-[10px] font-bold uppercase tracking-[.16em] text-muted">{caption}</div>}</div></div>
       </div>
       <ul className="min-w-[10rem] flex-1 space-y-2 text-sm">
-        {segments.map((s) => <li key={s.label} className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 text-ink/90"><span aria-hidden className="size-2.5 rounded-full" style={{ background: s.color }} />{s.label}</span><span className="font-semibold tabular-nums text-ink">{s.value}</span></li>)}
+        {segments.map((s) => <li key={s.label} className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 text-ink/90"><span aria-hidden className="size-2.5 rounded-full" style={{ background: s.color }} />{s.label}</span><span className="font-semibold tabular-nums text-ink">{s.text ?? s.value}</span></li>)}
       </ul>
     </figure>
   );

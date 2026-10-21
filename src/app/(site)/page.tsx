@@ -315,7 +315,6 @@ export default async function HomePage() {
 
       {/* ───────── Admissions ───────── */}
       <section className="site-deep relative isolate overflow-hidden">
-        <div aria-hidden className="absolute -right-24 -top-24 -z-10 size-96 rounded-full bg-sun/10" />
         <div className={`${WRAP} py-20 sm:py-28`}>
           <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
             <Reveal className="lg:col-span-7"><p className="eyebrow">{t("site.how.kicker")}</p><h2 className="display mt-4 text-[2.2rem] text-heading sm:text-5xl">{t("site.how.title")}</h2><p className="lead mt-5 max-w-xl text-muted">{text.admissionsIntro ?? t("site.admissions.default")}</p></Reveal>

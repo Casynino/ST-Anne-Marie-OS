@@ -30,7 +30,7 @@ export function GlobalSearch({ action, placeholder, label }: { action: string; p
       <label className="sr-only" htmlFor="global-search">{label}</label>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-        <input id="global-search" name="q" type="search" placeholder={placeholder} className="h-10 w-full rounded-full border border-line bg-canvas pl-9 pr-4 text-sm placeholder:text-muted/80 focus:border-brand-500 focus:bg-surface" />
+        <input id="global-search" name="q" type="search" placeholder={placeholder} className="h-10 w-full rounded-lg border border-line bg-canvas pl-9 pr-4 text-sm placeholder:text-muted/80 focus:border-brand-500 focus:bg-surface" />
       </div>
     </form>
   );
@@ -39,7 +39,7 @@ export function GlobalSearch({ action, placeholder, label }: { action: string; p
 /** Opens the public website in a new tab, so staff keep their place in the system. */
 export function WebsiteLink({ label }: { label: string }) {
   return (
-    <Link href="/" target="_blank" rel="noopener" aria-label={label} title={label} className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-medium text-ink hover:bg-canvas">
+    <Link href="/" target="_blank" rel="noopener" aria-label={label} title={label} className="inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium text-ink hover:bg-canvas">
       <Globe className="size-5" aria-hidden /><span className="hidden lg:inline">{label}</span>
     </Link>
   );
@@ -47,7 +47,7 @@ export function WebsiteLink({ label }: { label: string }) {
 
 export function NotificationBell({ count, label }: { count: number; label: string }) {
   return (
-    <Link href="/notifications" aria-label={`${label}${count ? ` (${count})` : ""}`} className="relative inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-canvas">
+    <Link href="/notifications" aria-label={`${label}${count ? ` (${count})` : ""}`} className="relative inline-flex size-11 items-center justify-center rounded-md text-ink hover:bg-canvas">
       <Bell className="size-5" aria-hidden />
       {count > 0 && <span className="absolute right-1.5 top-1.5 min-w-5 rounded-full bg-bad px-1 text-center text-[11px] font-bold leading-5 text-white">{count > 99 ? "99+" : count}</span>}
     </Link>
@@ -68,7 +68,7 @@ export function UserMenu({ name, initials, role, passwordLabel, children }: { na
   }, [open]);
   return (
     <div ref={box} className="relative">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="flex min-h-11 items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-canvas">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="flex min-h-11 items-center gap-2 rounded-md py-1 pl-1 pr-2 hover:bg-canvas">
         <span aria-hidden className="flex size-9 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">{initials}</span>
         <span className="hidden text-left leading-tight sm:block"><span className="block max-w-[10rem] truncate text-sm font-semibold">{name}</span>{role && <span className="block max-w-[10rem] truncate text-xs text-muted">{role}</span>}</span>
         <ChevronDown className="hidden size-4 text-muted sm:block" aria-hidden />

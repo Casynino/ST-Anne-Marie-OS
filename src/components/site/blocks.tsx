@@ -99,7 +99,6 @@ export function Prose({ children, className = "" }: { children: ReactNode; class
 export function CtaBand({ title, children, actions }: { title: string; children?: ReactNode; actions: ReactNode }) {
   return (
     <section className="site-deep relative isolate overflow-hidden rounded-2xl px-6 py-12 sm:px-14 sm:py-14">
-      <div aria-hidden className="absolute -right-16 -top-16 -z-10 size-72 rounded-full bg-sun/15" />
       <div className="flex flex-wrap items-end justify-between gap-8">
         <div className="max-w-xl"><h2 className="display text-3xl text-heading sm:text-5xl">{title}</h2>{children && <p className="lead mt-4 text-muted">{children}</p>}</div>
         <div className="flex flex-wrap gap-3">{actions}</div>

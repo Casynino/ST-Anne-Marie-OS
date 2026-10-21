@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, CalendarClock, ClipboardCheck, ClipboardList, FileText, Users } from "lucide-react";
+import { BookOpen, CalendarCheck, CalendarClock, ClipboardCheck, ClipboardList, FileText, Users } from "lucide-react";
 import type { Translate } from "@/lib/i18n";
 import { displayDate } from "@/lib/dates";
 import type { DashboardData } from "@/server/dashboard";
@@ -7,13 +7,17 @@ import type { teacherHome } from "@/server/teacher-home";
 import { LinkButton } from "@/components/ui";
 import { AttentionTabs } from "@/components/dash/attention-tabs";
 import { DashHero, Hi } from "@/components/dash/hero";
-import { Cell, DashSection, DashTable, EmptyLine, KpiCard, Panel, Pill } from "@/components/dash/parts";
+import { Cell, DashSection, DashTable, EmptyLine, KpiCard, Panel, PersonCell, Pill } from "@/components/dash/parts";
+import { JumpNav } from "@/components/dash/jump-nav";
+import type { Quick } from "@/components/dash/quick-links";
+import { QuickSection } from "./quick";
 import { toneFor } from "@/components/learning/timetable-grid";
 
-type Props = { t: Translate; locale: "EN" | "SW"; first: string; hour: number; schoolName: string; portal: string; today: string; d: DashboardData; th: Awaited<ReturnType<typeof teacherHome>> };
+type Props = { t: Translate; locale: "EN" | "SW"; first: string; hour: number; schoolName: string; portal: string; today: string; d: DashboardData; th: Awaited<ReturnType<typeof teacherHome>>; quick: Quick[] };
 
 /** The teacher's own home: today's lessons, what is waiting for them, and the classes they teach. */
-export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, today, d, th }: Props) {
+export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, today, d, th, quick }: Props) {
+  const regDone = d.myRegisters.filter((r) => r.status === "FINALISED").length;
   const registers = d.myRegisters.filter((r) => r.status !== "FINALISED");
   const sheets = d.exams?.mine ?? [];
   const messages = d.attention.find((a) => a.key === "messagesWaiting");
@@ -45,12 +49,17 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
         <span className="ml-auto text-sm text-muted">{displayDate(new Date(`${today}T00:00:00Z`), locale)}{d.term ? ` · ${d.term.name}` : ""}</span>
       </div>
 
-      <ul className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <JumpNav label={t("dash.jump")} items={[rows.length > 0 && { id: "todo", label: t("tch.todo.title") }, { id: "quick", label: t("dash.quick.title") }, { id: "today", label: t("tch.today.title") }, { id: "students", label: t("tch.students.title") }, { id: "mine", label: t("tch.classes.title") }, { id: "work", label: t("tch.work.title") }].filter(Boolean) as { id: string; label: string }[]} />
+
+      <ul className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {d.myRegisters.length > 0 && <li><KpiCard icon={CalendarCheck} ring={Math.round((regDone / d.myRegisters.length) * 100)} tone={regDone === d.myRegisters.length ? "ok" : "warn"} label={t("tch.kpi.registers")} value={`${regDone}/${d.myRegisters.length}`} caption={t("tch.kpi.registers.cap", { done: regDone, total: d.myRegisters.length })} href="/attendance" openLabel={t("dash.kpi.open")} pill={regDone === d.myRegisters.length ? { text: t("dash.pill.onTrack"), tone: "ok" } : { text: t("dash.pill.watch"), tone: "warn" }} /></li>}
         <li><KpiCard icon={Users} label={t("tch.kpi.students")} value={th.studentCount} caption={t("tch.kpi.students.cap")} pill={{ text: t("dash.pill.active"), tone: "brand" }} /></li>
         <li><KpiCard icon={CalendarClock} label={t("tch.kpi.lessons")} value={th.today.length} caption={t("tch.kpi.lessons.cap")} href="/timetable" openLabel={t("dash.kpi.open")} pill={{ text: t("dash.pill.live"), tone: "ok" }} /></li>
         <li><KpiCard icon={ClipboardList} label={t("tch.kpi.homework")} value={th.homework.open} caption={t("tch.kpi.homework.cap", { n: th.homework.toMark })} href="/assignments" openLabel={t("dash.kpi.open")} pill={th.homework.toMark > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
         <li><KpiCard icon={FileText} label={t("tch.kpi.plans")} value={th.plans.needs} caption={t("tch.kpi.plans.cap", { s: th.plans.schemes, l: th.plans.lessons })} href="/planning" openLabel={t("dash.kpi.open")} pill={th.plans.needs > 0 ? { text: t("dash.pill.watch"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
       </ul>
+
+      <QuickSection t={t} items={quick} />
 
       {rows.length > 0 && (
         <DashSection id="todo" title={t("tch.todo.title")} subtitle={t("tch.todo.sub")}>
@@ -94,7 +103,7 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
           <DashTable min="34rem" empty={th.roster.length === 0 ? t("tch.students.none") : undefined} head={[{ label: t("learn.student") }, { label: t("learn.class") }, { label: t("tch.students.today") }, { label: t("tch.students.rate"), right: true }]}>
             {th.roster.map((r) => (
               <tr key={r.id}>
-                <Cell><Link href={`/students/${r.id}`} className="font-semibold text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Cell>
+                <Cell><Link href={`/students/${r.id}`} className="hover:opacity-90"><PersonCell name={r.name} sub={r.admissionNo} /></Link></Cell>
                 <Cell>{r.className ?? "—"}</Cell>
                 <Cell>{r.today ? <Pill tone={r.today === "PRESENT" ? "ok" : r.today === "ABSENT" ? "bad" : r.today === "LATE" ? "warn" : "info"}>{t(`att.status.${r.today}`)}</Pill> : <span className="text-muted">{t("tch.students.notMarked")}</span>}</Cell>
                 <Cell right className={r.ratePct !== null && r.ratePct < 85 ? "font-semibold text-sun" : ""}>{r.ratePct === null ? "—" : `${r.ratePct}%`}</Cell>
@@ -126,7 +135,7 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
           </Panel>
           <Panel title={t("dash.exams.mine")} subtitle={t("dash.exams.mine.sub")} right={<Link href="/marks" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
             <DashTable empty={sheets.length === 0 ? t("tch.work.noSheets") : undefined} min="28rem" head={[{ label: t("learn.subject") }, { label: t("learn.class") }, { label: t("dash.exams.progress"), right: true }, { label: t("common.status") }]}>
-              {sheets.map((m) => <tr key={m.id}><Cell><Link href={`/marks/${m.id}`} className="font-semibold text-link hover:underline">{m.subjectName}</Link><span className="block text-xs text-muted">{m.examName}</span></Cell><Cell>{m.className}{m.streamName ? ` ${m.streamName}` : ""}</Cell><Cell right>{m.entered}/{m.roster}</Cell><Cell>{m.overdue ? <Pill tone="bad">{t("marks.overdue")}</Pill> : <Pill tone={m.status === "RETURNED" ? "warn" : "neutral"}>{t(`marks.status.${m.status}` as "marks.status.DRAFT")}</Pill>}</Cell></tr>)}
+              {sheets.map((m) => <tr key={m.id}><Cell><Link href={`/marks/${m.id}`} className="font-semibold text-link hover:underline">{m.subjectName}</Link><span className="block text-xs text-muted">{m.examName}</span></Cell><Cell>{m.className}{m.streamName ? ` ${m.streamName}` : ""}</Cell><Cell right><span className="inline-flex items-center gap-2"><span aria-hidden className="h-1.5 w-20 overflow-hidden rounded-full bg-line"><span className="block h-full rounded-full bg-ok" style={{ width: `${m.roster > 0 ? Math.round((m.entered / m.roster) * 100) : 0}%` }} /></span><span className="tabular-nums">{m.entered}/{m.roster}</span></span></Cell><Cell>{m.overdue ? <Pill tone="bad">{t("marks.overdue")}</Pill> : <Pill tone={m.status === "RETURNED" ? "warn" : "neutral"}>{t(`marks.status.${m.status}` as "marks.status.DRAFT")}</Pill>}</Cell></tr>)}
             </DashTable>
           </Panel>
           {th.behaviour.length > 0 && (

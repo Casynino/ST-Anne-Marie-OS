@@ -23,7 +23,7 @@ beforeAll(async () => {
 });
 
 describe("sign-in history", () => {
-  const ip = "203.0.113." + (10 + Math.floor(Math.random() * 200));
+  const ip = `203.0.${Math.floor(Math.random() * 256)}.${1 + Math.floor(Math.random() * 254)}`; // wide range: the shared test database keeps a week of earlier runs
 
   it("a success no longer erases the history, but failures before it stop counting towards the lock", async () => {
     for (let i = 0; i < MAX_FAILURES_PER_IDENTIFIER - 1; i++) expect(await code(authenticate(email, "wrong-password-" + i, meta(ip)))).toBe("UNAUTHENTICATED");

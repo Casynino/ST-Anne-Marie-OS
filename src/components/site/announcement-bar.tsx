@@ -12,7 +12,7 @@ export async function AnnouncementBar({ schoolId, t, locale }: { schoolId: strin
   const external = /^https:\/\//.test(href);
   const inner = (
     <>
-      <span className="rounded-full bg-[#10200f] px-3 py-1 text-[11px] font-bold uppercase tracking-[.12em] text-white">{t("site.bar.label")}</span>
+      <span className="text-xs font-bold uppercase tracking-[.14em]">{t("site.bar.label")}<span aria-hidden className="ml-3 font-normal opacity-50">|</span></span>
       <span className="truncate font-semibold">{title}</span>
       <ArrowRight className="size-4 shrink-0" aria-hidden />
     </>
