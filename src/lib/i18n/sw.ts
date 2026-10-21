@@ -2533,4 +2533,13 @@ export const sw: Record<MessageKey, string> = {
   "fin.pdf.signature": "Sahihi",
   "fin.pdf.thanksFull": "Asante kwa malipo yako.",
   "fin.pdf.more": "zaidi",
+  "fin.sheet.title": "Ada na michango ya shule",
+  "fin.sheet.item": "Aina ya ada",
+  "fin.sheet.yearTotal": "Jumla ya mwaka",
+  "fin.sheet.amountsIn": "Kiasi ni katika {currency}",
+  "fin.sheet.printedOn": "Imechapishwa {date}",
+  "fin.sheet.none": "Bado hakuna orodha ya ada kwa mwaka huu.",
+  "fin.sheet.termN": "Muhula {n}",
+  "fin.sheet.print": "Chapisha jedwali la ada",
+  "fin.sheet.printOne": "Chapisha",
 };

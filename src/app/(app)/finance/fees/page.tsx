@@ -101,6 +101,7 @@ export default async function FeesSetupPage({ searchParams }: { searchParams: Pr
           <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-3">
             <Field name="yearId" type="select" label={t("fin.fees.year")} options={years.map((y) => ({ value: y.id, label: y.name }))} defaultValue={yearId ?? ""} />
             <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("common.filter")}</button>
+            {yearId && structures.some((s) => s.isActive) && <a href={`/api/fees/sheet?yearId=${yearId}`} target="_blank" rel="noopener" className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:border-brand-500 hover:text-link">{t("fin.sheet.print")}</a>}
           </form>
           <h2 className="text-lg font-semibold">{t("fin.fees.structures")}</h2>
           <p className="-mt-4 text-sm text-muted">{t("fin.fees.structuresHint")}</p>
@@ -109,7 +110,7 @@ export default async function FeesSetupPage({ searchParams }: { searchParams: Pr
             const existing = new Map(s.lines.map((l) => [l.feeItemId, { amount: centsOf(l.amount), termSequence: l.termSequence }]));
             const total = s.lines.filter((l) => l.termSequence === null).reduce((n, l) => n + centsOf(l.amount), 0);
             return (
-              <Card key={s.id} title={`${s.name} · ${scopeLabel(s)}`} actions={<Badge tone={s.isActive ? "ok" : "neutral"}>{s.isActive ? t("common.active") : t("common.inactive")}</Badge>}>
+              <Card key={s.id} title={`${s.name} · ${scopeLabel(s)}`} actions={<span className="flex items-center gap-3"><a href={`/api/fees/sheet?yearId=${yearId}&structureId=${s.id}`} target="_blank" rel="noopener" className="text-xs font-medium text-link hover:underline">{t("fin.sheet.printOne")}</a><Badge tone={s.isActive ? "ok" : "neutral"}>{s.isActive ? t("common.active") : t("common.inactive")}</Badge></span>}>
                 <ul className="divide-y divide-line text-sm">
                   {s.lines.map((l) => <li key={l.id} className="flex justify-between py-1.5"><span>{l.feeItem.name} <span className="text-xs text-muted">{l.termSequence === null ? t("fin.fees.everyTerm") : (year?.terms.find((x) => x.sequence === l.termSequence)?.name ?? `#${l.termSequence}`)}</span></span><span className="tabular-nums">{money(centsOf(l.amount))}</span></li>)}
                 </ul>

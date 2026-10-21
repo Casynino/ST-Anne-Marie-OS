@@ -29,7 +29,7 @@ export type InvoiceLabels = {
   total: string; paid: string; outstanding: string; schedule: string; instalmentDue: string; instalmentPaid: string; howToPay: string; void: string; credit: string;
 };
 
-function header(page: PDFPage, f: Fonts, school: SchoolHeader, logo: PDFImage | null, M: number, W: number, top: number): number {
+export function header(page: PDFPage, f: Fonts, school: SchoolHeader, logo: PDFImage | null, M: number, W: number, top: number): number {
   const textLeft = logo ? M + 50 : M;
   const width = M + W - textLeft;
   if (logo) {
@@ -47,7 +47,7 @@ function header(page: PDFPage, f: Fonts, school: SchoolHeader, logo: PDFImage | 
 }
 
 const A5_LANDSCAPE: [number, number] = [595.28, 419.53];
-const A4: [number, number] = [595.28, 841.89];
+export const A4: [number, number] = [595.28, 841.89];
 
 /** Shrinks a line of text until it fits the width (a long school name or a very large amount must never run off the page). */
 function fitSize(font: PDFFont, text: string, size: number, maxWidth: number, min = 6): number {
@@ -266,10 +266,10 @@ export function renderInvoice(pdf: PDFDocument, f: Fonts, inv: InvoiceDoc, L: In
   }
 }
 
-async function fonts(pdf: PDFDocument): Promise<Fonts> {
+export async function fonts(pdf: PDFDocument): Promise<Fonts> {
   return { regular: await pdf.embedFont(StandardFonts.Helvetica), bold: await pdf.embedFont(StandardFonts.HelveticaBold), italic: await pdf.embedFont(StandardFonts.HelveticaOblique) };
 }
-async function logoOf(pdf: PDFDocument, logo?: PdfLogo | null): Promise<PDFImage | null> {
+export async function logoOf(pdf: PDFDocument, logo?: PdfLogo | null): Promise<PDFImage | null> {
   if (!logo) return null;
   try { return logo.type === "png" ? await pdf.embedPng(logo.bytes) : await pdf.embedJpg(logo.bytes); } catch { return null; }
 }

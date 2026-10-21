@@ -2531,6 +2531,15 @@ export const en = {
   "fin.pdf.signature": "Signature",
   "fin.pdf.thanksFull": "With thanks for your payment.",
   "fin.pdf.more": "more",
+  "fin.sheet.title": "Fee structure",
+  "fin.sheet.item": "Fee item",
+  "fin.sheet.yearTotal": "Year total",
+  "fin.sheet.amountsIn": "Amounts in {currency}",
+  "fin.sheet.printedOn": "Printed on {date}",
+  "fin.sheet.none": "There is no fee structure for this year yet.",
+  "fin.sheet.termN": "Term {n}",
+  "fin.sheet.print": "Print fee table",
+  "fin.sheet.printOne": "Print",
 } as const;
 
 export type MessageKey = keyof typeof en;

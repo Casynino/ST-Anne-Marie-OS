@@ -11,6 +11,7 @@ import * as expenses from "@/server/expenses";
 import * as events from "@/server/payment-events";
 import { loadStudentFinance } from "@/server/balances";
 import { receiptDocument, receiptPdf } from "@/server/finance-pdf";
+import { feeSheetDocument, feeSheetPdf } from "@/server/fee-sheet";
 import { signBody } from "@/lib/payments/providers";
 import { createCurrentYearAcademics, createTestSchool, createTestUser, studentInput } from "../helpers";
 
@@ -471,5 +472,32 @@ describe("the printed receipt", () => {
     expect(doc.payingFor[0]!.description).toBe("Uniform");
     expect(doc.voided).toBe(true);
     expect(doc.amountWords).toBe("TZS Elfu arobaini na tano tu");
+  });
+});
+
+describe("the printed fee table", () => {
+  it("lays the structure out by term and keeps the school's own scope names", async () => {
+    const doc = await feeSheetDocument(accountant, { yearId: setup.year.id }, "EN");
+    const sec = doc.sections.find((x) => x.name === "Std I fees")!;
+    expect(sec.scope).toBe((await db.schoolClass.findUniqueOrThrow({ where: { id: setup.cls.id }, select: { name: true } })).name);
+    expect(sec.table.terms.map((x) => x.name)).toEqual(["Term 1"]);
+    expect(sec.table.rows.map((r) => [r.name, r.totalCents])).toEqual([["Tuition", tzs(300_000)], ["School bus", tzs(50_000)], ["Admission", tzs(20_000)]]);
+    expect(sec.table.yearTotalCents).toBe(tzs(370_000));
+    expect(doc.sections.every((x) => x.name !== "")).toBe(true);
+    expect(doc.yearName).toBe(setup.year.name);
+    const one = await feeSheetDocument(accountant, { yearId: setup.year.id, structureId: (await db.feeStructure.findFirstOrThrow({ where: { schoolId: school.id, name: "Std I fees" } })).id }, "SW");
+    expect(one.sections).toHaveLength(1);
+    expect(Buffer.from(await feeSheetPdf(accountant, { yearId: setup.year.id }, "SW")).subarray(0, 5).toString()).toBe("%PDF-");
+  });
+
+  it("needs fees.read and never reads another school's year or structure", async () => {
+    expect(await code(feeSheetDocument(teacher, { yearId: setup.year.id }, "EN"))).toBe("FORBIDDEN");
+    const other = await createTestSchool();
+    const otherAccountant = (await createTestUser(other.id, ["accountant"])).ctx;
+    expect(await code(feeSheetDocument(otherAccountant, { yearId: setup.year.id }, "EN"))).toBe("NOT_FOUND");
+    const mine = await db.feeStructure.findFirstOrThrow({ where: { schoolId: school.id, name: "Std I fees" } });
+    const otherAdmin = (await createTestUser(other.id, ["super_admin"])).ctx;
+    const otherYear = (await createCurrentYearAcademics(otherAdmin)).year;
+    expect(await code(feeSheetDocument(otherAccountant, { yearId: otherYear.id, structureId: mine.id }, "EN"))).toBe("NOT_FOUND");
   });
 });
