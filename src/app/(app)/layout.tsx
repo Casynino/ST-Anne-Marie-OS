@@ -16,7 +16,7 @@ import { LanguageSwitch } from "@/components/language-switch";
 import { initialsOf } from "@/lib/site";
 import type { NavGroup } from "@/components/app-shell/icons";
 import { AppSidebar, MobileDrawer } from "@/components/app-shell/sidebar";
-import { Breadcrumbs, GlobalSearch, NotificationBell, UserMenu } from "@/components/app-shell/topbar";
+import { Breadcrumbs, GlobalSearch, NotificationBell, UserMenu, WebsiteLink } from "@/components/app-shell/topbar";
 import { ThemeRoot, getTheme } from "@/components/theme-root";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -108,6 +108,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="ml-auto flex items-center gap-1">
             {academic.year && <span className="mr-1 hidden items-center rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted xl:inline-flex" title={`${t("dash.year")} / ${t("dash.term")}`}>{academic.year.name}{academic.term ? ` · ${academic.term.name}` : ""}</span>}
             <ThemeToggle initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} />
+            <WebsiteLink label={t("nav.website")} />
             <NotificationBell count={unread} label={t("nav.notifications")} />
             <UserMenu name={ctx.fullName} initials={initialsOf(ctx.fullName).slice(0, 2)} role={roles[0]?.name} passwordLabel={t("auth.changePassword.button")}>
               <div className="px-1"><LanguageSwitch current={locale} /></div>

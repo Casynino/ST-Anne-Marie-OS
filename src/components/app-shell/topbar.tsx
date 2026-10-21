@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Bell, ChevronDown, ChevronRight, KeyRound, Search } from "lucide-react";
+import { Bell, ChevronDown, ChevronRight, Globe, KeyRound, Search } from "lucide-react";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -33,6 +33,15 @@ export function GlobalSearch({ action, placeholder, label }: { action: string; p
         <input id="global-search" name="q" type="search" placeholder={placeholder} className="h-10 w-full rounded-full border border-line bg-canvas pl-9 pr-4 text-sm placeholder:text-muted/80 focus:border-brand-500 focus:bg-surface" />
       </div>
     </form>
+  );
+}
+
+/** Opens the public website in a new tab, so staff keep their place in the system. */
+export function WebsiteLink({ label }: { label: string }) {
+  return (
+    <Link href="/" target="_blank" rel="noopener" aria-label={label} title={label} className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-medium text-ink hover:bg-canvas">
+      <Globe className="size-5" aria-hidden /><span className="hidden lg:inline">{label}</span>
+    </Link>
   );
 }
 

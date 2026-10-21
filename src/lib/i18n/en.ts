@@ -3194,6 +3194,7 @@ export const en = {
   "users.password": "Password",
   "users.newPassword": "New password",
   "users.password.hint": "At least 10 characters, with letters and numbers. Give it to the person; they can change it later.",
+  "auth.backToSite": "Back to the school website",
 } as const;
 
 export type MessageKey = keyof typeof en;

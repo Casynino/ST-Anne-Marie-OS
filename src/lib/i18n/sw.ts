@@ -3196,4 +3196,5 @@ export const sw: Record<MessageKey, string> = {
   "users.password": "Nenosiri",
   "users.newPassword": "Nenosiri jipya",
   "users.password.hint": "Angalau herufi 10, zenye herufi na namba. Mpe mhusika; anaweza kulibadilisha baadaye.",
+  "auth.backToSite": "Rudi kwenye tovuti ya shule",
 };

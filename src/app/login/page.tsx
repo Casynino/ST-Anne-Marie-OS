@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
@@ -33,7 +35,8 @@ export default async function LoginPage() {
           <Field name="password" label={t("auth.password")} type="password" autoComplete="current-password" required />
         </ActionForm>
       </div>
-      <div className="mt-4 flex justify-center">
+      <div className="mt-4 flex flex-col items-center gap-3">
+        <Link href="/" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("auth.backToSite")}</Link>
         <LanguageSwitch current={locale} />
       </div>
     </main>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogOut, KeyRound } from "lucide-react";
+import { Globe, LogOut, KeyRound } from "lucide-react";
 import { requireContext, getT, getLocale } from "@/lib/auth/next";
 import { getSchoolBasics } from "@/server/settings";
 import { getBrandLogo } from "@/server/website";
@@ -41,6 +41,7 @@ export default async function PortalLayout({ children }: { children: React.React
             <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold text-link">{school.name}</span><span className="block truncate text-xs text-muted">{t("fam.portal")}</span></span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
+            <Link href="/" target="_blank" rel="noopener" aria-label={t("nav.website")} title={t("nav.website")} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm text-muted hover:text-ink"><Globe className="size-4" aria-hidden /><span className="hidden sm:inline">{t("nav.website")}</span></Link>
             <ThemeToggle initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} />
             <LanguageSwitch current={locale} />
             <Link href="/change-password" className="hidden min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm text-muted hover:text-ink sm:inline-flex" title={t("auth.changePassword.button")}><KeyRound className="size-4" aria-hidden />{t("auth.changePassword.button")}</Link>
