@@ -8,6 +8,8 @@ import { ageOn, parseDateOnly, todayInTimezone } from "@/lib/dates";
 import { normalizePhone } from "@/lib/phone";
 import { writeAudit } from "@/server/audit";
 import { openTask } from "@/server/workflow";
+import { persistDocument } from "@/server/documents";
+import { DOCUMENT_TYPES } from "@/lib/admissions/document-types";
 import { admissionAccount } from "@/lib/admissions/rules";
 import { centsOf } from "@/lib/finance/money";
 import { getFeeSettings } from "@/server/fees";
@@ -196,4 +198,27 @@ export async function trackApplication(schoolId: string, input: unknown, meta: R
     offer: offer ? { feeCents: centsOf(offer.feeAmount), expiresOn: offer.expiresOn, howToPay: settings.paymentInstructions.trim() || null } : null,
     payment: account ? { status: account.status, verifiedCents: account.verifiedCents, pendingCents: account.pendingCents, requiredCents: account.requiredCents } : null,
   };
+}
+
+const uploadSchema = z.object({ applicationNo: z.string().trim().min(5).max(30).transform((v) => v.toUpperCase()), phone: phoneField(), docType: z.enum(DOCUMENT_TYPES) });
+const UPLOAD_OPEN = ["APPLIED", "INTERVIEW", "ACCEPTED"] as const;
+
+/**
+ * A family adds a supporting document to their open application. Unauthenticated, so everything is enforced here: the application number AND a
+ * guardian phone on it must match (one generic failure otherwise), limits per connection and per application, only PDF / JPEG / PNG / WebP
+ * decided from the file's own bytes, size cap, random storage key. The file waits for the Admissions Office to verify it; nothing is trusted
+ * until then. It never reveals anything about the application.
+ */
+export async function uploadApplicantDocument(schoolId: string, input: { applicationNo: unknown; phone: unknown; docType: unknown; fileName: string; bytes: Buffer }, meta: RequestMeta) {
+  const ip = meta.ip ?? "unknown";
+  if (!(await consumeRateLimit(`upload:ip:${ip}`, 10, WINDOW_HOUR))) throw new AppError("RATE_LIMITED", "Too many uploads from this connection. Please try again later or bring the papers to the school office.");
+  const d = parse(uploadSchema, { applicationNo: input.applicationNo, phone: input.phone, docType: input.docType });
+  const notFound = invalid("We could not find an application matching those details. Check the number and the phone number given on the application.");
+  if (!(await consumeRateLimit(`upload:app:${schoolId}:${d.applicationNo}`, 20, WINDOW_DAY))) throw new AppError("RATE_LIMITED", "Too many uploads for this application. Please contact the school office.");
+  const app = await db.application.findUnique({ where: { schoolId_applicationNo: { schoolId, applicationNo: d.applicationNo } }, select: { id: true, status: true, guardians: true, firstName: true, lastName: true } });
+  if (!app) throw notFound;
+  const phones = (app.guardians as unknown[]).map((g) => normalizePhone(String((g as { phone?: string }).phone ?? "")));
+  if (!phones.includes(d.phone)) throw notFound;
+  if (!(UPLOAD_OPEN as readonly string[]).includes(app.status)) throw conflict("This application is closed. Please contact the school office.");
+  await persistDocument({ schoolId, actor: { schoolId, actorId: null, actorName: "Online applicant", meta }, owner: { applicationId: app.id }, docType: d.docType, fileName: input.fileName, bytes: input.bytes, uploadedById: null });
 }

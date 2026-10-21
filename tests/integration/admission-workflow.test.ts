@@ -362,3 +362,27 @@ describe("enrolment and class placement", () => {
     expect(await offers.admissionPaymentQueue(otherAcc)).toEqual([]);
   });
 });
+
+describe("documents sent by the family", () => {
+  it("are accepted only with the application number AND a guardian phone, never through a guess, and wait for verification", async () => {
+    const k = next();
+    const app = await newApp({ guardians: [{ fullName: `Up Parent ${k}`, phone: `0733${String(k % 1_000_000).padStart(6, "0")}`, relationship: "MOTHER", isPrimary: "on" }] });
+    const phone = `0733${String(k % 1_000_000).padStart(6, "0")}`;
+    const meta = () => ({ ip: `10.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`, userAgent: "t" }) as never;
+    const file = { fileName: "birth-certificate.pdf", bytes: PDF };
+    const call = (extra: Record<string, unknown> = {}) => pub.uploadApplicantDocument(school.id, { applicationNo: app.applicationNo, phone, docType: "BIRTH_CERTIFICATE", ...file, ...extra }, meta());
+    expect(await code(call({ phone: "0799000111" }))).toBe("VALIDATION"); // wrong phone: the same generic answer as an unknown number
+    expect(await code(call({ applicationNo: "APP/2099/9999" }))).toBe("VALIDATION");
+    expect(await code(call({ docType: "SCRIPT" }))).toBe("VALIDATION");
+    expect(await code(call({ bytes: Buffer.from("<script>alert(1)</script>") }))).toBe("VALIDATION"); // decided from the bytes, not the name
+    expect(await code(call({ bytes: Buffer.alloc(0) }))).toBe("VALIDATION");
+    await call();
+    const doc = await db.document.findFirstOrThrow({ where: { applicationId: app.id } });
+    expect(doc).toMatchObject({ docType: "BIRTH_CERTIFICATE", verification: "PENDING", uploadedById: null });
+    expect(await db.auditLog.count({ where: { schoolId: school.id, entityId: doc.id, action: "document.upload", actorId: null } })).toBe(1);
+    // It counts for nothing until staff verify it
+    expect((await review.documentReadiness(db, school.id, await db.application.findUniqueOrThrow({ where: { id: app.id } }))).checklist.find((c) => c.docType === "BIRTH_CERTIFICATE")?.state).toBe("PENDING");
+    await admissions.transitionApplication(registrar, app.id, { to: "REJECTED", reason: "Closed for the test" });
+    expect(await code(call())).toBe("CONFLICT"); // a closed application takes no more files
+  });
+});

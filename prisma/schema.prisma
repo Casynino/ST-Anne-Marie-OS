@@ -1063,7 +1063,7 @@ model Document {
   sizeBytes     Int
   sha256        String
   storageKey    String    @unique
-  uploadedById  String    @db.Uuid
+  uploadedById  String?   @db.Uuid
   createdAt     DateTime  @default(now())
   deletedAt     DateTime?
   deletedById   String?   @db.Uuid

@@ -3179,4 +3179,8 @@ export const sw: Record<MessageKey, string> = {
   "exam.sitting.time": "Saa ya kuanza",
   "exam.sitting.venue": "Mahali",
   "adm.q.tasksOverdue": "Majukumu yaliyopita muda (idara zote)",
+  "apply.upload.title": "Ongeza nyaraka ya kuambatisha",
+  "apply.upload.hint": "Tumia namba ya ombi na namba ya simu ya mlezi iliyotolewa kwenye ombi. Ofisi ya shule hukagua kila nyaraka.",
+  "apply.upload.button": "Pakia",
+  "apply.upload.done": "Asante. Nyaraka imepokelewa na ofisi ya shule itaikagua.",
 };

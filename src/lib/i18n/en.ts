@@ -3177,6 +3177,10 @@ export const en = {
   "exam.sitting.time": "Start time",
   "exam.sitting.venue": "Venue",
   "adm.q.tasksOverdue": "Tasks past their date (all departments)",
+  "apply.upload.title": "Add a supporting document",
+  "apply.upload.hint": "Use the application number and the guardian phone number given on the application. The school office checks every document.",
+  "apply.upload.button": "Upload",
+  "apply.upload.done": "Thank you. The document was received and the school office will check it.",
 } as const;
 
 export type MessageKey = keyof typeof en;

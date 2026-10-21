@@ -6,7 +6,8 @@ import { getLocale, getRequestMeta, getT } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
 import { getPublicSchool } from "@/server/website";
-import { submitOnlineApplication, trackApplication } from "@/server/public-applications";
+import { submitOnlineApplication, trackApplication, uploadApplicantDocument } from "@/server/public-applications";
+import { MAX_DOCUMENT_BYTES } from "@/server/documents";
 
 export async function submitApplicationAction(_prev: ActionState, form: FormData): Promise<ActionState> {
   return publicRun(form, async (input) => {
@@ -43,5 +44,18 @@ export async function trackApplicationAction(_prev: ActionState, form: FormData)
       lines.push(t("apply.track.enrolNext"));
     }
     return { message: lines.join("\n") };
+  });
+}
+
+export async function uploadApplicantDocumentAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  return publicRun(form, async (input) => {
+    const school = await getPublicSchool();
+    if (!school) throw new AppError("NOT_FOUND", "The school is not set up yet.");
+    const t = await getT();
+    const file = form.get("file");
+    if (!(file instanceof File) || file.size === 0) throw new AppError("VALIDATION", "Choose a file to upload.", { file: "Required" });
+    if (file.size > MAX_DOCUMENT_BYTES) throw new AppError("VALIDATION", `The file is too large. The limit is ${Math.floor(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB.`, { file: "File too large" });
+    await uploadApplicantDocument(school.id, { applicationNo: input.applicationNo, phone: input.phone, docType: input.docType, fileName: file.name, bytes: Buffer.from(await file.arrayBuffer()) }, await getRequestMeta());
+    return { message: t("apply.upload.done") };
   });
 }

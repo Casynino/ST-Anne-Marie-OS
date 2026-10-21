@@ -5,7 +5,7 @@ import { conflict, invalid, notFound } from "@/lib/errors";
 import { requirePermission, type AuthContext } from "@/lib/auth/context";
 import { getStorage } from "@/lib/storage";
 import { DOCUMENT_TYPES } from "@/lib/admissions/document-types";
-import { actorOf, writeAudit } from "@/server/audit";
+import { actorOf, writeAudit, type AuditActor } from "@/server/audit";
 import { studentScope } from "@/server/students";
 import { parse, text } from "@/lib/validation";
 
@@ -56,13 +56,13 @@ async function assertOwnerAccess(ctx: AuthContext, owner: Owner): Promise<void> 
 
 const uploadSchema = z.object({ docType: z.enum(DOCUMENT_TYPES), fileName: text(255) });
 
-export async function uploadDocument(ctx: AuthContext, owner: Owner, input: { docType: unknown; fileName: string; bytes: Buffer }) {
-  requirePermission(ctx, "document.upload");
-  const d = parse(uploadSchema, { docType: input.docType, fileName: input.fileName });
-  await assertOwnerAccess(ctx, owner);
-  if (owner.studentId) requirePermission(ctx, "student.update");
-
-  const { bytes } = input;
+/**
+ * Checks and stores one file and records it (shared by staff uploads and by an applicant uploading with their application number).
+ * The type is decided from the bytes, the size is capped, the stored key is random and the file is kept only if the record is saved.
+ */
+export async function persistDocument(a: { schoolId: string; actor: AuditActor; owner: Owner; docType: unknown; fileName: string; bytes: Buffer; uploadedById: string | null }) {
+  const d = parse(uploadSchema, { docType: a.docType, fileName: a.fileName });
+  const { bytes } = a;
   if (bytes.length === 0) throw invalid("The file is empty.", { file: "The file is empty" });
   if (bytes.length > MAX_DOCUMENT_BYTES) throw invalid(`The file is too large. The limit is ${Math.floor(MAX_DOCUMENT_BYTES / 1024 / 1024)} MB.`, { file: "File too large" });
   const type = sniffType(bytes);
@@ -70,23 +70,23 @@ export async function uploadDocument(ctx: AuthContext, owner: Owner, input: { do
   const storage = getStorage();
   if (!storage) throw invalid("File storage is not configured. Ask the administrator to set it up before uploading documents.");
 
-  const count = await db.document.count({ where: { schoolId: ctx.schoolId, deletedAt: null, ...(owner.applicationId ? { applicationId: owner.applicationId } : { studentId: owner.studentId }) } });
+  const count = await db.document.count({ where: { schoolId: a.schoolId, deletedAt: null, ...(a.owner.applicationId ? { applicationId: a.owner.applicationId } : { studentId: a.owner.studentId }) } });
   if (count >= MAX_DOCUMENTS_PER_OWNER) throw conflict(`At most ${MAX_DOCUMENTS_PER_OWNER} documents can be attached. Remove one first.`);
 
-  const storageKey = `${ctx.schoolId}/${new Date().getUTCFullYear()}/${randomUUID()}.${type.ext}`;
+  const storageKey = `${a.schoolId}/${new Date().getUTCFullYear()}/${randomUUID()}.${type.ext}`;
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   await storage.put(storageKey, bytes, { contentType: type.mime });
   try {
     return await db.$transaction(async (tx) => {
       const doc = await tx.document.create({
-        data: { schoolId: ctx.schoolId, applicationId: owner.applicationId, studentId: owner.studentId, docType: d.docType, fileName: safeFileName(d.fileName), mimeType: type.mime, sizeBytes: bytes.length, sha256, storageKey, uploadedById: ctx.userId },
+        data: { schoolId: a.schoolId, applicationId: a.owner.applicationId, studentId: a.owner.studentId, docType: d.docType, fileName: safeFileName(d.fileName), mimeType: type.mime, sizeBytes: bytes.length, sha256, storageKey, uploadedById: a.uploadedById },
       });
-      await writeAudit(tx, actorOf(ctx), {
+      await writeAudit(tx, a.actor, {
         action: "document.upload",
         entityType: "Document",
         entityId: doc.id,
         summary: `${d.docType} ${doc.fileName}`,
-        changes: { ...owner, mimeType: type.mime, sizeBytes: bytes.length, sha256 },
+        changes: { ...a.owner, mimeType: type.mime, sizeBytes: bytes.length, sha256, ...(a.uploadedById ? {} : { by: "applicant" }) },
       });
       return doc;
     });
@@ -96,6 +96,14 @@ export async function uploadDocument(ctx: AuthContext, owner: Owner, input: { do
   }
 }
 
+export async function uploadDocument(ctx: AuthContext, owner: Owner, input: { docType: unknown; fileName: string; bytes: Buffer }) {
+  requirePermission(ctx, "document.upload");
+  parse(uploadSchema, { docType: input.docType, fileName: input.fileName });
+  await assertOwnerAccess(ctx, owner);
+  if (owner.studentId) requirePermission(ctx, "student.update");
+  return persistDocument({ schoolId: ctx.schoolId, actor: actorOf(ctx), owner, docType: input.docType, fileName: input.fileName, bytes: input.bytes, uploadedById: ctx.userId });
+}
+
 export async function listDocuments(ctx: AuthContext, owner: Owner) {
   requirePermission(ctx, "document.read");
   await assertOwnerAccess(ctx, owner);
@@ -103,8 +111,8 @@ export async function listDocuments(ctx: AuthContext, owner: Owner) {
     where: { schoolId: ctx.schoolId, deletedAt: null, ...(owner.applicationId ? { applicationId: owner.applicationId } : { studentId: owner.studentId }) },
     orderBy: { createdAt: "desc" },
   });
-  const users = await db.user.findMany({ where: { schoolId: ctx.schoolId, id: { in: [...new Set(docs.map((d) => d.uploadedById))] } }, select: { id: true, fullName: true } });
-  return docs.map((d) => ({ id: d.id, docType: d.docType, fileName: d.fileName, mimeType: d.mimeType, sizeBytes: d.sizeBytes, createdAt: d.createdAt, uploadedBy: users.find((u) => u.id === d.uploadedById)?.fullName ?? "", verification: d.verification, verificationNote: d.verificationNote, verifiedAt: d.verifiedAt }));
+  const users = await db.user.findMany({ where: { schoolId: ctx.schoolId, id: { in: [...new Set(docs.flatMap((d) => (d.uploadedById ? [d.uploadedById] : [])))] } }, select: { id: true, fullName: true } });
+  return docs.map((d) => ({ id: d.id, docType: d.docType, fileName: d.fileName, mimeType: d.mimeType, sizeBytes: d.sizeBytes, createdAt: d.createdAt, uploadedBy: d.uploadedById ? (users.find((u) => u.id === d.uploadedById)?.fullName ?? "") : "Applicant", verification: d.verification, verificationNote: d.verificationNote, verifiedAt: d.verifiedAt }));
 }
 
 /** Loads a document the user may open. Throws NOT_FOUND for anything outside their school or scope. */
