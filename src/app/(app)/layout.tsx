@@ -17,6 +17,7 @@ import { initialsOf } from "@/lib/site";
 import type { NavGroup } from "@/components/app-shell/icons";
 import { AppSidebar, MobileDrawer } from "@/components/app-shell/sidebar";
 import { countExamWork } from "@/server/admission-exams";
+import { countAdmissionPaymentsDue } from "@/server/admission-offers";
 import { Breadcrumbs, GlobalSearch, NotificationBell, UserMenu, WebsiteLink } from "@/components/app-shell/topbar";
 import { ThemeRoot, getTheme } from "@/components/theme-root";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -25,12 +26,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await requireContext();
   const theme = await getTheme();
   if (ctx.userType !== "STAFF") redirect("/family"); // parents and students use the family portal, never the staff area
-  const [t, locale, school, academic, logo, unread, newEnquiries, unmatchedPayments, staffAttention, roles, jar, examWork] = await Promise.all([
+  const [t, locale, school, academic, logo, unread, newEnquiries, unmatchedPayments, staffAttention, roles, jar, examWork, admissionDue] = await Promise.all([
     getT(), getLocale(), getSchoolBasics(ctx.schoolId), getCurrentAcademicContext(ctx.schoolId), getBrandLogo(ctx.schoolId),
     countMyUnread(ctx), countNewEnquiries(ctx), ctx.permissions.has("finance.reconcile") ? countUnmatchedEvents(ctx) : Promise.resolve(0), countStaffAttention(ctx),
     db.role.findMany({ where: { schoolId: ctx.schoolId, key: { in: [...ctx.roleKeys] } }, select: { name: true }, orderBy: { name: "asc" } }),
     cookies(),
     hasAny(ctx, ["admission.exam.mark", "admission.exam.review"]) ? countExamWork(ctx) : Promise.resolve(0),
+    countAdmissionPaymentsDue(ctx),
   ]);
 
   // Navigation is grouped by purpose and only lists modules this user may open. Finance and examinations appear
@@ -64,7 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ].filter(Boolean) as NavGroup["items"];
   if (learnNav.length) groups.push({ label: t("navgroup.learning"), items: learnNav });
   const financeNav = [
-    hasAny(ctx, ["fees.read", "finance.reports", "expense.read", "finance.reconcile"]) && { href: "/finance", label: t("nav.finance"), icon: "finance" as const, badge: unmatchedPayments },
+    hasAny(ctx, ["fees.read", "finance.reports", "expense.read", "finance.reconcile"]) && { href: "/finance", label: t("nav.finance"), icon: "finance" as const, badge: (unmatchedPayments ?? 0) + admissionDue },
   ].filter(Boolean) as NavGroup["items"];
   if (financeNav.length) groups.push({ label: t("navgroup.finance"), items: financeNav });
   const comms = [

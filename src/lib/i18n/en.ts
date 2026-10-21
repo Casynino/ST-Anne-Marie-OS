@@ -2830,9 +2830,9 @@ export const en = {
   "adm.event.kind.STATUS": "Status",
   "adm.closeNote": "Rejecting or withdrawing also cancels any interview and offer.",
   "adm.heldMoney": "Verified admission money is held for this applicant. If you reject or withdraw the application, Finance must deal with it.",
-  "fin.nav.admissions": "Admission payments",
-  "fin.adm.title": "Admission payments",
-  "fin.adm.sub": "Applicants who hold an offer of admission. A payment counts only after you verify it, and enrolment waits for it.",
+  "fin.nav.admissions": "Accepted applicants",
+  "fin.adm.title": "School fee for accepted applicants",
+  "fin.adm.sub": "Applicants who passed and were accepted must pay the school fee before they are registered. Record what the family paid and verify it; once the fee is verified, the applicant moves to Registration in Admissions.",
   "fin.adm.toVerify": "Waiting for verification",
   "fin.adm.applicants": "Applicants",
   "fin.adm.none": "No applicant holds an offer at the moment.",
@@ -4237,6 +4237,12 @@ export const en = {
   "join.settings.bring": "What to bring",
   "join.settings.bring.hint": "One item on each line.",
   "join.settings.notes": "Other notes",
+  "fin.adm.summary": "Applicants by what Finance must do",
+  "fin.adm.stage.TO_VERIFY": "Payment to verify",
+  "fin.adm.stage.TO_PAY": "Still to pay",
+  "fin.adm.stage.PAID": "Paid, waiting for registration",
+  "fin.adm.accepted": "Accepted",
+  "fin.adm.paidNote": "The fee is verified. Admissions can now register this applicant.",
 } as const;
 
 export type MessageKey = keyof typeof en;

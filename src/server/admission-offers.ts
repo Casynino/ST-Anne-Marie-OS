@@ -423,18 +423,37 @@ export async function enrolmentReadiness(client: Db | Tx, schoolId: string, app:
 
 // ───────────────────────── Finance queue ─────────────────────────
 
-/** Finance's view: applicants who hold an offer and what they have paid. Shows only what Finance needs, never interview notes or decisions. */
+/**
+ * Finance's view: accepted applicants and what each owes, in the order Finance acts on them: payments waiting to be verified, then applicants who
+ * still have to pay (oldest acceptance first), then those who have paid in full and wait for registration in Admissions. Shows only what Finance
+ * needs, never interview notes or decisions.
+ */
+export type AdmissionPayStage = "TO_VERIFY" | "TO_PAY" | "PAID";
 export async function admissionPaymentQueue(ctx: AuthContext) {
   requireAnyPermission(ctx, ["admission.payment.record", "admission.payment.verify"]);
   const apps = await db.application.findMany({
     where: { schoolId: ctx.schoolId, status: "ACCEPTED", offer: { status: "ISSUED" } },
     orderBy: { decidedAt: "asc" },
-    select: { id: true, applicationNo: true, firstName: true, lastName: true, guardians: true, offer: true, payments: { orderBy: { recordedAt: "asc" } } },
+    select: { id: true, applicationNo: true, firstName: true, lastName: true, guardians: true, classAppliedId: true, decidedAt: true, offer: true, payments: { orderBy: { recordedAt: "asc" } } },
   });
+  const classes = await db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, id: { in: [...new Set(apps.flatMap((a) => (a.offer?.classOfferedId ?? a.classAppliedId ? [(a.offer?.classOfferedId ?? a.classAppliedId)!] : [])))] } }, select: { id: true, name: true } });
+  const rank: Record<AdmissionPayStage, number> = { TO_VERIFY: 0, TO_PAY: 1, PAID: 2 };
   return apps.map((a) => {
     const account = admissionAccount(centsOf(a.offer!.feeAmount), a.payments.map((p) => ({ status: p.status, amountCents: centsOf(p.amount) })), !!a.offer!.paymentWaivedAt);
-    return { id: a.id, applicationNo: a.applicationNo, name: `${a.firstName} ${a.lastName}`, guardian: (a.guardians as { fullName?: string; phone?: string }[])[0] ?? null, letterNo: a.offer!.letterNo, expiresOn: a.offer!.expiresOn, account, payments: a.payments.map((p) => ({ id: p.id, amountCents: centsOf(p.amount), method: p.method, reference: p.reference, paidOn: p.paidOn, status: p.status, receiptNo: p.receiptNo, recordedAt: p.recordedAt })) };
-  });
+    const stage: AdmissionPayStage = a.payments.some((p) => p.status === "PENDING") ? "TO_VERIFY" : account.satisfied ? "PAID" : "TO_PAY";
+    const classId = a.offer?.classOfferedId ?? a.classAppliedId;
+    return {
+      id: a.id, applicationNo: a.applicationNo, name: `${a.firstName} ${a.lastName}`, className: classes.find((c) => c.id === classId)?.name ?? null, decidedAt: a.decidedAt, stage,
+      guardian: (a.guardians as { fullName?: string; phone?: string }[])[0] ?? null, letterNo: a.offer!.letterNo, expiresOn: a.offer!.expiresOn, account,
+      payments: a.payments.map((p) => ({ id: p.id, amountCents: centsOf(p.amount), method: p.method, reference: p.reference, paidOn: p.paidOn, status: p.status, receiptNo: p.receiptNo, recordedAt: p.recordedAt })),
+    };
+  }).sort((x, y) => rank[x.stage] - rank[y.stage] || (x.decidedAt?.getTime() ?? 0) - (y.decidedAt?.getTime() ?? 0));
+}
+
+/** How many accepted applicants need Finance now: a payment to verify, or a fee still to be paid (for the Finance badge). */
+export async function countAdmissionPaymentsDue(ctx: AuthContext): Promise<number> {
+  if (!ctx.permissions.has("admission.payment.record") && !ctx.permissions.has("admission.payment.verify")) return 0;
+  return (await admissionPaymentQueue(ctx)).filter((a) => a.stage !== "PAID").length;
 }
 
 export async function getAdmissionPaymentReceiptData(ctx: AuthContext, paymentId: string) {

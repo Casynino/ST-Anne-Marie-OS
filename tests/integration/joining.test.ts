@@ -10,6 +10,7 @@ import * as admissions from "@/server/admissions";
 import * as documents from "@/server/documents";
 import * as flow from "@/server/admission-flow";
 import * as offers from "@/server/admission-offers";
+import * as stages from "@/server/admission-stages";
 import * as policy from "@/server/admission-policy";
 import * as fees from "@/server/fees";
 import { getJoiningSettings, joiningView, updateJoiningSettings } from "@/server/joining";
@@ -108,5 +109,34 @@ describe("the joining instructions of an accepted applicant", () => {
   it("exists only once the applicant is accepted", async () => {
     const a = await admissions.createApplication(rehema, { firstName: "Not", lastName: `Yet${++n}`, dateOfBirth: "2018-05-04", gender: "MALE", classAppliedId: setup.cls.id, guardians: [{ fullName: "Parent X", phone: `0762${String(n).padStart(6, "0")}`, relationship: "FATHER", isPrimary: "on" }] });
     expect(await code(joiningView(rehema, a.id))).toBe("CONFLICT");
+  });
+});
+
+describe("Finance's list of accepted applicants who must pay", () => {
+  it("lists them with their class, in the order Finance acts; recording and verifying moves them to Registration; Admissions cannot see or change the money", async () => {
+    const a = await accepted();
+    const b = await accepted();
+    const row = async (id: string) => (await offers.admissionPaymentQueue(finance)).find((x) => x.id === id)!;
+    expect(await row(a.id)).toMatchObject({ className: "Standard I", stage: "TO_PAY", applicationNo: a.applicationNo });
+    expect(await code(offers.admissionPaymentQueue(rehema))).toBe("FORBIDDEN");
+    const due0 = await offers.countAdmissionPaymentsDue(finance);
+    expect(await offers.countAdmissionPaymentsDue(rehema)).toBe(0);
+
+    // a payment waiting for verification comes first; a partial payment still leaves the fee to pay
+    const first = await offers.recordAdmissionPayment(finance, a.id, { amount: "30000", method: "CASH", reference: `F-${a.id.slice(-6)}` });
+    const ids = (await offers.admissionPaymentQueue(finance)).map((x) => x.id);
+    expect(ids.indexOf(a.id)).toBeLessThan(ids.indexOf(b.id));
+    expect((await row(a.id)).stage).toBe("TO_VERIFY");
+    await offers.verifyAdmissionPayment(finance, first.payment.id);
+    expect((await row(a.id)).stage).toBe("TO_PAY");
+    expect((await stages.acceptedList(rehema, "payment")).map((x) => x.id)).toContain(a.id); // still waiting for payment in Admissions
+
+    // the rest verified: paid in full, so Admissions has it in Registration and Finance no longer counts it as due
+    const second = await offers.recordAdmissionPayment(finance, a.id, { amount: "20000", method: "BANK", reference: `G-${a.id.slice(-6)}` });
+    await offers.verifyAdmissionPayment(finance, second.payment.id);
+    expect((await row(a.id)).stage).toBe("PAID");
+    expect((await stages.acceptedList(rehema, "registration")).map((x) => x.id)).toContain(a.id);
+    expect((await stages.acceptedList(rehema, "payment")).map((x) => x.id)).not.toContain(a.id);
+    expect(await offers.countAdmissionPaymentsDue(finance)).toBe(due0 - 1);
   });
 });
