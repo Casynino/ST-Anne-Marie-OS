@@ -176,7 +176,7 @@ describe("the steps an application takes", () => {
 });
 
 describe("incomplete applications are sent back, and the family sends them again", () => {
-  it("missing papers cannot be accepted: the application is sent back with a note, the family is told, and it returns to review when they reply", async () => {
+  it("missing papers cannot be accepted: the application is sent back with a note, the family is told, and it returns to review when they reply (or the office resumes it)", async () => {
     const a = await newApp(false);
     expect((await desk.loadDesk(rehema, {}, 1)).rows.find((r) => r.id === a.id)?.completeness.missing).toContain("doc:BIRTH_CERTIFICATE");
     expect(await code(flow.acceptReview(rehema, a.id, { scheduledAt: dayAt(18) }))).toBe("CONFLICT"); // the required paper is missing
@@ -187,11 +187,10 @@ describe("incomplete applications are sent back, and the family sends them again
     expect((await db.applicationNotice.findMany({ where: { applicationId: a.id } })).map((x) => [x.kind, x.status])).toEqual([["INFO_NEEDED", "NO_ACCOUNT"]]);
     expect(await code(flow.sendBack(rehema, a.id, "again"))).toBe("CONFLICT"); // already sent back
     expect(await lists(a.id)).toEqual({ review: true, interview: false });
-    // the papers come to the office: it is back under review, and can now be accepted
+    // an application typed at the office has no family account: the papers come to the office, who add them and resume the review from the application page
     await documents.uploadDocument(rehema, { applicationId: a.id }, { docType: "BIRTH_CERTIFICATE", fileName: "bc.pdf", bytes: PDF });
-    expect(await flow.receivedAgain(rehema, a.id)).toEqual({ already: false });
+    await review.startReview(rehema, a.id);
     expect((await desk.loadDesk(rehema, {}, 1)).rows.find((r) => r.id === a.id)?.state).toBe("UNDER_REVIEW");
-    expect(await flow.receivedAgain(rehema, a.id)).toEqual({ already: true });
     expect(await flow.acceptReview(rehema, a.id, { papersChecked: true, scheduledAt: dayAt(18) })).toMatchObject({ state: "INTERVIEW_SCHEDULED" });
   });
 

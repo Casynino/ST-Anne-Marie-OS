@@ -79,8 +79,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
       out.push({ kind: "REVIEW", why: missing.length ? t("adm.q.wait.incomplete", { list: missing.join(", ") }) : null });
       out.push({ kind: "BACK", why: null });
     }
-    // Sent back: waiting for the family. When what was asked has come (to the office, or sent from the family's account), it goes back under review.
-    if (r.state === "NEEDS_INFO" && verify) out.push({ kind: "REOPEN", why: null });
+    // Sent back: it waits for the family, who send it again from their account (it then returns under review by itself); nothing to press here.
     if (r.state === "REVIEWED" && iv && r.interview === "TO_ARRANGE") out.push({ kind: "DATE", why: null });
     if (r.state === "INTERVIEW_SCHEDULED" && iv) out.push({ kind: "RESULT", why: r.interviewAt && r.interviewAt.getTime() > now ? t("adm.q.wait.date") : null });
     if (r.state === "AWAITING_DECISION" && decide) out.push({ kind: "ACCEPT", why: null });
@@ -108,7 +107,6 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
       dateQ: t("adm.q.date.q", { name: "{name}" }), dateSlot: t("adm.q.date.slot"), dateOther: t("adm.q.date.other"), dateWhen: t("adm.q.date.when"), dateGo: t("adm.q.date.go"),
       resultQ: t("adm.q.result.q", { name: "{name}" }), resultPassed: t("adm.q.result.passed"), resultNot: t("adm.q.result.not"), resultNote: t("adm.q.result.note"), resultGo: t("adm.q.result.go"), resultHint: t("adm.q.result.hint"),
       back: t("adm.q.back"), backQ: t("adm.q.back.q", { name: "{name}" }), backNote: t("adm.q.back.note"), backDefault: t("adm.q.back.default", { list: "{list}" }), backAfter: t("adm.q.back.after"), backGo: t("adm.q.back.go"),
-      reopen: t("adm.q.reopen"), reopenQ: t("adm.q.reopen.q", { name: "{name}" }), reopenAfter: t("adm.q.reopen.after"), reopenGo: t("adm.q.reopen.go"),
       enrol: t("adm.q.enrol"), enrolQ: t("adm.q.enrol.q", { name: "{name}" }), enrolAfter: t("adm.q.enrol.after"), enrolGo: t("adm.q.enrol.go"),
     },
     selected: t("adm.bulk.selected", { n: "{n}" }), selectRow: t("adm.bulk.selectRow", { name: "{name}" }),

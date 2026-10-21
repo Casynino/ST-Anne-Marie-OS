@@ -288,4 +288,5 @@ Nino sent two briefs: (1) admissions, finance and administrative control with an
 - **Database and access:** migration `phase17_interview_days` and permission `admission.window.manage` (Registrar, Head Teacher). On each database: migrate, then `npm run db:bootstrap`.
 - **Open:** transfer-OUT (a student leaving for another school) is still handled in Students (status change with a reason), not in Admissions: waiting for Nino's decision on whether it should become an Admissions request; the unpaid-form page for office forms is `/admissions/drafts/[id]` only.
 - **Demo (local):** windows "Open interview day" (14 Nov) and "Form I intake" (Form I, to 25 Nov, interview 5 Dec); demo applicants as before.
-
+- Removed the "Received" button from sent-back rows (Nino): the family resends from their account and the application returns under review by itself.
+- **Public site photos (2026-10-21):** 14 of the school's own photos added (campus, events, classes): hero stage (3), about picture and gallery 07 to 16; black borders cropped, resized, no metadata, alt text in `public/site/meta.json`; gallery limit raised to 24. Left out: two photos with another school's name on the signboard, a football photo with a betting sponsor and an Instagram overlay, duplicates. Parental consent for student photos still to be confirmed by the school.

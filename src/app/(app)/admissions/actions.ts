@@ -226,10 +226,6 @@ export async function quickDecisionAction(_: ActionState, form: FormData) {
         const r = await flow.sendBack(ctx, id, str(i.note) || undefined);
         return { message: t(r.told === "account" ? "adm.q.done.sentBack" : "adm.q.done.sentBackPhone") };
       }
-      case "REOPEN": {
-        const r = await flow.receivedAgain(ctx, id);
-        return { message: t(r.already ? "adm.q.done.already" : "adm.q.done.reopened") };
-      }
       case "DECLINE":
         await admissions.transitionApplication(ctx, id, { to: "REJECTED", reason: i.reason });
         return { message: t("adm.q.done.decline") };

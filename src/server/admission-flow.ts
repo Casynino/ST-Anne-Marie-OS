@@ -5,7 +5,7 @@ import { zonedToUtc } from "@/lib/dates";
 import { deskRow } from "@/server/admission-desk";
 import { enrolApplication } from "@/server/admissions";
 import { acceptApplication } from "@/server/admission-offers";
-import { reviewApplication, startReview, verifyDocument } from "@/server/admission-review";
+import { reviewApplication, verifyDocument } from "@/server/admission-review";
 import { getInterviewDays } from "@/server/interview-days";
 import { recordInterviewResult, scheduleInterview } from "@/server/interviews";
 
@@ -162,11 +162,3 @@ export async function sendBack(ctx: AuthContext, applicationId: string, note: st
   return { told: n?.status === "SENT_IN_APP" ? "account" : "phone" };
 }
 
-/** The family has sent what was asked (it came to the office, or by another way): the application goes back under review. */
-export async function receivedAgain(ctx: AuthContext, applicationId: string) {
-  requirePermission(ctx, "admission.documents.verify");
-  const row = await deskRow(ctx, applicationId);
-  if (row.state !== "NEEDS_INFO") return { already: true };
-  await startReview(ctx, applicationId);
-  return { already: false };
-}

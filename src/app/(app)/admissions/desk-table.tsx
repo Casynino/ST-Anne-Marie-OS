@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Ban, CalendarPlus, Check, ClipboardCheck, Eye, Inbox, Undo2, UserPlus } from "lucide-react";
+import { AlertTriangle, Ban, CalendarPlus, Check, ClipboardCheck, Eye, Undo2, UserPlus } from "lucide-react";
 import type { ActionState } from "@/lib/action";
 import { Badge, EmptyState } from "@/components/ui";
 
@@ -13,8 +13,8 @@ export type DeskLine = {
   interviewLabel: string; interviewDetail: string | null; percent: number; missing: string[]; attention: string[];
 };
 type Mode = "START_REVIEW" | "MARK_REVIEWED";
-type Kind = "REVIEW" | "ACCEPT" | "DECLINE" | "DATE" | "RESULT" | "ENROL" | "BACK" | "REOPEN";
-export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "date" | "result" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel" | "reviewQ" | "reviewToInterview" | "reviewToAccepted" | "papersChecked" | "dateQ" | "dateSlot" | "dateOther" | "dateWhen" | "dateGo" | "resultQ" | "resultPassed" | "resultNot" | "resultNote" | "resultGo" | "resultHint" | "enrol" | "enrolQ" | "enrolAfter" | "enrolGo" | "back" | "backQ" | "backNote" | "backDefault" | "backAfter" | "backGo" | "reopen" | "reopenQ" | "reopenAfter" | "reopenGo", string>;
+type Kind = "REVIEW" | "ACCEPT" | "DECLINE" | "DATE" | "RESULT" | "ENROL" | "BACK";
+export type QuickLabels = Record<"column" | "view" | "accept" | "decline" | "date" | "result" | "acceptQ" | "acceptAfter" | "declineQ" | "declineReason" | "declineGo" | "confirm" | "open" | "cancel" | "reviewQ" | "reviewToInterview" | "reviewToAccepted" | "papersChecked" | "dateQ" | "dateSlot" | "dateOther" | "dateWhen" | "dateGo" | "resultQ" | "resultPassed" | "resultNot" | "resultNote" | "resultGo" | "resultHint" | "enrol" | "enrolQ" | "enrolAfter" | "enrolGo" | "back" | "backQ" | "backNote" | "backDefault" | "backAfter" | "backGo", string>;
 export type DeskLabels = Record<"applicant" | "guardian" | "class" | "submitted" | "complete" | "interview" | "status" | "online" | "selectAll" | "start" | "review" | "go" | "cancel" | "dismiss" | "never", string>
   & { quick: QuickLabels; selected: string; selectRow: string; confirm: Record<Mode, string>; done: string; unchanged: string; failed: string };
 
@@ -162,8 +162,8 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
                   <span className="inline-flex items-center gap-1.5">
                     <Link href={`/admissions/${r.id}`} aria-label={`${q.view}: ${r.name}`} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-ink transition-colors hover:border-brand-500 hover:bg-tint"><Eye className="size-3.5 text-link" aria-hidden />{q.view}</Link>
                     {r.acts.map((a) => {
-                      const text = { DECLINE: q.decline, DATE: q.date, RESULT: q.result, ENROL: q.enrol, BACK: q.back, REOPEN: q.reopen, REVIEW: q.accept, ACCEPT: q.accept }[a.kind];
-                      const Icon = { DECLINE: Ban, DATE: CalendarPlus, RESULT: ClipboardCheck, ENROL: UserPlus, BACK: Undo2, REOPEN: Inbox, REVIEW: Check, ACCEPT: Check }[a.kind];
+                      const text = { DECLINE: q.decline, DATE: q.date, RESULT: q.result, ENROL: q.enrol, BACK: q.back, REVIEW: q.accept, ACCEPT: q.accept }[a.kind];
+                      const Icon = { DECLINE: Ban, DATE: CalendarPlus, RESULT: ClipboardCheck, ENROL: UserPlus, BACK: Undo2, REVIEW: Check, ACCEPT: Check }[a.kind];
                       const tone = a.kind === "DECLINE" ? "text-bad" : a.kind === "REVIEW" || a.kind === "ACCEPT" ? "text-ok" : a.kind === "BACK" ? "text-warn" : "text-link";
                       const hover = a.kind === "DECLINE" ? "hover:border-bad/60 hover:bg-bad/10" : a.kind === "REVIEW" || a.kind === "ACCEPT" ? "hover:border-ok/60 hover:bg-ok/10" : a.kind === "BACK" ? "hover:border-warn/60 hover:bg-warn/10" : "hover:border-brand-500 hover:bg-tint";
                       return (
@@ -190,7 +190,7 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
             <input type="hidden" name="name" value={ask.row.name} />
             <input type="hidden" name="kind" value={ask.kind} />
             <h2 className="text-lg font-semibold text-heading">
-              {({ REVIEW: q.reviewQ, ACCEPT: q.acceptQ, ENROL: q.enrolQ, DECLINE: q.declineQ, DATE: q.dateQ, RESULT: q.resultQ, BACK: q.backQ, REOPEN: q.reopenQ })[ask.kind].replace("{name}", ask.row.name).replace("{class}", ask.row.className2)}
+              {({ REVIEW: q.reviewQ, ACCEPT: q.acceptQ, ENROL: q.enrolQ, DECLINE: q.declineQ, DATE: q.dateQ, RESULT: q.resultQ, BACK: q.backQ })[ask.kind].replace("{name}", ask.row.name).replace("{class}", ask.row.className2)}
             </h2>
             {ask.kind === "REVIEW" && (
               <>
@@ -203,7 +203,6 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
             )}
             {ask.kind === "ACCEPT" && <p className="text-sm text-muted">{q.acceptAfter}</p>}
             {ask.kind === "ENROL" && <p className="text-sm text-muted">{q.enrolAfter}</p>}
-            {ask.kind === "REOPEN" && <p className="text-sm text-muted">{q.reopenAfter}</p>}
             {ask.kind === "BACK" && (
               <>
                 <input name="note" required maxLength={500} autoFocus defaultValue={ask.row.missing.length ? q.backDefault.replace("{list}", ask.row.missing.join(", ")) : ""} aria-label={q.backNote} placeholder={q.backNote} className="min-h-11 w-full rounded-md border border-line bg-surface px-3" />
@@ -229,7 +228,7 @@ export function DeskTable({ rows, labels, canVerify, action, quick, empty, slots
             <div className="flex justify-end gap-2">
               <button type="button" onClick={closeAsk} className="min-h-10 rounded-md px-4 text-sm text-muted hover:text-ink">{q.cancel}</button>
               <button disabled={quickPending} className={`min-h-10 rounded-md px-4 text-sm font-semibold text-white disabled:opacity-60 ${ask.kind === "DECLINE" ? "bg-bad hover:opacity-90" : "bg-brand-700 hover:bg-brand-800"}`}>
-                {({ DECLINE: q.declineGo, DATE: q.dateGo, RESULT: q.resultGo, ENROL: q.enrolGo, BACK: q.backGo, REOPEN: q.reopenGo, REVIEW: q.confirm, ACCEPT: q.confirm })[ask.kind]}
+                {({ DECLINE: q.declineGo, DATE: q.dateGo, RESULT: q.resultGo, ENROL: q.enrolGo, BACK: q.backGo, REVIEW: q.confirm, ACCEPT: q.confirm })[ask.kind]}
               </button>
             </div>
           </form>
