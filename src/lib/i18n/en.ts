@@ -3855,6 +3855,20 @@ export const en = {
   "adm.f.to.short": "To",
   "adm.progress": "Progress: step {n} of 5",
   "adm.f.more": "More filters",
+  "adm.col.action": "Quick action",
+  "adm.q.accept": "Accept",
+  "adm.q.decline": "Decline",
+  "adm.q.ask": "More info",
+  "adm.q.decline.q": "Decline {name}? The family is told the application was not accepted.",
+  "adm.q.decline.reason": "Reason (kept on the record)",
+  "adm.q.decline.go": "Decline application",
+  "adm.q.ask.q": "What must the family add or correct for {name}?",
+  "adm.q.ask.go": "Send request",
+  "adm.q.ask.after": "The status becomes Needs more information. A family with an account is told; if there is no account, tell them by phone.",
+  "adm.q.open": "Open the application",
+  "adm.q.done.decline": "The application was declined.",
+  "adm.q.done.ask": "The request is recorded. The application now shows Needs more information.",
+  "adm.q.for": "For {name}",
 } as const;
 
 export type MessageKey = keyof typeof en;

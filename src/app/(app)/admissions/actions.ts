@@ -196,6 +196,30 @@ export async function markInterviewNotRequiredAction(_: ActionState, form: FormD
 export async function recordCompletedInterviewAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await interviews.recordCompletedInterview(ctx, str(i.id), { kind: i.kind, heldAt: i.heldAt, outcome: i.outcome, score: i.score, notes: i.notes, interviewerId: i.interviewerId, recommendation: i.recommendation }); return saved(ctx); });
 }
+/**
+ * The quick action on a row of the desk: Accept, Decline or Ask for more details. Each one goes through the same service as the full
+ * application page, so every rule (papers verified, interview result, reason required, second-person approval) is checked there.
+ */
+export async function quickDecisionAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const id = str(i.id);
+    const t = makeT(ctx.locale);
+    switch (str(i.kind)) {
+      case "ACCEPT": {
+        const r = await offers.acceptApplication(ctx, id, {});
+        return { message: t(r.already ? "adm.accept.already" : r.status === "PENDING_APPROVAL" ? "adm.accept.pending" : "adm.accept.done") };
+      }
+      case "DECLINE":
+        await admissions.transitionApplication(ctx, id, { to: "REJECTED", reason: i.reason });
+        return { message: t("adm.q.done.decline") };
+      case "ASK":
+        await review.reviewApplication(ctx, id, { decision: "RETURNED", note: i.note });
+        return { message: t("adm.q.done.ask") };
+      default:
+        throw new AppError("VALIDATION", "Choose what to do with this application.");
+    }
+  });
+}
 export async function acceptApplicationAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
     const r = await offers.acceptApplication(ctx, str(i.id), { note: i.note, exceptionReason: i.exceptionReason });

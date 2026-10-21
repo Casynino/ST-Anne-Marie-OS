@@ -12,7 +12,7 @@ import { EmptyState, LinkButton, NoAccess, PageHeader, Pagination } from "@/comp
 import { inputClass } from "@/components/form";
 import { workflowProgress } from "@/lib/admissions/rules";
 import { DeskTable, type DeskLabels, type DeskLine } from "./desk-table";
-import { bulkDeskAction } from "./actions";
+import { bulkDeskAction, quickDecisionAction } from "./actions";
 import { Pipeline, type PipelineTab } from "./pipeline";
 import { DeskFilters as FilterRow } from "./desk-filters";
 
@@ -55,9 +55,19 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
     })),
     { key: "attention", label: t("adm.tab.ATTENTION"), n: c.attention, to: href({ attention: "1" }), on: sp.attention === "1", color: "var(--color-warn)", alert: true },
   ];
+  // Accept is offered where a decision is next (reviewed, or waiting for a decision); the service still checks every condition. Decline and "more details" are open to any application still under consideration.
+  const OPEN_STATES = ["NEW", "UNDER_REVIEW", "NEEDS_INFO", "REVIEWED", "INTERVIEW_SCHEDULED", "AWAITING_DECISION"];
+  const quickActs = (state: string): ("ACCEPT" | "DECLINE" | "ASK")[] => {
+    if (!OPEN_STATES.includes(state)) return [];
+    return [
+      ...(can("admission.review") && (state === "REVIEWED" || state === "AWAITING_DECISION") ? (["ACCEPT"] as const) : []),
+      ...(can("admission.documents.verify") && state !== "NEEDS_INFO" ? (["ASK"] as const) : []),
+      ...(can("admission.review") ? (["DECLINE"] as const) : []),
+    ];
+  };
   const lines: DeskLine[] = desk.rows.map((r) => ({
     id: r.id, applicationNo: r.applicationNo, name: r.name, className: r.className, guardian: r.guardianName, phone: r.guardianPhone, submitted: displayDate(r.submittedAt, ctx.locale), online: r.source === "ONLINE",
-    state: r.state, stateLabel: t(`adm.state.${r.state}`), stateTone: TONE[r.state], step: workflowProgress(r.state), stepLabel: t("adm.progress", { n: String(workflowProgress(r.state)) }),
+    state: r.state, stateLabel: t(`adm.state.${r.state}`), stateTone: TONE[r.state], step: workflowProgress(r.state), className2: r.className ?? t("adm.noClass"), acts: quickActs(r.state), stepLabel: t("adm.progress", { n: String(workflowProgress(r.state)) }),
     interviewLabel: t(`adm.ivs.${r.interview}`), interviewDetail: r.interviewAt ? displayDateTime(r.interviewAt, school.timezone, ctx.locale) : null,
     percent: r.completeness.percent,
     missing: r.completeness.missing.map((k) => (k.startsWith("doc:") ? t(`doc.type.${k.slice(4) as "OTHER"}`) : k === "class" ? t("adm.missing.class") : t("adm.missing.contact"))),
@@ -67,6 +77,11 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
     applicant: t("adm.applicant"), guardian: t("adm.guardian"), class: t("adm.classApplied"), submitted: t("adm.appliedOn"), complete: t("adm.col.complete"), interview: t("adm.col.interview"), assigned: t("adm.col.assigned"), status: t("common.status"),
     online: t("adm.online"), selectAll: t("adm.bulk.selectAll"), start: t("adm.bulk.start"), review: t("adm.bulk.review"), assign: t("adm.bulk.assign"), assignTo: t("adm.bulk.assignTo"), go: t("adm.bulk.go"), cancel: t("adm.bulk.cancel"), dismiss: t("adm.bulk.dismiss"),
     never: t("adm.bulk.never"), unassigned: t("adm.unassigned"), choose: t("common.select"),
+    quick: {
+      column: t("adm.col.action"), accept: t("adm.q.accept"), decline: t("adm.q.decline"), ask: t("adm.q.ask"),
+      acceptQ: t("adm.accept.confirm", { name: "{name}", class: "{class}" }), acceptAfter: t("adm.accept.after"), declineQ: t("adm.q.decline.q", { name: "{name}" }), declineReason: t("adm.q.decline.reason"), declineGo: t("adm.q.decline.go"),
+      askQ: t("adm.q.ask.q", { name: "{name}" }), askGo: t("adm.q.ask.go"), askAfter: t("adm.q.ask.after"), confirm: t("adm.accept.go"), open: t("adm.q.open"), cancel: t("adm.bulk.cancel"),
+    },
     selected: t("adm.bulk.selected", { n: "{n}" }), selectRow: t("adm.bulk.selectRow", { name: "{name}" }),
     confirm: { START_REVIEW: t("adm.bulk.confirm.START_REVIEW", { n: "{n}" }), MARK_REVIEWED: t("adm.bulk.confirm.MARK_REVIEWED", { n: "{n}" }), ASSIGN: t("adm.bulk.confirm.ASSIGN", { n: "{n}" }) },
     done: t("adm.bulk.done", { n: "{n}" }), unchanged: t("adm.bulk.unchanged", { n: "{n}" }), failed: t("adm.bulk.failed", { n: "{n}" }),
@@ -113,7 +128,7 @@ export default async function AdmissionsPage({ searchParams }: { searchParams: P
       {lines.length === 0 ? (
         <EmptyState>{t("adm.none")}</EmptyState>
       ) : (
-        <DeskTable rows={lines} labels={labels} reviewers={reviewers} canVerify={can("admission.documents.verify")} canAssign={can("admission.review")} action={bulkDeskAction} />
+        <DeskTable rows={lines} labels={labels} reviewers={reviewers} canVerify={can("admission.documents.verify")} canAssign={can("admission.review")} action={bulkDeskAction} quick={quickDecisionAction} />
       )}
       <Pagination page={desk.page} pageSize={desk.pageSize} total={desk.total} basePath="/admissions" params={{ ...keep, state: sp.state, attention: sp.attention }} t={t} />
     </>
