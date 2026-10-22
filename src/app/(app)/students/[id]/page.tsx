@@ -139,7 +139,7 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
       </section>
 
       {(att || chosen || fees || hw) && (
-        <ul className="mt-3 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("sp.tab.overview")}>
+        <ul className="mt-3 grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(11rem,13.5rem))]" aria-label={t("sp.tab.overview")}>
           {att && <li><GradientTile icon={CalendarCheck} tone={att.low ? "rose" : "teal"} label={t("sp.tile.attendance")} value={att.rate === null ? "—" : `${att.rate}%`} caption={t("sp.tile.attendance.cap")} /></li>}
           {chosen && chosen.average !== null && <li><GradientTile icon={BarChart3} tone="violet" label={t("sp.tile.average")} value={chosen.average.toFixed(1)} caption={chosen.term} /></li>}
           {chosen && chosen.position !== null && <li><GradientTile icon={Award} tone="indigo" label={t("sp.tile.position")} value={`${chosen.position}/${chosen.classSize}`} caption={t("sp.tile.position.cap", { n: chosen.classSize })} /></li>}
@@ -163,8 +163,6 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
                 <DonutStat label={t("sp.att.title")} center={att.rate === null ? "—" : `${att.rate}%`} caption={t("att.status.PRESENT")} segments={(["PRESENT", "LATE", "EXCUSED", "ABSENT"] as const).map((k) => ({ label: t(`att.status.${k}`), value: att.counts[k], color: { PRESENT: "#2fd08f", LATE: "#f3b94c", EXCUSED: "#8b80ff", ABSENT: "#ff8574" }[k] }))} />
               </Panel>
             )}
-          </Row>
-          <Row>
             <Panel className="flex-[2_1_30rem]" title={t("student.profile.details")}>
             <DefList items={[
               { label: t("student.dob"), value: `${displayDate(s.dateOfBirth, locale)} (${ageOn(s.dateOfBirth)})` },
