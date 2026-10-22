@@ -8,7 +8,7 @@ import { awaitingPlacement } from "@/server/admission-queues";
 import { AdmissionsNav } from "@/components/admissions/subnav";
 import { Badge, EmptyState, NoAccess, PageHeader } from "@/components/ui";
 
-export const metadata: Metadata = { title: "Awaiting school fee payment" };
+export const metadata: Metadata = { title: "Passed: waiting to pay" };
 
 /**
  * Accepted applicants who have not yet paid the school fee: the fee, what Finance has verified, what is still outstanding and the next step.
