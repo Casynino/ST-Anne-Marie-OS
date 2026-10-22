@@ -3,6 +3,7 @@ import type { AttentionRow } from "@/components/dash/attention-tabs";
 import { KpiSection, type DashEnv } from "./sections";
 import { AbsentPanel, ActivityPanel, AdmissionsPanel, ArrearsPanel, AttendanceDailyPanel, AttendanceTrendPanel, EnrollmentPanel, FillPanel, GenderPanel, CalendarPanel, ClassCollectionPanel, ClassesPanel, CollectionsPanel, DeskRow, FeesPanel, H, InvoicesPanel, LearningPanel, MethodsPanel, N, PaymentsPanel, PeoplePanel, ResultsPanel, Row, SetupBanner, T, TodayPanel, W } from "./home";
 import { AttentionBlock } from "./attention";
+import { YearReportPanel } from "@/components/dash/year-report";
 import { Students, Waiting } from "./registrar";
 import type { RegistrarHome } from "@/server/registrar-home";
 
@@ -18,6 +19,7 @@ export function AdminBody({ env, setup, rows, reg }: { env: DashEnv; setup: Awai
       <AttentionBlock t={env.t} rows={rows} />
       <DeskRow env={env} />
       <KpiSection env={env} bare />
+      <Row><YearReportPanel report={env.year} t={env.t} money={env.money} className="flex-[1_1_100%]" /></Row>
       <Row><AttendanceDailyPanel env={env} className={H} /><AbsentPanel env={env} className={H} /></Row>
       <Row><AttendanceTrendPanel env={env} className={H} /><FeesPanel env={env} className={H} /></Row>
       <Row><EnrollmentPanel env={env} className={W} /><GenderPanel env={env} className={N} /></Row>
@@ -35,6 +37,7 @@ export function AdminBody({ env, setup, rows, reg }: { env: DashEnv; setup: Awai
 export function AccountantBody({ env }: { env: DashEnv }) {
   return (
     <>
+      <Row><YearReportPanel report={env.year} t={env.t} money={env.money} className="flex-[1_1_100%]" /></Row>
       <Row><CollectionsPanel env={env} className={W} /><MethodsPanel env={env} className={N} /></Row>
       <Row><ArrearsPanel env={env} className={H} /><PaymentsPanel env={env} className={H} /></Row>
       <Row><ClassCollectionPanel env={env} className={W} /><InvoicesPanel env={env} className={N} /></Row>
@@ -47,6 +50,7 @@ export function HeadBody({ env, teachers }: { env: DashEnv; teachers: React.Reac
   return (
     <>
       {teachers}
+      <Row><YearReportPanel report={env.year} t={env.t} money={env.money} className="flex-[1_1_100%]" /></Row>
       <Row><AttendanceDailyPanel env={env} className={H} /><AbsentPanel env={env} className={H} /></Row>
       <Row><AttendanceTrendPanel env={env} className={H} /><ResultsPanel env={env} className={H} /></Row>
       <Row><EnrollmentPanel env={env} className={W} /><GenderPanel env={env} className={N} /></Row>

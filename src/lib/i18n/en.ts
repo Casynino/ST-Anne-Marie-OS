@@ -4972,6 +4972,19 @@ export const en = {
   "lc.d.rateLine": "{rate}% present · {days} days recorded",
   "lc.d.mainContact": "Main contact",
   "lc.d.openProfile": "Open the full student profile",
+  "yr.title": "Next year: {year}",
+  "yr.sub": "Decisions, registration and fees, from the same records as each desk.",
+  "yr.academic": "Academic decisions",
+  "yr.admissions": "Registration",
+  "yr.finance": "Fees",
+  "yr.a.students": "Students to decide",
+  "yr.a.promoted": "Approved to move up",
+  "yr.a.repeat": "Approved to repeat",
+  "yr.a.results": "Waiting for results",
+  "yr.a.decision": "Waiting for a decision",
+  "yr.a.review": "Decision to review",
+  "yr.r.registered": "Registered",
+  "yr.f.verified": "First instalment verified",
 } as const;
 
 export type MessageKey = keyof typeof en;

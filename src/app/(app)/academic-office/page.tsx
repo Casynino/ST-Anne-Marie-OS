@@ -6,6 +6,9 @@ import { portalLabelKey } from "@/lib/auth/portal";
 import { displayDate, displayDateTime } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
 import { academicDesk } from "@/server/academic-office";
+import { yearReport } from "@/server/year-report";
+import { YearReportPanel } from "@/components/dash/year-report";
+import { formatMoney } from "@/lib/finance/money";
 import { ActionForm, Field } from "@/components/form";
 import { Cell, DashSection, DashTable, DonutStat, EmptyLine, GradientTile, HBars, Panel, Pill, StackedBars } from "@/components/dash/parts";
 import type { AttentionRow } from "@/components/dash/attention-tabs";
@@ -25,7 +28,7 @@ export default async function AcademicOfficePage() {
   const ctx = await requireContext();
   const t = await getT();
   if (!ctx.permissions.has("academic.office")) return <NoAccess t={t} />;
-  const [d, school] = await Promise.all([academicDesk(ctx), getSchoolBasics(ctx.schoolId)]);
+  const [d, school, year] = await Promise.all([academicDesk(ctx), getSchoolBasics(ctx.schoolId), yearReport(ctx).catch(() => null)]);
   const can = (p: Parameters<typeof ctx.permissions.has>[0]) => ctx.permissions.has(p);
   const att = d.attendance;
   const perf = d.performance;
@@ -50,6 +53,8 @@ export default async function AcademicOfficePage() {
       <JumpNav label={t("dash.jump")} items={[{ id: "students", label: t("ac.students") }, { id: "attendance", label: t("ac.attendance") }, { id: "performance", label: t("ac.performance") }, ...(d.teachers ? [{ id: "teachers", label: t("ac.teachers") }] : []), { id: "calendar", label: t("ac.calendar") }]} />
 
       <AttentionBlock t={t} rows={alertRows} />
+
+      <YearReportPanel report={year} t={t} money={(c) => formatMoney(c, school.currency)} groups={["academic", "admissions"]} className="mb-5" />
 
       <ul className="mt-5 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("ac.title")}>
         <li><GradientTile icon={GraduationCap} tone="orange" label={t("ac.kpi.enrolled")} value={d.students.enrolled.toLocaleString()} caption={t("ac.kpi.enrolled.cap")} href="/students" /></li>

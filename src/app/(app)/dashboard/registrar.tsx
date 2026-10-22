@@ -1,3 +1,4 @@
+import { YearReportPanel } from "@/components/dash/year-report";
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Inbox, UserPlus, Users, DoorOpen } from "lucide-react";
 import { displayDate, displayDateTime } from "@/lib/dates";
@@ -237,6 +238,7 @@ export function RegistrarBody({ env, reg }: { env: DashEnv; reg: RegistrarHome |
   return (
     <>
       <Strip env={env} reg={reg} />
+      <Row><YearReportPanel report={env.year} t={env.t} money={env.money} groups={["admissions"]} className="flex-[1_1_100%]" /></Row>
       <Row><Received env={env} className={W} /><Standing env={env} className={T} /><MonthCard className="flex-[1_1_19rem]" label={env.t("dash.events.title")} today={env.d.today} locale={env.locale} events={events} marked={interviews} eventsLabel={env.t("dash.events.title")} markedLabel={env.t("reg.iv.title")} /></Row>
       <Row><Interviews env={env} reg={reg} className={W} /><ByClass env={env} reg={reg} className={T} /><Sources env={env} className={T} /></Row>
       <Row><Waiting env={env} reg={reg} className={W} /><Students env={env} reg={reg} className={N} /></Row>

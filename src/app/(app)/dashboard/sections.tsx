@@ -34,7 +34,8 @@ export type Overview = {
   applications: Awaited<ReturnType<typeof ovMod.applicationsDaily>> | null;
   fill: Awaited<ReturnType<typeof ovMod.classFill>> | null;
 };
-export type DashEnv = { t: Translate; locale: Locale; money: (cents: number) => string; fmtDay: (iso: string) => string; school: { timezone: string; currency: string; name: string }; d: DashboardData; o: Overview; adm: { overview: AdmissionOverview | null; queues: QueueItem[] } };
+import type { YearReport } from "@/server/year-report";
+export type DashEnv = { t: Translate; locale: Locale; money: (cents: number) => string; fmtDay: (iso: string) => string; school: { timezone: string; currency: string; name: string }; d: DashboardData; o: Overview; adm: { overview: AdmissionOverview | null; queues: QueueItem[] }; year: YearReport | null };
 
 export const KPI_ICON = { enrolled: GraduationCap, pipeline: UserPlus, attendanceToday: ClipboardCheck, staff: UserCog, enquiries: Inbox, collected: Wallet, outstanding: Receipt, resultsLocked: FileCheck } as const;
 const STATUS_TONE = { APPLIED: "brand", INTERVIEW: "brand", ACCEPTED: "warn", ENROLLED: "ok", REJECTED: "bad", WITHDRAWN: "neutral" } as const;

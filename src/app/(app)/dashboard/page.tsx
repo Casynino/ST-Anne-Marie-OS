@@ -15,6 +15,7 @@ import { ActivityBlock } from "@/components/dash/activity";
 import { teacherHome } from "@/server/teacher-home";
 import { headHome } from "@/server/head-home";
 import { registrarHome } from "@/server/registrar-home";
+import { yearReport } from "@/server/year-report";
 import { accountsByRole, adminHome } from "@/server/admin-home";
 import { activityPanel } from "@/server/ops";
 import * as ov from "@/server/school-overview";
@@ -76,10 +77,11 @@ export default async function DashboardPage() {
     optional("applications", () => ov.applicationsDaily(ctx)),
     optional("fill", () => ov.classFill(ctx)),
   ]);
+  const year = await optional("yearReport", () => yearReport(ctx));
   const o: Overview = { byGender, attDaily, absent, payments, byMethod, byClass, homework, behaviour, events, staffRoles, applications, fill };
   const fmtDay = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), locale).slice(0, 6);
   const money = (c: number) => formatMoney(c, school.currency);
-  const env: DashEnv = { t, locale, money, fmtDay, school: { timezone: school.timezone, currency: school.currency, name: school.name }, d, o, adm: { overview: admOverview, queues: admQueues ?? [] } };
+  const env: DashEnv = { t, locale, money, fmtDay, school: { timezone: school.timezone, currency: school.currency, name: school.name }, d, o, adm: { overview: admOverview, queues: admQueues ?? [] }, year };
   const props: HomeProps = { env, first, hour, portal, today: d.today, can };
 
   if (kind === "head") return <HeadDashboard props={props} head={await optional("head", () => headHome(ctx))} />;

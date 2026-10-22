@@ -12,6 +12,7 @@ import { SelectAll } from "@/components/lifecycle/select-all";
 import { ClearanceBadge, CountTabs, FollowUpForm, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
 import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { Panel } from "@/components/dash/parts";
+import { YearReportPanel } from "@/components/dash/year-report";
 import { Row } from "@/components/dash/rows";
 import { Info } from "lucide-react";
 import { activateAction, confirmRegistrationAction, createRegistrationsAction, followUpAction, placeReturningAction } from "./actions";
@@ -115,8 +116,13 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
         </div>
       )}
 
+      <YearReportPanel flat t={t} money={(c) => formatMoney(c)} groups={["admissions"]} report={{
+        yearName: b.year.name, academic: null, finance: null,
+        admissions: { eligible: b.counts.total, registered: b.counts.registered, awaitingPayment: b.counts.awaitingPayment, awaitingApproval: by.NEEDS_REGISTRATION ?? 0, awaitingClass: by.NEEDS_PLACEMENT ?? 0, notRegistered: b.counts.notRegistered, repeat: b.counts.repeat, undecided: b.counts.undecided },
+      }} />
+
       <Row>
-        <Panel className="flex-[3_1_40rem]" title={t("lc.ret.fig.total")}>
+        <Panel className="flex-[1_1_100%]" title={t("lc.ret.fig.total")}>
           <CountTabs items={[
             { href: q({ view: "todo" }), label: t("lc.view.todo"), count: b.counts.todo, active: view === "todo" },
             { href: q({ view: "waiting" }), label: t("lc.view.waiting"), count: b.counts.waiting, active: view === "waiting" },
@@ -191,26 +197,6 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
             </>
           )}
           <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, view, stage: sp.stage, money: sp.money }} t={t} />
-        </Panel>
-        <Panel className="flex-[1_1_16rem]" title={t("lc.rep.adm.title")} subtitle={b.year.name}>
-          <ul className="divide-y divide-line text-sm tabular-nums">
-            {([
-              [t("lc.rep.adm.eligible"), b.counts.total, q({ stage: undefined, notreg: undefined, page: undefined })],
-              [t("lc.rep.adm.submitted"), b.counts.registered, null],
-              [t("lc.rep.adm.payment"), b.counts.awaitingPayment, null],
-              [t("lc.rep.adm.approval"), by.NEEDS_REGISTRATION ?? 0, q({ stage: "NEEDS_REGISTRATION", notreg: undefined, page: undefined })],
-              [t("lc.rep.adm.class"), by.NEEDS_PLACEMENT ?? 0, q({ stage: "NEEDS_PLACEMENT", notreg: undefined, page: undefined })],
-              [t("lc.rep.adm.done"), b.counts.registered, null],
-              [t("lc.rep.adm.not"), b.counts.notRegistered, q({ notreg: "1", stage: undefined, page: undefined })],
-              [t("lc.rep.adm.repeat"), b.counts.repeat, b.counts.repeat > 0 ? q({ outcome: "REPEAT", stage: undefined, notreg: undefined, page: undefined }) : null],
-              [t("lc.rep.adm.undecided"), b.counts.undecided, null],
-            ] as const).map(([label, n, href]) => (
-              <li key={label} className="flex items-baseline justify-between gap-3 py-2">
-                {href ? <Link href={href} className="text-ink hover:text-link hover:underline">{label}</Link> : <span>{label}</span>}
-                <span className="font-semibold text-ink">{n}</span>
-              </li>
-            ))}
-          </ul>
         </Panel>
       </Row>
     </>
