@@ -19,7 +19,10 @@ import * as comms from "../src/server/communication";
 import * as concerns from "../src/server/concerns";
 import * as enquiries from "../src/server/enquiries";
 import * as expenses from "../src/server/expenses";
+import * as exams from "../src/server/exams";
 import * as fees from "../src/server/fees";
+import * as marks from "../src/server/marks";
+import * as rc from "../src/server/report-cards";
 import * as plans from "../src/server/lesson-plans";
 import * as messaging from "../src/server/messaging";
 import * as payments from "../src/server/payments";
@@ -68,6 +71,33 @@ async function main() {
   const year = await db.academicYear.findFirstOrThrow({ where: { schoolId, isCurrent: true } });
   const nextYear = await db.academicYear.findFirst({ where: { schoolId, startsOn: { gt: year.startsOn } }, orderBy: { startsOn: "asc" } });
   const term = await db.term.findFirstOrThrow({ where: { schoolId, academicYearId: year.id, isCurrent: true } });
+
+  // ───── 0. Results for the other classes: an earlier test, every sheet entered, approved and locked, report cards published ─────
+  await step("results for the other classes", async () => {
+    if (await db.exam.findFirst({ where: { schoolId, termId: term.id, name: "Opening Test" } })) return "skipped";
+    const subj = async (code: string) => db.subject.findFirstOrThrow({ where: { schoolId, name: { contains: code, mode: "insensitive" } } });
+    const subjects = [await subj("Math"), await subj("English"), await subj("Kiswahili")];
+    const classes = await db.schoolClass.findMany({ where: { schoolId, name: { not: "Form I" }, enrollments: { some: { academicYearId: year.id, status: "ACTIVE" } } } });
+    const exam = await exams.createExam(academic, { termId: term.id, name: "Opening Test", category: "MIDTERM", examDate: addDays(today, -35), maxMarks: "100", weight: "20", submissionDeadline: addDays(today, -28) });
+    await exams.addExamSubjects(academic, exam.id, { classIds: classes.map((c) => c.id), subjectIds: subjects.map((x) => x.id) });
+    let sheets = 0;
+    for (const u of await db.resultSubmission.findMany({ where: { schoolId, examSubject: { examId: exam.id } }, include: { examSubject: true } })) {
+      const roster = (await db.studentEnrollment.findMany({ where: { schoolId, classId: u.examSubject.classId, ...(u.streamId ? { streamId: u.streamId } : {}), status: "ACTIVE" }, select: { studentId: true } })).map((r) => r.studentId);
+      if (!roster.length) continue;
+      try {
+        await marks.saveMarks(admin, u.id, { entries: roster.map((studentId) => ({ studentId, score: 30 + Math.floor(rnd() * 66) })) });
+        await marks.submitMarks(admin, u.id);
+        await marks.approveMarks(academic, u.id).catch(() => undefined);
+        await marks.lockMarks(academic, u.id);
+        sheets++;
+      } catch { /* leaves the sheet as it is */ }
+    }
+    let cards = 0;
+    for (const c of classes) {
+      try { await rc.generateReportCards(academic, { termId: term.id, classId: c.id }); await rc.publishReportCards(academic, { termId: term.id, classId: c.id }); cards++; } catch { /* a later unfinished exam holds this class back */ }
+    }
+    return `${sheets} mark sheets, report cards for ${cards} classes`;
+  });
 
   // ───── 1. End-of-year decisions: most move up, a few repeat, a few still wait for the Academic Office ─────
   await step("year decisions", async () => {
