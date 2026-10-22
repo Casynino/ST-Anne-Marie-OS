@@ -127,7 +127,13 @@ async function resolveEnrollmentTarget(tx: Tx | typeof db, schoolId: string, d: 
 async function assertCapacity(tx: Tx | typeof db, ctx: AuthContext, target: { academicYearId: string; classId: string }, o: { overrideCapacity: boolean; overrideReason?: string }, excludeStudentId?: string): Promise<{ capacityOverride: string } | null> {
   const cls = await tx.schoolClass.findFirst({ where: { id: target.classId, schoolId: ctx.schoolId }, select: { name: true, capacity: true } });
   if (!cls || cls.capacity === null) return null;
-  const count = await tx.studentEnrollment.count({ where: { schoolId: ctx.schoolId, academicYearId: target.academicYearId, classId: target.classId, status: "ACTIVE", ...(excludeStudentId ? { studentId: { not: excludeStudentId } } : {}) } });
+  // One placement at a time per class and year, so two people filling the last place cannot both succeed.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`cap:${target.academicYearId}:${target.classId}`}, 0))`;
+  const others = excludeStudentId ? { studentId: { not: excludeStudentId } } : {};
+  const taken = await tx.studentEnrollment.count({ where: { schoolId: ctx.schoolId, academicYearId: target.academicYearId, classId: target.classId, status: "ACTIVE", ...others } });
+  // Places already promised to returning students (placed, not yet in the roster) count as taken.
+  const reserved = await tx.annualRegistration.count({ where: { schoolId: ctx.schoolId, academicYearId: target.academicYearId, classId: target.classId, status: { in: ["PENDING", "REGISTERED"] }, ...others } });
+  const count = taken + reserved;
   if (count < cls.capacity) return null;
   if (!o.overrideCapacity) throw conflict(`${cls.name} is full (${count} of ${cls.capacity}). Choose another class, or ask someone who is allowed to place a student in a full class.`);
   requirePermission(ctx, "class.capacity_override");
@@ -317,7 +323,7 @@ export type PlacementInput = { academicYearId?: string; classId: string; streamI
  * (today when not given). Used by direct placement and by approved class transfers and promotions, so all of them follow the same rules:
  * the student must be Enrolled, the class must have room (or an authorised override with a reason), and the audit entry says what moved.
  */
-export async function placeStudentTx(tx: Tx, ctx: AuthContext, studentId: string, d: PlacementInput, opts: { effectiveOn?: Date; extraAudit?: Record<string, unknown> } = {}) {
+export async function placeStudentTx(tx: Tx, ctx: AuthContext, studentId: string, d: PlacementInput, opts: { effectiveOn?: Date; extraAudit?: Record<string, unknown>; capacityReserved?: boolean } = {}) {
   const school = await tx.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
   const today = parseDateOnly(todayInTimezone(school.timezone)) as Date;
   const effective = opts.effectiveOn && opts.effectiveOn > today ? opts.effectiveOn : today;
@@ -332,7 +338,8 @@ export async function placeStudentTx(tx: Tx, ctx: AuthContext, studentId: string
   if (sameYear && sameYear.classId === d.classId && (sameYear.streamId ?? null) === (d.streamId ?? null)) {
     throw conflict("The student is already in this class.");
   }
-  const capacity = await assertCapacity(tx, ctx, { academicYearId: year.id, classId: d.classId }, { overrideCapacity: d.overrideCapacity ?? false, overrideReason: d.overrideReason }, studentId);
+  // A returning student's place was reserved (under a lock) when they were placed, so joining the roster does not count it twice.
+  const capacity = opts.capacityReserved ? null : await assertCapacity(tx, ctx, { academicYearId: year.id, classId: d.classId }, { overrideCapacity: d.overrideCapacity ?? false, overrideReason: d.overrideReason }, studentId);
   for (const e of active) {
     const closedOn = e.startedOn > effective ? e.startedOn : effective;
     await tx.studentEnrollment.update({
@@ -372,39 +379,45 @@ const ENDING_STATUS = { TRANSFERRED: "TRANSFERRED_OUT", WITHDRAWN: "WITHDRAWN", 
 export async function changeStudentStatus(ctx: AuthContext, studentId: string, input: unknown) {
   requirePermission(ctx, "student.status_change");
   const d = parse(statusSchema, input);
-  await db.$transaction(async (tx) => {
-    const student = await tx.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
-    if (!student) throw notFound("Student");
-    if (student.status === d.status) throw conflict("The student already has this status.");
-    const leaving = student.status === "ENROLLED" && d.status !== "ENROLLED";
-    const returning = student.status !== "ENROLLED" && d.status === "ENROLLED";
-    if (!leaving && !returning) throw invalid("This status change is not allowed.", { status: "Not allowed from the current status" });
-    if (d.effectiveOn < student.admissionDate) throw invalid("Please correct the highlighted fields.", { effectiveOn: "Cannot be before the admission date" });
+  await db.$transaction((tx) => applyStatusChangeTx(tx, ctx, studentId, d));
+}
 
-    if (leaving) {
-      const active = await tx.studentEnrollment.findMany({ where: { studentId, status: "ACTIVE" } });
-      for (const e of active) {
-        await tx.studentEnrollment.update({
-          where: { id: e.id },
-          data: { status: ENDING_STATUS[d.status as keyof typeof ENDING_STATUS], endedOn: d.effectiveOn < e.startedOn ? e.startedOn : d.effectiveOn },
-        });
-      }
+/**
+ * The status change itself (permission checked by the caller): closes the active enrolment with the matching ending, records the history row and
+ * the audit entry. Shared by the status screen and by the end-of-year decisions (completed school, withdrawn, transferred).
+ */
+export async function applyStatusChangeTx(tx: Tx, ctx: AuthContext, studentId: string, d: { status: "ENROLLED" | "TRANSFERRED" | "WITHDRAWN" | "GRADUATED"; reason: string; effectiveOn: Date }) {
+  const student = await tx.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId } });
+  if (!student) throw notFound("Student");
+  if (student.status === d.status) throw conflict("The student already has this status.");
+  const leaving = student.status === "ENROLLED" && d.status !== "ENROLLED";
+  const returning = student.status !== "ENROLLED" && d.status === "ENROLLED";
+  if (!leaving && !returning) throw invalid("This status change is not allowed.", { status: "Not allowed from the current status" });
+  if (d.effectiveOn < student.admissionDate) throw invalid("Please correct the highlighted fields.", { effectiveOn: "Cannot be before the admission date" });
+
+  if (leaving) {
+    const active = await tx.studentEnrollment.findMany({ where: { studentId, status: "ACTIVE" } });
+    for (const e of active) {
+      await tx.studentEnrollment.update({
+        where: { id: e.id },
+        data: { status: ENDING_STATUS[d.status as keyof typeof ENDING_STATUS], endedOn: d.effectiveOn < e.startedOn ? e.startedOn : d.effectiveOn },
+      });
     }
-    await tx.student.update({
-      where: { id: studentId },
-      data: leaving ? { status: d.status, exitedOn: d.effectiveOn, exitReason: d.reason } : { status: "ENROLLED", exitedOn: null, exitReason: null },
-    });
-    await tx.studentStatusHistory.create({
-      data: { schoolId: ctx.schoolId, studentId, fromStatus: student.status, toStatus: d.status, reason: d.reason, effectiveOn: d.effectiveOn, changedById: ctx.userId },
-    });
-    await writeAudit(tx, actorOf(ctx), {
-      action: "student.status_change",
-      entityType: "Student",
-      entityId: studentId,
-      summary: `${student.firstName} ${student.lastName} (${student.admissionNo})`,
-      changes: { from: student.status, to: d.status, effectiveOn: formatDateOnly(d.effectiveOn) },
-      reason: d.reason,
-    });
+  }
+  await tx.student.update({
+    where: { id: studentId },
+    data: leaving ? { status: d.status, exitedOn: d.effectiveOn, exitReason: d.reason } : { status: "ENROLLED", exitedOn: null, exitReason: null },
+  });
+  await tx.studentStatusHistory.create({
+    data: { schoolId: ctx.schoolId, studentId, fromStatus: student.status, toStatus: d.status, reason: d.reason, effectiveOn: d.effectiveOn, changedById: ctx.userId },
+  });
+  await writeAudit(tx, actorOf(ctx), {
+    action: "student.status_change",
+    entityType: "Student",
+    entityId: studentId,
+    summary: `${student.firstName} ${student.lastName} (${student.admissionNo})`,
+    changes: { from: student.status, to: d.status, effectiveOn: formatDateOnly(d.effectiveOn) },
+    reason: d.reason,
   });
 }
 

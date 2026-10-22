@@ -127,3 +127,50 @@ export function nextStep(a: {
   if (!a.yearOpen) return { stage: "WAITING_YEAR_OPEN", department: "NONE", blocked: false };
   return { stage: "READY_TO_ACTIVATE", department: "ADMISSIONS", blocked: false };
 }
+
+// ───────────────────────── Deciding where a student goes ─────────────────────────
+
+export type Outcome = "PROMOTED" | "REPEAT" | "PENDING_REVIEW" | "COMPLETED" | "WITHDRAWN" | "TRANSFERRED";
+export const MOVING_OUTCOMES: readonly Outcome[] = ["PROMOTED", "REPEAT"];
+export const LEAVING_OUTCOMES: readonly Outcome[] = ["COMPLETED", "WITHDRAWN", "TRANSFERRED"];
+
+/**
+ * What a decision needs. `toClassId` is the grade the student goes to (the next grade when promoted, the same grade when repeating, none when
+ * they finish or leave). `exceptions` lists everything that makes it an exception (results not finalized, a grade outside the school's order,
+ * promoting below the school's own average): an exception needs the right permission and a recorded reason. `error` means it cannot be decided.
+ * The system never decides promotion or repetition: this only checks what the Academic Office decided.
+ */
+export function checkDecision(a: {
+  outcome: Outcome; cls: GradeClass; classes: readonly GradeClass[]; requestedTo: string | null;
+  completion: ExamCompletion; signal: PromotionSignal; note: string;
+}): { toClassId: string | null; exceptions: string[]; error: string | null } {
+  const exceptions: string[] = [];
+  const fail = (error: string) => ({ toClassId: null, exceptions, error });
+  const next = nextGrade(a.cls, a.classes);
+  const needsResults = a.outcome === "PROMOTED" || a.outcome === "REPEAT" || a.outcome === "COMPLETED";
+  if (needsResults && a.completion.state !== "COMPLETE") {
+    exceptions.push(a.completion.state === "NO_EXAMS" ? "There are no examinations recorded for this student's class this year." : `Results are not complete: ${a.completion.missing.slice(0, 3).join("; ")}${a.completion.missing.length > 3 ? "…" : ""}.`);
+  }
+  switch (a.outcome) {
+    case "PROMOTED": {
+      const expected = next.kind === "NEXT" ? next.classId : null;
+      const to = a.requestedTo ?? expected;
+      if (!to) return fail("This is the final grade: choose Completed school.");
+      if (to === a.cls.id) return fail("Promoted means a different grade. Choose Repeat to stay in the same grade.");
+      if (!a.classes.some((c) => c.id === to)) return fail("That grade does not exist.");
+      if (to !== expected) exceptions.push("The grade is not the next one in the school's order.");
+      if (a.signal === "BELOW") exceptions.push("The average is below the school's promotion average.");
+      return { toClassId: to, exceptions, error: null };
+    }
+    case "REPEAT": return { toClassId: a.cls.id, exceptions, error: null };
+    case "COMPLETED":
+      if (next.kind !== "FINAL") exceptions.push("This is not the final grade of the school.");
+      return { toClassId: null, exceptions, error: null };
+    case "WITHDRAWN":
+    case "TRANSFERRED":
+      if (!a.note.trim()) return fail("Say why the student is leaving.");
+      return { toClassId: null, exceptions, error: null };
+    case "PENDING_REVIEW":
+      return { toClassId: null, exceptions: [], error: null };
+  }
+}

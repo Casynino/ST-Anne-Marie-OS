@@ -38,6 +38,8 @@ export const TASK_KINDS = {
   APPLICATION_FEE_HOLD: { department: "FINANCE", dueDays: 2 },
   INSTALMENT_DUE: { department: "FINANCE", dueDays: 0 },
   INSTALMENT_OVERDUE: { department: "FINANCE", dueDays: 0 },
+  RETURNING_PLACEMENT: { department: "ADMISSIONS", dueDays: 3 },
+  RETURNING_FEE: { department: "FINANCE", dueDays: 3 },
 } as const satisfies Record<string, { department: TaskDepartment; dueDays: number }>;
 export type TaskKind = keyof typeof TASK_KINDS;
 export const TASK_DEPARTMENTS = ["ADMISSIONS", "ACADEMIC", "FINANCE", "HR", "ADMIN"] as const satisfies readonly TaskDepartment[];
@@ -217,6 +219,7 @@ export function taskHref(t: { relatedType: string; relatedId: string }): string 
     case "Invoice": return `/finance/invoices/${t.relatedId}`;
     case "AcademicConcern": return `/academic-office/concerns/${t.relatedId}`;
     case "ClassTransfer": return "/academic-office/transfers";
+    case "AnnualRegistration": return "/admissions/returning";
     case "Candidate": return `/staff-recruitment/${t.relatedId}`;
     default: return null;
   }

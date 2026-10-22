@@ -10,9 +10,13 @@ const audit = (tx: Tx, ctx: AuthContext, action: string, entityType: string, ent
 
 // ───────────────────────── Academic years & terms ─────────────────────────
 
+/** A date that can be cleared: an empty field removes it, a form that does not send the field leaves it as it is. */
+const clearableDate = () => z.preprocess((v) => (v === "" ? null : v), dateOnly().nullable().optional());
+
 const yearSchema = z
-  .object({ name: text(40), startsOn: dateOnly(), endsOn: dateOnly() })
-  .refine((v) => v.endsOn > v.startsOn, { path: ["endsOn"], message: "End date must be after the start date" });
+  .object({ name: text(40), startsOn: dateOnly(), endsOn: dateOnly(), registrationOpensOn: clearableDate(), registrationClosesOn: clearableDate() })
+  .refine((v) => v.endsOn > v.startsOn, { path: ["endsOn"], message: "End date must be after the start date" })
+  .refine((v) => !v.registrationOpensOn || !v.registrationClosesOn || v.registrationClosesOn >= v.registrationOpensOn, { path: ["registrationClosesOn"], message: "Registration cannot close before it opens" });
 
 export async function listAcademicYears(ctx: AuthContext) {
   requirePermission(ctx, "academic.read");
@@ -63,7 +67,7 @@ export async function updateAcademicYear(ctx: AuthContext, yearId: string, input
   }
   await db.$transaction(async (tx) => {
     await tx.academicYear.update({ where: { id: yearId }, data });
-    await audit(tx, ctx, "academic_year.update", "AcademicYear", yearId, data.name, diffFields(year, data, ["name", "startsOn", "endsOn"]));
+    await audit(tx, ctx, "academic_year.update", "AcademicYear", yearId, data.name, diffFields(year, data, ["name", "startsOn", "endsOn", "registrationOpensOn", "registrationClosesOn"]));
   });
 }
 
@@ -190,7 +194,20 @@ const classSchema = z.object({
   sortOrder: z.coerce.number().int().min(0).max(999).default(0),
   /** Most active students the class takes in a year; empty = no limit. A form that does not send the field leaves it as it is. */
   capacity: z.preprocess((v) => (v === "" ? null : v), z.coerce.number().int().min(1).max(500).nullable().optional()),
+  /** The grade after this one: empty = the next class in the school's order, FINAL = students finish school here, or a class. A form that does not send it leaves it as it is. */
+  nextGrade: z.string().max(40).optional(),
 });
+
+/** Turns the "next grade" choice into the two columns, checking the class belongs to the school and is not this one. */
+async function nextGradeColumns(schoolId: string, choice: string | undefined, selfId?: string): Promise<{ nextClassId?: string | null; isFinalGrade?: boolean }> {
+  if (choice === undefined) return {};
+  if (choice === "") return { nextClassId: null, isFinalGrade: false };
+  if (choice === "FINAL") return { nextClassId: null, isFinalGrade: true };
+  if (!z.uuid().safeParse(choice).success) throw invalid("Please correct the highlighted fields.", { nextGrade: "Invalid selection" });
+  if (choice === selfId) throw invalid("Please correct the highlighted fields.", { nextGrade: "A grade cannot follow itself" });
+  if (!(await db.schoolClass.findFirst({ where: { id: choice, schoolId } }))) throw notFound("Class");
+  return { nextClassId: choice, isFinalGrade: false };
+}
 
 export async function createClass(ctx: AuthContext, input: unknown) {
   requirePermission(ctx, "academic.manage");
@@ -199,8 +216,10 @@ export async function createClass(ctx: AuthContext, input: unknown) {
   if (await db.schoolClass.findUnique({ where: { schoolId_name: { schoolId: ctx.schoolId, name: data.name } } })) {
     throw invalid("Please correct the highlighted fields.", { name: "A class with this name already exists" });
   }
+  const { nextGrade, ...rest } = data;
+  const grade = await nextGradeColumns(ctx.schoolId, nextGrade);
   return db.$transaction(async (tx) => {
-    const cls = await tx.schoolClass.create({ data: { ...data, schoolId: ctx.schoolId } });
+    const cls = await tx.schoolClass.create({ data: { ...rest, ...grade, schoolId: ctx.schoolId } });
     await audit(tx, ctx, "class.create", "SchoolClass", cls.id, cls.name);
     return cls;
   });
@@ -233,9 +252,11 @@ export async function updateClass(ctx: AuthContext, classId: string, input: unkn
   if (!(await db.academicLevel.findFirst({ where: { id: data.levelId, schoolId: ctx.schoolId } }))) throw notFound("Level");
   const clash = await db.schoolClass.findFirst({ where: { schoolId: ctx.schoolId, name: data.name, id: { not: classId } } });
   if (clash) throw invalid("Please correct the highlighted fields.", { name: "A class with this name already exists" });
+  const { nextGrade, ...rest } = data;
+  const grade = await nextGradeColumns(ctx.schoolId, nextGrade, classId);
   await db.$transaction(async (tx) => {
-    await tx.schoolClass.update({ where: { id: classId }, data });
-    await audit(tx, ctx, "class.update", "SchoolClass", classId, data.name, diffFields(cls, data, ["name", "nameSw", "levelId", "sortOrder", "isActive", "capacity"]));
+    await tx.schoolClass.update({ where: { id: classId }, data: { ...rest, ...grade } });
+    await audit(tx, ctx, "class.update", "SchoolClass", classId, data.name, diffFields(cls, { ...rest, ...grade }, ["name", "nameSw", "levelId", "sortOrder", "isActive", "capacity", "nextClassId", "isFinalGrade"]));
   });
 }
 

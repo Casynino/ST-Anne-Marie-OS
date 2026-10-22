@@ -9,7 +9,7 @@ import { actorOf, writeAudit } from "@/server/audit";
 import { loadFinance, loadStudentFinance, schoolToday } from "@/server/balances";
 import { loadRoster } from "@/server/marks";
 import { resolveStructure } from "@/server/fees";
-import { dateOnly, optDateOnly, optText, optUuid, parse, text, uuid } from "@/lib/validation";
+import { checkbox, dateOnly, optDateOnly, optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
 const isUnique = (e: unknown) => (e as { code?: string })?.code === "P2002";
 
@@ -25,7 +25,7 @@ export async function allocateNumber(tx: Tx, schoolId: string, prefix: "INV" | "
 
 // ───────────────────────── Term invoice generation ─────────────────────────
 
-const genSchema = z.object({ termId: uuid(), classId: optUuid(), streamId: optUuid(), issueDate: optDateOnly(), dueDate: dateOnly() });
+const genSchema = z.object({ termId: uuid(), classId: optUuid(), streamId: optUuid(), issueDate: optDateOnly(), dueDate: dateOnly(), returning: checkbox().default(false) });
 
 type PlannedLine = { feeItemId: string | null; kind: "CHARGE" | "DISCOUNT"; description: string; amount: number };
 type PlannedInvoice = { studentId: string; studentName: string; classId: string; lines: PlannedLine[]; total: number };
@@ -48,6 +48,15 @@ async function planTermInvoices(client: Db | Tx, ctx: AuthContext, d: z.infer<ty
 
   for (const cls of classes) {
     const roster = await loadRoster(client, ctx.schoolId, { academicYearId: term.academicYearId, termId: term.id }, cls.id, d.streamId ?? null);
+    // Returning students who are placed for the year but have not joined the roster yet are billed too when asked (so fee clearance can be worked out before they join).
+    if (d.returning) {
+      const have = new Set(roster.map((r) => r.id));
+      const placed = await client.annualRegistration.findMany({
+        where: { schoolId: ctx.schoolId, academicYearId: term.academicYearId, classId: cls.id, status: { in: ["PENDING", "REGISTERED"] }, ...(d.streamId ? { streamId: d.streamId } : {}) },
+        include: { student: { select: { id: true, firstName: true, lastName: true, status: true } } },
+      });
+      for (const r of placed) if (!have.has(r.studentId)) roster.push({ ...r.student } as (typeof roster)[number]);
+    }
     if (!roster.length) continue;
     const structure = await resolveStructure(client, ctx.schoolId, term.academicYearId, cls.id, cls.levelId);
     const lines = (structure?.lines ?? []).filter((l) => l.termSequence === null || l.termSequence === term.sequence);

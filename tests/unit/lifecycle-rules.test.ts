@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clearanceState, examCompletion, isCleared, nextGrade, nextStep, orderClasses, placesLeft, promotionSignal, recommendStream, type GradeClass } from "@/lib/lifecycle/rules";
+import { checkDecision, clearanceState, examCompletion, isCleared, nextGrade, nextStep, orderClasses, placesLeft, promotionSignal, recommendStream, type GradeClass } from "@/lib/lifecycle/rules";
 
 const c = (id: string, name: string, levelSort: number, sortOrder: number, extra: Partial<GradeClass> = {}): GradeClass => ({ id, name, levelSort, sortOrder, nextClassId: null, isFinalGrade: false, ...extra });
 const school = [c("g1", "Grade One", 1, 1), c("g2", "Grade Two", 1, 2), c("g3", "Grade Three", 1, 3), c("f1", "Form I", 2, 1, { isFinalGrade: false }), c("f2", "Form II", 2, 2, { isFinalGrade: true })];
@@ -96,5 +96,37 @@ describe("who acts next for a returning student", () => {
     expect(nextStep({ ...base, outcome: "COMPLETED", registration: "NONE" })).toMatchObject({ stage: "COMPLETED", department: "NONE" });
     expect(nextStep({ ...base, outcome: "TRANSFERRED", registration: "NONE" })).toMatchObject({ stage: "LEFT" });
     expect(nextStep({ ...base, registration: "CANCELLED" })).toMatchObject({ stage: "NOT_RETURNING" });
+  });
+});
+
+describe("checkDecision", () => {
+  const classes: GradeClass[] = [
+    { id: "c1", name: "I", levelSort: 1, sortOrder: 1, nextClassId: null, isFinalGrade: false },
+    { id: "c2", name: "II", levelSort: 1, sortOrder: 2, nextClassId: null, isFinalGrade: false },
+    { id: "c3", name: "III", levelSort: 1, sortOrder: 3, nextClassId: null, isFinalGrade: true },
+  ];
+  const complete = { state: "COMPLETE" as const, missing: [], average: 70, scored: 2, required: 2 };
+  const incomplete = { state: "INCOMPLETE" as const, missing: ["Maths (results not finalized)"], average: null, scored: 0, required: 1 };
+  const base = { classes, requestedTo: null, completion: complete, signal: "READY" as const, note: "" };
+  it("promotes to the next grade without an exception when results are complete", () => {
+    expect(checkDecision({ ...base, outcome: "PROMOTED", cls: classes[0]! })).toEqual({ toClassId: "c2", exceptions: [], error: null });
+  });
+  it("repeat keeps the grade", () => {
+    expect(checkDecision({ ...base, outcome: "REPEAT", cls: classes[1]! }).toClassId).toBe("c2");
+  });
+  it("the final grade cannot be promoted but can be completed without an exception", () => {
+    expect(checkDecision({ ...base, outcome: "PROMOTED", cls: classes[2]! }).error).toMatch(/final grade/i);
+    expect(checkDecision({ ...base, outcome: "COMPLETED", cls: classes[2]! })).toEqual({ toClassId: null, exceptions: [], error: null });
+  });
+  it("skipping a grade, incomplete results and promoting below the school's average are exceptions", () => {
+    expect(checkDecision({ ...base, outcome: "PROMOTED", cls: classes[0]!, requestedTo: "c3" }).exceptions).toHaveLength(1);
+    expect(checkDecision({ ...base, outcome: "PROMOTED", cls: classes[0]!, completion: incomplete }).exceptions[0]).toMatch(/not complete/i);
+    expect(checkDecision({ ...base, outcome: "PROMOTED", cls: classes[0]!, signal: "BELOW" }).exceptions[0]).toMatch(/below/i);
+    expect(checkDecision({ ...base, outcome: "COMPLETED", cls: classes[0]! }).exceptions[0]).toMatch(/not the final grade/i);
+  });
+  it("pending review needs nothing; leaving needs a reason", () => {
+    expect(checkDecision({ ...base, outcome: "PENDING_REVIEW", cls: classes[0]!, completion: incomplete })).toEqual({ toClassId: null, exceptions: [], error: null });
+    expect(checkDecision({ ...base, outcome: "WITHDRAWN", cls: classes[0]! }).error).toMatch(/why/i);
+    expect(checkDecision({ ...base, outcome: "TRANSFERRED", cls: classes[0]!, note: "Moved away" }).error).toBeNull();
   });
 });

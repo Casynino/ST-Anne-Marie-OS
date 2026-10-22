@@ -7,6 +7,7 @@ import { centsOf, decimalOf, formatMoney, positiveAmount } from "@/lib/finance/m
 import { actorOf, writeAudit, type AuditActor } from "@/server/audit";
 import { ACTIVE_REFUND, loadStudentFinance, lockStudentFinance, schoolToday } from "@/server/balances";
 import { allocateNumber } from "@/server/invoices";
+import { syncFeeTasksForStudentTx } from "@/server/annual-registration";
 import { optDateOnly, optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
 const isUnique = (e: unknown) => (e as { code?: string })?.code === "P2002";
@@ -87,6 +88,7 @@ export async function postPaymentTx(tx: Tx, a: PostArgs) {
     action: "payment.record", entityType: "Payment", entityId: payment.id, summary: `${number} · ${student.admissionNo} · ${formatMoney(a.amountCents, school.currency)}`,
     changes: { studentId: a.studentId, amountCents: a.amountCents, method: a.method, provider: a.provider ?? null, reference: a.reference ?? null, source: a.source, ...a.auditExtra },
   });
+  await syncFeeTasksForStudentTx(tx, a.schoolId, a.studentId);
   return { payment, receipt, snapshot };
 }
 
@@ -165,6 +167,7 @@ export async function reversePayment(ctx: AuthContext, paymentId: string, input:
     await tx.payment.update({ where: { id: paymentId }, data: { status: "REVERSED", reversedAt: new Date(), reversedById: ctx.userId, reverseReason: reason } });
     await tx.receipt.update({ where: { paymentId }, data: { voidedAt: new Date(), voidReason: reason } });
     await writeAudit(tx, actorOf(ctx), { action: "payment.reverse", entityType: "Payment", entityId: paymentId, summary: formatMoney(centsOf(p.amount)), reason, changes: { studentId: p.studentId, amountCents: centsOf(p.amount), source: p.source } });
+    await syncFeeTasksForStudentTx(tx, ctx.schoolId, p.studentId);
   });
 }
 

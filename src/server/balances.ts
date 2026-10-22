@@ -8,7 +8,7 @@ import { computeLedger, type Ledger, type LedgerInvoice, type LedgerPayment } fr
  * read balances through here; none of them adds up fees on its own.
  */
 
-export type InvoiceFacts = LedgerInvoice & { number: string; termId: string | null; type: "TERM_FEES" | "OTHER"; studentId: string; classId: string | null };
+export type InvoiceFacts = LedgerInvoice & { number: string; termId: string | null; academicYearId: string; type: "TERM_FEES" | "OTHER"; studentId: string; classId: string | null };
 export type StudentFinance = { studentId: string; invoices: InvoiceFacts[]; ledger: Ledger };
 
 export async function schoolToday(client: Db | Tx, schoolId: string): Promise<string> {
@@ -36,7 +36,7 @@ export async function loadFinance(client: Db | Tx, schoolId: string, studentIds:
     const inv: InvoiceFacts[] = invoices
       .filter((i) => i.studentId === id)
       .map((i) => ({
-        id: i.id, studentId: i.studentId, number: i.number, termId: i.termId, type: i.type, classId: i.classId,
+        id: i.id, studentId: i.studentId, number: i.number, termId: i.termId, academicYearId: i.academicYearId, type: i.type, classId: i.classId,
         issueDate: formatDateOnly(i.issueDate), dueDate: formatDateOnly(i.dueDate),
         total: i.lines.reduce((n, l) => n + (l.kind === "CHARGE" ? centsOf(l.amount) : -centsOf(l.amount)), 0),
         instalments: i.instalments.map((x) => ({ dueDate: formatDateOnly(x.dueDate), amount: centsOf(x.amount) })),
