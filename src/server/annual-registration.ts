@@ -615,3 +615,63 @@ export async function registrationFamily(ctx: AuthContext, studentId: string) {
   const rows = await db.studentGuardian.findMany({ where: { schoolId: ctx.schoolId, studentId }, include: { guardian: { select: { fullName: true, phone: true, altPhone: true, email: true } } }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] });
   return rows.map((r) => ({ name: r.guardian.fullName, relationship: r.relationship, primary: r.isPrimary, phone: r.guardian.phone, altPhone: r.guardian.altPhone, email: r.guardian.email, notifies: r.receivesNotifications }));
 }
+
+export type RegistrationWhy = {
+  decision: {
+    outcome: string; status: string; fromClass: string; toClass: string | null; note: string | null; exceptionReason: string | null;
+    signal: string | null; minAverage: number | null; completion: { state: string; missing: string[] } | null;
+    preparedBy: string | null; preparedAt: Date; approvedBy: string | null; approvedAt: Date | null; headApprovedBy: string | null; headApprovedAt: Date | null;
+  };
+  /** The latest report card, exactly as it was printed (null when none exists or the person may not see marks). */
+  card: null | {
+    term: string; className: string; stream: string | null; status: string;
+    summary: { average: number | null; grade: string | null; division: string | null; position: number | null; classSize: number; total: number };
+    subjects: { name: string; percent: number; grade: string | null; classMean: number | null; position: number | null; classCount: number }[];
+    remarks: { class: string | null; head: string | null };
+    attendance: { ratePct: number | null; present: number; recorded: number } | null;
+  };
+  canSeeMarks: boolean;
+};
+
+/**
+ * Why the student is going where they are going: the Academic Office's decision (who made it, who approved it, the note, any exception and the
+ * results evidence), and the latest report card with the teacher's and the head teacher's comments. Marks are shown only to people who may read
+ * report cards or results; the decision itself is part of the registration and is visible to everyone who can read it.
+ */
+export async function registrationWhy(ctx: AuthContext, registrationId: string): Promise<RegistrationWhy> {
+  requirePermission(ctx, "registration.read");
+  const reg = await db.annualRegistration.findFirst({ where: { id: registrationId, schoolId: ctx.schoolId }, include: { progression: true } });
+  if (!reg) throw notFound("Registration");
+  const p = reg.progression;
+  const grades = await loadGrades(db, ctx.schoolId);
+  const gradeName = new Map(grades.map((g) => [g.id, g.name]));
+  const ids = [p.preparedById, p.approvedById, p.headApprovedById].filter((x): x is string => !!x);
+  const users = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, fullName: true } });
+  const who = new Map(users.map((u) => [u.id, u.fullName]));
+  const ev = (p.evidence ?? null) as { completion?: { state: string; missing: string[] }; signal?: string; minAverage?: number | null } | null;
+
+  const canSeeMarks = ctx.permissions.has("reportcard.read") || ctx.permissions.has("results.read");
+  let card: RegistrationWhy["card"] = null;
+  if (canSeeMarks) {
+    const row = await db.reportCard.findFirst({ where: { schoolId: ctx.schoolId, studentId: reg.studentId, status: { in: ["GENERATED", "PUBLISHED"] } }, orderBy: { generatedAt: "desc" } });
+    if (row) {
+      const s = row.snapshot as unknown as import("@/lib/results/report-types").ReportSnapshot;
+      card = {
+        term: `${s.term.name} · ${s.term.year}`, className: s.class.name, stream: s.class.stream, status: row.status,
+        summary: { average: s.summary.average, grade: s.summary.grade, division: s.summary.division, position: s.summary.position, classSize: s.summary.classSize, total: s.summary.total },
+        subjects: s.subjects.map((x) => ({ name: x.name, percent: x.percent, grade: x.grade, classMean: x.classMean, position: x.position, classCount: x.classCount })),
+        remarks: { class: s.remarks?.class ?? null, head: s.remarks?.head ?? null },
+        attendance: s.attendance && s.attendance.recorded > 0 ? { ratePct: s.attendance.ratePct, present: s.attendance.present, recorded: s.attendance.recorded } : null,
+      };
+    }
+  }
+  return {
+    decision: {
+      outcome: p.outcome, status: p.status, fromClass: gradeName.get(p.fromClassId) ?? "", toClass: p.toClassId ? gradeName.get(p.toClassId) ?? null : null, note: p.note, exceptionReason: p.exceptionReason,
+      signal: ev?.signal ?? null, minAverage: ev?.minAverage ?? null, completion: ev?.completion ? { state: ev.completion.state, missing: ev.completion.missing ?? [] } : null,
+      preparedBy: who.get(p.preparedById) ?? null, preparedAt: p.preparedAt, approvedBy: p.approvedById ? who.get(p.approvedById) ?? null : null, approvedAt: p.approvedAt,
+      headApprovedBy: p.headApprovedById ? who.get(p.headApprovedById) ?? null : null, headApprovedAt: p.headApprovedAt,
+    },
+    card, canSeeMarks,
+  };
+}

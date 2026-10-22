@@ -99,6 +99,54 @@ async function main() {
     return `${sheets} mark sheets, report cards for ${cards} classes`;
   });
 
+  // ───── 0a. Every mark sheet of the term finished and locked (a report card can only be made when all of a class's results are locked) ─────
+  await step("finish the open mark sheets", async () => {
+    const open = await db.resultSubmission.findMany({ where: { schoolId, status: { not: "LOCKED" }, examSubject: { exam: { termId: term.id } } }, include: { examSubject: true } });
+    let n = 0;
+    for (const u of open) {
+      try {
+        if (u.status === "DRAFT" || u.status === "RETURNED") {
+          const roster = (await db.studentEnrollment.findMany({ where: { schoolId, classId: u.examSubject.classId, ...(u.streamId ? { streamId: u.streamId } : {}), status: "ACTIVE" }, select: { studentId: true } })).map((r) => r.studentId);
+          await marks.saveMarks(admin, u.id, { entries: roster.map((studentId, i) => ({ studentId, score: 20 + ((i * 7) % 28) })) });
+          await marks.submitMarks(admin, u.id);
+        }
+        await marks.approveMarks(academic, u.id).catch(() => undefined);
+        await marks.lockMarks(academic, u.id);
+        n++;
+      } catch { /* left as it is */ }
+    }
+    return `${n} locked`;
+  });
+  // ───── 0b. Teachers' comments on the report cards (the class teacher for every pupil, the head teacher for some) ─────
+  await step("teachers' comments on report cards", async () => {
+    const cards = await db.reportCard.findMany({ where: { schoolId, termId: term.id, status: { in: ["GENERATED", "PUBLISHED"] } } });
+    const has = cards.some((c) => (c.snapshot as unknown as { remarks?: { class?: string | null } }).remarks?.class);
+    if (cards.length === 0 || has) return has ? "skipped" : "no cards";
+    const groups = new Map<string, typeof cards>();
+    for (const c of cards) groups.set(`${c.classId}|${c.streamId ?? ""}`, [...(groups.get(`${c.classId}|${c.streamId ?? ""}`) ?? []), c]);
+    const strong = ["An excellent term. Keeps a high standard in all subjects and helps others. Keep it up.", "Very good work and a positive attitude. Reading more will make the results even better.", "A hard-working pupil who is a good example to the class."];
+    const middle = ["A good term. With more practice in Mathematics the results will improve further.", "Steady progress. Should hand in homework on time and ask questions when stuck.", "Works well when focused. Needs to revise a little every day at home."];
+    const weak = ["Needs more effort and regular revision. Please check the exercise book at home each evening.", "Has the ability but is easily distracted. Extra help after school is advised.", "Results are below the class level. We ask the family to meet the class teacher."];
+    const headSays = ["Well done. Continue to work hard and keep the school's values.", "Good progress this term. We expect more in the next term.", "Please see the class teacher about extra support."];
+    let done = 0;
+    for (const [key, list] of groups) {
+      const [classId, streamId] = key.split("|") as [string, string];
+      try {
+        for (const c of list) await rc.withdrawReportCard(academic, c.id, { reason: "Demo: adding the teachers' comments" }).catch(() => undefined);
+        const entries = list.map((c, i) => {
+          const avg = (c.snapshot as unknown as { summary: { average: number | null } }).summary.average ?? 50;
+          const pool = avg >= 70 ? strong : avg >= 50 ? middle : weak;
+          return { studentId: c.studentId, classRemark: pool[i % pool.length]!, headRemark: i % 3 === 0 ? headSays[avg >= 70 ? 0 : avg >= 50 ? 1 : 2]! : "" };
+        });
+        await rc.saveRemarks(head, { termId: term.id, classId, ...(streamId ? { streamId } : {}), entries });
+        await rc.generateReportCards(academic, { termId: term.id, classId, ...(streamId ? { streamId } : {}) });
+        await rc.publishReportCards(academic, { termId: term.id, classId, ...(streamId ? { streamId } : {}) });
+        done += list.length;
+      } catch (e) { console.log("  comments:", (e as Error).message?.split("\n")[0]); }
+    }
+    return `${done} report cards`;
+  });
+
   // ───── 1. End-of-year decisions: most move up, a few repeat, a few still wait for the Academic Office ─────
   await step("year decisions", async () => {
     const drafts = await db.studentProgression.findMany({ where: { schoolId, fromAcademicYearId: year.id, status: "DRAFT", outcome: "PENDING_REVIEW" }, include: { student: true }, orderBy: { createdAt: "asc" } });

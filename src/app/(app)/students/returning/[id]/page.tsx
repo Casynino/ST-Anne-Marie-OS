@@ -6,12 +6,12 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { AppError } from "@/lib/errors";
 import { ageOn, displayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
-import { registrationDetail, registrationFamily } from "@/server/annual-registration";
+import { registrationDetail, registrationFamily, registrationWhy } from "@/server/annual-registration";
 import { studentInsights } from "@/server/student-profile";
 import { registrationFollowUps } from "@/server/registration-followups";
 import { studentTimeline } from "@/server/year-readiness";
 import { ActionForm, Field } from "@/components/form";
-import { ClearanceBadge, FollowUpForm, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
+import { ClearanceBadge, DecisionStatus, FollowUpForm, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
 import { Timeline } from "@/components/lifecycle/timeline";
 import { DefList, NoAccess } from "@/components/ui";
 import { Avatar, Panel } from "@/components/dash/parts";
@@ -40,11 +40,11 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const [timeline, followUps, family, insights] = await Promise.all([
+  const [timeline, followUps, family, insights, why] = await Promise.all([
     studentTimeline(ctx, d.student.id), registrationFollowUps(ctx, d.reg.id), registrationFamily(ctx, d.student.id),
     can("student.read") ? studentInsights(ctx, d.student.id).catch(() => null) : Promise.resolve(null),
+    registrationWhy(ctx, d.reg.id).catch(() => null),
   ]);
-  const latest = insights?.performance?.terms.at(-1) ?? null;
   const att = insights?.attendance ?? null;
   const r = d.reg;
   const manage = can("registration.manage");
@@ -108,6 +108,72 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
           })}
         </ol>
       </section>
+
+
+      {why && (
+        <Row>
+          <Panel className="flex-[1_1_19rem]" title={t("lc.why.decision")} right={<DecisionStatus status={why.decision.status} t={t} />}>
+            <p className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={why.decision.outcome} t={t} /></p>
+            <p className="mt-2 text-xl font-semibold leading-snug text-ink">
+              {why.decision.outcome === "REPEAT" ? t("lc.why.repeats", { class: why.decision.fromClass }) : why.decision.toClass ? t("lc.why.moves", { from: why.decision.fromClass, to: why.decision.toClass }) : why.decision.fromClass}
+            </p>
+            {placed && classLabel && <p className="mt-1 text-sm text-muted">{t("lc.why.placedIn", { where: classLabel, year: d.year.name })}</p>}
+            {why.decision.signal && <p className="mt-3 text-sm text-ink">{t(`lc.signal.${why.decision.signal}` as "lc.signal.READY", { avg: why.decision.minAverage ?? 0 })}</p>}
+            {why.decision.completion && why.decision.completion.missing.length > 0 && (
+              <div className="mt-2 text-sm"><p className="text-muted">{t("lc.why.resultsMissing")}</p><ul className="mt-1 list-disc space-y-0.5 pl-5 text-ink">{why.decision.completion.missing.slice(0, 6).map((m) => <li key={m}>{m}</li>)}</ul></div>
+            )}
+            {why.decision.completion?.state === "COMPLETE" && <p className="mt-2 text-sm text-muted">{t("lc.why.resultsOk")}</p>}
+            {why.decision.note && <div className="mt-3 border-l-2 border-line pl-3"><p className="text-xs font-medium uppercase tracking-[.08em] text-muted">{t("lc.why.note")}</p><p className="mt-0.5 text-sm text-ink">{why.decision.note}</p></div>}
+            {why.decision.exceptionReason && <div className="mt-3 border-l-2 border-warn/60 pl-3"><p className="text-xs font-medium uppercase tracking-[.08em] text-warn">{t("lc.detail.exception")}</p><p className="mt-0.5 text-sm text-ink">{why.decision.exceptionReason}</p></div>}
+            <div className="mt-4 space-y-0.5 border-t border-line pt-3 text-xs text-muted">
+              {why.decision.preparedBy && <p>{t("lc.detail.preparedBy", { name: why.decision.preparedBy, date: displayDate(why.decision.preparedAt, ctx.locale) })}</p>}
+              {why.decision.approvedBy && why.decision.approvedAt && <p>{t("lc.detail.approvedBy", { name: why.decision.approvedBy, date: displayDate(why.decision.approvedAt, ctx.locale) })}</p>}
+              {why.decision.headApprovedBy && why.decision.headApprovedAt && <p>{t("lc.detail.headApprovedBy", { name: why.decision.headApprovedBy, date: displayDate(why.decision.headApprovedAt, ctx.locale) })}</p>}
+            </div>
+          </Panel>
+
+          {why.canSeeMarks && (why.card ? (
+            <>
+              <Panel className="flex-[2_1_26rem]" title={t("lc.why.results")} subtitle={`${why.card.term} · ${why.card.className}${why.card.stream ? ` ${why.card.stream}` : ""}`}>
+                <dl className="mb-4 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                  {[
+                    [t("lc.why.average"), why.card.summary.average === null ? "—" : why.card.summary.average.toFixed(1)],
+                    [t("lc.why.grade"), why.card.summary.grade ?? "—"],
+                    [t("lc.why.position"), why.card.summary.position === null ? "—" : t("lc.why.positionOf", { pos: why.card.summary.position, n: why.card.summary.classSize })],
+                    ...(why.card.summary.division ? [[t("lc.why.division"), why.card.summary.division]] : []),
+                  ].map(([l, v]) => <div key={l}><dt className="text-xs text-muted">{l}</dt><dd className="text-2xl font-semibold tabular-nums text-ink">{v}</dd></div>)}
+                </dl>
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-line text-left text-xs text-muted"><th className="py-1.5 pr-3 font-medium">{t("lc.why.subject")}</th><th className="px-3 py-1.5 font-medium">{t("lc.why.score")}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.why.grade")}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.why.classMean")}</th><th className="pl-3 py-1.5 text-right font-medium">{t("lc.why.position")}</th></tr></thead>
+                  <tbody className="divide-y divide-line tabular-nums">
+                    {why.card.subjects.map((x) => (
+                      <tr key={x.name}>
+                        <td className="py-1.5 pr-3 font-medium text-ink">{x.name}</td>
+                        <td className="px-3 py-1.5"><span className="flex items-center gap-2"><span aria-hidden className="h-1.5 w-24 overflow-hidden rounded-sm bg-line"><span className={`block h-full ${x.percent >= 50 ? "bg-ok" : "bg-warn"}`} style={{ width: `${Math.max(2, Math.min(100, x.percent))}%` }} /></span><span className="w-10 text-right text-ink">{Math.round(x.percent)}%</span></span></td>
+                        <td className="px-3 py-1.5 text-right text-ink">{x.grade ?? "—"}</td>
+                        <td className="px-3 py-1.5 text-right text-muted">{x.classMean === null ? "—" : `${Math.round(x.classMean)}%`}</td>
+                        <td className="pl-3 py-1.5 text-right text-muted">{x.position === null ? "—" : `${x.position}/${x.classCount}`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {why.card.status !== "PUBLISHED" && <p className="mt-3 text-xs text-muted">{t("lc.why.draftCard")}</p>}
+              </Panel>
+              <Panel className="flex-[1_1_17rem]" title={t("lc.why.comments")} subtitle={why.card.term}>
+                {([[t("lc.why.classTeacher"), why.card.remarks.class], [t("lc.why.headTeacher"), why.card.remarks.head]] as const).map(([who, text]) => (
+                  <div key={who} className="mb-4 last:mb-0">
+                    <p className="text-xs font-medium uppercase tracking-[.08em] text-muted">{who}</p>
+                    {text ? <p className="mt-1 whitespace-pre-line border-l-2 border-brand-500/60 pl-3 text-sm leading-relaxed text-ink">{text}</p> : <p className="mt-1 text-sm text-muted">{t("lc.why.noComment")}</p>}
+                  </div>
+                ))}
+                {why.card.attendance && why.card.attendance.ratePct !== null && <p className="mt-4 border-t border-line pt-3 text-xs text-muted">{t("lc.why.attendance", { rate: Math.round(why.card.attendance.ratePct), present: why.card.attendance.present, n: why.card.attendance.recorded })}</p>}
+              </Panel>
+            </>
+          ) : (
+            <Panel className="flex-[3_1_30rem]" title={t("lc.why.results")}><p className="text-sm text-muted">{t("lc.why.noCard")}</p></Panel>
+          ))}
+        </Row>
+      )}
 
       <Row>
         <div className="flex flex-[2_1_34rem] flex-col gap-4">
@@ -203,19 +269,6 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
               </ul>
             )}
           </Panel>
-
-          {insights && (
-            <Panel title={t("lc.d.results")} subtitle={latest?.term}>
-              {latest ? (
-                <>
-                  <p className="text-sm font-medium text-ink">{latest.average !== null ? t("lc.d.avgLine", { avg: latest.average.toFixed(1), grade: latest.grade ?? "—", pos: latest.position ?? "—", n: latest.classSize }) : null}</p>
-                  <ul className="mt-2 space-y-1 text-sm">
-                    {latest.subjects.slice(0, 8).map((x) => <li key={x.id} className="flex justify-between gap-3"><span className="text-muted">{x.name}</span><span className="font-medium tabular-nums text-ink">{Math.round(x.percent)}%</span></li>)}
-                  </ul>
-                </>
-              ) : <p className="text-sm text-muted">{t("lc.d.noReport")}</p>}
-            </Panel>
-          )}
 
           {att && (
             <Panel title={t("lc.d.attendance")}>
