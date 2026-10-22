@@ -155,14 +155,32 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
           <Row>
             {perf && (
               <Panel className="flex-[2_1_30rem]" title={t("sp.subjects")} subtitle={chosen ? t("sp.subjects.sub", { term: chosen.term }) : undefined}>
-                {!chosen ? <EmptyLine>{t("sp.nomarks")}</EmptyLine> : <ColorBars label={t("sp.subjects")} max={100} unit="%" labelWidth="8rem" items={sortedSubjects.map((x) => ({ label: x.name, value: x.percent, mark: x.classMean }))} />}
+                {!chosen ? <EmptyLine>{t("sp.nomarks")}</EmptyLine> : (
+                  <>
+                    <ColorBars label={t("sp.subjects")} max={100} unit="%" labelWidth="8rem" items={sortedSubjects.map((x) => ({ label: x.name, value: x.percent, mark: x.classMean }))} />
+                    <dl className="mt-5 grid grid-cols-3 gap-2.5">
+                      {[[t("sp.tile.average"), chosen.average === null ? "—" : chosen.average.toFixed(1)], [t("sp.col.grade"), chosen.grade ?? "—"], [t("sp.col.position"), chosen.position === null ? "—" : `${chosen.position}/${chosen.classSize}`]].map(([l, v]) => <div key={l} className="rounded-lg bg-canvas/60 px-3 py-2.5"><dt className="text-xs text-muted">{l}</dt><dd className="mt-0.5 text-lg font-semibold tabular-nums text-ink">{v}</dd></div>)}
+                    </dl>
+                    <p className="mt-3 text-right"><Link href={href("performance")} className="text-sm font-medium text-link hover:underline">{t("sp.tab.performance")}</Link></p>
+                  </>
+                )}
               </Panel>
             )}
             {att && recorded > 0 && (
               <Panel className="flex-[1_1_19rem]" title={t("sp.att.title")} subtitle={t("sp.tile.attendance.cap")}>
                 <DonutStat label={t("sp.att.title")} center={att.rate === null ? "—" : `${att.rate}%`} caption={t("att.status.PRESENT")} segments={(["PRESENT", "LATE", "EXCUSED", "ABSENT"] as const).map((k) => ({ label: t(`att.status.${k}`), value: att.counts[k], color: { PRESENT: "#2fd08f", LATE: "#f3b94c", EXCUSED: "#8b80ff", ABSENT: "#ff8574" }[k] }))} />
+                <div className="mt-4 border-t border-line pt-3">
+                  <p className="mb-2 text-sm font-medium text-ink">{t("sp.att.missed")}</p>
+                  {missed.length === 0 ? <p className="flex items-center gap-2 text-sm text-ok"><CheckCircle2 className="size-4 shrink-0" aria-hidden />{t("sp.att.noMissed")}</p> : (
+                    <ul className="space-y-1.5 text-sm">
+                      {missed.slice(0, 4).map((r, i) => <li key={`${r.date}-${i}`} className="flex items-center justify-between gap-3"><span className="text-muted">{displayDate(new Date(`${r.date}T00:00:00Z`), locale)}</span><Pill tone={r.status === "ABSENT" ? "bad" : r.status === "LATE" ? "warn" : "info"}>{t(`att.status.${r.status}`)}</Pill></li>)}
+                    </ul>
+                  )}
+                </div>
               </Panel>
             )}
+          </Row>
+          <Row>
             <Panel className="flex-[2_1_30rem]" title={t("student.profile.details")}>
             <DefList items={[
               { label: t("student.dob"), value: `${displayDate(s.dateOfBirth, locale)} (${ageOn(s.dateOfBirth)})` },
@@ -176,7 +194,27 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
               ...(s.exitedOn ? [{ label: t("common.status"), value: `${t(`student.status.${s.status}`)} — ${t("student.exited", { date: displayDate(s.exitedOn, locale) })}${s.exitReason ? `: ${s.exitReason}` : ""}` }] : []),
             ]} />
           </Panel>
-
+            {s.canSeeGuardians && s.guardians.length > 0 && (
+              <Panel className="flex-[1_1_19rem]" title={t("student.guardians")} right={hasFamily ? <Link href={href("family")} className="text-sm font-medium text-link hover:underline">{t("common.view")}</Link> : undefined}>
+                <ul className="divide-y divide-line">
+                  {s.guardians.slice(0, 3).map((g) => (
+                    <li key={g.guardianId} className="py-2.5 first:pt-0 last:pb-0">
+                      <p className="flex flex-wrap items-center gap-2 text-sm"><span className="font-medium text-ink">{g.guardian.fullName}</span><span className="text-muted">· {t(`student.rel.${g.relationship}` as "student.rel.FATHER")}</span>{g.isPrimary && <Badge tone="brand">{t("student.primary")}</Badge>}</p>
+                      <a href={`tel:${g.guardian.phone}`} className="text-sm tabular-nums text-link hover:underline">{g.guardian.phone}</a>
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+            )}
+            <Panel className="flex-[1_1_19rem]" title={t("student.profile.enrollments")}>
+              {s.enrollments.length === 0 ? <p className="text-sm text-muted">{t("student.notPlaced")}</p> : (
+                <ul className="divide-y divide-line text-sm">
+                  {s.enrollments.slice(0, 5).map((e) => (
+                    <li key={e.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"><span><span className="font-medium text-ink">{e.class.name}{e.stream ? ` · ${e.stream.name}` : ""}</span><span className="block text-xs text-muted">{e.academicYear.name}</span></span><Pill tone={e.status === "ACTIVE" ? "ok" : "neutral"}>{t(`student.enrollment.${e.status}`)}</Pill></li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
             {fees && (
               <Panel className="flex-[1_1_19rem]" title={t("sp.fees.title")} right={ctx.permissions.has("fees.read") ? <Link href={`/finance/students/${id}`} className="text-sm font-medium text-link hover:underline">{t("fin.student.statement")}</Link> : undefined}>
                 <DefList items={[
