@@ -6,7 +6,8 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { AppError } from "@/lib/errors";
 import { ageOn, displayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
-import { registrationDetail } from "@/server/annual-registration";
+import { registrationDetail, registrationFamily } from "@/server/annual-registration";
+import { studentInsights } from "@/server/student-profile";
 import { registrationFollowUps } from "@/server/registration-followups";
 import { studentTimeline } from "@/server/year-readiness";
 import { ActionForm, Field } from "@/components/form";
@@ -39,7 +40,12 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const [timeline, followUps] = await Promise.all([studentTimeline(ctx, d.student.id), registrationFollowUps(ctx, d.reg.id)]);
+  const [timeline, followUps, family, insights] = await Promise.all([
+    studentTimeline(ctx, d.student.id), registrationFollowUps(ctx, d.reg.id), registrationFamily(ctx, d.student.id),
+    can("student.read") ? studentInsights(ctx, d.student.id).catch(() => null) : Promise.resolve(null),
+  ]);
+  const latest = insights?.performance?.terms.at(-1) ?? null;
+  const att = insights?.attendance ?? null;
   const r = d.reg;
   const manage = can("registration.manage");
   const st = r.status;
@@ -183,6 +189,40 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
             <Link href={`/students/${d.student.id}`} className="mt-3 inline-block text-sm font-medium text-link hover:underline">{t("common.view")}</Link>
             {can("progression.read") && <Link href={`/academic-office/progression/${r.studentId}?year=${r.progression.fromAcademicYearId}`} className="ml-4 mt-3 inline-block text-sm font-medium text-link hover:underline">{t("lc.step.openDecision")}</Link>}
           </Panel>
+
+          <Panel title={t("lc.d.family")}>
+            {family.length === 0 ? <p className="text-sm text-muted">—</p> : (
+              <ul className="divide-y divide-line text-sm">
+                {family.map((g) => (
+                  <li key={`${g.name}${g.phone}`} className="py-2 first:pt-0 last:pb-0">
+                    <p className="font-medium text-ink">{g.name}<span className="ml-2 text-xs font-normal text-muted">{t(`student.rel.${g.relationship}` as "student.rel.MOTHER")}{g.primary ? ` · ${t("lc.d.mainContact")}` : ""}</span></p>
+                    <p className="tabular-nums text-muted">{[g.phone, g.altPhone].filter(Boolean).join(" · ")}</p>
+                    {g.email && <p className="text-muted">{g.email}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          {insights && (
+            <Panel title={t("lc.d.results")} subtitle={latest?.term}>
+              {latest ? (
+                <>
+                  <p className="text-sm font-medium text-ink">{latest.average !== null ? t("lc.d.avgLine", { avg: latest.average.toFixed(1), grade: latest.grade ?? "—", pos: latest.position ?? "—", n: latest.classSize }) : null}</p>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {latest.subjects.slice(0, 8).map((x) => <li key={x.id} className="flex justify-between gap-3"><span className="text-muted">{x.name}</span><span className="font-medium tabular-nums text-ink">{Math.round(x.percent)}%</span></li>)}
+                  </ul>
+                </>
+              ) : <p className="text-sm text-muted">{t("lc.d.noReport")}</p>}
+            </Panel>
+          )}
+
+          {att && (
+            <Panel title={t("lc.d.attendance")}>
+              <p className={`text-sm font-medium ${att.low ? "text-warn" : "text-ink"}`}>{att.rate === null ? "—" : t("lc.d.rateLine", { rate: Math.round(att.rate), days: att.records.length })}</p>
+              <p className="mt-1 text-xs tabular-nums text-muted">{Object.entries(att.counts).filter(([, n]) => n > 0).map(([k, n]) => `${k.toLowerCase()} ${n}`).join(" · ")}</p>
+            </Panel>
+          )}
 
           {places && (
             <Panel title={t("lc.d.places")} subtitle={places.name}>
