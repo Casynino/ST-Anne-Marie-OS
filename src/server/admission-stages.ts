@@ -75,13 +75,20 @@ export async function placementOptions(ctx: AuthContext) {
     const note = c.capacity ? ` (${inClass(c.id)}/${c.capacity}${full(c) ? " full" : ""})` : "";
     return c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}`, full: full(c) })) : [{ value: c.id, label: `${c.name}${note}`, full: full(c) }];
   });
+  // For several students at once: one entry per class that spreads them over the streams with the most room ("*"), then each stream.
+  const bulkOptions = classes.flatMap((c) => {
+    const note = c.capacity ? ` (${inClass(c.id)}/${c.capacity}${full(c) ? " full" : ""})` : "";
+    return c.streams.length
+      ? [{ value: `${c.id}|*`, label: `${c.name} – any stream${note}`, full: full(c) }, ...c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}`, full: full(c) }))]
+      : [{ value: c.id, label: `${c.name}${note}`, full: full(c) }];
+  });
   const preferredFor = (classAppliedId: string | null): PlacementChoices => {
     const applied = classAppliedId ? classes.find((c) => c.id === classAppliedId) ?? null : null;
     let preferred = "";
     if (applied && !full(applied)) preferred = applied.streams.length ? `${applied.id}|${[...applied.streams].sort((a, b) => inStream(applied.id, a.id) - inStream(applied.id, b.id))[0]!.id}` : applied.id;
     return { options, preferred, appliedClass: applied?.name ?? null, appliedFull: applied && full(applied) ? { count: inClass(applied.id), capacity: applied.capacity! } : null };
   };
-  return { options, preferredFor };
+  return { options, bulkOptions, preferredFor };
 }
 
 /** The classes a student can be registered into, how full each is, and the one to preselect: the class applied for. */

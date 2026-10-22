@@ -7,4 +7,5 @@ export const NAV_ICONS = {
 
 export type NavIcon = keyof typeof NAV_ICONS;
 export type NavItem = { href: string; label: string; icon: NavIcon; badge?: number };
-export type NavGroup = { label: string; items: NavItem[] };
+/** `flat` lists the items at the top without a heading (the home items); `icon` is shown beside the heading of a group. */
+export type NavGroup = { label: string; items: NavItem[]; icon?: NavIcon; flat?: boolean };

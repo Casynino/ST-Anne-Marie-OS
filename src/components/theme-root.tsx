@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
-import { fira } from "@/lib/fonts";
+import { inter } from "@/lib/fonts";
 
 export const THEME_COOKIE = "sam_theme";
 export type Theme = "dark" | "light";
@@ -14,7 +14,7 @@ export async function getTheme(): Promise<Theme> {
 export async function ThemeRoot({ children, className = "" }: { children: ReactNode; className?: string }) {
   const theme = await getTheme();
   return (
-    <div data-theme-root className={`app-root ${fira.variable} ${theme === "dark" ? "theme-night" : ""} bg-canvas text-ink ${className}`}>
+    <div data-theme-root className={`app-root ${inter.variable} ${theme === "dark" ? "theme-night" : ""} bg-canvas text-ink ${className}`}>
       {children}
     </div>
   );

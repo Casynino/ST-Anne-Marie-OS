@@ -21,6 +21,7 @@ export function ActionForm({
   confirm,
   successTitle,
   buttonClassName,
+  id,
 }: {
   action: (prev: ActionState, form: FormData) => Promise<ActionState>;
   children?: ReactNode;
@@ -35,6 +36,8 @@ export function ActionForm({
   successTitle?: string;
   /** Extra classes for the submit button (for example `w-full`). */
   buttonClassName?: string;
+  /** The form's element id, so inputs elsewhere on the page can belong to it with the `form` attribute. */
+  id?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
   const failed = state && !state.ok ? state : null;
@@ -53,6 +56,7 @@ export function ActionForm({
   return (
     <Ctx.Provider value={{ errors: failed?.fieldErrors, values: failed?.values, code: failed?.code }}>
       <form
+        id={id}
         action={formAction}
         className={className}
         onSubmit={(e) => {
@@ -90,7 +94,7 @@ export function ActionForm({
                 ? `inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-medium disabled:opacity-60 ${
                     tone === "danger" ? "border-bad/40 text-bad hover:bg-red-50" : "border-line text-ink hover:bg-canvas"
                   }`
-                : `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-base font-semibold text-white disabled:opacity-60 ${
+                : `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-[15px] font-medium text-white disabled:opacity-60 ${
                     tone === "danger" ? "bg-bad hover:bg-red-800" : "bg-brand-700 hover:bg-brand-800"
                   } ${buttonClassName ?? ""}`
             }

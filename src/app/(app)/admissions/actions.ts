@@ -18,6 +18,7 @@ import * as offers from "@/server/admission-offers";
 import * as policy from "@/server/admission-policy";
 import * as joiningSettings from "@/server/joining";
 import * as students from "@/server/students";
+import { registerMany } from "@/server/admission-registration";
 import { getCurrentAcademicContext } from "@/server/academics";
 
 type Input = Record<string, string | string[] | undefined>;
@@ -96,14 +97,26 @@ export async function enrolApplicationAction(_: ActionState, form: FormData) {
   });
 }
 
-/** Register from the list: the Student ID and the class are given together, and the list refreshes. */
-export async function registerFromListAction(_: ActionState, form: FormData) {
+/**
+ * Register from the list: one row, or every ticked applicant into one class. The Student ID and the class are given together, each applicant is
+ * handled on their own, and the answer names everyone who was registered (with the Student ID) and everyone who was not (with the reason).
+ */
+export async function registerManyAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
     const t = makeT(ctx.locale);
+    const ids = (Array.isArray(i.ids) ? i.ids : i.ids ? [i.ids] : []).map(String);
+    if (ids.length === 0) throw invalid(t("adm.reg.many.pick"), {});
     const [classId, streamId] = str(i.placement).split("|");
-    if (!classId) throw invalid(t("adm.reg.classRequired"), {});
-    const student = await admissions.enrolApplication(ctx, str(i.id), { classId, streamId: streamId || undefined, overrideCapacity: i.overrideCapacity, overrideReason: i.overrideReason });
-    return { message: t("adm.reg.list.done", { id: student.admissionNo }) };
+    if (!classId) throw invalid(t("adm.reg.classRequired"), { placement: t("adm.reg.classRequired") });
+    const res = await registerMany(ctx, { ids, classId, streamId: streamId ?? "", overrideCapacity: i.overrideCapacity, overrideReason: i.overrideReason });
+    const ok = res.filter((r) => r.ok);
+    const bad = res.filter((r) => !r.ok);
+    const lines = [
+      ...(ok.length ? [t("adm.reg.many.done", { n: ok.length }), ...ok.map((r) => `• ${r.name}: ${r.admissionNo} · ${r.placedIn}`)] : []),
+      ...(bad.length ? [t("adm.reg.many.failed", { n: bad.length }), ...bad.map((r) => `• ${r.name}: ${r.message}`)] : []),
+    ];
+    if (ok.length === 0) throw invalid(lines.join("\n"), {});
+    return { message: lines.join("\n") };
   });
 }
 

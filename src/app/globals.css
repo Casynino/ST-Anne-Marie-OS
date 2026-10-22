@@ -61,8 +61,17 @@ html { color-scheme: light; }
 
 .site-root { font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 
-/* ── Signed-in areas (staff, family portal): Fira Sans, and a dark theme that swaps only the semantic tokens above. ── */
-.app-root { font-family: var(--font-fira), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --font-display: var(--font-fira), ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+/* ── Signed-in areas (staff, family portal): Inter, softer shapes, and a dark theme that swaps only the semantic tokens above. ── */
+.app-root {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums; font-feature-settings: "cv11", "ss03"; -webkit-font-smoothing: antialiased; line-height: 1.55;
+  /* Calmer corners than the public site: cards 12px, inner boxes 10px (Tailwind reads these variables at the point of use). */
+  --radius-2xl: 0.75rem; --radius-xl: 0.625rem;
+}
+.app-root :is(h1, h2, h3) { letter-spacing: -0.015em; }
+/* Table headings are plain sentence-case labels, not small shouting capitals (unlayered on purpose: it must win over the utilities some tables still carry). */
+.app-root thead th { text-transform: none; letter-spacing: 0; font-size: 0.8125rem; font-weight: 500; }
 .theme-night {
   color-scheme: dark;
   --color-canvas: #09100c; --color-surface: #121b16; --color-ink: #e8f0ea; --color-muted: #93a79b; --color-line: #22302a;

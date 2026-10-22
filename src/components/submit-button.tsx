@@ -17,7 +17,7 @@ export function SubmitButton({ children, intent, variant = "primary", confirm, c
       onClick={(e) => {
         if (confirm && !window.confirm(confirm)) e.preventDefault();
       }}
-      className={`inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-semibold disabled:opacity-60 ${tone} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-medium disabled:opacity-60 ${tone} ${className}`}
     >
       {pending ? "…" : children}
     </button>

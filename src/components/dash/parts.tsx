@@ -8,7 +8,7 @@ export function DashSection({ id, eyebrow, title, subtitle, children }: { id: st
   return (
     <section id={id} aria-labelledby={`${id}-h`} className="mt-8 scroll-mt-24">
       {eyebrow && (
-        <div className="mb-3 flex items-center gap-3"><span className="rounded-full bg-surface px-3 py-1 text-[11px] font-bold uppercase tracking-[.16em] text-muted ring-1 ring-inset ring-line">{eyebrow}</span><span aria-hidden className="h-px flex-1 bg-line" /></div>
+        <div className="mb-3 flex items-center gap-3"><span className="text-xs font-semibold text-muted">{eyebrow}</span><span aria-hidden className="h-px flex-1 bg-line" /></div>
       )}
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-2">
         <h2 id={`${id}-h`} className="text-xl font-semibold tracking-tight text-ink">{title}</h2>
@@ -28,14 +28,14 @@ const PILL = {
   neutral: "bg-muted/12 text-muted ring-muted/25",
 } as const;
 export type PillTone = keyof typeof PILL;
-export const Pill = ({ tone = "neutral", children }: { tone?: PillTone; children: ReactNode }) => <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-[.12em] ring-1 ring-inset ${PILL[tone]}`}>{children}</span>;
+export const Pill = ({ tone = "neutral", children }: { tone?: PillTone; children: ReactNode }) => <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${PILL[tone]}`}>{children}</span>;
 
 /** A headline number: small capital label, big figure, one line of context and a status pill. It can carry a trend line (`spark`) or a progress ring (`ring`, a percentage) when the numbers exist. */
 export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLabel, spark, ring, tone = "ok" }: { label: string; value: ReactNode; caption?: string; pill?: { text: string; tone: PillTone }; icon: LucideIcon; href?: string; openLabel?: string; spark?: number[]; ring?: number | null; tone?: VizTone }) {
   const body = (
     <>
       <span className="flex items-start justify-between gap-3">
-        <span className="text-[11px] font-bold uppercase tracking-[.14em] text-muted">{label}</span>
+        <span className="text-[13px] font-medium text-muted">{label}</span>
         {ring !== undefined && ring !== null
           ? <Ring value={ring} size={46} stroke={12} tone={tone} label={label}><span className="text-[10px] font-semibold tabular-nums text-ink">{Math.round(ring)}%</span></Ring>
           : <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-600/12 text-link"><Icon className="size-[1.15rem]" aria-hidden /></span>}
@@ -134,7 +134,7 @@ export function DashTable({ head, children, empty, min = "28rem" }: { head: { la
   return (
     <div className="-mx-5 overflow-x-auto">
       <table className="w-full text-sm" style={{ minWidth: min }}>
-        <thead><tr className="border-y border-line text-left text-[11px] font-bold uppercase tracking-[.12em] text-muted">{head.map((h, i) => <th key={i} className={`px-5 py-2.5 ${h.right ? "text-right" : ""}`}>{h.label}</th>)}</tr></thead>
+        <thead><tr className="border-y border-line text-left text-[13px] font-medium text-muted">{head.map((h, i) => <th key={i} className={`px-5 py-2.5 ${h.right ? "text-right" : ""}`}>{h.label}</th>)}</tr></thead>
         <tbody className="divide-y divide-line">{children}</tbody>
       </table>
     </div>

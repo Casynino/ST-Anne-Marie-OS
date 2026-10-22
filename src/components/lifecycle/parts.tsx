@@ -35,12 +35,12 @@ export const deptLabel = (t: Translate, d: string) => t(`lc.dept.${d}` as "lc.de
 /** A plain horizontal row of tabs with a count each (links, not buttons: the state is in the address). */
 export function CountTabs({ items }: { items: { href: string; label: string; count?: number; active: boolean }[] }) {
   return (
-    <ul className="mb-4 flex gap-2 overflow-x-auto whitespace-nowrap">
+    <ul className="mb-4 flex gap-1 overflow-x-auto whitespace-nowrap border-b border-line">
       {items.map((i) => (
         <li key={i.href}>
-          <a href={i.href} aria-current={i.active ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-medium ${i.active ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface text-ink hover:bg-canvas"}`}>
+          <a href={i.href} aria-current={i.active ? "page" : undefined} className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${i.active ? "border-link text-ink" : "border-transparent text-muted hover:border-line hover:text-ink"}`}>
             {i.label}
-            {i.count !== undefined && <span className={`tabular-nums ${i.active ? "text-white/80" : "text-muted"}`}>{i.count}</span>}
+            {i.count !== undefined && <span className="rounded-md bg-canvas px-1.5 text-xs tabular-nums text-muted">{i.count}</span>}
           </a>
         </li>
       ))}

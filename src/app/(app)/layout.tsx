@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Navigation is grouped by purpose and only lists modules this user may open. Finance and examinations appear
   // here when those modules exist; nothing is shown for modules that do not.
-  const groups: NavGroup[] = [{ label: t("navgroup.overview"), items: [{ href: "/dashboard", label: t("nav.dashboard"), icon: "dashboard" }, ...(hasAny(ctx, ["admission.read", "tasks.academic", "tasks.finance", "tasks.hr", "tasks.admin"]) ? [{ href: "/tasks", label: t("nav.tasks"), icon: "tasks" as const }] : [])] }];
+  const groups: NavGroup[] = [{ label: t("navgroup.overview"), flat: true, items: [{ href: "/dashboard", label: t("nav.dashboard"), icon: "dashboard" }, ...(hasAny(ctx, ["admission.read", "tasks.academic", "tasks.finance", "tasks.hr", "tasks.admin"]) ? [{ href: "/tasks", label: t("nav.tasks"), icon: "tasks" as const }] : [])] }];
   const academic_ = [
     hasAny(ctx, ["academic.office"]) && { href: "/academic-office", label: t("nav.academicOffice"), icon: "academicOffice" as const },
     hasAny(ctx, ["student.read", "student.read_assigned"]) && { href: "/students", label: t("nav.students"), icon: "students" as const },
@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasAny(ctx, ["guardian.read"]) && { href: "/guardians", label: t("nav.guardians"), icon: "guardians" as const },
     hasAny(ctx, ["academic.read"]) && { href: "/academic-setup", label: t("nav.academics"), icon: "academics" as const },
   ].filter(Boolean) as NavGroup["items"];
-  if (academic_.length) groups.push({ label: t("navgroup.academic"), items: academic_ });
+  if (academic_.length) groups.push({ label: t("navgroup.academic"), icon: "academics" as const, items: academic_ });
   const examNav = [
     hasAny(ctx, ["exam.read"]) && { href: "/exams", label: t("nav.exams"), icon: "exams" as const },
     hasAny(ctx, ["marks.enter", "marks.enter_any", "results.approve", "results.lock"]) && { href: "/marks", label: t("nav.marks"), icon: "marks" as const },
@@ -55,7 +55,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasAny(ctx, ["admission.exam.mark", "admission.exam.review", "admission.exam.assign"]) && { href: "/applicant-exams", label: t("nav.applicantExams"), icon: "exams" as const, badge: examWork },
     hasAny(ctx, ["grading.manage"]) && { href: "/grading", label: t("nav.grading"), icon: "grading" as const },
   ].filter(Boolean) as NavGroup["items"];
-  if (examNav.length) groups.push({ label: t("navgroup.exams"), items: examNav });
+  if (examNav.length) groups.push({ label: t("navgroup.exams"), icon: "exams" as const, items: examNav });
   const learnNav = [
     hasAny(ctx, ["timetable.read"]) && { href: "/timetable", label: t("nav.timetable"), icon: "timetable" as const },
     hasAny(ctx, ["plans.write", "plans.review"]) && { href: "/planning", label: t("nav.planning"), icon: "planning" as const },
@@ -64,11 +64,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasAny(ctx, ["library.read", "library.upload", "library.manage", "library.review", "library.publish", "library.pin"]) && { href: "/library-admin", label: t("nav.library"), icon: "library" as const },
     hasAny(ctx, ["behaviour.record", "behaviour.read_all"]) && { href: "/behaviour", label: t("nav.behaviour"), icon: "behaviour" as const },
   ].filter(Boolean) as NavGroup["items"];
-  if (learnNav.length) groups.push({ label: t("navgroup.learning"), items: learnNav });
+  if (learnNav.length) groups.push({ label: t("navgroup.learning"), icon: "timetable" as const, items: learnNav });
   const financeNav = [
     hasAny(ctx, ["fees.read", "finance.reports", "expense.read", "finance.reconcile"]) && { href: "/finance", label: t("nav.finance"), icon: "finance" as const, badge: (unmatchedPayments ?? 0) + admissionDue },
   ].filter(Boolean) as NavGroup["items"];
-  if (financeNav.length) groups.push({ label: t("navgroup.finance"), items: financeNav });
+  if (financeNav.length) groups.push({ label: t("navgroup.finance"), icon: "finance" as const, items: financeNav });
   const comms = [
     hasAny(ctx, ["comms.read", "messages.read", "messages.moderate"]) && { href: hasAny(ctx, ["comms.read"]) ? "/communication" : "/communication/messages", label: t("nav.communication"), icon: "communication" as const, badge: staffAttention },
     { href: "/school-calendar", label: t("nav.calendar"), icon: "calendar" as const },
@@ -76,7 +76,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/notifications", label: t("nav.notifications"), icon: "notifications" as const, badge: unread },
     hasAny(ctx, ["website.manage"]) && { href: "/website", label: t("nav.website"), icon: "website" as const },
   ].filter(Boolean) as NavGroup["items"];
-  groups.push({ label: t("navgroup.communication"), items: comms });
+  groups.push({ label: t("navgroup.communication"), icon: "communication" as const, items: comms });
   const admin = [
     hasAny(ctx, ["staff.recruit"]) && { href: "/staff-recruitment", label: t("nav.recruitment"), icon: "recruitment" as const },
     hasAny(ctx, ["user.read"]) && { href: "/users", label: t("nav.users"), icon: "users" as const },
@@ -84,7 +84,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     hasAny(ctx, ["school.settings.read"]) && { href: "/settings", label: t("nav.settings"), icon: "settings" as const },
     hasAny(ctx, ["audit.read"]) && { href: "/audit", label: t("nav.audit"), icon: "audit" as const },
   ].filter(Boolean) as NavGroup["items"];
-  if (admin.length) groups.push({ label: t("navgroup.administration"), items: admin });
+  if (admin.length) groups.push({ label: t("navgroup.administration"), icon: "settings" as const, items: admin });
 
   const initials = initialsOf(school.name);
   const logoRef = logo ? { src: logo.src } : undefined;
@@ -100,15 +100,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const signOut = (
     <SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-bad hover:bg-red-50"><LogOut className="size-4" aria-hidden /> {t("nav.signOut")}</SignOutButton>
   );
+  const signOutClass = "flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/15 text-[14px] font-medium text-brand-100 hover:bg-white/10 hover:text-white";
+  const sidebarSignOut = {
+    full: <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-[18px]" aria-hidden /> {t("nav.signOut")}</SignOutButton>,
+    icon: <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-[18px]" aria-hidden /><span className="sr-only">{t("nav.signOut")}</span></SignOutButton>,
+  };
   const drawerFooter = <div className="space-y-3"><LanguageSwitch current={locale} dark /><SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-brand-100 hover:bg-surface/10"><LogOut className="size-5" aria-hidden /> {t("nav.signOut")}</SignOutButton></div>;
 
   return (
     <ThemeRoot className="flex min-h-dvh">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:shadow-lg">{t("site.skip")}</a>
-      <AppSidebar groups={groups} name={school.name} initials={initials} logo={logoRef} collapsedInitially={jar.get("sam_nav")?.value === "collapsed"} labels={{ collapse: t("nav.collapse"), expand: t("nav.expand") }} />
+      <AppSidebar groups={groups} name={school.name} subtitle={t("nav.subtitle")} initials={initials} logo={logoRef} collapsedInitially={jar.get("sam_nav")?.value === "collapsed"} labels={{ collapse: t("nav.collapse"), expand: t("nav.expand") }} footer={sidebarSignOut} />
       <div className="min-w-0 flex-1">
         <header className="no-print sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-line bg-surface/95 px-3 backdrop-blur lg:px-6">
-          <MobileDrawer groups={groups} name={school.name} initials={initials} logo={logoRef} labels={{ menu: t("nav.menu"), close: t("nav.close") }} footer={drawerFooter} />
+          <MobileDrawer groups={groups} name={school.name} subtitle={t("nav.subtitle")} initials={initials} logo={logoRef} labels={{ menu: t("nav.menu"), close: t("nav.close") }} footer={drawerFooter} />
           <Breadcrumbs labels={crumbLabels} detailsLabel={t("bc.details")} homeLabel={t("nav.dashboard")} />
           {canSearch ? <GlobalSearch action="/students" placeholder={t("search.students")} label={t("search.students")} /> : <span className="flex-1" />}
           <div className="ml-auto flex items-center gap-1">

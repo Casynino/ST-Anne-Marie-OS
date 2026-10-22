@@ -45,7 +45,7 @@ export function LinkButton({ href, children, variant = "primary" }: { href: stri
   return (
     <Link
       href={href}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold ${
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium ${
         variant === "primary" ? "bg-brand-700 text-white hover:bg-brand-800" : "border border-line bg-surface text-ink hover:bg-canvas"
       }`}
     >
@@ -72,7 +72,7 @@ export function DataTable({ head, children, empty }: { head: ReactNode[]; childr
   return (
     <div className="overflow-x-auto rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]">
       <table className="w-full min-w-[36rem] text-left text-sm">
-        <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-muted">
+        <thead className="border-b border-line bg-canvas text-xs text-muted">
           <tr>
             {head.map((h, i) => (
               <th key={i} scope="col" className="px-4 py-3 font-medium">

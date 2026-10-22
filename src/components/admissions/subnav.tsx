@@ -17,10 +17,10 @@ export function AdmissionsNav({ ctx, t, current, badges = {} }: { ctx: AuthConte
   ].filter((i) => i.show);
   return (
     <nav aria-label={t("adm.title")} className="no-print -mx-3 mb-4 overflow-x-auto px-3 sm:mx-0 sm:px-0">
-      <ul className="flex gap-2 whitespace-nowrap">
+      <ul className="flex gap-1 whitespace-nowrap border-b border-line">
         {items.map((i) => (
           <li key={i.href}>
-            <Link href={i.href} aria-current={current === i.href ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${current === i.href ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface text-ink hover:bg-canvas"}`}>{i.label}{badges[i.href] !== undefined && <span className="ml-2 tabular-nums text-muted">{badges[i.href]}</span>}</Link>
+            <Link href={i.href} aria-current={current === i.href ? "page" : undefined} className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors ${current === i.href ? "border-link text-ink" : "border-transparent text-muted hover:border-line hover:text-ink"}`}>{i.label}{(badges[i.href] ?? 0) > 0 && <span className="rounded-md bg-tint px-1.5 text-xs tabular-nums text-link">{badges[i.href]}</span>}</Link>
           </li>
         ))}
       </ul>
