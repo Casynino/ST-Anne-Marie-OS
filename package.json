@@ -18,6 +18,7 @@
     "db:generate": "prisma generate",
     "db:bootstrap": "tsx --env-file-if-exists=.env scripts/bootstrap.ts",
     "db:seed-demo": "tsx --env-file-if-exists=.env scripts/seed-demo.ts",
+    "db:seed-demo:more": "tsx --env-file-if-exists=.env scripts/seed-demo-more.ts",
     "site:media": "tsx scripts/scan-site-media.ts",
     "predev": "tsx scripts/scan-site-media.ts",
     "db:backup": "tsx --env-file-if-exists=.env scripts/backup.ts"

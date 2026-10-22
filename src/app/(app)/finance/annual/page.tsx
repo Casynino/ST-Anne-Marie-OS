@@ -57,7 +57,7 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
       <div className="mb-4 overflow-x-auto rounded-2xl border border-line bg-surface p-4">
         <p className="text-sm font-medium">{t("lc.rep.byGrade")}</p>
         <p className="mb-3 text-xs text-muted">{t("lc.rep.byGradeHint")}</p>
-        <table className="w-full min-w-[40rem] text-sm">
+        <table className="w-full min-w-[48rem] text-sm [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
           <thead><tr className="border-b border-line text-left text-xs text-muted">
             <th className="py-1.5 pr-3 font-medium">{t("lc.col.class")}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.students")}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.expected")}</th>
             <th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.initial")}{b.initial.pct !== null ? ` (${b.initial.pct}%)` : ""}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.collected")}</th>
