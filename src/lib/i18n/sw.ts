@@ -4901,4 +4901,8 @@ export const sw: Record<MessageKey, string> = {
   "fam.next.chip.REGISTERED": "Amesajiliwa kwa {year}",
   "fam.next.chip.JOINED": "Yuko darasani kwa {year}",
   "fam.next.chip.CANCELLED": "Wasiliana na shule",
+  "lc.fee.allStreams": "Mikondo yote",
+  "lc.fee.anyOutcome": "Uamuzi wowote",
+  "lc.fee.regStatus": "Usajili",
+  "lc.fee.anyReg": "Hali yoyote",
 };

@@ -4899,6 +4899,10 @@ export const en = {
   "fam.next.chip.REGISTERED": "Registered for {year}",
   "fam.next.chip.JOINED": "In the class for {year}",
   "fam.next.chip.CANCELLED": "Contact the school",
+  "lc.fee.allStreams": "All streams",
+  "lc.fee.anyOutcome": "Any decision",
+  "lc.fee.regStatus": "Registration",
+  "lc.fee.anyReg": "Any status",
 } as const;
 
 export type MessageKey = keyof typeof en;

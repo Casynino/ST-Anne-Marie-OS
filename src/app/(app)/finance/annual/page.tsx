@@ -10,6 +10,8 @@ import { DataTable, EmptyState, NoAccess, PageHeader, Pagination, Td } from "@/c
 import { billReturningAction } from "./actions";
 
 export const metadata: Metadata = { title: "Annual fees" };
+const OUTCOMES = ["PROMOTED", "REPEAT"] as const;
+const REG = ["PENDING", "REGISTERED", "ACTIVE"] as const;
 const STATES = ["cleared", "owing", "not_billed", "exception", "previous"] as const;
 
 /**
@@ -23,13 +25,15 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
   if (!can("fees.read") || !can("registration.read")) return <NoAccess t={t} />;
   const sp = await searchParams;
   const state = (STATES as readonly string[]).includes(sp.state ?? "") ? (sp.state as FeeFilter["state"]) : undefined;
-  const b = await annualFeeBoard(ctx, { yearId: sp.year, classId: sp.class, state, q: sp.q, page: Number(sp.page) || 1 });
+  const outcome = (OUTCOMES as readonly string[]).includes(sp.outcome ?? "") ? (sp.outcome as FeeFilter["outcome"]) : undefined;
+  const regStatus = (REG as readonly string[]).includes(sp.reg ?? "") ? (sp.reg as FeeFilter["regStatus"]) : undefined;
+  const b = await annualFeeBoard(ctx, { yearId: sp.year, classId: sp.class, streamId: sp.stream, outcome, regStatus, state, q: sp.q, page: Number(sp.page) || 1 });
   if (!b.year) return <><PageHeader title={t("lc.fee.title")} /><FinanceNav ctx={ctx} t={t} current="/finance/annual" /><EmptyState>{t("lc.noNextYear")}</EmptyState></>;
 
   const tot = b.totals;
   const q = (extra: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ year: sp.year, class: sp.class, q: sp.q, state: sp.state, ...extra })) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries({ year: sp.year, class: sp.class, stream: sp.stream, outcome: sp.outcome, reg: sp.reg, q: sp.q, state: sp.state, ...extra })) if (v) p.set(k, v);
     const s = p.toString();
     return s ? `/finance/annual?${s}` : "/finance/annual";
   };
@@ -71,6 +75,15 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
         <label className="text-sm"><span className="mb-1 block text-muted">{t("lc.col.class")}</span>
           <select name="class" defaultValue={sp.class ?? ""} className="min-h-11 rounded-lg border border-line bg-surface px-3 text-base"><option value="">{t("lc.allClasses")}</option>{b.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         </label>
+        <label className="text-sm"><span className="mb-1 block text-muted">{t("student.stream")}</span>
+          <select name="stream" defaultValue={sp.stream ?? ""} className="min-h-11 rounded-lg border border-line bg-surface px-3 text-base"><option value="">{t("lc.fee.allStreams")}</option>{b.streams.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        </label>
+        <label className="text-sm"><span className="mb-1 block text-muted">{t("lc.detail.outcome")}</span>
+          <select name="outcome" defaultValue={sp.outcome ?? ""} className="min-h-11 rounded-lg border border-line bg-surface px-3 text-base"><option value="">{t("lc.fee.anyOutcome")}</option>{OUTCOMES.map((o) => <option key={o} value={o}>{t(`lc.outcome.${o}` as "lc.outcome.PROMOTED")}</option>)}</select>
+        </label>
+        <label className="text-sm"><span className="mb-1 block text-muted">{t("lc.fee.regStatus")}</span>
+          <select name="reg" defaultValue={sp.reg ?? ""} className="min-h-11 rounded-lg border border-line bg-surface px-3 text-base"><option value="">{t("lc.fee.anyReg")}</option>{REG.map((o) => <option key={o} value={o}>{t(`lc.reg.${o}` as "lc.reg.PENDING")}</option>)}</select>
+        </label>
         <label className="text-sm"><span className="mb-1 block text-muted">{t("common.search")}</span><input name="q" defaultValue={sp.q ?? ""} placeholder={t("lc.searchHint")} className="min-h-11 w-56 rounded-lg border border-line bg-surface px-3 text-base" /></label>
         <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-medium hover:bg-canvas btn-secondary">{t("common.filter")}</button>
       </form>
@@ -80,7 +93,7 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
           {b.rows.map((r) => (
             <tr key={r.registrationId}>
               <Td><Link href={`/students/returning/${r.registrationId}`} className="font-medium text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Td>
-              <Td className="whitespace-nowrap">{r.className ?? "—"}<span className="block text-xs text-muted">{t(`lc.reg.${r.status}` as "lc.reg.PENDING")}</span></Td>
+              <Td className="whitespace-nowrap">{r.className ?? "—"}{r.streamName ? ` ${r.streamName}` : ""}<span className="block text-xs text-muted">{t(`lc.outcome.${r.outcome}` as "lc.outcome.PROMOTED")} · {t(`lc.reg.${r.status}` as "lc.reg.PENDING")}</span></Td>
               <Td className="tabular-nums">{r.firstTerm.billed ? <>{formatMoney(r.firstTerm.paid)} / {formatMoney(r.firstTerm.charged)}<span className={`block text-xs ${r.firstTerm.outstanding ? "text-warn" : "text-muted"}`}>{t("lc.fee.owed")}: {formatMoney(r.firstTerm.outstanding)}</span></> : <span className="text-muted">—</span>}</Td>
               <Td className="tabular-nums">{r.year.billed ? <>{formatMoney(r.year.charged)}<span className="block text-xs text-muted">{t("lc.fee.owed")}: {formatMoney(r.year.outstanding)}</span></> : <span className="text-muted">—</span>}</Td>
               <Td className="tabular-nums">{r.previousOutstanding > 0 ? <span className="text-bad">{formatMoney(r.previousOutstanding)}<span className="block text-xs text-muted">{r.previous.map((p) => p.yearName).join(", ")}</span></span> : <span className="text-muted">—</span>}</Td>
@@ -89,7 +102,7 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
           ))}
         </DataTable>
       )}
-      <Pagination page={b.page} pageSize={50} total={b.total} basePath="/finance/annual" params={{ year: sp.year, class: sp.class, q: sp.q, state: sp.state }} t={t} />
+      <Pagination page={b.page} pageSize={50} total={b.total} basePath="/finance/annual" params={{ year: sp.year, class: sp.class, stream: sp.stream, outcome: sp.outcome, reg: sp.reg, q: sp.q, state: sp.state }} t={t} />
     </>
   );
 }

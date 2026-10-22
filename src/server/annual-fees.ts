@@ -21,30 +21,32 @@ const PAGE = 50;
 
 export type FeeRow = {
   registrationId: string; studentId: string; admissionNo: string; name: string; className: string | null; status: string;
-  state: ClearanceState; firstTerm: YearFinance["firstTerm"]; year: YearFinance["year"]; previous: YearFinance["previous"]; previousOutstanding: number; exceptionReason: string | null;
+  streamName: string | null; outcome: string; state: ClearanceState; firstTerm: YearFinance["firstTerm"]; year: YearFinance["year"]; previous: YearFinance["previous"]; previousOutstanding: number; exceptionReason: string | null;
 };
-export type FeeFilter = { yearId?: string; classId?: string; state?: "cleared" | "owing" | "not_billed" | "exception" | "previous"; q?: string; page?: number };
+export type FeeFilter = { yearId?: string; classId?: string; streamId?: string; outcome?: "PROMOTED" | "REPEAT"; regStatus?: "PENDING" | "REGISTERED" | "ACTIVE"; state?: "cleared" | "owing" | "not_billed" | "exception" | "previous"; q?: string; page?: number };
 
 export async function annualFeeBoard(ctx: AuthContext, opts: FeeFilter = {}) {
   requirePermission(ctx, "fees.read");
   const { years, target } = await defaultTargetYear(db, ctx.schoolId);
   const year = (opts.yearId ? years.find((y) => y.id === opts.yearId) : null) ?? target;
   const settings = await getLifecycleSettings(db, ctx.schoolId);
-  const empty = { year: null, years, rows: [] as FeeRow[], total: 0, page: 1, pages: 1, totals: { students: 0, expected: 0, collected: 0, outstanding: 0, previousOutstanding: 0, cleared: 0, owing: 0, notBilled: 0, exceptions: 0, withPreviousDebt: 0 }, needBilling: 0, firstTermName: null as string | null, settings, classes: [] as { id: string; name: string }[] };
+  const empty = { year: null, years, rows: [] as FeeRow[], total: 0, page: 1, pages: 1, totals: { students: 0, expected: 0, collected: 0, outstanding: 0, previousOutstanding: 0, cleared: 0, owing: 0, notBilled: 0, exceptions: 0, withPreviousDebt: 0 }, needBilling: 0, firstTermName: null as string | null, settings, classes: [] as { id: string; name: string }[], streams: [] as { id: string; name: string }[] };
   if (!year) return empty;
 
   const grades = await loadGrades(db, ctx.schoolId);
   const className = new Map(grades.map((g) => [g.id, g.name]));
+  const streamRows = await db.stream.findMany({ where: { schoolId: ctx.schoolId }, select: { id: true, name: true, classId: true } });
+  const streamName = new Map(streamRows.map((x) => [x.id, x.name]));
   const regs = await db.annualRegistration.findMany({
     where: { schoolId: ctx.schoolId, academicYearId: year.id, status: { not: "CANCELLED" } },
-    include: { student: { select: { firstName: true, middleName: true, lastName: true, admissionNo: true } }, progression: { select: { toClassId: true } } },
+    include: { student: { select: { firstName: true, middleName: true, lastName: true, admissionNo: true } }, progression: { select: { toClassId: true, outcome: true } } },
   });
   const money = await yearFinances(db, ctx.schoolId, regs.map((r) => r.studentId), year.id, settings, new Set(regs.filter((r) => r.clearanceExceptionReason).map((r) => r.studentId)));
   const all: FeeRow[] = regs.map((r) => {
     const m = money.get(r.studentId)!;
     const cid = r.classId ?? r.progression.toClassId;
     return {
-      registrationId: r.id, studentId: r.studentId, admissionNo: r.student.admissionNo, name: nameOf(r.student), className: cid ? className.get(cid) ?? null : null, status: r.status,
+      registrationId: r.id, studentId: r.studentId, admissionNo: r.student.admissionNo, name: nameOf(r.student), className: cid ? className.get(cid) ?? null : null, streamName: r.streamId ? streamName.get(r.streamId) ?? null : null, outcome: r.progression.outcome, status: r.status,
       state: m.state, firstTerm: m.firstTerm, year: m.year, previous: m.previous, previousOutstanding: m.previousOutstanding, exceptionReason: r.clearanceExceptionReason,
     };
   });
@@ -56,6 +58,9 @@ export async function annualFeeBoard(ctx: AuthContext, opts: FeeFilter = {}) {
   const q = opts.q?.trim().toLowerCase();
   const rows = all.filter((r) => {
     if (opts.classId && !regs.find((x) => x.id === r.registrationId && (x.classId ?? x.progression.toClassId) === opts.classId)) return false;
+    if (opts.streamId && !regs.find((x) => x.id === r.registrationId && x.streamId === opts.streamId)) return false;
+    if (opts.outcome && r.outcome !== opts.outcome) return false;
+    if (opts.regStatus && r.status !== opts.regStatus) return false;
     if (q && !r.name.toLowerCase().includes(q) && !r.admissionNo.toLowerCase().includes(q)) return false;
     switch (opts.state) {
       case "cleared": return isCleared(r.state);
@@ -69,7 +74,8 @@ export async function annualFeeBoard(ctx: AuthContext, opts: FeeFilter = {}) {
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const page = Math.min(Math.max(1, opts.page ?? 1), pages);
   const firstTerm = await db.term.findFirst({ where: { schoolId: ctx.schoolId, academicYearId: year.id }, orderBy: { sequence: "asc" }, select: { name: true } });
-  return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, totals, needBilling: totals.notBilled, firstTermName: firstTerm?.name ?? null, settings, classes: grades.map((g) => ({ id: g.id, name: g.name })) };
+  return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, totals, needBilling: totals.notBilled, firstTermName: firstTerm?.name ?? null, settings, classes: grades.map((g) => ({ id: g.id, name: g.name })),
+    streams: streamRows.filter((x) => !opts.classId || x.classId === opts.classId).map((x) => ({ id: x.id, name: `${className.get(x.classId) ?? ""} ${x.name}`.trim() })) };
 }
 
 const billSchema = z.object({ yearId: uuid(), dueDate: dateOnly() });
