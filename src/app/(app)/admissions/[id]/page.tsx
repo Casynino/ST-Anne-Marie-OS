@@ -147,7 +147,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                     <input type="hidden" name="id" value={id} />
                     <p className="text-sm text-ok">{t("adm.gate.ready")}</p>
                     {app.className && <p className="text-sm text-muted">{t("adm.enrol.preferred", { class: app.className })}{preferredFull ? ` (${t("adm.place.full")})` : ""}</p>}
-                    {can("student.enroll") && placementOptions.length > 0 && <Field name="placement" label={t("adm.enrol.optClass")} hint={t("adm.enrol.optClass.hint")} type="select" options={placementOptions} placeholder={t("common.select")} />}
+                    {can("student.enroll") && placementOptions.length > 0 && <Field name="placement" label={t("adm.reg.classLabel")} hint={t("adm.reg.classHint")} type="select" required options={placementOptions} placeholder={t("common.select")} />}
                     {can("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} optionalLabel={t("common.optional")} /></>}
                     <ConfirmBoxes duplicate={t("student.confirmDuplicate")} sharedPhone={t("adm.confirmSharedPhone")} />
                   </ActionForm>

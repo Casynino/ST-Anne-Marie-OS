@@ -20,7 +20,7 @@ const isUuid = (s: string) => /^[0-9a-f-]{36}$/i.test(s);
 // ───────────────────────── Accepted applicants: awaiting payment, registration pending ─────────────────────────
 
 export type AcceptedRow = {
-  id: string; applicationNo: string; name: string; className: string | null; decidedAt: Date | null; letterNo: string | null; after: "payment" | "registration";
+  id: string; applicationNo: string; name: string; className: string | null; classAppliedId: string | null; decidedAt: Date | null; letterNo: string | null; after: "payment" | "registration";
   feeCents: number; verifiedCents: number; pendingCents: number; balanceCents: number; accountStatus: AccountStatus | null;
   items: ReadinessItem[]; remaining: string[]; percent: number; docsVerified: number; docsRequired: number;
 };
@@ -29,7 +29,7 @@ async function toAccepted(ctx: AuthContext, r: DeskRow): Promise<AcceptedRow> {
   const app = await db.application.findFirstOrThrow({ where: { id: r.id, schoolId: ctx.schoolId }, select: { id: true, status: true, reviewStatus: true, docsExceptionAt: true, entryType: true } });
   const [{ offer, account }, gate] = await Promise.all([loadAdmissionAccount(db, ctx.schoolId, r.id), enrolmentReadiness(db, ctx.schoolId, app)]);
   return {
-    id: r.id, applicationNo: r.applicationNo, name: r.name, className: r.className, decidedAt: r.decidedAt, letterNo: offer?.letterNo ?? null, after: r.after ?? "registration",
+    id: r.id, applicationNo: r.applicationNo, name: r.name, className: r.className, classAppliedId: r.classAppliedId, decidedAt: r.decidedAt, letterNo: offer?.letterNo ?? null, after: r.after ?? "registration",
     feeCents: account?.requiredCents ?? (offer ? centsOf(offer.feeAmount) : 0), verifiedCents: account?.verifiedCents ?? 0, pendingCents: account?.pendingCents ?? 0, balanceCents: account?.balanceCents ?? 0, accountStatus: account?.status ?? null,
     items: gate.items, remaining: gate.items.filter((i) => !i.ok).map((i) => i.message), percent: r.completeness.percent, docsVerified: r.completeness.checked, docsRequired: r.completeness.required,
   };
@@ -58,8 +58,11 @@ export type AcceptedDetail = AcceptedRow & {
   application: Awaited<ReturnType<typeof getApplication>>; placement: PlacementChoices;
 };
 
-/** The classes (and streams) a student can be registered into, how full each is, and the one to preselect: the class applied for. */
-export async function placementChoices(ctx: AuthContext, classAppliedId: string | null): Promise<PlacementChoices> {
+/**
+ * The classes (and streams) a student can be registered into and how full each is, loaded once; `preferredFor` gives, for the class a family
+ * applied for, the entry to preselect (the least-filled stream) and whether that class is already full.
+ */
+export async function placementOptions(ctx: AuthContext) {
   const year = await db.academicYear.findFirst({ where: { schoolId: ctx.schoolId, isCurrent: true }, select: { id: true } });
   const [classes, counts] = await Promise.all([
     db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: { sortOrder: "asc" }, include: { streams: { orderBy: { name: "asc" } } } }),
@@ -72,10 +75,18 @@ export async function placementChoices(ctx: AuthContext, classAppliedId: string 
     const note = c.capacity ? ` (${inClass(c.id)}/${c.capacity}${full(c) ? " full" : ""})` : "";
     return c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}`, full: full(c) })) : [{ value: c.id, label: `${c.name}${note}`, full: full(c) }];
   });
-  const applied = classAppliedId ? classes.find((c) => c.id === classAppliedId) ?? null : null;
-  let preferred = "";
-  if (applied && !full(applied)) preferred = applied.streams.length ? `${applied.id}|${[...applied.streams].sort((a, b) => inStream(applied.id, a.id) - inStream(applied.id, b.id))[0]!.id}` : applied.id;
-  return { options, preferred, appliedClass: applied?.name ?? null, appliedFull: applied && full(applied) ? { count: inClass(applied.id), capacity: applied.capacity! } : null };
+  const preferredFor = (classAppliedId: string | null): PlacementChoices => {
+    const applied = classAppliedId ? classes.find((c) => c.id === classAppliedId) ?? null : null;
+    let preferred = "";
+    if (applied && !full(applied)) preferred = applied.streams.length ? `${applied.id}|${[...applied.streams].sort((a, b) => inStream(applied.id, a.id) - inStream(applied.id, b.id))[0]!.id}` : applied.id;
+    return { options, preferred, appliedClass: applied?.name ?? null, appliedFull: applied && full(applied) ? { count: inClass(applied.id), capacity: applied.capacity! } : null };
+  };
+  return { options, preferredFor };
+}
+
+/** The classes a student can be registered into, how full each is, and the one to preselect: the class applied for. */
+export async function placementChoices(ctx: AuthContext, classAppliedId: string | null): Promise<PlacementChoices> {
+  return (await placementOptions(ctx)).preferredFor(classAppliedId);
 }
 
 /** Someone registered from the accepted list: their Student ID and class, shown instead of the registration form. null when they are not registered. */

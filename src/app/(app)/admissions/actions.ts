@@ -2,7 +2,7 @@
 
 import { run, str, type ActionState } from "@/lib/action";
 import { makeT } from "@/lib/i18n";
-import { AppError } from "@/lib/errors";
+import { AppError, invalid } from "@/lib/errors";
 import { db } from "@/lib/db";
 import * as admissions from "@/server/admissions";
 import * as documents from "@/server/documents";
@@ -89,8 +89,21 @@ export async function transitionApplicationAction(_: ActionState, form: FormData
 export async function enrolApplicationAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
     const [classId, streamId] = str(i.placement).split("|");
+    // Registering and giving the class are one step: whoever may place a student must choose the class here.
+    if (ctx.permissions.has("student.enroll") && !classId) throw invalid(makeT(ctx.locale)("adm.reg.classRequired"), { placement: makeT(ctx.locale)("adm.reg.classRequired") });
     const student = await admissions.enrolApplication(ctx, str(i.id), { classId: classId || undefined, streamId: streamId || undefined, admissionDate: i.admissionDate, confirmDuplicate: i.confirmDuplicate, confirmSharedPhone: i.confirmSharedPhone, overrideCapacity: i.overrideCapacity, overrideReason: i.overrideReason });
     return { redirectTo: `/students/${student.id}` };
+  });
+}
+
+/** Register from the list: the Student ID and the class are given together, and the list refreshes. */
+export async function registerFromListAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const t = makeT(ctx.locale);
+    const [classId, streamId] = str(i.placement).split("|");
+    if (!classId) throw invalid(t("adm.reg.classRequired"), {});
+    const student = await admissions.enrolApplication(ctx, str(i.id), { classId, streamId: streamId || undefined, overrideCapacity: i.overrideCapacity, overrideReason: i.overrideReason });
+    return { message: t("adm.reg.list.done", { id: student.admissionNo }) };
   });
 }
 

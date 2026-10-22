@@ -106,7 +106,7 @@ export default async function AcceptedPage({ params }: { params: Promise<{ id: s
                 <ActionForm action={enrolApplicationAction} submitLabel={t("adm.reg.go")} className="mt-5 space-y-3 border-t border-line pt-4">
                   <input type="hidden" name="id" value={id} />
                   {pl.appliedFull && <p role="status" className="rounded-lg border border-warn/40 bg-amber-50 px-3 py-2 text-sm text-warn">{t("adm.reg.full", { class: pl.appliedClass ?? "", n: String(pl.appliedFull.count), cap: String(pl.appliedFull.capacity) })}</p>}
-                  {can("student.enroll") && <Field name="placement" type="select" label={t("adm.reg.classLabel")} hint={t("adm.reg.classHint")} options={pl.options.map((o) => ({ value: o.value, label: o.label }))} defaultValue={pl.preferred} placeholder={t("adm.reg.classLater")} />}
+                  {can("student.enroll") && <Field name="placement" type="select" required label={t("adm.reg.classLabel")} hint={t("adm.reg.classHint")} options={pl.options.map((o) => ({ value: o.value, label: o.label }))} defaultValue={pl.preferred} placeholder={t("common.select")} />}
                   {can("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} optionalLabel={t("common.optional")} /></>}
                   <ConfirmBoxes duplicate={t("student.confirmDuplicate")} sharedPhone={t("adm.confirmSharedPhone")} />
                 </ActionForm>
