@@ -91,9 +91,7 @@ export function ActionForm({
             disabled={pending}
             className={
               inline
-                ? `inline-flex min-h-9 items-center rounded-md border px-3 text-sm font-medium disabled:opacity-60 ${
-                    tone === "danger" ? "border-bad/40 text-bad hover:bg-red-50" : "border-line text-ink hover:bg-canvas"
-                  }`
+                ? `btn-sm inline-flex items-center font-medium disabled:opacity-60 ${tone === "danger" ? "btn-danger" : "btn-secondary"} ${buttonClassName ?? ""}`
                 : `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-[15px] font-medium text-white disabled:opacity-60 ${
                     tone === "danger" ? "bg-bad hover:bg-red-800" : "bg-brand-700 hover:bg-brand-800"
                   } ${buttonClassName ?? ""}`

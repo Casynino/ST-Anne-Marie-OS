@@ -4770,4 +4770,12 @@ export const sw: Record<MessageKey, string> = {
   "lc.d.places": "Nafasi katika gredi",
   "lc.d.placesLeft": "{left} zimebaki kati ya {cap}",
   "lc.d.step": "Hatua {n}",
+  "guardian.ov.accounts": "Akaunti za mtandaoni",
+  "guardian.ov.noAccount": "Bado hawana akaunti",
+  "guardian.ov.suspended": "Zimesimamishwa",
+  "guardian.ov.numbers": "Wazazi kwa namba",
+  "guardian.ov.total": "Wazazi",
+  "guardian.ov.noChild": "Bila mtoto aliyeunganishwa",
+  "guardian.ov.never": "Hawajawahi kuingia",
+  "guardian.more": "+{n} zaidi",
 };

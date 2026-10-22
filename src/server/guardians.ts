@@ -212,3 +212,17 @@ export async function setRelationshipVerified(ctx: AuthContext, studentId: strin
   });
 }
 
+
+/** The parents in numbers: how many, how many have a portal account and in what state, how many have never signed in. School-wide, for people who may read guardians. */
+export async function guardianOverview(ctx: AuthContext) {
+  requirePermission(ctx, "guardian.read");
+  const base = { schoolId: ctx.schoolId };
+  const [total, noChild, active, suspended, neverSignedIn] = await Promise.all([
+    db.guardian.count({ where: base }),
+    db.guardian.count({ where: { ...base, students: { none: {} } } }),
+    db.guardian.count({ where: { ...base, user: { is: { status: "ACTIVE" } } } }),
+    db.guardian.count({ where: { ...base, user: { is: { status: { not: "ACTIVE" } } } } }),
+    db.guardian.count({ where: { ...base, user: { is: { lastLoginAt: null } } } }),
+  ]);
+  return { total, noChild, active, suspended, noAccount: Math.max(0, total - active - suspended), neverSignedIn };
+}

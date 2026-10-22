@@ -4768,6 +4768,14 @@ export const en = {
   "lc.d.places": "Places in the grade",
   "lc.d.placesLeft": "{left} left of {cap}",
   "lc.d.step": "Step {n}",
+  "guardian.ov.accounts": "Portal accounts",
+  "guardian.ov.noAccount": "No account yet",
+  "guardian.ov.suspended": "Suspended",
+  "guardian.ov.numbers": "Parents in numbers",
+  "guardian.ov.total": "Parents",
+  "guardian.ov.noChild": "With no child linked",
+  "guardian.ov.never": "Never signed in",
+  "guardian.more": "+{n} more",
 } as const;
 
 export type MessageKey = keyof typeof en;
