@@ -11,9 +11,9 @@ import { SubmitButton } from "@/components/submit-button";
 import { SelectAll } from "@/components/lifecycle/select-all";
 import { ClearanceBadge, CountTabs, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
 import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
-import { ColorBars, DonutStat, GradientTile, Panel } from "@/components/dash/parts";
+import { ColorBars, DonutStat, Panel } from "@/components/dash/parts";
 import { Row } from "@/components/dash/rows";
-import { CheckCircle2, ClipboardCheck, GraduationCap, Hourglass, Info, Repeat2, Wallet } from "lucide-react";
+import { Info } from "lucide-react";
 import { activateAction, confirmRegistrationAction, createRegistrationsAction, placeReturningAction } from "./actions";
 
 export const metadata: Metadata = { title: "Returning students" };
@@ -70,15 +70,6 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
         </div>
       )}
 
-      <ul className="mb-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11.5rem,1fr))]">
-        <li><GradientTile icon={Repeat2} tone="orange" label={t("lc.ret.fig.total")} value={b.counts.total} /></li>
-        <li><GradientTile icon={ClipboardCheck} tone={by.NEEDS_PLACEMENT ? "rose" : "green"} label={t("lc.stage.NEEDS_PLACEMENT")} value={by.NEEDS_PLACEMENT ?? 0} /></li>
-        <li><GradientTile icon={GraduationCap} tone="teal" label={t("lc.stage.NEEDS_REGISTRATION")} value={by.NEEDS_REGISTRATION ?? 0} /></li>
-        <li><GradientTile icon={Wallet} tone="violet" label={t("lc.stage.NEEDS_FEE")} value={by.NEEDS_FEE ?? 0} /></li>
-        <li><GradientTile icon={Hourglass} tone="indigo" label={t("lc.stage.READY_TO_ACTIVATE")} value={(by.READY_TO_ACTIVATE ?? 0) + (by.WAITING_YEAR_OPEN ?? 0)} /></li>
-        <li><GradientTile icon={CheckCircle2} tone="green" label={t("lc.stage.ACTIVE")} value={by.ACTIVE ?? 0} /></li>
-      </ul>
-
       <Row>
         <Panel className="flex-[3_1_40rem]" title={t("lc.ret.fig.total")}>
           <CountTabs items={[
@@ -122,7 +113,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
                           <td className={td}><Link href={`/students/returning/${r.id}`} className="font-medium text-ink hover:text-link hover:underline">{r.name}</Link><span className="block text-xs tabular-nums text-muted">{r.admissionNo}</span></td>
                           <td className={td}><span className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-muted">→ {r.decidedClassName}</span>}</span></td>
                           <td className={`${td} whitespace-nowrap`}>{r.className ? `${r.className}${r.streamName ? ` · ${r.streamName}` : ""}` : <span className="text-muted">—</span>}</td>
-                          <td className={td}>
+                          <td className={`${td} whitespace-nowrap`}>
                             <ClearanceBadge state={r.clearance} t={t} />
                             {seeMoney && r.firstTermOutstanding ? <span className="mt-1 block text-xs tabular-nums text-muted">{formatMoney(r.firstTermOutstanding)}</span> : null}
                             {r.hasPreviousDebt && <span className="mt-1 block text-xs text-warn">{t("lc.ret.olderDebt")}{seeMoney && r.previousOutstanding ? ` · ${formatMoney(r.previousOutstanding)}` : ""}</span>}

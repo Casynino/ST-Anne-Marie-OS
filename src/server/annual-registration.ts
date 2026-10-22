@@ -181,7 +181,10 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
 
   const q = opts.q?.trim().toLowerCase();
   let rows = all.filter((r) => (!opts.classId || (r.classId ?? r.decidedClassId) === opts.classId) && (!opts.stage || r.stage === opts.stage) && (!q || r.name.toLowerCase().includes(q) || r.admissionNo.toLowerCase().includes(q)) && (!opts.money || (opts.money === "cleared" ? isCleared(r.clearance) : !isCleared(r.clearance))));
-  rows = rows.sort((a, b) => (a.className ?? a.decidedClassName ?? "").localeCompare(b.className ?? b.decidedClassName ?? "") || a.name.localeCompare(b.name));
+  // Students who need something done come first (grade, registration, joining the class), then those waiting on others, then those already in.
+  const ORDER: Stage[] = ["NEEDS_PLACEMENT", "NEEDS_REGISTRATION", "READY_TO_ACTIVATE", "NEEDS_FEE", "WAITING_YEAR_OPEN", "ACTIVE", "NOT_RETURNING"];
+  const urgency = (st: Stage) => { const i = ORDER.indexOf(st); return i < 0 ? 99 : i; };
+  rows = rows.sort((a, b) => urgency(a.stage) - urgency(b.stage) || (a.className ?? a.decidedClassName ?? "").localeCompare(b.className ?? b.decidedClassName ?? "") || a.name.localeCompare(b.name));
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const page = Math.min(Math.max(1, opts.page ?? 1), pages);
 
