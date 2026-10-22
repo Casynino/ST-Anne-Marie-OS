@@ -72,6 +72,17 @@ async function YearsTab({ canManage, ctx }: { canManage: boolean; ctx: Ctx }) {
               </li>
             ))}
           </ul>
+          {(y.registrationOpensOn || y.registrationClosesOn) && <p className="mt-2 text-sm text-muted">{t("lc.year.window", { from: y.registrationOpensOn ? displayDate(y.registrationOpensOn, locale) : "—", to: y.registrationClosesOn ? displayDate(y.registrationClosesOn, locale) : "—" })}</p>}
+          {canManage && (
+            <details className="mt-3">
+              <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("lc.year.setWindow")}</summary>
+              <ActionForm action={A.setRegistrationWindowAction} submitLabel={t("common.save")} className="mt-2 grid gap-3 sm:grid-cols-3 sm:items-end">
+                <input type="hidden" name="id" value={y.id} />
+                <Field name="registrationOpensOn" type="date" label={t("lc.year.opens")} defaultValue={y.registrationOpensOn ? y.registrationOpensOn.toISOString().slice(0, 10) : ""} optionalLabel={t("common.optional")} />
+                <Field name="registrationClosesOn" type="date" label={t("lc.year.closes")} defaultValue={y.registrationClosesOn ? y.registrationClosesOn.toISOString().slice(0, 10) : ""} optionalLabel={t("common.optional")} />
+              </ActionForm>
+            </details>
+          )}
           {canManage && (
             <details className="mt-3">
               <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-link">{t("academics.term.add")}</summary>
@@ -170,6 +181,8 @@ async function ClassesTab({ canManage, ctx }: { canManage: boolean; ctx: Ctx }) 
                     <ActionForm action={A.setClassCapacityAction} submitLabel={t("common.save")} className="mt-3 flex flex-wrap items-end gap-2">
                       <input type="hidden" name="id" value={c.id} />
                       <Field name="capacity" type="number" label={t("class.capacity")} defaultValue={c.capacity ?? ""} min={1} max={500} hint={t("class.capacity.hint")} className="w-48" />
+                      <Field name="nextGrade" type="select" label={t("lc.class.next")} hint={t("lc.class.nextHint")} defaultValue={c.isFinalGrade ? "FINAL" : c.nextClassId ?? ""} className="w-64"
+                        options={[{ value: "", label: t("lc.class.nextAuto") }, { value: "FINAL", label: t("lc.class.nextFinal") }, ...classes.filter((o) => o.id !== c.id && o.isActive).map((o) => ({ value: o.id, label: o.name }))]} />
                     </ActionForm>
                   ) : c.capacity ? <p className="mt-3 text-sm text-muted">{t("class.capacity")}: {c.capacity}</p> : null}
                   <details className="mt-3">

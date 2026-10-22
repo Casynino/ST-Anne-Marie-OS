@@ -237,6 +237,14 @@ export async function academicDesk(ctx: AuthContext): Promise<AcademicDesk> {
   push("capacityWarnings", byClass.filter((c) => c.capacity !== null && c.count * 100 >= c.capacity * settings.capacityWarnPct).length, "/academic-setup");
   push("pendingTransfers", pendingTransfers, "/academic-office/transfers");
   push("openConcerns", openConcerns, "/academic-office/concerns");
+  // End of year: shown once the next year has been set up or the year is about to end, so it never nags in the middle of a year.
+  if (can("progression.read") && year) {
+    const next = await db.academicYear.findFirst({ where: { schoolId, startsOn: { gt: year.endsOn } }, select: { id: true } });
+    if (next || (year.endsOn.getTime() - today.getTime()) / dayMs <= 60) {
+      push("progressionTodo", await db.studentEnrollment.count({ where: { schoolId, academicYearId: year.id, status: "ACTIVE", student: { status: "ENROLLED", progressions: { none: { fromAcademicYearId: year.id, status: { not: "SUPERSEDED" } } } } } }), "/academic-office/progression?show=none");
+    }
+    if (can("progression.head_approve")) push("headProgression", await db.studentProgression.count({ where: { schoolId, fromAcademicYearId: year.id, status: "AWAITING_HEAD" } }), "/academic-office/progression?show=awaiting_head");
+  }
 
   const tc = can("tasks.academic") || can("tasks.admin") ? (await taskCounts(ctx)).find((c) => c.department === "ACADEMIC") : undefined;
   return {

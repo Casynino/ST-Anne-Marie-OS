@@ -14,6 +14,14 @@ export async function createYearAction(_: ActionState, form: FormData) {
 export async function setCurrentYearAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => (await ac.setCurrentAcademicYear(ctx, str(i.id)), ok(ctx.locale)));
 }
+export async function setRegistrationWindowAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const y = await db.academicYear.findFirst({ where: { id: str(i.id), schoolId: ctx.schoolId } });
+    if (!y) throw notFound("Academic year");
+    await ac.updateAcademicYear(ctx, y.id, { name: y.name, startsOn: y.startsOn.toISOString().slice(0, 10), endsOn: y.endsOn.toISOString().slice(0, 10), registrationOpensOn: str(i.registrationOpensOn), registrationClosesOn: str(i.registrationClosesOn) });
+    return ok(ctx.locale);
+  });
+}
 export async function createTermAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => (await ac.createTerm(ctx, i), ok(ctx.locale)));
 }
@@ -47,7 +55,7 @@ export async function setClassCapacityAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => {
     const cls = await db.schoolClass.findFirst({ where: { id: str(i.id), schoolId: ctx.schoolId } });
     if (!cls) throw notFound("Class");
-    await ac.updateClass(ctx, cls.id, { levelId: cls.levelId, name: cls.name, nameSw: cls.nameSw ?? "", sortOrder: String(cls.sortOrder), isActive: cls.isActive ? "on" : "", capacity: str(i.capacity) });
+    await ac.updateClass(ctx, cls.id, { levelId: cls.levelId, name: cls.name, nameSw: cls.nameSw ?? "", sortOrder: String(cls.sortOrder), isActive: cls.isActive ? "on" : "", capacity: str(i.capacity), nextGrade: i.nextGrade === undefined ? undefined : str(i.nextGrade) });
     return ok(ctx.locale);
   });
 }

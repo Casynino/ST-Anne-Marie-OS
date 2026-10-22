@@ -10,6 +10,7 @@ export function AdmissionsNav({ ctx, t, current, badges = {} }: { ctx: AuthConte
     { href: "/admissions?stage=interview", label: t("adm.nav.stageInterview"), show: has("admission.read") },
     { href: "/admissions/payment", label: t("adm.nav.payment"), show: has("admission.read") },
     { href: "/admissions/registration", label: t("adm.nav.registration"), show: has("admission.read") },
+    { href: "/admissions/returning", label: t("lc.nav.returning"), show: has("registration.read") },
     { href: "/admissions/placement", label: t("adm.nav.placement"), show: has("student.enroll") || has("admission.read") },
     { href: "/admissions/windows", label: t("adm.nav.windows"), show: has("admission.read") || has("admission.interview.manage") },
     { href: "/admissions/interviews", label: t("adm.nav.calendar"), show: has("admission.read") || has("admission.interview.manage") },

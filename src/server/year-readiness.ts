@@ -29,11 +29,12 @@ export async function yearReadiness(ctx: AuthContext, yearId?: string) {
   checks.push({ key: "dates", ok: !!(year.registrationOpensOn && year.registrationClosesOn), text: year.registrationOpensOn && year.registrationClosesOn ? `${formatDateOnly(year.registrationOpensOn)} → ${formatDateOnly(year.registrationClosesOn)}` : undefined, href: "/academic-setup" });
   if (year.registrationClosesOn && formatDateOnly(year.registrationClosesOn) < today) checks.push({ key: "closed", ok: false, warn: true, text: formatDateOnly(year.registrationClosesOn) });
 
-  const lastGrade = grades.filter((g) => g.isActive).length;
-  const noNext = grades.filter((g) => g.isActive && nextGrade(g, grades).kind === "FINAL" && !g.isFinalGrade && !g.nextClassId);
-  checks.push({ key: "grades", ok: lastGrade > 0, n: lastGrade, href: "/academic-setup" });
-  checks.push({ key: "finalGrade", ok: grades.some((g) => g.isFinalGrade || g.nextClassId === null), n: grades.filter((g) => g.isFinalGrade).length, text: noNext.map((g) => g.name).join(", "), warn: noNext.length > 1, href: "/academic-setup" });
-  checks.push({ key: "capacity", ok: grades.filter((g) => g.isActive).every((g) => g.capacity !== null), n: grades.filter((g) => g.isActive && g.capacity === null).length, warn: true, href: "/academic-setup" });
+  const active = grades.filter((g) => g.isActive);
+  const finals = active.filter((g) => nextGrade(g, active).kind === "FINAL");
+  checks.push({ key: "grades", ok: active.length > 0, n: active.length, href: "/academic-setup" });
+  checks.push({ key: "finalGrade", ok: finals.length > 0, n: finals.length, text: finals.map((g) => g.name).join(", "), href: "/academic-setup" });
+  const noCap = active.filter((g) => g.capacity === null).length;
+  checks.push({ key: "capacity", ok: noCap === 0, n: noCap, warn: true, href: "/academic-setup" });
 
   const structures = await db.feeStructure.count({ where: { schoolId: ctx.schoolId, academicYearId: year.id, isActive: true } });
   checks.push({ key: "fees", ok: structures > 0, n: structures, href: "/finance/fees" });
@@ -58,8 +59,9 @@ export async function yearReadiness(ctx: AuthContext, yearId?: string) {
   const unplaced = count("PENDING") - placedPending;
   checks.push({ key: "registrations", ok: regs.length > 0, n: regs.reduce((n, r) => n + r._count._all, 0), href: "/admissions/returning" });
   checks.push({ key: "unplaced", ok: unplaced === 0, n: unplaced, href: "/admissions/returning?stage=NEEDS_PLACEMENT" });
-  checks.push({ key: "toActivate", ok: count("REGISTERED") === 0, n: count("REGISTERED"), href: "/admissions/returning?stage=READY_TO_ACTIVATE" });
-  checks.push({ key: "active", ok: count("ACTIVE") > 0, n: count("ACTIVE"), href: "/admissions/returning" });
+  // Waiting to join the class is expected until the year starts; after that it is something to do.
+  checks.push({ key: "toActivate", ok: count("REGISTERED") === 0 || today < formatDateOnly(year.startsOn), n: count("REGISTERED"), href: "/admissions/returning?stage=READY_TO_ACTIVATE" });
+  checks.push({ key: "active", ok: true, n: count("ACTIVE") });
 
   const required = checks.filter((c) => !c.warn);
   return { year, years, previous, checks, ready: required.every((c) => c.ok) };
@@ -67,27 +69,31 @@ export async function yearReadiness(ctx: AuthContext, yearId?: string) {
 
 // ───────────────────────── One student's years ─────────────────────────
 
-export type TimelineEntry = { at: Date; kind: "ENROLMENT" | "DECISION" | "REGISTRATION" | "STATUS" | "FEES"; title: string; detail: string };
+export type TimelineEntry =
+  | { at: Date; kind: "ENROLMENT"; year: string; className: string; streamName: string | null; status: string; endedOn: Date | null }
+  | { at: Date; kind: "STATUS"; from: string; to: string; reason: string }
+  | { at: Date; kind: "DECISION"; year: string; outcome: string; toClass: string | null; status: string; exception: string | null }
+  | { at: Date; kind: "REGISTRATION"; year: string; status: string; className: string | null; cancelReason: string | null };
 
 /**
  * The student's whole story at school in one place, newest first: where they studied each year, what was decided at the end of it, how they came
- * back, status changes and (only for people who may see money) what each year's fees came to. One student, one record, one ID for life.
+ * back, and status changes. One student, one record, one ID for life. Decisions and registrations are shown only to people who may read them.
  */
 export async function studentTimeline(ctx: AuthContext, studentId: string): Promise<TimelineEntry[]> {
   const out: TimelineEntry[] = [];
   const grades = await loadGrades(db, ctx.schoolId);
   const className = new Map(grades.map((g) => [g.id, g.name]));
   const enrols = await db.studentEnrollment.findMany({ where: { schoolId: ctx.schoolId, studentId }, include: { academicYear: { select: { name: true } }, stream: { select: { name: true } } }, orderBy: { startedOn: "asc" } });
-  for (const e of enrols) out.push({ at: e.startedOn, kind: "ENROLMENT", title: `${e.academicYear.name}: ${className.get(e.classId) ?? ""}${e.stream ? ` ${e.stream.name}` : ""}`, detail: `${e.status}${e.endedOn ? ` · until ${formatDateOnly(e.endedOn)}` : ""}` });
+  for (const e of enrols) out.push({ at: e.startedOn, kind: "ENROLMENT", year: e.academicYear.name, className: className.get(e.classId) ?? "", streamName: e.stream?.name ?? null, status: e.status, endedOn: e.endedOn });
   const statuses = await db.studentStatusHistory.findMany({ where: { schoolId: ctx.schoolId, studentId }, orderBy: { effectiveOn: "asc" } });
-  for (const s of statuses) out.push({ at: s.effectiveOn, kind: "STATUS", title: `${s.fromStatus} → ${s.toStatus}`, detail: s.reason });
+  for (const s of statuses) out.push({ at: s.effectiveOn, kind: "STATUS", from: s.fromStatus, to: s.toStatus, reason: s.reason });
   if (ctx.permissions.has("progression.read")) {
     const progs = await db.studentProgression.findMany({ where: { schoolId: ctx.schoolId, studentId, status: { not: "SUPERSEDED" } }, include: { fromYear: { select: { name: true } } } });
-    for (const p of progs) out.push({ at: p.approvedAt ?? p.preparedAt, kind: "DECISION", title: `${p.fromYear.name}: ${p.outcome}${p.toClassId ? ` → ${className.get(p.toClassId) ?? ""}` : ""}`, detail: `${p.status}${p.exceptionReason ? ` · exception: ${p.exceptionReason}` : ""}` });
+    for (const p of progs) out.push({ at: p.approvedAt ?? p.preparedAt, kind: "DECISION", year: p.fromYear.name, outcome: p.outcome, toClass: p.toClassId ? className.get(p.toClassId) ?? null : null, status: p.status, exception: p.exceptionReason });
   }
   if (ctx.permissions.has("registration.read")) {
     const regs = await db.annualRegistration.findMany({ where: { schoolId: ctx.schoolId, studentId }, include: { academicYear: { select: { name: true } } } });
-    for (const r of regs) out.push({ at: r.activatedAt ?? r.registeredAt ?? r.placedAt ?? r.createdAt, kind: "REGISTRATION", title: `${r.academicYear.name}: ${r.status}${r.classId ? ` · ${className.get(r.classId) ?? ""}` : ""}`, detail: r.cancelReason ?? "" });
+    for (const r of regs) out.push({ at: r.activatedAt ?? r.registeredAt ?? r.placedAt ?? r.createdAt, kind: "REGISTRATION", year: r.academicYear.name, status: r.status, className: r.classId ? className.get(r.classId) ?? null : null, cancelReason: r.cancelReason });
   }
   return out.sort((a, b) => b.at.getTime() - a.at.getTime());
 }

@@ -24,6 +24,8 @@ import { listConcerns } from "@/server/concerns";
 import { flagConcernAction } from "@/app/(app)/academic-office/actions";
 import { classOccupancy } from "@/server/admission-queues";
 import * as A from "../actions";
+import { studentTimeline } from "@/server/year-readiness";
+import { Timeline } from "@/components/lifecycle/timeline";
 
 export const metadata: Metadata = { title: "Student" };
 const STATUS_TONE = { ENROLLED: "ok", TRANSFERRED: "warn", WITHDRAWN: "bad", GRADUATED: "brand" } as const;
@@ -53,6 +55,8 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
   const concernRows = canFlag ? await listConcerns(ctx, { status: "open", studentId: id }).catch(() => []) : [];
   const feeFlag = ctx.permissions.has("fees.status.read") || ctx.permissions.has("fees.read") ? await feeReviewFlag(ctx, id).catch(() => null) : null;
   const current = s.enrollments.find((e) => e.status === "ACTIVE");
+  // End-of-year decisions and yearly registrations (enrolments and status changes already have their own cards below).
+  const yearHistory = ctx.permissions.has("progression.read") || ctx.permissions.has("registration.read") ? (await studentTimeline(ctx, s.id)).filter((e) => e.kind === "DECISION" || e.kind === "REGISTRATION") : [];
   const canManageGuardians = ctx.permissions.has("guardian.manage");
   const labels = await guardianLabels(ctx.permissions.has("guardian.read") || canManageGuardians);
   const fullName = [s.firstName, s.middleName, s.lastName].filter(Boolean).join(" ");
@@ -279,6 +283,11 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
               </ul>
             )}
           </Card>
+          {yearHistory.length > 0 && (
+            <Card title={t("lc.student.years")}>
+              <Timeline entries={yearHistory} t={t} locale={ctx.locale} limit={12} />
+            </Card>
+          )}
           {s.statusHistory.length > 0 && (
             <Card title={t("student.profile.statusHistory")}>
               <ul className="space-y-3 text-sm">

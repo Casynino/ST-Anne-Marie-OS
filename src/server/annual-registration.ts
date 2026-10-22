@@ -195,13 +195,42 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
 }
 function emptyCounts() { return { total: 0, cleared: 0, owing: 0, byStage: {} as Partial<Record<Stage, number>> }; }
 
-/** Everything a registration page needs for one student: the registration, the decision, the places in the chosen class. */
+export type PlaceOption = { value: string; label: string; full: boolean };
+
+/** Everything a registration page needs for one student: the registration, the decision, where they can be placed, the fee clearance and who acts next. */
 export async function registrationDetail(ctx: AuthContext, id: string) {
   requirePermission(ctx, "registration.read");
   const reg = await db.annualRegistration.findFirst({ where: { id, schoolId: ctx.schoolId }, include: { student: true, progression: true, academicYear: true } });
   if (!reg) throw notFound("Registration");
-  const places = await classPlaces(db, ctx.schoolId, reg.academicYearId);
-  return { reg, places: [...places.values()] };
+  const [settings, grades, today, places, classes] = await Promise.all([
+    getLifecycleSettings(db, ctx.schoolId), loadGrades(db, ctx.schoolId), schoolToday(db, ctx.schoolId), classPlaces(db, ctx.schoolId, reg.academicYearId),
+    db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { streams: { orderBy: { name: "asc" } } } }),
+  ]);
+  const money = (await yearFinances(db, ctx.schoolId, [reg.studentId], reg.academicYearId, settings, new Set(reg.clearanceExceptionReason ? [reg.studentId] : []))).get(reg.studentId)!;
+  const open = today >= formatDateOnly(reg.academicYear.startsOn) && today <= formatDateOnly(reg.academicYear.endsOn);
+  const step = nextStep({ outcome: reg.progression.outcome, decision: "APPROVED", registration: reg.status, placed: reg.classId !== null, clearance: money.state, feePolicy: settings.feePolicy, yearOpen: open });
+  const className = new Map(grades.map((g) => [g.id, g.name]));
+  const options: PlaceOption[] = classes.flatMap((c) => {
+    const p = places.get(c.id);
+    const note = c.capacity ? ` (${(p?.inClass ?? 0) + (p?.reserved ?? 0)}/${c.capacity})` : "";
+    const full = p?.left === 0;
+    return c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}`, full })) : [{ value: c.id, label: `${c.name}${note}`, full }];
+  });
+  const decided = reg.progression.toClassId;
+  const chosen = reg.classId ? (reg.streamId ? `${reg.classId}|${reg.streamId}` : reg.classId) : null;
+  let preferred = chosen ?? "";
+  if (!preferred && decided) {
+    const p = places.get(decided);
+    preferred = p && p.streams.length ? `${decided}|${p.recommendedStreamId}` : decided;
+  }
+  const seeMoney = ctx.permissions.has("fees.read");
+  return {
+    reg, student: reg.student, year: reg.academicYear, decidedClass: decided ? className.get(decided) ?? null : null, fromClass: className.get(reg.progression.fromClassId) ?? "",
+    placedClass: reg.classId ? className.get(reg.classId) ?? null : null, placedStream: reg.streamId ? (await db.stream.findFirst({ where: { id: reg.streamId }, select: { name: true } }))?.name ?? null : null,
+    options, preferred, step, open, settings, clearance: money.state, hasPreviousDebt: money.previousOutstanding > 0,
+    money: seeMoney ? { firstTerm: money.firstTerm, year: money.year, previous: money.previous, previousOutstanding: money.previousOutstanding } : null,
+    places: places.get(decided ?? reg.classId ?? "") ?? null,
+  };
 }
 
 // ───────────────────────── Placing and registering ─────────────────────────

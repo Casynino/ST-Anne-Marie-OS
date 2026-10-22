@@ -7,6 +7,7 @@ import { AppError } from "@/lib/errors";
 import { buildAuthContext, type AuthContext } from "@/lib/auth/context";
 import * as academics from "@/server/academics";
 import * as admissions from "@/server/admissions";
+import * as applicantExams from "@/server/admission-exams";
 import * as concerns from "@/server/concerns";
 import * as fees from "@/server/fees";
 import * as interviews from "@/server/interviews";
@@ -174,10 +175,17 @@ describe("assessment rules by entry level, and the admission decision", () => {
     const a = await newApp();
     await review.reviewApplication(registrar, a, { decision: "VERIFIED" });
     expect(await workflow.listTasks(academic, { department: "ACADEMIC" }).then((r) => r.items.some((x) => x.relatedId === a && x.kind === "ASSESSMENT_COORDINATE"))).toBe(true);
-    await sit(a, "INTERVIEW", "PASSED");
-    expect(await code(offers.issueOffer(registrar, a, {}))).toBe("CONFLICT"); // the entrance examination is still to sit
-    await sit(a, "ENTRANCE_EXAM", "PASSED");
-    expect((await offers.issueOffer(registrar, a, {})).status).toBe("ISSUED");
+    // Both an interview and an entrance examination are sat; the examination needs a teacher to mark it before any result can be recorded.
+    const subj = await academics.createSubject(admin, { code: "ENTX", name: "English entrance" });
+    await academics.setClassSubjects(admin, setup.cls.id, [subj.id]);
+    await academics.addSubjectTeacher(admin, { academicYearId: setup.year.id, classId: setup.cls.id, streamId: streamA.id, subjectId: subj.id, staffId: teacherA.staffId });
+    const iv = await interviews.scheduleInterview(academic, a, { kind: "INTERVIEW", scheduledAt: inDays(2, 9) });
+    await db.interview.update({ where: { id: iv.id }, data: { scheduledAt: new Date(Date.now() - 3_600_000) } });
+    expect(await code(interviews.recordInterviewResult(academic, iv.id, { status: "COMPLETED", outcome: "PASSED" }))).toBe("CONFLICT"); // no teacher assigned to the examination yet
+    await applicantExams.assignExam(academic, iv.id, { subjectId: subj.id, teacherId: teacherA.userId });
+    await applicantExams.saveExamMarks(teacherA, (await db.applicationExam.findFirstOrThrow({ where: { interviewId: iv.id } })).id, { mark: "80", submit: "true" });
+    await interviews.recordInterviewResult(academic, iv.id, { status: "COMPLETED", outcome: "PASSED" });
+    expect((await offers.issueOffer(registrar, a, {})).status).toBe("ISSUED"); // every examination result is final: that is the entrance examination done
   });
 
   it("asks for nothing when the level is set to nothing", async () => {

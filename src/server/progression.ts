@@ -382,3 +382,52 @@ export async function studentProgressions(ctx: AuthContext, studentId: string) {
   return rows.map((r) => ({ id: r.id, yearName: r.fromYear.name, outcome: r.outcome, status: r.status, fromClass: name.get(r.fromClassId) ?? "", toClass: r.toClassId ? name.get(r.toClassId) ?? null : null, note: r.note, exceptionReason: r.exceptionReason, approvedAt: r.approvedAt, headApprovedAt: r.headApprovedAt }));
 }
 
+
+/** Approves the live decisions of the chosen students; students who have no decision yet are reported, not skipped silently. */
+export async function approveForStudents(ctx: AuthContext, input: unknown): Promise<ApproveResult[]> {
+  const d = parse(z.object({ yearId: uuid(), studentIds: z.array(uuid()).min(1).max(300) }), input);
+  const rows = await db.studentProgression.findMany({ where: { schoolId: ctx.schoolId, fromAcademicYearId: d.yearId, studentId: { in: d.studentIds }, status: { not: "SUPERSEDED" } }, select: { id: true, studentId: true } });
+  const have = new Set(rows.map((r) => r.studentId));
+  const out: ApproveResult[] = [];
+  for (const id of d.studentIds.filter((s) => !have.has(s))) {
+    const s = await db.student.findFirst({ where: { id, schoolId: ctx.schoolId }, select: { firstName: true, middleName: true, lastName: true } });
+    out.push({ id, name: s ? nameOf(s) : "", ok: false, message: "No decision yet." });
+  }
+  if (rows.length) out.push(...(await approveProgressions(ctx, { ids: rows.map((r) => r.id) })));
+  return out;
+}
+
+export type ProgressionDetail = Awaited<ReturnType<typeof progressionDetail>>;
+
+/** One student's year-end page: results evidence, the live decision, every earlier version, and where the registration stands. */
+export async function progressionDetail(ctx: AuthContext, yearId: string, studentId: string) {
+  requirePermission(ctx, "progression.read");
+  const years = await loadYears(db, ctx.schoolId);
+  const year = years.find((y) => y.id === yearId);
+  if (!year) throw notFound("Academic year");
+  const student = await db.student.findFirst({ where: { id: studentId, schoolId: ctx.schoolId }, select: { id: true, firstName: true, middleName: true, lastName: true, admissionNo: true, status: true } });
+  if (!student) throw notFound("Student");
+  const [grades, settings] = await Promise.all([loadGrades(db, ctx.schoolId), getLifecycleSettings(db, ctx.schoolId)]);
+  const history = await db.studentProgression.findMany({ where: { schoolId: ctx.schoolId, studentId, fromAcademicYearId: year.id }, orderBy: { createdAt: "desc" } });
+  const live = history.find((h) => h.status !== "SUPERSEDED") ?? null;
+  const enrol = await db.studentEnrollment.findFirst({ where: { schoolId: ctx.schoolId, studentId, academicYearId: year.id, status: "ACTIVE" }, select: { classId: true, streamId: true } });
+  const roll = enrol ?? (live ? { classId: live.fromClassId, streamId: live.fromStreamId } : null);
+  if (!roll) throw notFound("Student in this academic year");
+  const completion = (await examCompletions(db, ctx.schoolId, year.id, [{ studentId, classId: roll.classId, streamId: roll.streamId }])).get(studentId)!;
+  const cls = grades.find((g) => g.id === roll.classId)!;
+  const next = nextGrade(cls, grades);
+  const stream = roll.streamId ? await db.stream.findFirst({ where: { id: roll.streamId }, select: { name: true } }) : null;
+  const nextYear = yearAfter(years, year.id);
+  const registration = nextYear ? await db.annualRegistration.findUnique({ where: { studentId_academicYearId: { studentId, academicYearId: nextYear.id } }, select: { id: true, status: true, classId: true } }) : null;
+  const ids = [...new Set(history.flatMap((h) => [h.preparedById, h.approvedById, h.headApprovedById]).filter((x): x is string => !!x))];
+  const users = ids.length ? await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, fullName: true } }) : [];
+  const who = new Map(users.map((u) => [u.id, u.fullName]));
+  const className = new Map(grades.map((g) => [g.id, g.name]));
+  return {
+    year, nextYear, student: { ...student, name: nameOf(student) }, className: cls.name, classId: cls.id, streamName: stream?.name ?? null, completion, signal: promotionSignal(completion, settings.promotionMinAverage),
+    suggested: next.kind === "NEXT" ? { classId: next.classId, className: className.get(next.classId) ?? "" } : null, isFinal: next.kind === "FINAL", settings, registration,
+    grades: orderClasses(grades).map((g) => ({ id: g.id, name: g.name })),
+    live: live ? { id: live.id, outcome: live.outcome as Outcome, status: live.status as "DRAFT" | "AWAITING_HEAD" | "APPROVED", toClassName: live.toClassId ? className.get(live.toClassId) ?? null : null, toClassId: live.toClassId, note: live.note, exceptionReason: live.exceptionReason } : null,
+    history: history.map((h) => ({ id: h.id, outcome: h.outcome, status: h.status, toClassName: h.toClassId ? className.get(h.toClassId) ?? null : null, note: h.note, exceptionReason: h.exceptionReason, preparedAt: h.preparedAt, preparedBy: who.get(h.preparedById) ?? "", approvedAt: h.approvedAt, approvedBy: h.approvedById ? who.get(h.approvedById) ?? null : null, headApprovedAt: h.headApprovedAt, headApprovedBy: h.headApprovedById ? who.get(h.headApprovedById) ?? null : null })),
+  };
+}
