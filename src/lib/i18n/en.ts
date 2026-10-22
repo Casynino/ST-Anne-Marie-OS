@@ -4716,6 +4716,8 @@ export const en = {
   "reg.source.office": "At the office",
   "reg.noClass": "No class yet",
   "attn.title": "Needs your attention",
+  "student.byLevel": "Students by level",
+  "student.class.teacherCol": "Class teacher",
 } as const;
 
 export type MessageKey = keyof typeof en;

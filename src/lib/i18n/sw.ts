@@ -4718,4 +4718,6 @@ export const sw: Record<MessageKey, string> = {
   "reg.source.office": "Ofisini",
   "reg.noClass": "Bado hana darasa",
   "attn.title": "Yanayohitaji umakini wako",
+  "student.byLevel": "Wanafunzi kwa ngazi",
+  "student.class.teacherCol": "Mwalimu wa darasa",
 };

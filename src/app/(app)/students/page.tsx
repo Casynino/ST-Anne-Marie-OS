@@ -1,14 +1,16 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowRight, Plus, Repeat2, Search, Upload, UserRound } from "lucide-react";
+import { ArrowRight, GraduationCap, LayoutGrid, Plus, Repeat2, Search, Upload, UserRound, Users } from "lucide-react";
 import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { listStudents } from "@/server/students";
 import { classOverview, type ClassCard } from "@/server/student-classes";
 import { listClasses } from "@/server/academics";
 import { ageOn } from "@/lib/dates";
 import { ExportMenu } from "@/components/export-menu";
-import { CountTabs, Figures } from "@/components/lifecycle/parts";
+import { CountTabs } from "@/components/lifecycle/parts";
+import { Cell, DashTable, DonutStat, GradientTile, Panel, SERIES_COLORS } from "@/components/dash/parts";
+import { Row } from "@/components/dash/rows";
 import { Badge, DataTable, EmptyState, FilterBar, LinkButton, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
 import { Field } from "@/components/form";
 
@@ -142,37 +144,51 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   // ── Default: one card per class, grouped by level
   const levels = [...new Set(overview.cards.map((c) => c.level))];
   const formerTotal = overview.former.TRANSFERRED + overview.former.WITHDRAWN + overview.former.GRADUATED;
+  const girls = overview.cards.reduce((n, c) => n + c.girls, 0), boys = overview.cards.reduce((n, c) => n + c.boys, 0);
   return (
     <>
       {header}
       {viewBar}
       {!overview.year ? <EmptyState>{t("student.class.noYear")}</EmptyState> : (
         <>
-          <Figures items={[
-            { label: t("student.fig.enrolled"), value: overview.enrolled },
-            { label: t("student.fig.classes"), value: overview.cards.length },
-            { label: t("student.fig.noClass"), value: overview.noClass, tone: overview.noClass ? "warn" : "ok" },
-          ]} />
+          <ul className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
+            <li><GradientTile icon={GraduationCap} tone="orange" label={t("student.fig.enrolled")} value={overview.enrolled} caption={t("reg.tile.girls", { g: girls, b: boys })} /></li>
+            <li><GradientTile icon={LayoutGrid} tone="violet" label={t("student.fig.classes")} value={overview.cards.length} caption={levels.join(" · ")} /></li>
+            <li><GradientTile icon={Users} tone={overview.noClass > 0 ? "rose" : "green"} label={t("student.fig.noClass")} value={overview.noClass} href={overview.noClass > 0 && ctx.permissions.has("student.enroll") ? "/admissions/placement" : undefined} /></li>
+          </ul>
           {overview.noClass > 0 && ctx.permissions.has("student.enroll") && (
-            <Link href="/admissions/placement" className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm">
+            <Link href="/admissions/placement" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-warn/40 bg-warn/10 px-4 py-2.5 text-sm">
               <UserRound className="size-5 text-warn" aria-hidden />
               <span className="min-w-0 flex-1"><strong className="block font-semibold text-ink">{t("student.class.noClassTitle")} · {overview.noClass}</strong><span className="text-muted">{t("student.class.noClassHint")}</span></span>
               <span className="inline-flex items-center gap-1 font-medium text-link">{t("student.noClass.go")}<ArrowRight className="size-4" aria-hidden /></span>
             </Link>
           )}
-          {levels.map((level) => {
-            const cards = overview.cards.filter((c) => c.level === level);
-            return (
-              <section key={level} className="mb-8">
-                <h2 className="mb-3 flex items-baseline gap-3 text-[13px] font-semibold uppercase tracking-[.14em] text-ink">
-                  {level}<span className="text-xs font-normal normal-case tracking-normal text-muted">{cards.reduce((n, c) => n + c.count, 0)}</span>
-                </h2>
-                <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {cards.map((c) => <li key={c.id}><ClassCardView c={c} t={t} /></li>)}
-                </ul>
-              </section>
-            );
-          })}
+          <Row>
+            <Panel className="flex-[3_1_40rem]" title={t("student.view.classes")} subtitle={t("student.class.count", { n: overview.enrolled })}>
+              <DashTable min="40rem" head={[{ label: t("student.class") }, { label: t("student.fig.enrolled") }, { label: t("student.gender") }, { label: t("student.class.teacherCol") }, { label: "" }]}>
+                {levels.flatMap((level) => {
+                  const cards = overview.cards.filter((c) => c.level === level);
+                  return [
+                    <tr key={`h-${level}`} className="bg-canvas/50"><td colSpan={5} className="px-5 py-1.5 text-xs font-semibold uppercase tracking-[.12em] text-muted">{level} <span className="ml-1 font-normal normal-case tracking-normal">· {cards.reduce((n, c) => n + c.count, 0)}</span></td></tr>,
+                    ...cards.map((c) => <ClassRow key={c.id} c={c} t={t} />),
+                  ];
+                })}
+              </DashTable>
+              <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-sm bg-[#8b80ff]" />{t("student.female")}</span>
+                <span className="inline-flex items-center gap-1.5"><span aria-hidden className="size-2.5 rounded-sm bg-[#14a3b8]" />{t("student.male")}</span>
+                <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-3 w-0.5 rounded-sm bg-ink/70" />{t("class.capacity")}</span>
+              </p>
+            </Panel>
+            <div className="flex flex-[1_1_19rem] flex-col gap-4">
+              <Panel title={t("student.byLevel")}>
+                <DonutStat label={t("student.byLevel")} center={overview.enrolled} caption={t("student.fig.enrolled")} segments={levels.map((l, i) => ({ label: l, value: overview.cards.filter((c) => c.level === l).reduce((n, c) => n + c.count, 0), color: SERIES_COLORS[i % SERIES_COLORS.length]! }))} />
+              </Panel>
+              <Panel title={t("dash.gender.title")}>
+                <DonutStat label={t("dash.gender.title")} center={girls + boys} caption={t("student.fig.enrolled")} segments={[{ label: t("student.female"), value: girls, color: "#8b80ff", text: `${girls} · ${girls + boys > 0 ? Math.round((girls / (girls + boys)) * 100) : 0}%` }, { label: t("student.male"), value: boys, color: "#14a3b8", text: `${boys} · ${girls + boys > 0 ? Math.round((boys / (girls + boys)) * 100) : 0}%` }]} />
+              </Panel>
+            </div>
+          </Row>
           {formerTotal > 0 && (
             <p className="text-sm text-muted">
               {t("student.class.former")}:{" "}
@@ -187,29 +203,26 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   );
 }
 
-function ClassCardView({ c, t }: { c: ClassCard; t: Awaited<ReturnType<typeof getT>> }) {
-  const pct = c.capacity ? Math.min(100, Math.round((c.count / c.capacity) * 100)) : null;
-  const tone = pct === null ? "bg-brand-500" : pct >= 100 ? "bg-bad" : pct >= 85 ? "bg-warn" : "bg-brand-500";
+function ClassRow({ c, t }: { c: ClassCard; t: Awaited<ReturnType<typeof getT>> }) {
+  const left = c.capacity === null ? null : c.capacity - c.count;
+  const total = c.girls + c.boys;
+  const scale = Math.max(c.capacity ?? 0, c.count, 1);
   return (
-    <Link href={`/students?classId=${c.id}`} className={`group flex h-full flex-col gap-3 rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-card)] transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-link/50 hover:shadow-[var(--shadow-lift)] ${c.count === 0 ? "opacity-75" : ""}`}>
-      <span className="flex items-start justify-between gap-3">
-        <span className="min-w-0">
-          <span className="block truncate text-[17px] font-semibold tracking-[-0.01em] text-ink">{c.name}</span>
-          <span className="mt-0.5 block text-xs text-muted">{c.streams.length ? c.streams.map((s) => `${s.name} ${s.count}`).join(" · ") : c.level}</span>
+    <tr className={`hover:bg-canvas/60 ${c.count === 0 ? "text-muted" : ""}`}>
+      <Cell className="py-2.5"><Link href={`/students?classId=${c.id}`} className="font-medium text-ink hover:text-link hover:underline">{c.name}</Link>{c.streams.length > 0 && <span className="ml-2 text-xs text-muted">{c.streams.map((s) => `${s.name} ${s.count}`).join(" · ")}</span>}</Cell>
+      <Cell className="py-2.5">
+        <span className="flex items-center gap-3">
+          <span className="w-16 shrink-0 tabular-nums"><span className="text-base font-semibold text-ink">{c.count}</span>{c.capacity !== null && <span className="text-xs text-muted">/{c.capacity}</span>}</span>
+          <span className="relative block h-2 w-full min-w-24 max-w-52 rounded-sm bg-line" role="img" aria-label={`${t("student.class.girls", { n: c.girls })}, ${t("student.class.boys", { n: c.boys })}`}>
+            {total > 0 && <span className="absolute inset-y-0 left-0 flex overflow-hidden rounded-sm" style={{ width: `${(c.count / scale) * 100}%` }}><span className="h-full bg-[#8b80ff]" style={{ width: `${(c.girls / total) * 100}%` }} /><span className="h-full bg-[#14a3b8]" style={{ width: `${(c.boys / total) * 100}%` }} /></span>}
+            {c.capacity !== null && <span aria-hidden className="absolute -top-0.5 h-3 w-0.5 rounded-sm bg-ink/70" style={{ left: `calc(${(c.capacity / scale) * 100}% - 1px)` }} />}
+          </span>
+          {left !== null && <span className={`w-14 shrink-0 text-xs font-medium ${left <= 0 ? "text-bad" : left <= 2 ? "text-warn" : "text-ok"}`}>{left <= 0 ? t("reg.room.full") : t("reg.room.left", { n: left })}</span>}
         </span>
-        <span className="text-right">
-          <span className="block text-[1.75rem] font-semibold leading-8 tabular-nums text-ink">{c.count}</span>
-          {c.capacity && <span className="block text-xs tabular-nums text-muted">/ {c.capacity}</span>}
-        </span>
-      </span>
-      {pct !== null && <span className="block h-1.5 overflow-hidden rounded-sm bg-line" role="img" aria-label={t("student.class.places", { n: c.count, cap: c.capacity ?? 0 })}><span className={`block h-full rounded-sm ${tone}`} style={{ width: `${pct}%` }} /></span>}
-      <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
-        <span>{t("student.class.girls", { n: c.girls })}</span><span>{t("student.class.boys", { n: c.boys })}</span>
-      </span>
-      <span className="mt-auto flex items-center justify-between gap-2 border-t border-line pt-3 text-sm">
-        <span className={`min-w-0 truncate ${c.teachers.length ? "text-ink" : "text-muted"}`}>{c.teachers.length ? t("student.class.teacher", { name: c.teachers.join(", ") }) : t("student.class.noTeacher")}</span>
-        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-link"><ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden /></span>
-      </span>
-    </Link>
+      </Cell>
+      <Cell className="whitespace-nowrap py-2.5 text-sm tabular-nums">{c.girls} <span className="text-muted">/</span> {c.boys}</Cell>
+      <Cell className="max-w-56 truncate py-2.5 text-sm">{c.teachers.length ? c.teachers.join(", ") : <span className="text-muted">{t("student.class.noTeacher")}</span>}</Cell>
+      <Cell right className="py-2.5"><Link href={`/students?classId=${c.id}`} aria-label={c.name} className="inline-flex text-link"><ArrowRight className="size-4" aria-hidden /></Link></Cell>
+    </tr>
   );
 }
