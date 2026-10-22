@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, CalendarCheck, ClipboardList, FileDown, GraduationCap, Wallet } from "lucide-react";
+import { ArrowLeft, CalendarCheck, CheckCircle2, ClipboardList, FileDown, GraduationCap, Wallet } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
 import { AppError } from "@/lib/errors";
 import { displayDate, todayInTimezone } from "@/lib/dates";
 import { childAcademicNotices, childFees, childOverview, childProgress, myChildren } from "@/server/portal";
+import { familyRegistrationView } from "@/server/annual-registration";
+import { ActionForm, Field } from "@/components/form";
+import { registerChildAction } from "../actions";
 import { childAssignments } from "@/server/assignments";
 import { childTimetable } from "@/server/timetable";
 import { isoWeekday, schoolTimezone } from "@/server/learning-access";
@@ -36,7 +39,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const [many, fees, homework, tt, school, tz, progress, notices] = await Promise.all([
+  const [many, fees, homework, tt, school, tz, progress, notices, next] = await Promise.all([
     myChildren(ctx).then((c) => c.length > 1),
     childFees(ctx, studentId),
     childAssignments(ctx, studentId),
@@ -45,6 +48,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
     schoolTimezone(ctx.schoolId),
     childProgress(ctx, studentId),
     childAcademicNotices(ctx, studentId),
+    familyRegistrationView(ctx, studentId).catch(() => null),
   ]);
   const own = ctx.userType === "STUDENT";
   const todoItems = homework.items.filter((i) => !i.closed && !i.submission);
@@ -87,6 +91,26 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
       <DashHero photoIndex={2} eyebrow={`${school.name} · ${klass} · ${child.admissionNo}`.toUpperCase()} title={own ? t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first }) : child.name}>
         {bits.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>)}
       </DashHero>
+
+      {next && (
+        <section aria-label={t("fam.next.title", { year: next.year.name })} className="mt-5 rounded-2xl border border-link/40 bg-link/10 p-5">
+          <h2 className="text-[17px] font-semibold text-ink">{t("fam.next.title", { year: next.year.name })}</h2>
+          <p className="mt-1 text-sm text-ink">{t(next.outcome === "PROMOTED" ? "fam.next.promoted" : "fam.next.repeat", { name: child.name, class: next.toClassName })}</p>
+          {next.state === "OPEN" && (
+            <ActionForm action={registerChildAction} submitLabel={t("fam.next.go", { year: next.year.name })} buttonClassName="btn-sm" className="mt-3 space-y-3">
+              <input type="hidden" name="studentId" value={child.id} />
+              <p className="text-sm text-muted">{t("fam.next.open", { year: next.year.name, name: child.name, class: next.toClassName })}</p>
+              <Field name="confirmed" type="checkbox" label={t("fam.next.confirm", { name: child.name })} />
+            </ActionForm>
+          )}
+          {next.state === "NOT_YET" && <p className="mt-2 text-sm text-muted">{t("fam.next.notYet", { year: next.year.name, date: next.year.opensOn ? displayDate(new Date(`${next.year.opensOn}T00:00:00Z`), ctx.locale) : "" })}</p>}
+          {next.state === "CLOSED" && <p className="mt-2 text-sm text-warn">{t("fam.next.closed", { year: next.year.name })}</p>}
+          {next.state === "FEES" && <p className="mt-2 text-sm text-warn">{t("fam.next.fees")}</p>}
+          {next.state === "CANCELLED" && <p className="mt-2 text-sm text-warn">{t("fam.next.cancelled", { year: next.year.name })}</p>}
+          {next.state === "REGISTERED" && <p className="mt-2 flex items-center gap-2 text-sm text-ok"><CheckCircle2 className="size-4 shrink-0" aria-hidden />{t("fam.next.registered", { year: next.year.name, class: next.placed ?? next.toClassName, name: child.name, date: displayDate(new Date(`${next.year.startsOn}T00:00:00Z`), ctx.locale) })}</p>}
+          {next.state === "JOINED" && <p className="mt-2 flex items-center gap-2 text-sm text-ok"><CheckCircle2 className="size-4 shrink-0" aria-hidden />{t("fam.next.joined", { year: next.year.name, class: next.placed ?? next.toClassName, name: child.name })}</p>}
+        </section>
+      )}
 
       <AttentionBlock t={t} rows={rows} />
 

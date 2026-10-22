@@ -4854,6 +4854,20 @@ export const en = {
   "reg.waiting.day1": "1 day",
   "lc.d.doNow": "Do this now",
   "lc.d.openFull": "Open the full page",
+  "fam.next.title": "Next year: {year}",
+  "fam.next.promoted": "{name} has been promoted to {class}.",
+  "fam.next.repeat": "{name} will repeat {class}.",
+  "fam.next.open": "Register now to confirm your place in {year}. {name} is placed in {class} and joins the class when the year starts.",
+  "fam.next.confirm": "We confirm that {name} is returning, and that the guardians, emergency contact and health information the school has are correct.",
+  "fam.next.go": "Register for {year}",
+  "fam.next.notYet": "Registration for {year} opens on {date}.",
+  "fam.next.closed": "Registration for {year} has closed. Please contact the school office.",
+  "fam.next.fees": "The school asks for school fees to be cleared before registration. Please contact the school office.",
+  "fam.next.registered": "Registered for {year}: {class}. {name} joins the class when the year starts on {date}.",
+  "fam.next.joined": "{name} is in the class for {year}: {class}.",
+  "fam.next.cancelled": "The registration for {year} was cancelled. Please contact the school office.",
+  "fam.next.done": "Registered. The place is confirmed.",
+  "fam.next.already": "Already registered.",
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -4,6 +4,7 @@ import { run, str, type ActionState } from "@/lib/action";
 import { makeT } from "@/lib/i18n";
 import * as comm from "@/server/communication";
 import * as msg from "@/server/messaging";
+import { registerMyChild } from "@/server/annual-registration";
 import { markAllNotificationsRead, markNotificationRead } from "@/server/notifications";
 
 export async function startMessageAction(_: ActionState, form: FormData) {
@@ -65,4 +66,12 @@ export async function addMyPortfolioAction(_: ActionState, form: FormData) {
 }
 export async function removeMyPortfolioFileAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await pf.removePortfolioFile(ctx, str(i.fileId)); return { message: makeT(ctx.locale)("common.saved") }; });
+}
+
+/** The parent (or the student) registers the child for next year: placed in the decided grade and confirmed in one step. */
+export async function registerChildAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => {
+    const r = await registerMyChild(ctx, str(i.studentId), { confirmed: i.confirmed });
+    return { message: makeT(ctx.locale)(r.already ? "fam.next.already" : "fam.next.done") };
+  });
 }

@@ -10,6 +10,7 @@ import { getLifecycleSettings } from "@/server/lifecycle-settings";
 import { loadGrades, loadYears, yearAfter, yearFinances, type YearFinance } from "@/server/lifecycle-data";
 import { placeStudentTx } from "@/server/students";
 import { closeTasks, openTask } from "@/server/workflow";
+import { childIds } from "@/server/portal";
 import { checkbox, optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
 /*
@@ -339,6 +340,113 @@ export async function confirmRegistration(ctx: AuthContext, input: unknown) {
     await writeAudit(tx, actorOf(ctx), { action: "registration.confirm", entityType: "AnnualRegistration", entityId: reg.id, summary: `${label(reg.student)} · ${reg.academicYear.name}`, changes: { classId: reg.classId, streamId: reg.streamId } });
     await syncFeeTaskTx(tx, ctx.schoolId, reg.id);
   });
+}
+
+// ───────────────────────── The family registers their own child ─────────────────────────
+
+export type FamilyRegistration = {
+  /** NONE: nothing to register (no approved moving decision yet). OPEN: the family can register now. FEES: the school's rule asks for fee clearance first. */
+  state: "OPEN" | "NOT_YET" | "CLOSED" | "FEES" | "REGISTERED" | "JOINED" | "CANCELLED";
+  outcome: "PROMOTED" | "REPEAT";
+  year: { id: string; name: string; startsOn: string; opensOn: string | null; closesOn: string | null };
+  toClassName: string;
+  placed: string | null;
+};
+
+/** The decision and registration for the family's child for the coming year: only an APPROVED promote/repeat decision with a registration record counts. */
+async function familyRecord(client: Client, ctx: AuthContext, studentId: string) {
+  const prog = await client.studentProgression.findFirst({ where: { schoolId: ctx.schoolId, studentId, status: "APPROVED", outcome: { in: ["PROMOTED", "REPEAT"] } }, orderBy: { approvedAt: "desc" } });
+  if (!prog) return null;
+  const reg = await client.annualRegistration.findFirst({ where: { schoolId: ctx.schoolId, studentId, progressionId: prog.id }, include: { academicYear: true, student: true } });
+  return reg ? { prog, reg } : null;
+}
+
+/** What the parent or student sees about next year, or null when there is nothing to show yet (the Academic Office has not made a final decision). */
+export async function familyRegistrationView(ctx: AuthContext, studentId: string): Promise<FamilyRegistration | null> {
+  if (!(await childIds(ctx)).includes(studentId)) throw notFound("Student");
+  const rec = await familyRecord(db, ctx, studentId);
+  if (!rec) return null;
+  const { prog, reg } = rec;
+  const grades = await loadGrades(db, ctx.schoolId);
+  const toClassName = grades.find((g) => g.id === prog.toClassId)?.name ?? "";
+  const stream = reg.streamId ? (await db.stream.findFirst({ where: { id: reg.streamId }, select: { name: true } }))?.name ?? null : null;
+  const placedName = reg.classId ? `${grades.find((g) => g.id === reg.classId)?.name ?? ""}${stream ? ` · ${stream}` : ""}` : null;
+  const year = { id: reg.academicYear.id, name: reg.academicYear.name, startsOn: formatDateOnly(reg.academicYear.startsOn), opensOn: reg.academicYear.registrationOpensOn ? formatDateOnly(reg.academicYear.registrationOpensOn) : null, closesOn: reg.academicYear.registrationClosesOn ? formatDateOnly(reg.academicYear.registrationClosesOn) : null };
+  const base = { outcome: prog.outcome as "PROMOTED" | "REPEAT", year, toClassName, placed: placedName };
+  if (reg.status === "CANCELLED") return { ...base, state: "CANCELLED" };
+  if (reg.status === "ACTIVE") return { ...base, state: "JOINED" };
+  if (reg.status === "REGISTERED") return { ...base, state: "REGISTERED" };
+  const today = await schoolToday(db, ctx.schoolId);
+  if (year.opensOn && today < year.opensOn) return { ...base, state: "NOT_YET" };
+  if (year.closesOn && today > year.closesOn) return { ...base, state: "CLOSED" };
+  const settings = await getLifecycleSettings(db, ctx.schoolId);
+  if (settings.feePolicy === "BLOCK_REGISTRATION") {
+    const m = (await yearFinances(db, ctx.schoolId, [studentId], reg.academicYearId, settings, new Set(reg.clearanceExceptionReason ? [studentId] : []))).get(studentId);
+    if (!m || !isCleared(m.state)) return { ...base, state: "FEES" };
+  }
+  return { ...base, state: "OPEN" };
+}
+
+const familySchema = z.object({ confirmed: checkbox().refine((v) => v, "Confirm that you are returning and that the details are correct") });
+
+/**
+ * A parent (or the student) registers the child for the coming year after the Academic Office's decision is final: the child is placed in the
+ * decided grade (the stream with the fewest students) and the registration is confirmed, in one step. The same rules as at the office apply:
+ * the registration window, the class capacity (a full class is refused, never overridden) and the school's fee policy. Joining the class roster
+ * stays a separate step that happens when the year starts. Idempotent: a second press changes nothing.
+ */
+export async function registerMyChild(ctx: AuthContext, studentId: string, input: unknown): Promise<{ already: boolean }> {
+  if (!(await childIds(ctx)).includes(studentId)) throw notFound("Student");
+  parse(familySchema, input);
+  let feeRefused: { id: string; label: string } | null = null;
+  try {
+    return await db.$transaction(async (tx) => {
+      const rec = await familyRecord(tx, ctx, studentId);
+      if (!rec) throw conflict("The school has not made a final decision about next year yet.");
+      const { prog, reg } = rec;
+      if (reg.status === "REGISTERED" || reg.status === "ACTIVE") return { already: true };
+      if (reg.status === "CANCELLED") throw conflict("This registration was cancelled. Please contact the school office.");
+      const today = await schoolToday(tx, ctx.schoolId);
+      const opens = reg.academicYear.registrationOpensOn ? formatDateOnly(reg.academicYear.registrationOpensOn) : null;
+      const closes = reg.academicYear.registrationClosesOn ? formatDateOnly(reg.academicYear.registrationClosesOn) : null;
+      if (opens && today < opens) throw conflict(`Registration for ${reg.academicYear.name} opens on ${opens}.`);
+      if (closes && today > closes) throw conflict(`Registration for ${reg.academicYear.name} closed on ${closes}. Please contact the school office.`);
+
+      let classId = reg.classId, streamId = reg.streamId;
+      if (!classId) {
+        if (!prog.toClassId) throw conflict("The school has not chosen the grade yet.");
+        const cls = await tx.schoolClass.findFirst({ where: { id: prog.toClassId, schoolId: ctx.schoolId } });
+        if (!cls || !cls.isActive) throw conflict("The grade for next year is not open yet. Please contact the school office.");
+        classId = cls.id;
+        const places = (await classPlaces(tx, ctx.schoolId, reg.academicYearId)).get(cls.id);
+        streamId = places && places.streams.length ? places.recommendedStreamId : null;
+        if (places && places.streams.length && !streamId) throw conflict("No stream is available. Please contact the school office.");
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`cap:${reg.academicYearId}:${cls.id}`}, 0))`;
+        if (cls.capacity !== null) {
+          const inClass = await tx.studentEnrollment.count({ where: { schoolId: ctx.schoolId, academicYearId: reg.academicYearId, classId: cls.id, status: "ACTIVE", studentId: { not: reg.studentId } } });
+          const held = await tx.annualRegistration.count({ where: { schoolId: ctx.schoolId, academicYearId: reg.academicYearId, classId: cls.id, status: { in: ["PENDING", "REGISTERED"] }, id: { not: reg.id } } });
+          if (inClass + held >= cls.capacity) throw conflict(`${cls.name} is full for ${reg.academicYear.name}. Please contact the school office.`);
+        }
+        await tx.annualRegistration.update({ where: { id: reg.id }, data: { classId, streamId, placedById: ctx.userId, placedAt: new Date() } });
+        await writeAudit(tx, actorOf(ctx), { action: "registration.place", entityType: "AnnualRegistration", entityId: reg.id, summary: `${label(reg.student)} · ${reg.academicYear.name}`, changes: { classId, streamId, decidedClassId: prog.toClassId, via: "FAMILY_PORTAL" } });
+      }
+
+      const settings = await getLifecycleSettings(tx, ctx.schoolId);
+      if (settings.feePolicy === "BLOCK_REGISTRATION") {
+        const m = (await yearFinances(tx, ctx.schoolId, [reg.studentId], reg.academicYearId, settings, new Set(reg.clearanceExceptionReason ? [reg.studentId] : []))).get(reg.studentId);
+        if (!m || !isCleared(m.state)) { feeRefused = { id: reg.id, label: `${label(reg.student)} · ${reg.academicYear.name}` }; throw conflict("The school asks for school fees to be cleared before registration. Please contact the school office."); }
+      }
+      await tx.annualRegistration.update({ where: { id: reg.id }, data: { status: "REGISTERED", registeredById: ctx.userId, registeredAt: new Date(), confirmations: { confirmedAt: new Date().toISOString(), confirmedBy: ctx.fullName, via: "FAMILY_PORTAL", note: null } } });
+      await closeTasks(tx, { schoolId: ctx.schoolId, relatedType: "AnnualRegistration", relatedId: reg.id, kinds: ["RETURNING_PLACEMENT"], by: ctx.userId, note: "Registered by the family" });
+      await writeAudit(tx, actorOf(ctx), { action: "registration.confirm", entityType: "AnnualRegistration", entityId: reg.id, summary: `${label(reg.student)} · ${reg.academicYear.name}`, changes: { classId, streamId, via: "FAMILY_PORTAL" } });
+      await syncFeeTaskTx(tx, ctx.schoolId, reg.id);
+      return { already: false };
+    });
+  } catch (e) {
+    // Finance still learns that a family tried to register while the fee condition was not met (a separate write: the refusal rolled the registration back).
+    if (feeRefused) { const f: { id: string; label: string } = feeRefused; await openTask(db, { schoolId: ctx.schoolId, kind: "RETURNING_FEE", relatedType: "AnnualRegistration", relatedId: f.id, relatedLabel: f.label, sourceEvent: "registration.fee_needed", createdById: ctx.userId }); }
+    throw e;
+  }
 }
 
 // ───────────────────────── Joining the class roster ─────────────────────────
