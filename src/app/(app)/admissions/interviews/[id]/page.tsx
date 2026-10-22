@@ -65,12 +65,13 @@ export default async function InterviewWorkspacePage({ params }: { params: Promi
   const markText = (l: { mark: number | null; outcome: string | null; maxMark: number }) => (l.mark !== null ? `${l.mark} / ${l.maxMark}` : l.outcome ?? "—");
   const teacherLabels = {
     subject: t("exam.col.subject"), teacher: t("exam.col.teacher"), choose: t("exam.change.choose"), hintClass: t("exam.assign.hintClass"), hintSubject: t("exam.assign.hintSubject"), hintAny: t("exam.assign.hintAny"),
-    noTeachers: t("exam.assign.noTeachers"), max: t("exam.assign.max"), due: t("exam.assign.due"), instructions: t("exam.assign.instructions"), optional: t("common.optional"), select: t("common.select"),
+    noTeachers: t("exam.assign.noTeachers"), max: t("exam.assign.max"), due: t("exam.assign.due"), instructions: t("exam.assign.instructions"), optional: t("common.optional"), select: t("common.select"), more: t("exam.assign.more"),
   };
   const assigned = new Set(ex.lines.map((l) => l.subjectId));
   const unassigned = (ws.setup?.subjects ?? []).filter((x) => !assigned.has(x.id));
-  const firstSubject = (ws.setup?.requiredSubjectIds ?? []).find((id) => !assigned.has(id)) ?? unassigned[0]?.id ?? "";
-  const missingRequired = (ws.setup?.requiredSubjectIds ?? []).some((id) => !assigned.has(id));
+  const firstSubject = (ws.setup?.usualSubjectIds ?? []).find((id) => !assigned.has(id)) ?? unassigned[0]?.id ?? "";
+  // The form is open while nobody is assigned yet (or the school requires every usual subject); afterwards it folds away under "Add another subject".
+  const needsTeachers = ex.lines.length === 0 || ex.progress.missingSubjectIds.length > 0;
 
   return (
     <>
@@ -162,7 +163,7 @@ export default async function InterviewWorkspacePage({ params }: { params: Promi
               const form = (
                 <AssignTeacher action={assignExamAction} interviewId={iv.id} subjects={unassigned} teachers={ws.setup.teachers} initialSubjectId={firstSubject} appliedClass={ws.setup.appliedClass} maxMark={ws.setup.maxMark} extras submitLabel={t("exam.assign.go")} labels={teacherLabels} />
               );
-              return missingRequired ? (
+              return needsTeachers ? (
                 <div className="mt-5 border-t border-line pt-4">
                   <h3 className="mb-1 text-sm font-semibold">{t("exam.assign.title")}</h3>
                   <p className="mb-3 text-sm text-muted">{t("exam.assign.hint")}</p>

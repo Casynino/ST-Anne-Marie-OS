@@ -50,6 +50,7 @@ export default async function PolicyPage() {
                 ))}
               </div>
             )}
+            <Field name="examRequireAll" type="checkbox" label={t("adm.policy.exam.requireAll")} defaultValue={p.examRequireAll} />
             <Field name="examApproval" type="checkbox" label={t("adm.policy.exam.approval")} defaultValue={p.examApproval} />
             <Field name="examAutoAccept" type="checkbox" label={t("adm.policy.exam.auto")} hint={t("adm.policy.exam.auto.hint")} defaultValue={p.examAutoAccept} />
             <Field name="examPassPercent" type="number" label={t("adm.policy.exam.pass")} defaultValue={String(p.examPassPercent)} />

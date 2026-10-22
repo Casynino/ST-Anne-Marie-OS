@@ -23,12 +23,12 @@ export type ExamProgressState = "NONE" | "NOT_ASSIGNED" | "INCOMPLETE" | "AWAITI
  *  AWAITING_REVIEW every result is in but the Academic Office has not approved all of them (only when the school asks for approval)
  *  COMPLETE        every required result is final
  */
-export function examProgress(a: { requiredSubjectIds: readonly string[]; tasks: readonly ExamLike[]; approval: boolean }) {
+export function examProgress(a: { requiredSubjectIds: readonly string[]; tasks: readonly ExamLike[]; approval: boolean; /** The school expects an entrance examination for this applicant: with no teacher assigned at all it is NOT_ASSIGNED, not NONE. */ expectsExam?: boolean }) {
   const live = a.tasks.filter((t) => t.status !== "CANCELLED");
   const missing = a.requiredSubjectIds.filter((id) => !live.some((t) => t.subjectId === id));
   const open = live.filter((t) => !isFinal(t.status, a.approval));
   let state: ExamProgressState;
-  if (a.requiredSubjectIds.length === 0 && live.length === 0) state = "NONE";
+  if (a.requiredSubjectIds.length === 0 && live.length === 0) state = a.expectsExam ? "NOT_ASSIGNED" : "NONE";
   else if (missing.length > 0) state = "NOT_ASSIGNED";
   else if (open.length === 0) state = "COMPLETE";
   else if (open.every((t) => t.status === "SUBMITTED")) state = "AWAITING_REVIEW";

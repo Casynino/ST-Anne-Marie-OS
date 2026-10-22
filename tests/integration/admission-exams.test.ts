@@ -44,11 +44,11 @@ const PDF = Buffer.concat([Buffer.from("%PDF-1.4\n"), Buffer.alloc(200, 0x20)]);
 const ymd = (offset: number) => { const t = new Date(`${todayInTimezone(zone)}T00:00:00Z`); t.setUTCDate(t.getUTCDate() + offset); return t.toISOString().slice(0, 10); };
 const dayAt = (offset: number) => `${ymd(offset)}T10:00`;
 
-async function setPolicy(o: { fee?: string; approval?: boolean; auto?: boolean; pass?: number } = {}) {
+async function setPolicy(o: { fee?: string; approval?: boolean; auto?: boolean; pass?: number; requireAll?: boolean } = {}) {
   await policy.updateAdmissionPolicy(admin, {
     requireInterview: "on", requiredDocTypes: ["BIRTH_CERTIFICATE"], admissionFee: o.fee ?? "0", requirePaymentBeforeEnrol: "on", offerValidDays: 14, allowDirectRegistration: "on", interviewMinutes: 30,
     [`assessment_${setup.level.id}`]: "BOTH",
-    examSettings: "1", examSubjects: [english.id, maths.id], examMaxMark: 100, ...(o.approval ? { examApproval: "on" } : {}), ...(o.auto ? { examAutoAccept: "on" } : {}), examPassPercent: o.pass ?? 50,
+    examSettings: "1", examSubjects: [english.id, maths.id], examMaxMark: 100, ...(o.approval ? { examApproval: "on" } : {}), ...(o.auto ? { examAutoAccept: "on" } : {}), ...(o.requireAll ? { examRequireAll: "on" } : {}), examPassPercent: o.pass ?? 50,
   });
 }
 
@@ -117,8 +117,9 @@ describe("opening an applicant from the Interviews list shows the interview work
     expect(ws.interview.id).toBe(iv.id);
     expect(ws.interview.scheduledAt.getTime()).toBe(iv.scheduledAt.getTime());
     expect(ws.applicant.applicationNo).toBe(a.applicationNo);
-    expect(ws.exam.progress.state).toBe("NOT_ASSIGNED");
-    expect(ws.exam.progress.missingSubjectIds.sort()).toEqual([english.id, maths.id].sort());
+    expect(ws.exam.progress.state).toBe("NOT_ASSIGNED"); // the school expects an examination and no teacher is assigned yet
+    expect(ws.exam.progress.missingSubjectIds).toEqual([]); // the usual subjects are only suggestions
+    expect(ws.setup?.usualSubjectIds.sort()).toEqual([english.id, maths.id].sort());
     expect(ws.setup?.subjects.map((s) => s.id)).toEqual(expect.arrayContaining([english.id, maths.id]));
     expect(ws.setup?.teachers.map((t) => t.id)).toEqual(expect.arrayContaining([teacherA.userId, teacherB.userId]));
     expect(ws.setup?.teachers.map((t) => t.id)).not.toContain(outsider.userId); // only people who may mark are offered
@@ -576,6 +577,31 @@ describe("accepting by itself on a pass", () => {
     expect((await db.application.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("INTERVIEW");
     await exams.reviewExam(academic, (await taskOf(iv.id, maths.id)).id, { decision: "APPROVE" });
     expect((await db.application.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("ACCEPTED");
+    await setPolicy();
+  });
+});
+
+describe("the teachers the office assigns are the examination", () => {
+  it("the usual subjects are only suggestions: assigning the teachers you choose is enough, and nothing asks for the others; a school can still require them all", async () => {
+    await setPolicy({ fee: "0" });
+    const geography = await academics.createSubject(admin, { code: "GEO", name: "Geography" });
+    const { a, iv } = await interviewed();
+    // nobody assigned yet: the school expects an examination, so the decision waits
+    expect((await exams.examSummaryOf(db, school.id, a.id)).progress).toMatchObject({ state: "NOT_ASSIGNED", missingSubjectIds: [] });
+    // Mathematics and Geography assigned (English, a usual subject, is not): no teacher is asked for English
+    await exams.assignExam(academic, iv.id, { subjectId: maths.id, teacherId: teacherB.userId });
+    await exams.assignExam(academic, iv.id, { subjectId: geography.id, teacherId: teacherC.userId });
+    const sum = await exams.examSummaryOf(db, school.id, a.id);
+    expect(sum.progress).toMatchObject({ state: "INCOMPLETE", missingSubjectIds: [], total: 2 });
+    expect(sum.outstanding.map((o) => o.subject).sort()).toEqual(["Geography", "Mathematics"]);
+    await pastInterview(iv.id);
+    await exams.saveExamMarks(teacherB, (await taskOf(iv.id, maths.id)).id, { mark: "60", submit: "true" });
+    expect(await exams.saveExamMarks(teacherC, (await taskOf(iv.id, geography.id)).id, { mark: "70", submit: "true" })).toMatchObject({ complete: true });
+    expect((await desk.deskRow(rehema, a.id)).ivStage).toBe("READY");
+
+    // a school that requires every usual subject still gets that
+    await setPolicy({ fee: "0", requireAll: true });
+    expect((await exams.examSummaryOf(db, school.id, a.id)).progress).toMatchObject({ state: "NOT_ASSIGNED", missingSubjectIds: [english.id] });
     await setPolicy();
   });
 });

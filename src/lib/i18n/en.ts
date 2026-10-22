@@ -4073,8 +4073,8 @@ export const en = {
   "adm.reg.title": "Registration pending",
   "adm.reg.sub": "Accepted applicants whose school fee is cleared. Registering them makes the official student record and the permanent Student ID; then they wait in Class placement.",
   "adm.reg.none": "Nobody is waiting for registration.",
-  "adm.policy.exam.title": "Entrance examination subjects",
-  "adm.policy.exam.hint": "The subjects an applicant sits when the level asks for an entrance examination (set above). Staff can add or remove a subject for one applicant.",
+  "adm.policy.exam.title": "Usual examination subjects",
+  "adm.policy.exam.hint": "The subjects usually sat. They are offered first when teachers are assigned; the office assigns the teachers it wants for each applicant, and the examination is complete when those teachers have submitted.",
   "adm.policy.exam.approval": "The Academic Office must approve the results before they count",
   "adm.policy.exam.max": "Maximum mark",
   "adm.policy.exam.outcomes": "Other results instead of a mark (separate with commas)",
@@ -4243,6 +4243,8 @@ export const en = {
   "fin.adm.stage.PAID": "Paid, waiting for registration",
   "fin.adm.accepted": "Accepted",
   "fin.adm.paidNote": "The fee is verified. Admissions can now register this applicant.",
+  "exam.assign.more": "More options (mark limit, deadline, instructions)",
+  "adm.policy.exam.requireAll": "Every usual subject must be given a teacher before a decision",
 } as const;
 
 export type MessageKey = keyof typeof en;

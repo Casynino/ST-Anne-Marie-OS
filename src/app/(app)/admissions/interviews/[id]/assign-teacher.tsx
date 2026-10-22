@@ -3,9 +3,10 @@
 import { useState } from "react";
 import type { ActionState } from "@/lib/action";
 import { ActionForm, Field } from "@/components/form";
+import { SubmitButton } from "@/components/submit-button";
 import { teachersFor, type TeacherRecord } from "@/lib/admissions/exams";
 
-type Labels = Record<"subject" | "teacher" | "choose" | "hintClass" | "hintSubject" | "hintAny" | "noTeachers" | "max" | "due" | "instructions" | "optional" | "select", string>;
+type Labels = Record<"subject" | "teacher" | "choose" | "hintClass" | "hintSubject" | "hintAny" | "noTeachers" | "max" | "due" | "instructions" | "optional" | "select" | "more", string>;
 
 /**
  * Picks a teacher for a subject of an interview. When the subject is chosen, only the teachers recorded for it in the class the applicant applied
@@ -24,20 +25,27 @@ export function AssignTeacher({ action, interviewId, subjects, teachers, initial
   const fill = (s: string) => s.replace("{subject}", subject?.name ?? "").replace("{class}", appliedClass ?? "");
   const hint = shown.length === 0 ? labels.noTeachers : fill(pick.tier === "CLASS" ? labels.hintClass : pick.tier === "SUBJECT" ? labels.hintSubject : labels.hintAny);
   return (
-    <ActionForm action={action} submitLabel={submitLabel} className="grid gap-3 sm:grid-cols-2">
+    <ActionForm action={action} hideSubmit className="space-y-2">
       <input type="hidden" name="interviewId" value={interviewId} />
-      {fixedSubject ? <input type="hidden" name="subjectId" value={subjectId} /> : (
-        <div onChange={(e) => { const el = e.target as unknown as HTMLSelectElement; if (el.name === "subjectId") setSubjectId(el.value); }}>
-          <Field name="subjectId" type="select" label={labels.subject} options={subjects.map((s) => ({ value: s.id, label: s.name }))} defaultValue={initialSubjectId} placeholder={labels.select} required />
-        </div>
-      )}
-      <Field key={subjectId} name="teacherId" type="select" label={labels.teacher} options={shown.map((t) => ({ value: t.id, label: t.name }))} placeholder={labels.choose} required hint={hint} />
+      <div className={`grid gap-3 sm:items-end ${fixedSubject ? "sm:grid-cols-[1fr_auto]" : "sm:grid-cols-[1fr_1fr_auto]"}`}>
+        {fixedSubject ? <input type="hidden" name="subjectId" value={subjectId} /> : (
+          <div onChange={(e) => { const el = e.target as unknown as HTMLSelectElement; if (el.name === "subjectId") setSubjectId(el.value); }}>
+            <Field name="subjectId" type="select" label={labels.subject} options={subjects.map((s) => ({ value: s.id, label: s.name }))} defaultValue={initialSubjectId} placeholder={labels.select} required />
+          </div>
+        )}
+        <Field key={subjectId} name="teacherId" type="select" label={labels.teacher} options={shown.map((t) => ({ value: t.id, label: t.name }))} placeholder={labels.choose} required />
+        <SubmitButton>{submitLabel}</SubmitButton>
+      </div>
+      <p className="text-xs text-muted">{hint}</p>
       {extras && (
-        <>
-          <Field name="maxMark" type="number" label={labels.max} defaultValue={String(maxMark ?? 100)} />
-          <Field name="dueOn" type="date" label={labels.due} optionalLabel={labels.optional} />
-          <div className="sm:col-span-2"><Field name="instructions" type="textarea" rows={2} label={labels.instructions} optionalLabel={labels.optional} /></div>
-        </>
+        <details>
+          <summary className="cursor-pointer text-sm font-medium text-link">{labels.more}</summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Field name="maxMark" type="number" label={labels.max} defaultValue={String(maxMark ?? 100)} />
+            <Field name="dueOn" type="date" label={labels.due} optionalLabel={labels.optional} />
+            <div className="sm:col-span-2"><Field name="instructions" type="textarea" rows={2} label={labels.instructions} optionalLabel={labels.optional} /></div>
+          </div>
+        </details>
       )}
     </ActionForm>
   );

@@ -4075,8 +4075,8 @@ export const sw: Record<MessageKey, string> = {
   "adm.reg.title": "Usajili unasubiriwa",
   "adm.reg.sub": "Waombaji waliokubaliwa ambao ada yao imethibitishwa. Kuwasajili huunda rekodi rasmi na namba ya kudumu ya mwanafunzi; kisha wanasubiri Upangaji wa darasa.",
   "adm.reg.none": "Hakuna anayesubiri usajili.",
-  "adm.policy.exam.title": "Masomo ya mtihani wa kujiunga",
-  "adm.policy.exam.hint": "Masomo anayofanya mwombaji pale ngazi inapohitaji mtihani wa kujiunga (yamewekwa hapo juu). Wafanyakazi wanaweza kuongeza au kuondoa somo kwa mwombaji mmoja.",
+  "adm.policy.exam.title": "Masomo ya kawaida ya mtihani",
+  "adm.policy.exam.hint": "Masomo yanayofanywa kwa kawaida. Hutolewa kwanza walimu wanapopangiwa; ofisi inapanga walimu inaowataka kwa kila mwombaji, na mtihani umekamilika walimu hao wakiwasilisha.",
   "adm.policy.exam.approval": "Ofisi ya Taaluma lazima iidhinishe matokeo kabla hayajahesabiwa",
   "adm.policy.exam.max": "Alama ya juu",
   "adm.policy.exam.outcomes": "Matokeo mengine badala ya alama (tenganisha kwa koma)",
@@ -4245,4 +4245,6 @@ export const sw: Record<MessageKey, string> = {
   "fin.adm.stage.PAID": "Wamelipa, wanasubiri usajili",
   "fin.adm.accepted": "Alikubaliwa",
   "fin.adm.paidNote": "Ada imethibitishwa. Udahili sasa unaweza kumsajili mwombaji huyu.",
+  "exam.assign.more": "Machaguo zaidi (kiwango cha alama, mwisho, maelekezo)",
+  "adm.policy.exam.requireAll": "Kila somo la kawaida lazima lipewe mwalimu kabla ya uamuzi",
 };

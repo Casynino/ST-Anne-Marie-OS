@@ -117,7 +117,7 @@ export type InterviewWorkspace =
       mode: "INTERVIEW"; applicationId: string; row: DeskRow; exam: ExamSummary;
       interview: { id: string; scheduledAt: Date; durationMinutes: number; location: string | null; method: string | null; status: string; outcome: string | null; kind: string; arrangement: string; cancelReason: string | null };
       applicant: { name: string; applicationNo: string; dateOfBirth: Date; className: string | null };
-      setup: { subjects: { id: string; name: string }[]; requiredSubjectIds: string[]; teachers: { id: string; name: string; inClass: string[]; anywhere: string[] }[]; appliedClass: string | null; approval: boolean; maxMark: number } | null;
+      setup: { subjects: { id: string; name: string }[]; usualSubjectIds: string[]; teachers: { id: string; name: string; inClass: string[]; anywhere: string[] }[]; appliedClass: string | null; approval: boolean; maxMark: number } | null;
     };
 
 /**
@@ -153,7 +153,7 @@ export async function interviewWorkspace(ctx: AuthContext, id: string): Promise<
     ]);
     // What each teacher teaches: in the class this applicant applied for (offered first for that subject) and anywhere this year.
     setup = {
-      subjects, requiredSubjectIds: exam.progress.missingSubjectIds, approval: policy.examApproval, maxMark: policy.examMaxMark, appliedClass: row.className,
+      subjects, usualSubjectIds: policy.examSubjects, approval: policy.examApproval, maxMark: policy.examMaxMark, appliedClass: row.className,
       teachers: teachers.map((t) => ({
         id: t.id, name: t.name,
         inClass: [...new Set(teaching.filter((x) => x.staff.userId === t.id && x.classId === row.classAppliedId).map((x) => x.subjectId))],

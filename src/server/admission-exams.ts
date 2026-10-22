@@ -31,9 +31,12 @@ export type ExamSummary = {
   outstanding: { subject: string; teacher: string | null; why: "NOT_ASSIGNED" | "MARKING" | "REVIEW" }[];
 };
 
-/** Subjects an applicant must sit: the school's list when the school asks for an entrance examination for that level, otherwise none. */
+/**
+ * Subjects that must all have a teacher before a decision. Normally none: the office assigns the teachers it wants and the examination is complete
+ * when those teachers have submitted. Only a school that switches on "every usual subject is required" has a list.
+ */
 function requiredFor(policy: AdmissionPolicy, levelId: string | null): string[] {
-  return assessmentFor(policy, levelId).exam ? policy.examSubjects : [];
+  return policy.examRequireAll && assessmentFor(policy, levelId).exam ? policy.examSubjects : [];
 }
 
 /** The examination summary of several applications (names resolved), for the desk and the workspace. No permission check: callers check. */
@@ -55,7 +58,7 @@ export async function examSummaries(client: Client, schoolId: string, apps: { id
   for (const a of apps) {
     const levelId = classes.find((c) => c.id === a.classAppliedId)?.levelId ?? null;
     const mine = tasks.filter((t) => t.applicationId === a.id);
-    const progress = examProgress({ requiredSubjectIds: requiredFor(policy, levelId), tasks: mine.map((t) => ({ subjectId: t.subjectId, status: t.status })), approval: policy.examApproval });
+    const progress = examProgress({ requiredSubjectIds: requiredFor(policy, levelId), tasks: mine.map((t) => ({ subjectId: t.subjectId, status: t.status })), approval: policy.examApproval, expectsExam: assessmentFor(policy, levelId).exam });
     const lines: ExamLine[] = mine.map((t) => {
       const visible = t.status === "SUBMITTED" || t.status === "APPROVED" || t.assignedToId === viewerId;
       return {
@@ -82,6 +85,7 @@ export async function examSummaryOf(client: Client, schoolId: string, applicatio
 /** The sentence that says why a decision has to wait for the examinations (null when it need not). The same words are used on every screen. */
 export function examBlock(s: ExamSummary): string | null {
   if (examsAllowDecision(s.progress.state)) return null;
+  if (s.outstanding.length === 0) return "No teacher has been assigned to mark the examination yet.";
   const parts = s.outstanding.map((o) => (o.why === "NOT_ASSIGNED" ? `${o.subject} has no teacher yet` : o.why === "REVIEW" ? `${o.subject} is waiting for the Academic Office to approve it` : `${o.subject} is still waiting for marks from ${o.teacher}`));
   return `The examination results are not complete: ${parts.join("; ")}.`;
 }

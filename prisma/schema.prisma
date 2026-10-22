@@ -155,6 +155,8 @@ model School {
   admissionOffers        AdmissionOffer[]
   admissionPayments      AdmissionPayment[]
   applicationExams       ApplicationExam[]
+  studentProgressions    StudentProgression[]
+  annualRegistrations    AnnualRegistration[]
   applicationExamEvents  ApplicationExamEvent[]
   applicationDrafts      ApplicationDraft[]
   workflowTasks          WorkflowTask[]
@@ -362,20 +364,25 @@ model AuditLog {
 // ───────────────────────── Academic structure ─────────────────────────
 
 model AcademicYear {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  schoolId  String   @db.Uuid
-  name      String
-  startsOn  DateTime @db.Date
-  endsOn    DateTime @db.Date
-  isCurrent Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String    @id @default(uuid(7)) @db.Uuid
+  schoolId             String    @db.Uuid
+  name                 String
+  startsOn             DateTime  @db.Date
+  endsOn               DateTime  @db.Date
+  isCurrent            Boolean   @default(false)
+  // The days families may register returning students for this year (both optional).
+  registrationOpensOn  DateTime? @db.Date
+  registrationClosesOn DateTime? @db.Date
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  school          School              @relation(fields: [schoolId], references: [id])
-  terms           Term[]
-  enrollments     StudentEnrollment[]
-  classTeachers   ClassTeacher[]
-  subjectTeachers SubjectTeacher[]
+  school           School               @relation(fields: [schoolId], references: [id])
+  terms            Term[]
+  enrollments      StudentEnrollment[]
+  registrations    AnnualRegistration[]
+  progressionsFrom StudentProgression[] @relation("ProgressionFromYear")
+  classTeachers    ClassTeacher[]
+  subjectTeachers  SubjectTeacher[]
 
   @@unique([schoolId, name])
   @@map("academic_years")
@@ -417,15 +424,19 @@ model AcademicLevel {
 }
 
 model SchoolClass {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  schoolId  String   @db.Uuid
-  levelId   String   @db.Uuid
-  name      String
-  nameSw    String?
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
-  capacity  Int? // maximum active students in the current year; null = no limit
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid(7)) @db.Uuid
+  schoolId     String   @db.Uuid
+  levelId      String   @db.Uuid
+  name         String
+  nameSw       String?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  capacity     Int? // maximum active students in the current year; null = no limit
+  // The grade a promoted student moves to. Empty = the next class in the school's order (level order, then class order); the last class has none.
+  nextClassId  String?  @db.Uuid
+  // Students who pass this grade complete school instead of moving on.
+  isFinalGrade Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
   school          School              @relation(fields: [schoolId], references: [id])
   level           AcademicLevel       @relation(fields: [levelId], references: [id])
@@ -583,6 +594,8 @@ model Student {
   enrollments       StudentEnrollment[]
   emergencyContacts EmergencyContact[]
   statusHistory     StudentStatusHistory[]
+  progressions      StudentProgression[]
+  registrations     AnnualRegistration[]
 
   libraryPin      LibraryPin?
   librarySessions LibrarySession[]
@@ -1371,6 +1384,106 @@ model ApplicationExamEvent {
 
   @@index([examId, createdAt])
   @@map("application_exam_events")
+}
+
+// ═════════════════════════ The student's years at school: progression, annual registration ═════════════════════════
+
+enum ProgressionOutcome {
+  PROMOTED
+  REPEAT
+  PENDING_REVIEW
+  COMPLETED
+  WITHDRAWN
+  TRANSFERRED
+}
+
+enum ProgressionStatus {
+  DRAFT // prepared by the Academic Office, still changeable
+  AWAITING_HEAD // the school asks the Head Teacher to approve and it has not happened yet
+  APPROVED // final: the next year's grade can be prepared
+  SUPERSEDED // replaced by a revised decision (kept for the history)
+}
+
+enum RegistrationStatus {
+  PENDING // the decision is approved; the returning student still has to be placed and registered
+  REGISTERED // placed and registered for the year; not yet in the class roster
+  ACTIVE // in the class roster of that year (an enrolment exists)
+  CANCELLED // not returning
+}
+
+// The academic decision about one student at the end of one academic year. It is NOT a class assignment and not a registration: it says where the
+// student should go (or that they finished or left); registration and placement follow it as their own records.
+model StudentProgression {
+  id                 String             @id @default(uuid(7)) @db.Uuid
+  schoolId           String             @db.Uuid
+  studentId          String             @db.Uuid
+  fromAcademicYearId String             @db.Uuid
+  fromEnrollmentId   String?            @db.Uuid
+  fromClassId        String             @db.Uuid
+  fromStreamId       String?            @db.Uuid
+  outcome            ProgressionOutcome
+  status             ProgressionStatus  @default(DRAFT)
+  toClassId          String?            @db.Uuid // the grade for the next year: the next grade when promoted, the same grade when repeating
+  note               String?
+  exceptionReason    String? // set when the decision was made without finalized results or outside the school's order
+  evidence           Json? // examination completion and average when the decision was made
+  preparedById       String             @db.Uuid
+  preparedAt         DateTime           @default(now())
+  approvedById       String?            @db.Uuid
+  approvedAt         DateTime?
+  headApprovedById   String?            @db.Uuid
+  headApprovedAt     DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  school        School               @relation(fields: [schoolId], references: [id])
+  student       Student              @relation(fields: [studentId], references: [id])
+  fromYear      AcademicYear         @relation("ProgressionFromYear", fields: [fromAcademicYearId], references: [id])
+  registrations AnnualRegistration[]
+
+  // One live decision per student and year is a partial unique index in the migration SQL (a superseded decision stays as history).
+  @@index([schoolId, fromAcademicYearId, status])
+  @@index([studentId])
+  @@map("student_progressions")
+}
+
+// An existing student returning for one academic year: the placement (grade and stream), the confirmation that they come back, and the moment
+// they join the class roster. Fees are never stored here: clearance is worked out from the verified payments of that year.
+model AnnualRegistration {
+  id                       String             @id @default(uuid(7)) @db.Uuid
+  schoolId                 String             @db.Uuid
+  studentId                String             @db.Uuid
+  academicYearId           String             @db.Uuid
+  progressionId            String             @db.Uuid
+  status                   RegistrationStatus @default(PENDING)
+  classId                  String?            @db.Uuid
+  streamId                 String?            @db.Uuid
+  placedById               String?            @db.Uuid
+  placedAt                 DateTime?
+  capacityOverrideReason   String?
+  gradeOverrideReason      String? // the grade differs from the approved decision (an academic exception)
+  registeredById           String?            @db.Uuid
+  registeredAt             DateTime?
+  confirmations            Json? // what was reconfirmed: guardians, emergency contact, medical information, papers
+  clearanceExceptionReason String? // Finance approved an arrangement: the fee condition is treated as met
+  clearanceExceptionById   String?            @db.Uuid
+  clearanceExceptionAt     DateTime?
+  activatedById            String?            @db.Uuid
+  activatedAt              DateTime?
+  enrollmentId             String?            @db.Uuid
+  cancelReason             String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  school       School             @relation(fields: [schoolId], references: [id])
+  student      Student            @relation(fields: [studentId], references: [id])
+  academicYear AcademicYear       @relation(fields: [academicYearId], references: [id])
+  progression  StudentProgression @relation(fields: [progressionId], references: [id])
+
+  @@unique([studentId, academicYearId])
+  @@index([schoolId, academicYearId, status])
+  @@index([schoolId, academicYearId, classId])
+  @@map("annual_registrations")
 }
 
 // ═════════════════════════ Hand-offs between departments ═════════════════════════
