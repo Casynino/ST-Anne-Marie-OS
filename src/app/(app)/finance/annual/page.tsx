@@ -54,6 +54,33 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
       ]} />
       <p className="mb-4 text-sm text-muted">{t("lc.fee.rule", { policy: t(`lc.rules.fee.${b.settings.feePolicy}` as "lc.rules.fee.INFORM_ONLY") })}</p>
 
+      <div className="mb-4 overflow-x-auto rounded-2xl border border-line bg-surface p-4">
+        <p className="text-sm font-medium">{t("lc.rep.byGrade")}</p>
+        <p className="mb-3 text-xs text-muted">{t("lc.rep.byGradeHint")}</p>
+        <table className="w-full min-w-[40rem] text-sm">
+          <thead><tr className="border-b border-line text-left text-xs text-muted">
+            <th className="py-1.5 pr-3 font-medium">{t("lc.col.class")}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.students")}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.expected")}</th>
+            <th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.initial")}{b.initial.pct !== null ? ` (${b.initial.pct}%)` : ""}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.collected")}</th>
+            <th className="px-3 py-1.5 text-right font-medium">{t("lc.rep.initialVerified")}</th><th className="px-3 py-1.5 text-right font-medium">{t("lc.fee.outstanding")}</th><th className="pl-3 py-1.5 text-right font-medium">{t("lc.fee.older")}</th>
+          </tr></thead>
+          <tbody className="divide-y divide-line tabular-nums">
+            {b.byGrade.map((g) => (
+              <tr key={g.className}>
+                <td className="py-1.5 pr-3 font-medium">{g.className}</td><td className="px-3 py-1.5 text-right">{g.students}</td><td className="px-3 py-1.5 text-right">{formatMoney(g.expected)}</td>
+                <td className="px-3 py-1.5 text-right">{g.initialRequired === null ? <span className="text-muted">—</span> : formatMoney(g.initialRequired)}</td><td className="px-3 py-1.5 text-right">{formatMoney(g.collected)}</td>
+                <td className="px-3 py-1.5 text-right">{g.verified} / {g.students}</td><td className={`px-3 py-1.5 text-right ${g.outstanding ? "text-warn" : ""}`}>{formatMoney(g.outstanding)}</td><td className={`pl-3 py-1.5 text-right ${g.previousOutstanding ? "text-bad" : ""}`}>{formatMoney(g.previousOutstanding)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot><tr className="border-t border-line font-medium">
+            <td className="py-1.5 pr-3">{t("lc.tab.all")}</td><td className="px-3 py-1.5 text-right">{tot.students}</td><td className="px-3 py-1.5 text-right">{formatMoney(tot.expected)}</td>
+            <td className="px-3 py-1.5 text-right">{b.initial.required === null ? <span className="text-muted">{t("lc.rep.notSet")}</span> : formatMoney(b.initial.required)}</td><td className="px-3 py-1.5 text-right">{formatMoney(tot.collected)}</td>
+            <td className="px-3 py-1.5 text-right">{tot.cleared} / {tot.students}</td><td className="px-3 py-1.5 text-right">{formatMoney(tot.outstanding)}</td><td className="pl-3 py-1.5 text-right">{formatMoney(tot.previousOutstanding)}</td>
+          </tr></tfoot>
+        </table>
+        {b.awaitingReconciliation > 0 && <p className="mt-3 text-xs text-warn">{t("lc.rep.reconcile")}: {b.awaitingReconciliation}</p>}
+      </div>
+
       {tot.notBilled > 0 && can("invoice.generate") && (
         <div className="mb-4 rounded-2xl border border-line bg-surface p-3">
           <p className="mb-2 text-sm font-medium">{t("lc.fee.billTitle", { term: b.firstTermName ?? "" })}</p>

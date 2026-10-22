@@ -30,7 +30,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
   if (!can("registration.read")) return <NoAccess t={t} />;
   const sp = await searchParams;
   const money = sp.money === "cleared" || sp.money === "owing" ? sp.money : undefined;
-  const b = await returningBoard(ctx, { yearId: sp.year, classId: sp.class, stage: sp.stage, q: sp.q, money, notRegistered: sp.notreg === "1", page: Number(sp.page) || 1 });
+  const b = await returningBoard(ctx, { yearId: sp.year, classId: sp.class, stage: sp.stage, q: sp.q, money, notRegistered: sp.notreg === "1", outcome: sp.outcome === "PROMOTED" || sp.outcome === "REPEAT" ? sp.outcome : undefined, page: Number(sp.page) || 1 });
   const canManage = can("registration.manage");
   if (!b.year) return <><PageHeader title={t("lc.ret.title")} /><EmptyState>{t("lc.noNextYear")}</EmptyState></>;
 
@@ -43,7 +43,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
 
   const q = (extra: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money, notreg: sp.notreg, ...extra })) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries({ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money, notreg: sp.notreg, outcome: sp.outcome, ...extra })) if (v) p.set(k, v);
     const s = p.toString();
     return s ? `/students/returning?${s}` : "/students/returning";
   };
@@ -111,6 +111,13 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
 
       <p className="mb-4 flex items-start gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm text-muted"><Info className="mt-0.5 size-4 shrink-0 text-link" aria-hidden /><span>{notes.join(" · ")}</span></p>
 
+      {b.counts.undecided > 0 && (
+        <p role="status" className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-warn/40 bg-warn/10 px-4 py-2.5 text-sm text-warn">
+          <span>{t("lc.ret.undecided", { n: b.counts.undecided })}</span>
+          {can("progression.read") && <Link href="/academic-office/progression" className="font-medium text-link hover:underline">{t("lc.ret.undecidedLink")} →</Link>}
+        </p>
+      )}
+
       {b.counts.notRegistered > 0 && (
         <p role="status" className={`mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-4 py-2.5 text-sm ${b.windowClosed ? "border-warn/40 bg-warn/10 text-warn" : "border-line bg-surface text-muted"}`}>
           <span>{b.windowClosed && b.year.registrationClosesOn ? t("lc.nr.bannerClosed", { date: displayDate(b.year.registrationClosesOn, ctx.locale), n: b.counts.notRegistered, c: b.counts.contacted }) : t("lc.nr.banner", { n: b.counts.notRegistered, c: b.counts.contacted })}</span>
@@ -128,13 +135,15 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
       <Row>
         <Panel className="flex-[3_1_40rem]" title={t("lc.ret.fig.total")}>
           <CountTabs items={[
-            { href: q({ stage: undefined, notreg: undefined, page: undefined }), label: t("lc.tab.all"), count: b.counts.total, active: !sp.stage && sp.notreg !== "1" },
-            ...(b.counts.notRegistered > 0 ? [{ href: q({ stage: undefined, notreg: "1", page: undefined }), label: t("lc.nr.tab"), count: b.counts.notRegistered, active: sp.notreg === "1" }] : []),
-            ...REGISTRATION_STAGES.filter((s) => (by[s] ?? 0) > 0).map((s) => ({ href: q({ stage: s, notreg: undefined, page: undefined }), label: stageLabel(t, s), count: by[s], active: sp.stage === s })),
+            { href: q({ stage: undefined, notreg: undefined, outcome: undefined, page: undefined }), label: t("lc.tab.all"), count: b.counts.total, active: !sp.stage && sp.notreg !== "1" && !sp.outcome },
+            { href: q({ stage: undefined, notreg: undefined, outcome: "PROMOTED", page: undefined }), label: t("lc.ret.tab.up"), count: b.counts.promoted, active: sp.outcome === "PROMOTED" },
+            ...(b.counts.repeat > 0 || sp.outcome === "REPEAT" ? [{ href: q({ stage: undefined, notreg: undefined, outcome: "REPEAT", page: undefined }), label: t("lc.ret.tab.repeat"), count: b.counts.repeat, active: sp.outcome === "REPEAT" }] : []),
+            ...(b.counts.notRegistered > 0 ? [{ href: q({ stage: undefined, notreg: "1", outcome: undefined, page: undefined }), label: t("lc.nr.tab"), count: b.counts.notRegistered, active: sp.notreg === "1" }] : []),
+            ...REGISTRATION_STAGES.filter((s) => (by[s] ?? 0) > 0).map((s) => ({ href: q({ stage: s, notreg: undefined, outcome: undefined, page: undefined }), label: stageLabel(t, s), count: by[s], active: sp.stage === s })),
           ]} />
           <form method="get" className="mb-4 flex flex-wrap items-end gap-2.5">
             {sp.year && <input type="hidden" name="year" value={sp.year} />}
-            {sp.stage && <input type="hidden" name="stage" value={sp.stage} />}{sp.notreg && <input type="hidden" name="notreg" value={sp.notreg} />}
+            {sp.stage && <input type="hidden" name="stage" value={sp.stage} />}{sp.notreg && <input type="hidden" name="notreg" value={sp.notreg} />}{sp.outcome && <input type="hidden" name="outcome" value={sp.outcome} />}
             <label className="text-xs text-muted"><span className="mb-1 block">{t("lc.col.class")}</span>
               <select name="class" defaultValue={sp.class ?? ""} className="min-h-10 rounded-lg border border-line bg-surface px-3 text-sm text-ink"><option value="">{t("lc.allClasses")}</option>{b.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
             </label>
@@ -165,7 +174,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
                         <tr key={r.id} className="hover:bg-canvas/50">
                           <td className={`${td} w-10`}>{canManage && r.stage === "READY_TO_ACTIVATE" && <input type="checkbox" name="ids" value={r.id} form="bulk-activate" aria-label={r.name} className="size-4 accent-brand-700" />}</td>
                           <td className={td}><Link href={`/students/returning/${r.id}`} className="font-medium text-ink hover:text-link hover:underline">{r.name}</Link><span className="block text-xs tabular-nums text-muted">{r.admissionNo}</span></td>
-                          <td className={td}><span className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-muted">→ {r.decidedClassName}</span>}</span></td>
+                          <td className={td}><span className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-muted">{r.outcome === "REPEAT" ? t("lc.ret.repeatSame", { from: r.decidedClassName }) : `${r.fromClassName} → ${r.decidedClassName}`}</span>}</span></td>
                           <td className={`${td} whitespace-nowrap`}>{r.className ? `${r.className}${r.streamName ? ` · ${r.streamName}` : ""}` : <span className="text-muted">—</span>}</td>
                           <td className={`${td} whitespace-nowrap`}>
                             <ClearanceBadge state={r.clearance} t={t} />
@@ -190,9 +199,28 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
               </div>
             </>
           )}
-          <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money, notreg: sp.notreg }} t={t} />
+          <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money, notreg: sp.notreg, outcome: sp.outcome }} t={t} />
         </Panel>
-
+        <Panel className="flex-[1_1_16rem]" title={t("lc.rep.adm.title")} subtitle={b.year.name}>
+          <ul className="divide-y divide-line text-sm tabular-nums">
+            {([
+              [t("lc.rep.adm.eligible"), b.counts.total, q({ stage: undefined, notreg: undefined, page: undefined })],
+              [t("lc.rep.adm.submitted"), b.counts.registered, null],
+              [t("lc.rep.adm.payment"), b.counts.awaitingPayment, null],
+              [t("lc.rep.adm.approval"), by.NEEDS_REGISTRATION ?? 0, q({ stage: "NEEDS_REGISTRATION", notreg: undefined, page: undefined })],
+              [t("lc.rep.adm.class"), by.NEEDS_PLACEMENT ?? 0, q({ stage: "NEEDS_PLACEMENT", notreg: undefined, page: undefined })],
+              [t("lc.rep.adm.done"), b.counts.registered, null],
+              [t("lc.rep.adm.not"), b.counts.notRegistered, q({ notreg: "1", stage: undefined, page: undefined })],
+              [t("lc.rep.adm.repeat"), b.counts.repeat, b.counts.repeat > 0 ? q({ outcome: "REPEAT", stage: undefined, notreg: undefined, page: undefined }) : null],
+              [t("lc.rep.adm.undecided"), b.counts.undecided, null],
+            ] as const).map(([label, n, href]) => (
+              <li key={label} className="flex items-baseline justify-between gap-3 py-2">
+                {href ? <Link href={href} className="text-ink hover:text-link hover:underline">{label}</Link> : <span>{label}</span>}
+                <span className="font-semibold text-ink">{n}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
       </Row>
     </>
   );

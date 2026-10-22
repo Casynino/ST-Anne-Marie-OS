@@ -57,6 +57,9 @@ export default async function ProgressionPage({ searchParams }: { searchParams: 
         { label: t("lc.fig.head"), value: tot.awaitingHead, tone: tot.awaitingHead ? "warn" : undefined },
         { label: t("lc.fig.approved"), value: tot.approved, tone: "ok" },
         { label: t("lc.fig.incomplete"), value: tot.incomplete, tone: tot.incomplete ? "warn" : undefined },
+        { label: t("lc.fig.promoted"), value: tot.promoted, tone: "ok" },
+        { label: t("lc.fig.repeat"), value: tot.repeat },
+        { label: t("lc.fig.review"), value: tot.review, tone: tot.review ? "warn" : undefined },
       ]} />
 
       <CountTabs items={[

@@ -144,7 +144,7 @@ export async function classPlaces(client: Client, schoolId: string, yearId: stri
 }
 
 const PAGE = 50;
-export type ReturningFilter = { yearId?: string; classId?: string; stage?: string; q?: string; money?: "cleared" | "owing"; notRegistered?: boolean; page?: number };
+export type ReturningFilter = { yearId?: string; classId?: string; stage?: string; q?: string; money?: "cleared" | "owing"; notRegistered?: boolean; outcome?: "PROMOTED" | "REPEAT"; page?: number };
 
 export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {}) {
   requirePermission(ctx, "registration.read");
@@ -185,10 +185,14 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
   const counts = emptyCounts();
   counts.notRegistered = all.filter((r) => r.notRegistered).length;
   counts.contacted = all.filter((r) => r.notRegistered && r.followUps > 0).length;
+  counts.registered = all.filter((r) => r.status === "REGISTERED" || r.status === "ACTIVE").length;
+  counts.repeat = all.filter((r) => r.outcome === "REPEAT").length;
+  counts.promoted = all.filter((r) => r.outcome === "PROMOTED").length;
+  counts.awaitingPayment = all.filter((r) => r.clearance === "OUTSTANDING" && r.stage !== "NOT_RETURNING").length;
   for (const r of all) { counts.total++; counts.byStage[r.stage] = (counts.byStage[r.stage] ?? 0) + 1; if (isCleared(r.clearance)) counts.cleared++; else if (r.stage !== "NOT_RETURNING") counts.owing++; }
 
   const q = opts.q?.trim().toLowerCase();
-  let rows = all.filter((r) => (!opts.classId || (r.classId ?? r.decidedClassId) === opts.classId) && (!opts.stage || r.stage === opts.stage) && (!opts.notRegistered || r.notRegistered) && (!q || r.name.toLowerCase().includes(q) || r.admissionNo.toLowerCase().includes(q)) && (!opts.money || (opts.money === "cleared" ? isCleared(r.clearance) : !isCleared(r.clearance))));
+  let rows = all.filter((r) => (!opts.classId || (r.classId ?? r.decidedClassId) === opts.classId) && (!opts.stage || r.stage === opts.stage) && (!opts.notRegistered || r.notRegistered) && (!opts.outcome || r.outcome === opts.outcome) && (!q || r.name.toLowerCase().includes(q) || r.admissionNo.toLowerCase().includes(q)) && (!opts.money || (opts.money === "cleared" ? isCleared(r.clearance) : !isCleared(r.clearance))));
   // Students who need something done come first (grade, registration, joining the class), then those waiting on others, then those already in.
   const ORDER: Stage[] = ["NEEDS_PLACEMENT", "NEEDS_REGISTRATION", "READY_TO_ACTIVATE", "NEEDS_FEE", "WAITING_YEAR_OPEN", "ACTIVE", "NOT_RETURNING"];
   const urgency = (st: Stage) => { const i = ORDER.indexOf(st); return i < 0 ? 99 : i; };
@@ -201,6 +205,10 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
   const missing = previous
     ? await db.studentProgression.count({ where: { schoolId: ctx.schoolId, fromAcademicYearId: previous.id, status: "APPROVED", outcome: { in: ["PROMOTED", "REPEAT"] }, student: { status: "ENROLLED", registrations: { none: { academicYearId: year.id } } } } })
     : 0;
+  // Students who study here now but whose decision is not final yet: they are NOT in this list until the Academic Office approves one (a number only, no results).
+  counts.undecided = previous
+    ? await db.student.count({ where: { schoolId: ctx.schoolId, status: "ENROLLED", enrollments: { some: { academicYearId: previous.id, status: "ACTIVE" } }, progressions: { none: { fromAcademicYearId: previous.id, status: "APPROVED" } } } })
+    : 0;
   const places = [...(await classPlaces(db, ctx.schoolId, year.id)).values()];
   // Where a student can be placed (every active class and stream, with the places taken), so a row can place someone without opening their page.
   const active = await db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { streams: { orderBy: { name: "asc" } } } });
@@ -212,7 +220,7 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
   });
   return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, counts, places, options, missing, settings, open, windowClosed, classes: grades.map((g) => ({ id: g.id, name: g.name })) };
 }
-function emptyCounts() { return { total: 0, cleared: 0, owing: 0, notRegistered: 0, contacted: 0, byStage: {} as Partial<Record<Stage, number>> }; }
+function emptyCounts() { return { total: 0, cleared: 0, owing: 0, notRegistered: 0, contacted: 0, registered: 0, repeat: 0, promoted: 0, awaitingPayment: 0, undecided: 0, byStage: {} as Partial<Record<Stage, number>> }; }
 
 export type PlaceOption = { value: string; label: string; full: boolean };
 
