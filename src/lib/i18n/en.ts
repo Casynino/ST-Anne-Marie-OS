@@ -4394,7 +4394,7 @@ export const en = {
   "lc.stage.NOT_RETURNING": "Not returning",
   "lc.dept.ACADEMIC": "Academic Office",
   "lc.dept.HEAD": "Head Teacher",
-  "lc.dept.ADMISSIONS": "Admissions",
+  "lc.dept.ADMISSIONS": "Registrar's office",
   "lc.dept.FINANCE": "Finance",
   "lc.dept.NONE": "—",
   "lc.clear.CLEARED": "Cleared",

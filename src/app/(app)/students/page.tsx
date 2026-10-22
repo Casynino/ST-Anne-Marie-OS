@@ -32,6 +32,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         actions={
           <>
             <ExportMenu base={`/api/export/students?${new URLSearchParams(Object.entries({ q: sp.q ?? "", classId: sp.classId ?? "", status: sp.status ?? "" }).filter(([, v]) => v))}`} t={t} />
+            {ctx.permissions.has("registration.read") && <LinkButton href="/students/returning" variant="secondary">{t("lc.nav.returning")}</LinkButton>}
             {ctx.permissions.has("student.import") && <LinkButton href="/students/import" variant="secondary">{t("imp.title")}</LinkButton>}
             {ctx.permissions.has("student.create") && <LinkButton href="/students/new"><Plus className="size-4" aria-hidden /> {t("student.new")}</LinkButton>}
           </>

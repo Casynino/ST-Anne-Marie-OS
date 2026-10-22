@@ -8,7 +8,6 @@ import { displayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
 import { registrationDetail } from "@/server/annual-registration";
 import { studentTimeline } from "@/server/year-readiness";
-import { AdmissionsNav } from "@/components/admissions/subnav";
 import { ActionForm, Field } from "@/components/form";
 import { ClearanceBadge, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
 import { Timeline } from "@/components/lifecycle/timeline";
@@ -45,8 +44,7 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
 
   return (
     <>
-      <PageHeader title={name} subtitle={`${d.student.admissionNo} · ${d.year.name}`} actions={<Link href="/admissions/returning" className="text-sm font-medium text-link hover:underline">{t("lc.back")}</Link>} />
-      <AdmissionsNav ctx={ctx} t={t} current="/admissions/returning" />
+      <PageHeader title={name} subtitle={`${d.student.admissionNo} · ${d.year.name}`} actions={<Link href="/students/returning" className="text-sm font-medium text-link hover:underline">{t("lc.back")}</Link>} />
       <p className="mb-4 text-sm"><span className={d.step.blocked ? "font-medium text-warn" : "font-medium"}>{stageLabel(t, d.step.stage)}</span>{d.step.department !== "NONE" && <span className="text-muted"> · {deptLabel(t, d.step.department)}</span>}</p>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">

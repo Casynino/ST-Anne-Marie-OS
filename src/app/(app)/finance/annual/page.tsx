@@ -79,7 +79,7 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
         <DataTable head={[t("lc.col.student"), t("lc.col.class"), t("lc.fee.firstTerm"), t("lc.fee.wholeYear"), t("lc.fee.older"), t("lc.col.fees")]}>
           {b.rows.map((r) => (
             <tr key={r.registrationId}>
-              <Td><Link href={`/admissions/returning/${r.registrationId}`} className="font-medium text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Td>
+              <Td><Link href={`/students/returning/${r.registrationId}`} className="font-medium text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Td>
               <Td className="whitespace-nowrap">{r.className ?? "—"}<span className="block text-xs text-muted">{t(`lc.reg.${r.status}` as "lc.reg.PENDING")}</span></Td>
               <Td className="tabular-nums">{r.firstTerm.billed ? <>{formatMoney(r.firstTerm.paid)} / {formatMoney(r.firstTerm.charged)}<span className={`block text-xs ${r.firstTerm.outstanding ? "text-warn" : "text-muted"}`}>{t("lc.fee.owed")}: {formatMoney(r.firstTerm.outstanding)}</span></> : <span className="text-muted">—</span>}</Td>
               <Td className="tabular-nums">{r.year.billed ? <>{formatMoney(r.year.charged)}<span className="block text-xs text-muted">{t("lc.fee.owed")}: {formatMoney(r.year.outstanding)}</span></> : <span className="text-muted">—</span>}</Td>

@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { displayDate, formatDateOnly, todayInTimezone } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
 import { returningBoard, REGISTRATION_STAGES } from "@/server/annual-registration";
-import { AdmissionsNav } from "@/components/admissions/subnav";
 import { ActionForm } from "@/components/form";
 import { SubmitButton } from "@/components/submit-button";
 import { SelectAll } from "@/components/lifecycle/select-all";
@@ -29,7 +28,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
   const money = sp.money === "cleared" || sp.money === "owing" ? sp.money : undefined;
   const b = await returningBoard(ctx, { yearId: sp.year, classId: sp.class, stage: sp.stage, q: sp.q, money, page: Number(sp.page) || 1 });
   const canManage = can("registration.manage");
-  if (!b.year) return <><PageHeader title={t("lc.ret.title")} /><AdmissionsNav ctx={ctx} t={t} current="/admissions/returning" /><EmptyState>{t("lc.noNextYear")}</EmptyState></>;
+  if (!b.year) return <><PageHeader title={t("lc.ret.title")} /><EmptyState>{t("lc.noNextYear")}</EmptyState></>;
 
   const seeMoney = can("fees.read");
   const school = await db.school.findUniqueOrThrow({ where: { id: ctx.schoolId }, select: { timezone: true } });
@@ -42,15 +41,15 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries({ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money, ...extra })) if (v) p.set(k, v);
     const s = p.toString();
-    return s ? `/admissions/returning?${s}` : "/admissions/returning";
+    return s ? `/students/returning?${s}` : "/students/returning";
   };
   const by = b.counts.byStage;
   const ready = b.rows.filter((r) => r.stage === "READY_TO_ACTIVATE");
 
   return (
     <>
-      <PageHeader title={t("lc.ret.title")} subtitle={t("lc.ret.sub", { year: b.year.name })} actions={<Link href="/academic-setup/readiness" className="text-sm font-medium text-link hover:underline">{t("lc.ready.link")}</Link>} />
-      <AdmissionsNav ctx={ctx} t={t} current="/admissions/returning" />
+      <PageHeader title={t("lc.ret.title")} subtitle={t("lc.ret.sub", { year: b.year.name })} actions={<span className="flex flex-wrap items-center gap-4"><Link href="/students" className="text-sm font-medium text-link hover:underline">{t("student.title")}</Link><Link href="/academic-setup/readiness" className="text-sm font-medium text-link hover:underline">{t("lc.ready.link")}</Link></span>} />
+      
       {windowNote && <p className="mb-3 text-sm text-muted">{windowNote}</p>}
       <p className="mb-4 text-sm text-muted">{t(`lc.ret.policy.${b.settings.feePolicy}` as "lc.ret.policy.INFORM_ONLY")}</p>
 
@@ -100,7 +99,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
             {b.rows.map((r) => (
               <tr key={r.id}>
                 <Td className="w-10">{canManage && r.stage === "READY_TO_ACTIVATE" && <input type="checkbox" name="ids" value={r.id} aria-label={r.name} className="size-4 accent-brand-700" />}</Td>
-                <Td><Link href={`/admissions/returning/${r.id}`} className="font-medium text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Td>
+                <Td><Link href={`/students/returning/${r.id}`} className="font-medium text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Td>
                 <Td><span className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-muted">→ {r.decidedClassName}</span>}</span></Td>
                 <Td className="whitespace-nowrap">{r.className ? `${r.className}${r.streamName ? ` · ${r.streamName}` : ""}` : <span className="text-muted">—</span>}</Td>
                 <Td>
@@ -114,7 +113,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
           </DataTable>
         </ActionForm>
       )}
-      <Pagination page={b.page} pageSize={50} total={b.total} basePath="/admissions/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money }} t={t} />
+      <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money }} t={t} />
     </>
   );
 }

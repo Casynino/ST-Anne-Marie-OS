@@ -111,7 +111,7 @@ export default async function StudentProgressionPage({ params, searchParams }: {
           {d.registration && (
             <Card title={t("lc.detail.registration")}>
               <p className="text-sm">{t(`lc.reg.${d.registration.status}` as "lc.reg.PENDING")}</p>
-              {can("registration.read") && <Link href={`/admissions/returning/${d.registration.id}`} className="mt-2 inline-block text-sm font-medium text-link hover:underline">{t("lc.detail.openReg")}</Link>}
+              {can("registration.read") && <Link href={`/students/returning/${d.registration.id}`} className="mt-2 inline-block text-sm font-medium text-link hover:underline">{t("lc.detail.openReg")}</Link>}
             </Card>
           )}
           <Card title={t("lc.detail.history")}>

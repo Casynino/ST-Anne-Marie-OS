@@ -219,7 +219,7 @@ export function taskHref(t: { relatedType: string; relatedId: string }): string 
     case "Invoice": return `/finance/invoices/${t.relatedId}`;
     case "AcademicConcern": return `/academic-office/concerns/${t.relatedId}`;
     case "ClassTransfer": return "/academic-office/transfers";
-    case "AnnualRegistration": return "/admissions/returning";
+    case "AnnualRegistration": return "/students/returning";
     case "Candidate": return `/staff-recruitment/${t.relatedId}`;
     default: return null;
   }

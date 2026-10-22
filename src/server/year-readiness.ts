@@ -57,10 +57,10 @@ export async function yearReadiness(ctx: AuthContext, yearId?: string) {
   const count = (s: string) => regs.find((r) => r.status === s)?._count._all ?? 0;
   const placedPending = await db.annualRegistration.count({ where: { schoolId: ctx.schoolId, academicYearId: year.id, status: "PENDING", classId: { not: null } } });
   const unplaced = count("PENDING") - placedPending;
-  checks.push({ key: "registrations", ok: regs.length > 0, n: regs.reduce((n, r) => n + r._count._all, 0), href: "/admissions/returning" });
-  checks.push({ key: "unplaced", ok: unplaced === 0, n: unplaced, href: "/admissions/returning?stage=NEEDS_PLACEMENT" });
+  checks.push({ key: "registrations", ok: regs.length > 0, n: regs.reduce((n, r) => n + r._count._all, 0), href: "/students/returning" });
+  checks.push({ key: "unplaced", ok: unplaced === 0, n: unplaced, href: "/students/returning?stage=NEEDS_PLACEMENT" });
   // Waiting to join the class is expected until the year starts; after that it is something to do.
-  checks.push({ key: "toActivate", ok: count("REGISTERED") === 0 || today < formatDateOnly(year.startsOn), n: count("REGISTERED"), href: "/admissions/returning?stage=READY_TO_ACTIVATE" });
+  checks.push({ key: "toActivate", ok: count("REGISTERED") === 0 || today < formatDateOnly(year.startsOn), n: count("REGISTERED"), href: "/students/returning?stage=READY_TO_ACTIVATE" });
   checks.push({ key: "active", ok: true, n: count("ACTIVE") });
 
   const required = checks.filter((c) => !c.warn);

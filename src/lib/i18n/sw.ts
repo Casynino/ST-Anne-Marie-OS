@@ -4396,7 +4396,7 @@ export const sw: Record<MessageKey, string> = {
   "lc.stage.NOT_RETURNING": "Harudi",
   "lc.dept.ACADEMIC": "Ofisi ya Taaluma",
   "lc.dept.HEAD": "Mwalimu Mkuu",
-  "lc.dept.ADMISSIONS": "Uandikishaji",
+  "lc.dept.ADMISSIONS": "Ofisi ya Msajili",
   "lc.dept.FINANCE": "Fedha",
   "lc.dept.NONE": "—",
   "lc.clear.CLEARED": "Amekamilisha ada",

@@ -22,7 +22,7 @@ export function quickItems(kind: QuickKind, t: Translate, can: (p: string) => bo
       { href: "/students/new", label: t("dash.registerStudent"), icon: "students", perm: ["student.create"] },
       { href: "/admissions/new", label: t("dash.newApplication"), icon: "admissions", perm: ["admission.create"] },
       { href: "/admissions", label: t("nav.admissions"), icon: "admissions", perm: ["admission.read"], count: n("newApplications") },
-      { href: "/admissions/returning", label: t("lc.nav.returning"), icon: "students", perm: ["registration.read"] },
+      { href: "/students/returning", label: t("lc.nav.returning"), icon: "students", perm: ["registration.read"] },
       students,
       { href: "/students/import", label: t("acts.importStudents"), icon: "students", perm: ["student.import"] },
       { href: "/guardians", label: t("nav.guardians"), icon: "guardians", perm: ["guardian.read"] },
