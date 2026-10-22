@@ -62,7 +62,7 @@ export function ActionForm({
         {failed && (
           <div role="alert" className="flex gap-2 rounded-lg border border-bad/30 bg-red-50 px-3 py-2 text-sm text-bad">
             <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>{failed.error}</span>
+            <span className="whitespace-pre-line">{failed.error}</span>
           </div>
         )}
         {done?.message && (
