@@ -29,13 +29,13 @@ const rangeSchema = z
   .refine((v) => v.from <= v.to, { path: ["to"], message: "End date must not be before the start date" })
   .refine((v) => v.to.getTime() - v.from.getTime() <= 366 * 86_400_000, { path: ["to"], message: "Choose a range of at most one year" });
 
-async function rangeScope(ctx: AuthContext, to: Date): Promise<ClassScope> {
+export async function rangeScope(ctx: AuthContext, to: Date): Promise<ClassScope> {
   const year = await db.academicYear.findFirst({ where: { schoolId: ctx.schoolId, startsOn: { lte: to }, endsOn: { gte: to } }, select: { id: true } });
   // Outside any academic year there is nothing to scope; only school-wide readers get an (empty) report.
   return readScope(ctx, year?.id ?? "00000000-0000-0000-0000-000000000000");
 }
 
-function scopeWhere(scope: ClassScope): Prisma.StudentAttendanceWhereInput {
+export function scopeWhere(scope: ClassScope): Prisma.StudentAttendanceWhereInput {
   if (scope === "ALL") return {};
   if (!scope.length) return { id: "00000000-0000-0000-0000-000000000000" };
   return { OR: scope.map((s) => (s.streamId ? { classId: s.classId, streamId: s.streamId } : { classId: s.classId })) };
