@@ -10,10 +10,10 @@ import { RowAction } from "@/components/lifecycle/row-action";
 import { SubmitButton } from "@/components/submit-button";
 import { SelectAll } from "@/components/lifecycle/select-all";
 import { ClearanceBadge, CountTabs, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
-import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
+import { DefList, EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { Panel } from "@/components/dash/parts";
 import { Row } from "@/components/dash/rows";
-import { ArrowRight, Info } from "lucide-react";
+import { Check, Info } from "lucide-react";
 import { activateAction, confirmRegistrationAction, createRegistrationsAction, placeReturningAction } from "./actions";
 
 export const metadata: Metadata = { title: "Returning students" };
@@ -50,9 +50,60 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
   const by = b.counts.byStage;
   const ready = b.rows.filter((r) => r.stage === "READY_TO_ACTIVATE");
 
-  const th = "px-4 py-2.5 text-left text-[13px] font-medium text-muted";
-  const td = "px-4 py-2.5 align-middle";
+  const th = "px-3 py-2 text-left text-xs font-medium text-muted";
+  const td = "px-3 py-2 align-middle text-[13px]";
   const notes = [windowNote, t(`lc.ret.policy.${b.settings.feePolicy}` as "lc.ret.policy.INFORM_ONLY")].filter(Boolean);
+
+  type Row = (typeof b.rows)[number];
+  const placeForm = (r: Row, preferred: string) => (
+    <ActionForm action={placeReturningAction} submitLabel={t("lc.step.placeGo")} buttonClassName="btn-sm" className="space-y-3">
+      <input type="hidden" name="id" value={r.id} />
+      <Field name="placement" type="select" label={t("lc.step.placeLabel")} hint={t("lc.step.placeHint")} defaultValue={preferred} placeholder={t("common.select")} required options={b.options.map((o) => ({ value: o.value, label: o.full ? `${o.label} – ${t("adm.place.full")}` : o.label }))} />
+      {(can("progression.exception") || can("class.capacity_override")) && (
+        <details>
+          <summary className="min-h-10 cursor-pointer py-1.5 text-sm text-muted">{t("lc.step.exceptions")}</summary>
+          <div className="space-y-3">
+            {can("progression.exception") && <Field name="gradeReason" label={t("lc.step.gradeReason")} optionalLabel={t("common.optional")} hint={t("lc.step.gradeReasonHint")} />}
+            {can("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} optionalLabel={t("common.optional")} /></>}
+          </div>
+        </details>
+      )}
+    </ActionForm>
+  );
+  const registerForm = (r: Row) => (
+    <ActionForm action={confirmRegistrationAction} submitLabel={t("lc.step.registerGo")} buttonClassName="btn-sm" className="space-y-3">
+      <input type="hidden" name="id" value={r.id} />
+      <Field name="confirmed" type="checkbox" label={t("lc.step.confirmed")} hint={t("lc.step.confirmedHint")} />
+      <Field name="note" label={t("lc.bulk.note")} optionalLabel={t("common.optional")} />
+    </ActionForm>
+  );
+  const joinForm = (r: Row) => <ActionForm action={activateAction} submitLabel={t("lc.row.join")} inline className="inline" buttonClassName="btn-sm"><input type="hidden" name="ids" value={r.id} /></ActionForm>;
+  const preferredFor = (r: Row) => {
+    const decided = r.decidedClassId ? b.places.find((p) => p.classId === r.decidedClassId) : undefined;
+    return r.classId ? (r.streamId ? `${r.classId}|${r.streamId}` : r.classId) : decided ? (decided.streams.length && decided.recommendedStreamId ? `${decided.classId}|${decided.recommendedStreamId}` : decided.classId) : "";
+  };
+  /** The pop-up behind "View": the four steps at a glance, the facts, and the one form this student needs now, with a link to the full page. */
+  const quick = (r: Row) => {
+    const steps = [[t("lc.step.decision"), true], [t("lc.step.place"), r.classId !== null], [t("lc.step.register"), r.status === "REGISTERED" || r.status === "ACTIVE"], [t("lc.step.join"), r.status === "ACTIVE"]] as const;
+    return (
+      <div className="space-y-4">
+        <p className="flex flex-wrap items-center gap-2 text-sm"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-ink">{r.fromClassName} → <strong>{r.decidedClassName}</strong></span>}<ClearanceBadge state={r.clearance} t={t} /></p>
+        <ol className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+          {steps.map(([label, ok], i) => <li key={label} className={`rounded-lg border px-2.5 py-2 ${ok ? "border-ok/30 bg-ok/5" : "border-line bg-canvas/50"}`}><span className="flex items-center gap-1 text-muted">{ok ? <Check className="size-3.5 text-ok" aria-hidden /> : null}{t("lc.d.step", { n: i + 1 })}</span><span className="mt-0.5 block font-medium text-ink">{label}</span></li>)}
+        </ol>
+        <DefList items={[
+          { label: t("lc.col.placed"), value: r.className ? `${r.className}${r.streamName ? ` · ${r.streamName}` : ""}` : "—" },
+          { label: t("lc.col.next"), value: `${stageLabel(t, r.stage)}${r.department !== "NONE" ? ` · ${deptLabel(t, r.department)}` : ""}` },
+          ...(seeMoney ? [{ label: t("lc.fee.owed"), value: r.firstTermOutstanding ? formatMoney(r.firstTermOutstanding) : "—" }] : []),
+          ...(r.hasPreviousDebt ? [{ label: t("lc.fee.older"), value: seeMoney && r.previousOutstanding ? formatMoney(r.previousOutstanding) : t("lc.ret.olderDebt") }] : []),
+        ]} />
+        {canManage && r.stage === "NEEDS_PLACEMENT" && <div className="border-t border-line pt-4">{placeForm(r, preferredFor(r))}</div>}
+        {canManage && r.stage === "NEEDS_REGISTRATION" && <div className="border-t border-line pt-4">{registerForm(r)}</div>}
+        {canManage && r.stage === "READY_TO_ACTIVATE" && <div className="border-t border-line pt-4">{joinForm(r)}</div>}
+        <p className="text-right"><Link href={`/students/returning/${r.id}`} className="text-sm font-medium text-link hover:underline">{t("lc.d.openFull")} →</Link></p>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -102,8 +153,6 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
                   </tr></thead>
                   <tbody className="divide-y divide-line">
                     {b.rows.map((r) => {
-                      const decided = r.decidedClassId ? b.places.find((p) => p.classId === r.decidedClassId) : undefined;
-                      const preferred = r.classId ? (r.streamId ? `${r.classId}|${r.streamId}` : r.classId) : decided ? (decided.streams.length && decided.recommendedStreamId ? `${decided.classId}|${decided.recommendedStreamId}` : decided.classId) : "";
                       return (
                         <tr key={r.id} className="hover:bg-canvas/50">
                           <td className={`${td} w-10`}>{canManage && r.stage === "READY_TO_ACTIVATE" && <input type="checkbox" name="ids" value={r.id} form="bulk-activate" aria-label={r.name} className="size-4 accent-brand-700" />}</td>
@@ -118,36 +167,10 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
                           <td className={td}><span className={r.blocked ? "text-warn" : "text-ink"}>{stageLabel(t, r.stage)}</span>{r.department !== "NONE" && <span className="block text-xs text-muted">{deptLabel(t, r.department)}</span>}</td>
                           <td className={`${td} whitespace-nowrap text-right`}>
                             <span className="inline-flex items-center justify-end gap-2">
-                              {canManage && r.stage === "NEEDS_PLACEMENT" && (
-                                <RowAction primary label={t("lc.row.place")} title={t("lc.row.placeTitle", { name: r.name })} closeLabel={t("common.cancel")}>
-                                  <ActionForm action={placeReturningAction} submitLabel={t("lc.step.placeGo")} className="space-y-3">
-                                    <input type="hidden" name="id" value={r.id} />
-                                    <Field name="placement" type="select" label={t("lc.step.placeLabel")} hint={t("lc.step.placeHint")} defaultValue={preferred} placeholder={t("common.select")} required options={b.options.map((o) => ({ value: o.value, label: o.full ? `${o.label} – ${t("adm.place.full")}` : o.label }))} />
-                                    {(can("progression.exception") || can("class.capacity_override")) && (
-                                      <details>
-                                        <summary className="min-h-11 cursor-pointer py-2 text-sm text-muted">{t("lc.step.exceptions")}</summary>
-                                        <div className="space-y-3">
-                                          {can("progression.exception") && <Field name="gradeReason" label={t("lc.step.gradeReason")} optionalLabel={t("common.optional")} hint={t("lc.step.gradeReasonHint")} />}
-                                          {can("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} optionalLabel={t("common.optional")} /></>}
-                                        </div>
-                                      </details>
-                                    )}
-                                  </ActionForm>
-                                </RowAction>
-                              )}
-                              {canManage && r.stage === "NEEDS_REGISTRATION" && (
-                                <RowAction primary label={t("lc.row.register")} title={t("lc.row.registerTitle", { name: r.name })} closeLabel={t("common.cancel")}>
-                                  <ActionForm action={confirmRegistrationAction} submitLabel={t("lc.step.registerGo")} className="space-y-3">
-                                    <input type="hidden" name="id" value={r.id} />
-                                    <Field name="confirmed" type="checkbox" label={t("lc.step.confirmed")} hint={t("lc.step.confirmedHint")} />
-                                    <Field name="note" label={t("lc.bulk.note")} optionalLabel={t("common.optional")} />
-                                  </ActionForm>
-                                </RowAction>
-                              )}
-                              {canManage && r.stage === "READY_TO_ACTIVATE" && (
-                                <ActionForm action={activateAction} submitLabel={t("lc.row.join")} inline className="inline" buttonClassName="btn-sm"><input type="hidden" name="ids" value={r.id} /></ActionForm>
-                              )}
-                              <Link href={`/students/returning/${r.id}`} className="inline-flex items-center gap-1 px-1.5 text-sm font-medium text-link hover:underline">{t("common.view")}<ArrowRight className="size-3.5" aria-hidden /></Link>
+                              {canManage && r.stage === "NEEDS_PLACEMENT" && <RowAction primary label={t("lc.row.place")} title={t("lc.row.placeTitle", { name: r.name })} closeLabel={t("common.cancel")}>{placeForm(r, preferredFor(r))}</RowAction>}
+                              {canManage && r.stage === "NEEDS_REGISTRATION" && <RowAction primary label={t("lc.row.register")} title={t("lc.row.registerTitle", { name: r.name })} closeLabel={t("common.cancel")}>{registerForm(r)}</RowAction>}
+                              {canManage && r.stage === "READY_TO_ACTIVATE" && joinForm(r)}
+                              <RowAction link wide label={t("common.view")} title={r.name} closeLabel={t("common.cancel")}>{quick(r)}</RowAction>
                             </span>
                           </td>
                         </tr>

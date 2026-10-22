@@ -4855,4 +4855,5 @@ export const sw: Record<MessageKey, string> = {
   "tch.week.sub": "Vipindi kwenye ratiba yangu, siku kwa siku",
   "reg.waiting.day1": "siku 1",
   "lc.d.doNow": "Fanya hili sasa",
+  "lc.d.openFull": "Fungua ukurasa kamili",
 };
