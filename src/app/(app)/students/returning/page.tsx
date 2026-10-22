@@ -8,8 +8,11 @@ import { returningBoard, REGISTRATION_STAGES } from "@/server/annual-registratio
 import { ActionForm } from "@/components/form";
 import { SubmitButton } from "@/components/submit-button";
 import { SelectAll } from "@/components/lifecycle/select-all";
-import { ClearanceBadge, CountTabs, Figures, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
-import { DataTable, EmptyState, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
+import { ClearanceBadge, CountTabs, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
+import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
+import { ColorBars, DonutStat, GradientTile, Panel } from "@/components/dash/parts";
+import { Row } from "@/components/dash/rows";
+import { CheckCircle2, ClipboardCheck, GraduationCap, Hourglass, Info, Repeat2, Wallet } from "lucide-react";
 import { activateAction, createRegistrationsAction } from "./actions";
 
 export const metadata: Metadata = { title: "Returning students" };
@@ -46,74 +49,109 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
   const by = b.counts.byStage;
   const ready = b.rows.filter((r) => r.stage === "READY_TO_ACTIVATE");
 
+  const STAGE_COLOR: Record<string, string> = { NEEDS_PLACEMENT: "#ff8574", NEEDS_REGISTRATION: "#14a3b8", NEEDS_FEE: "#f3b94c", READY_TO_ACTIVATE: "#8b80ff", WAITING_YEAR_OPEN: "#a9a0ff", ACTIVE: "#2fd08f", NOT_RETURNING: "#4b5a52" };
+  const stageSegments = REGISTRATION_STAGES.filter((s) => (by[s] ?? 0) > 0).map((s) => ({ label: stageLabel(t, s), value: by[s] ?? 0, color: STAGE_COLOR[s] ?? "#4b5a52" }));
+  const rooms = b.places.filter((p) => p.capacity !== null);
+  const th = "px-4 py-2.5 text-left text-[13px] font-medium text-muted";
+  const td = "px-4 py-2.5 align-middle";
+  const notes = [windowNote, t(`lc.ret.policy.${b.settings.feePolicy}` as "lc.ret.policy.INFORM_ONLY")].filter(Boolean);
+
   return (
     <>
       <PageHeader title={t("lc.ret.title")} subtitle={t("lc.ret.sub", { year: b.year.name })} actions={<span className="flex flex-wrap items-center gap-4"><Link href="/students" className="text-sm font-medium text-link hover:underline">{t("student.title")}</Link><Link href="/academic-setup/readiness" className="text-sm font-medium text-link hover:underline">{t("lc.ready.link")}</Link></span>} />
-      
-      {windowNote && <p className="mb-3 text-sm text-muted">{windowNote}</p>}
-      <p className="mb-4 text-sm text-muted">{t(`lc.ret.policy.${b.settings.feePolicy}` as "lc.ret.policy.INFORM_ONLY")}</p>
+
+      <p className="mb-4 flex items-start gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm text-muted"><Info className="mt-0.5 size-4 shrink-0 text-link" aria-hidden /><span>{notes.join(" · ")}</span></p>
 
       {b.missing > 0 && canManage && (
-        <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-warn/40 bg-amber-50 px-3 py-2 text-sm text-warn">
+        <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-warn/40 bg-warn/10 px-4 py-2.5 text-sm text-warn">
           <span>{t("lc.ret.missing", { n: b.missing })}</span>
           <ActionForm action={createRegistrationsAction} submitLabel={t("lc.ret.createGo")} inline className="inline"><input type="hidden" name="yearId" value={b.year.id} /></ActionForm>
         </div>
       )}
 
-      <Figures items={[
-        { label: t("lc.ret.fig.total"), value: b.counts.total },
-        { label: t("lc.stage.NEEDS_PLACEMENT"), value: by.NEEDS_PLACEMENT ?? 0, tone: by.NEEDS_PLACEMENT ? "warn" : "ok" },
-        { label: t("lc.stage.NEEDS_REGISTRATION"), value: by.NEEDS_REGISTRATION ?? 0 },
-        { label: t("lc.stage.NEEDS_FEE"), value: by.NEEDS_FEE ?? 0, tone: by.NEEDS_FEE ? "warn" : undefined },
-        { label: t("lc.stage.READY_TO_ACTIVATE"), value: (by.READY_TO_ACTIVATE ?? 0) + (by.WAITING_YEAR_OPEN ?? 0) },
-        { label: t("lc.stage.ACTIVE"), value: by.ACTIVE ?? 0, tone: "ok" },
-      ]} />
+      <ul className="mb-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11.5rem,1fr))]">
+        <li><GradientTile icon={Repeat2} tone="orange" label={t("lc.ret.fig.total")} value={b.counts.total} /></li>
+        <li><GradientTile icon={ClipboardCheck} tone={by.NEEDS_PLACEMENT ? "rose" : "green"} label={t("lc.stage.NEEDS_PLACEMENT")} value={by.NEEDS_PLACEMENT ?? 0} /></li>
+        <li><GradientTile icon={GraduationCap} tone="teal" label={t("lc.stage.NEEDS_REGISTRATION")} value={by.NEEDS_REGISTRATION ?? 0} /></li>
+        <li><GradientTile icon={Wallet} tone="violet" label={t("lc.stage.NEEDS_FEE")} value={by.NEEDS_FEE ?? 0} /></li>
+        <li><GradientTile icon={Hourglass} tone="indigo" label={t("lc.stage.READY_TO_ACTIVATE")} value={(by.READY_TO_ACTIVATE ?? 0) + (by.WAITING_YEAR_OPEN ?? 0)} /></li>
+        <li><GradientTile icon={CheckCircle2} tone="green" label={t("lc.stage.ACTIVE")} value={by.ACTIVE ?? 0} /></li>
+      </ul>
 
-      <CountTabs items={[
-        { href: q({ stage: undefined, page: undefined }), label: t("lc.tab.all"), count: b.counts.total, active: !sp.stage },
-        ...REGISTRATION_STAGES.filter((s) => (by[s] ?? 0) > 0).map((s) => ({ href: q({ stage: s, page: undefined }), label: stageLabel(t, s), count: by[s], active: sp.stage === s })),
-      ]} />
+      <Row>
+        <Panel className="flex-[3_1_40rem]" title={t("lc.ret.fig.total")}>
+          <CountTabs items={[
+            { href: q({ stage: undefined, page: undefined }), label: t("lc.tab.all"), count: b.counts.total, active: !sp.stage },
+            ...REGISTRATION_STAGES.filter((s) => (by[s] ?? 0) > 0).map((s) => ({ href: q({ stage: s, page: undefined }), label: stageLabel(t, s), count: by[s], active: sp.stage === s })),
+          ]} />
+          <form method="get" className="mb-4 flex flex-wrap items-end gap-2.5">
+            {sp.year && <input type="hidden" name="year" value={sp.year} />}
+            {sp.stage && <input type="hidden" name="stage" value={sp.stage} />}
+            <label className="text-xs text-muted"><span className="mb-1 block">{t("lc.col.class")}</span>
+              <select name="class" defaultValue={sp.class ?? ""} className="min-h-10 rounded-lg border border-line bg-surface px-3 text-sm text-ink"><option value="">{t("lc.allClasses")}</option>{b.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+            </label>
+            <label className="text-xs text-muted"><span className="mb-1 block">{t("lc.col.fees")}</span>
+              <select name="money" defaultValue={sp.money ?? ""} className="min-h-10 rounded-lg border border-line bg-surface px-3 text-sm text-ink"><option value="">{t("lc.tab.all")}</option><option value="cleared">{t("lc.clear.CLEARED")}</option><option value="owing">{t("lc.clear.OUTSTANDING")}</option></select>
+            </label>
+            <label className="min-w-44 flex-1 text-xs text-muted"><span className="mb-1 block">{t("common.search")}</span><input name="q" defaultValue={sp.q ?? ""} placeholder={t("lc.searchHint")} className="min-h-10 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink" /></label>
+            <button className="btn-secondary min-h-10 px-4 text-sm font-medium">{t("common.filter")}</button>
+          </form>
 
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
-        {sp.year && <input type="hidden" name="year" value={sp.year} />}
-        {sp.stage && <input type="hidden" name="stage" value={sp.stage} />}
-        <label className="text-sm"><span className="mb-1 block text-muted">{t("lc.col.class")}</span>
-          <select name="class" defaultValue={sp.class ?? ""} className="min-h-11 rounded-lg border border-line bg-surface px-3 text-base"><option value="">{t("lc.allClasses")}</option>{b.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-        </label>
-        <label className="text-sm"><span className="mb-1 block text-muted">{t("lc.col.fees")}</span>
-          <select name="money" defaultValue={sp.money ?? ""} className="min-h-11 rounded-lg border border-line bg-surface px-3 text-base"><option value="">{t("lc.tab.all")}</option><option value="cleared">{t("lc.clear.CLEARED")}</option><option value="owing">{t("lc.clear.OUTSTANDING")}</option></select>
-        </label>
-        <label className="text-sm"><span className="mb-1 block text-muted">{t("common.search")}</span><input name="q" defaultValue={sp.q ?? ""} placeholder={t("lc.searchHint")} className="min-h-11 w-56 rounded-lg border border-line bg-surface px-3 text-base" /></label>
-        <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-medium hover:bg-canvas btn-secondary">{t("common.filter")}</button>
-      </form>
-
-      {b.rows.length === 0 ? <EmptyState>{t("lc.ret.none")}</EmptyState> : (
-        <ActionForm action={activateAction} hideSubmit className="space-y-3">
-          {canManage && ready.length > 0 && (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-3">
-              <SubmitButton>{t("lc.ret.activate")}</SubmitButton>
-              <span className="text-xs text-muted">{t("lc.ret.activateHint")}</span>
-            </div>
+          {b.rows.length === 0 ? <EmptyState>{t("lc.ret.none")}</EmptyState> : (
+            <ActionForm action={activateAction} hideSubmit className="space-y-3">
+              {canManage && ready.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-canvas/50 px-3 py-2.5">
+                  <SubmitButton>{t("lc.ret.activate")}</SubmitButton>
+                  <span className="text-xs text-muted">{t("lc.ret.activateHint")}</span>
+                </div>
+              )}
+              <div className="-mx-5 overflow-x-auto">
+                <table className="w-full min-w-[44rem] text-sm">
+                  <thead><tr className="border-y border-line">
+                    <th className={`${th} w-10`}>{canManage && ready.length > 0 ? <SelectAll name="ids" label={t("lc.selectAll")} /> : null}</th>
+                    <th className={th}>{t("lc.col.student")}</th><th className={th}>{t("lc.col.decision")}</th><th className={th}>{t("lc.col.placed")}</th><th className={th}>{t("lc.col.fees")}</th><th className={th}>{t("lc.col.next")}</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-line">
+                    {b.rows.map((r) => (
+                      <tr key={r.id} className="hover:bg-canvas/50">
+                        <td className={`${td} w-10`}>{canManage && r.stage === "READY_TO_ACTIVATE" && <input type="checkbox" name="ids" value={r.id} aria-label={r.name} className="size-4 accent-brand-700" />}</td>
+                        <td className={td}><Link href={`/students/returning/${r.id}`} className="font-medium text-ink hover:text-link hover:underline">{r.name}</Link><span className="block text-xs tabular-nums text-muted">{r.admissionNo}</span></td>
+                        <td className={td}><span className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-muted">→ {r.decidedClassName}</span>}</span></td>
+                        <td className={`${td} whitespace-nowrap`}>{r.className ? `${r.className}${r.streamName ? ` · ${r.streamName}` : ""}` : <span className="text-muted">—</span>}</td>
+                        <td className={td}>
+                          <ClearanceBadge state={r.clearance} t={t} />
+                          {seeMoney && r.firstTermOutstanding ? <span className="mt-1 block text-xs tabular-nums text-muted">{formatMoney(r.firstTermOutstanding)}</span> : null}
+                          {r.hasPreviousDebt && <span className="mt-1 block text-xs text-warn">{t("lc.ret.olderDebt")}{seeMoney && r.previousOutstanding ? ` · ${formatMoney(r.previousOutstanding)}` : ""}</span>}
+                        </td>
+                        <td className={td}><span className={r.blocked ? "text-warn" : "text-ink"}>{stageLabel(t, r.stage)}</span>{r.department !== "NONE" && <span className="block text-xs text-muted">{deptLabel(t, r.department)}</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ActionForm>
           )}
-          <DataTable head={[canManage && ready.length > 0 ? <SelectAll key="all" name="ids" label={t("lc.selectAll")} /> : "", t("lc.col.student"), t("lc.col.decision"), t("lc.col.placed"), t("lc.col.fees"), t("lc.col.next")]}>
-            {b.rows.map((r) => (
-              <tr key={r.id}>
-                <Td className="w-10">{canManage && r.stage === "READY_TO_ACTIVATE" && <input type="checkbox" name="ids" value={r.id} aria-label={r.name} className="size-4 accent-brand-700" />}</Td>
-                <Td><Link href={`/students/returning/${r.id}`} className="font-medium text-link hover:underline">{r.name}</Link><span className="block text-xs text-muted">{r.admissionNo}</span></Td>
-                <Td><span className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-muted">→ {r.decidedClassName}</span>}</span></Td>
-                <Td className="whitespace-nowrap">{r.className ? `${r.className}${r.streamName ? ` · ${r.streamName}` : ""}` : <span className="text-muted">—</span>}</Td>
-                <Td>
-                  <ClearanceBadge state={r.clearance} t={t} />
-                  {seeMoney && r.firstTermOutstanding ? <span className="mt-1 block text-xs tabular-nums text-muted">{formatMoney(r.firstTermOutstanding)}</span> : null}
-                  {r.hasPreviousDebt && <span className="mt-1 block text-xs text-warn">{t("lc.ret.olderDebt")}{seeMoney && r.previousOutstanding ? ` · ${formatMoney(r.previousOutstanding)}` : ""}</span>}
-                </Td>
-                <Td><span className={r.blocked ? "text-warn" : ""}>{stageLabel(t, r.stage)}</span>{r.department !== "NONE" && <span className="block text-xs text-muted">{deptLabel(t, r.department)}</span>}</Td>
-              </tr>
-            ))}
-          </DataTable>
-        </ActionForm>
-      )}
-      <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money }} t={t} />
+          <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money }} t={t} />
+        </Panel>
+
+        <div className="flex flex-[1_1_19rem] flex-col gap-4">
+          {stageSegments.length > 0 && (
+            <Panel title={t("lc.ret.whereTitle")}>
+              <DonutStat label={t("lc.ret.whereTitle")} center={b.counts.total} caption={t("lc.ret.fig.total")} segments={stageSegments} />
+            </Panel>
+          )}
+          {seeMoney && b.counts.total > 0 && (
+            <Panel title={t("lc.col.fees")}>
+              <DonutStat label={t("lc.col.fees")} center={b.counts.total} caption={t("lc.col.fees")} segments={[{ label: t("lc.clear.CLEARED"), value: b.counts.cleared, color: "#2fd08f" }, { label: t("lc.clear.OUTSTANDING"), value: b.counts.owing, color: "#f3b94c" }]} />
+            </Panel>
+          )}
+          {rooms.length > 0 && (
+            <Panel title={t("lc.ret.placesTitle", { year: b.year.name })} subtitle={t("lc.ret.placesSub")}>
+              <ColorBars label={t("lc.ret.placesTitle", { year: b.year.name })} max={Math.max(...rooms.map((p) => p.capacity ?? 0))} labelWidth="5.5rem" items={rooms.map((p) => ({ label: p.name, value: p.inClass + p.reserved, mark: p.capacity }))} />
+            </Panel>
+          )}
+        </div>
+      </Row>
     </>
   );
 }

@@ -4720,4 +4720,7 @@ export const sw: Record<MessageKey, string> = {
   "attn.title": "Yanayohitaji umakini wako",
   "student.byLevel": "Wanafunzi kwa ngazi",
   "student.class.teacherCol": "Mwalimu wa darasa",
+  "lc.ret.whereTitle": "Walipo sasa",
+  "lc.ret.placesTitle": "Nafasi mwaka {year}",
+  "lc.ret.placesSub": "Wanafunzi kila darasa na nafasi zilizoahidiwa, kikomo kama alama",
 };

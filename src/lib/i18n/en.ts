@@ -4718,6 +4718,9 @@ export const en = {
   "attn.title": "Needs your attention",
   "student.byLevel": "Students by level",
   "student.class.teacherCol": "Class teacher",
+  "lc.ret.whereTitle": "Where they are",
+  "lc.ret.placesTitle": "Places in {year}",
+  "lc.ret.placesSub": "Students in each class and the places promised, with the limit as a tick",
 } as const;
 
 export type MessageKey = keyof typeof en;
