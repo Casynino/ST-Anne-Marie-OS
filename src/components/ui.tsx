@@ -106,12 +106,12 @@ export function Pagination({ page, pageSize, total, basePath, params, t }: { pag
       </span>
       <div className="flex gap-2">
         {page > 1 ? (
-          <Link href={href(page - 1)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line bg-surface px-3 text-ink hover:bg-canvas">
+          <Link href={href(page - 1)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line bg-surface px-3 text-ink hover:bg-canvas btn-secondary">
             <ChevronLeft className="size-4" aria-hidden /> {t("common.previous")}
           </Link>
         ) : null}
         {page < pages ? (
-          <Link href={href(page + 1)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line bg-surface px-3 text-ink hover:bg-canvas">
+          <Link href={href(page + 1)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-line bg-surface px-3 text-ink hover:bg-canvas btn-secondary">
             {t("common.next")} <ChevronRight className="size-4" aria-hidden />
           </Link>
         ) : null}
@@ -148,7 +148,7 @@ export function FilterBar({ children, t, resetHref }: { children: ReactNode; t: 
   return (
     <form method="get" className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-3">
       {children}
-      <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("common.filter")}</button>
+      <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{t("common.filter")}</button>
       <Link href={resetHref} className="inline-flex min-h-11 items-center px-2 text-sm text-muted hover:text-ink">
         {t("common.clear")}
       </Link>

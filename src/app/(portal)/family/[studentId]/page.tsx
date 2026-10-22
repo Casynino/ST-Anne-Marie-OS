@@ -65,7 +65,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
   return (
     <>
       {many && <Link href="/family" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-link hover:underline"><ArrowLeft className="size-4" aria-hidden />{t("fam.allChildren")}</Link>}
-      <DashHero photoIndex={2} eyebrow={`${school.name} · ${klass} · ${child.admissionNo}`.toUpperCase()} title={own ? t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first }) : child.name}>
+      <DashHero photoIndex={2} locale={ctx.locale} eyebrow={`${school.name} · ${klass} · ${child.admissionNo}`.toUpperCase()} title={own ? t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first }) : child.name}>
         {bits.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>)}
       </DashHero>
 
@@ -184,7 +184,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
                   <Cell right>
                     <span className="inline-flex gap-2">
                       <Link href={`/family/report-cards/${c.id}`} className="inline-flex min-h-10 items-center rounded-lg border border-line px-3 text-sm font-semibold hover:bg-canvas">{t("common.view")}</Link>
-                      <a href={`/api/report-cards/${c.id}`} target="_blank" rel="noopener" className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-800"><FileDown className="size-4" aria-hidden />{t("rc.pdf")}</a>
+                      <a href={`/api/report-cards/${c.id}`} target="_blank" rel="noopener" className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-brand-700 px-3 text-sm font-semibold text-white hover:bg-brand-800 btn-primary"><FileDown className="size-4" aria-hidden />{t("rc.pdf")}</a>
                     </span>
                   </Cell>
                 </tr>

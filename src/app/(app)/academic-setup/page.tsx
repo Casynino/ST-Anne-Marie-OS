@@ -261,7 +261,7 @@ async function AssignmentsTab({ canAssign, ctx, yearParam }: { canAssign: boolea
       <form method="get" className="flex flex-wrap items-end gap-3">
         <input type="hidden" name="tab" value="assignments" />
         <Field name="year" label={t("academics.selectYear")} type="select" options={years.map((y) => ({ value: y.id, label: y.name }))} defaultValue={year.id} />
-        <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-medium hover:bg-canvas">{t("common.filter")}</button>
+        <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-medium hover:bg-canvas btn-secondary">{t("common.filter")}</button>
       </form>
 
       {canAssign && (

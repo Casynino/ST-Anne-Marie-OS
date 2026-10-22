@@ -34,7 +34,7 @@ export default async function RegisterPage({ params }: { params: Promise<{ id: s
       <PageHeader
         title={`${reg.className}${reg.streamName ? ` · ${reg.streamName}` : ""}`}
         subtitle={`${reg.date} · ${reg.sessionName} · ${reg.status === "FINALISED" ? t("att.finalised") : t("att.draft")}`}
-        actions={<Link href={`/attendance?date=${reg.date}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas">{t("common.back")}</Link>}
+        actions={<Link href={`/attendance?date=${reg.date}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas btn-secondary">{t("common.back")}</Link>}
       />
       <p className="mb-4 text-sm text-muted">
         {t("att.summary", { present: counts.PRESENT, absent: counts.ABSENT, late: counts.LATE, excused: counts.EXCUSED })}

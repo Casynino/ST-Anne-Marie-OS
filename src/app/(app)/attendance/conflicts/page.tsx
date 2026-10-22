@@ -85,8 +85,8 @@ export default async function ConflictsPage({ searchParams }: { searchParams: Pr
 function ResolveButtons({ accept, dismiss }: { accept: string; dismiss: string }) {
   return (
     <>
-      <button name="action" value="ACCEPT" className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{accept}</button>
-      <button name="action" value="DISMISS" className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:bg-canvas">{dismiss}</button>
+      <button name="action" value="ACCEPT" className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{accept}</button>
+      <button name="action" value="DISMISS" className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:bg-canvas btn-secondary">{dismiss}</button>
     </>
   );
 }

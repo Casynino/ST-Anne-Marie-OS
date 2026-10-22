@@ -72,7 +72,7 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
           <select name="class" defaultValue={sp.class ?? ""} className="min-h-11 rounded-lg border border-line bg-surface px-3 text-base"><option value="">{t("lc.allClasses")}</option>{b.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         </label>
         <label className="text-sm"><span className="mb-1 block text-muted">{t("common.search")}</span><input name="q" defaultValue={sp.q ?? ""} placeholder={t("lc.searchHint")} className="min-h-11 w-56 rounded-lg border border-line bg-surface px-3 text-base" /></label>
-        <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-medium hover:bg-canvas">{t("common.filter")}</button>
+        <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-medium hover:bg-canvas btn-secondary">{t("common.filter")}</button>
       </form>
 
       {b.rows.length === 0 ? <EmptyState>{t("lc.ret.none")}</EmptyState> : (

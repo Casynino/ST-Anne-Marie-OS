@@ -20,7 +20,7 @@ export default async function StaffMessagesPage({ searchParams }: { searchParams
   const [rows, attention, school] = await Promise.all([listStaffThreads(ctx, { box }), countStaffAttention(ctx), getSchoolBasics(ctx.schoolId)]);
   return (
     <>
-      <PageHeader title={t("msg.title")} subtitle={t("msg.staff.subtitle")} actions={hasAny(ctx, ["messages.send"]) && <Link href="/communication/messages/new" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("msg.new")}</Link>} />
+      <PageHeader title={t("msg.title")} subtitle={t("msg.staff.subtitle")} actions={hasAny(ctx, ["messages.send"]) && <Link href="/communication/messages/new" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{t("msg.new")}</Link>} />
       <CommunicationNav ctx={ctx} t={t} current="/communication/messages" attention={attention} />
       {boxes.length > 1 && (
         <nav className="mb-4 flex flex-wrap gap-2" aria-label={t("msg.title")}>

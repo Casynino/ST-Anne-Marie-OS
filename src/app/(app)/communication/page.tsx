@@ -24,8 +24,8 @@ export default async function CommunicationPage() {
         title={t("comm.title")}
         subtitle={t("comm.subtitle")}
         actions={<>
-          {hasAny(ctx, ["comms.send"]) && <Link href="/communication/new?kind=ANNOUNCEMENT" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("comm.newNotice")}</Link>}
-          {hasAny(ctx, ["comms.fee_reminder"]) && <Link href="/communication/new?kind=FEE_REMINDER" className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas">{t("comm.newReminder")}</Link>}
+          {hasAny(ctx, ["comms.send"]) && <Link href="/communication/new?kind=ANNOUNCEMENT" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{t("comm.newNotice")}</Link>}
+          {hasAny(ctx, ["comms.fee_reminder"]) && <Link href="/communication/new?kind=FEE_REMINDER" className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas btn-secondary">{t("comm.newReminder")}</Link>}
         </>}
       />
       <CommunicationNav ctx={ctx} t={t} current="/communication" attention={attention} />

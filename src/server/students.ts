@@ -464,7 +464,7 @@ export async function listStudents(
         enrollments: {
           where: { status: "ACTIVE", ...(year ? { academicYearId: year.id } : {}) },
           take: 1,
-          select: { class: { select: { name: true } }, stream: { select: { name: true } } },
+          select: { classId: true, streamId: true, class: { select: { name: true } }, stream: { select: { name: true } } },
         },
       },
     }),

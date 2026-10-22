@@ -30,7 +30,7 @@ export default async function LibraryAdminPage({ searchParams }: { searchParams:
         <input name="q" type="search" defaultValue={sp.q ?? ""} placeholder={t("lib.search.placeholder")} aria-label={t("lib.search")} className={`${SELECT} sm:col-span-2`} />
         <select name="status" defaultValue={sp.status ?? ""} aria-label={t("lib.m.status")} className={SELECT}><option value="">{t("lib.f.any")}</option>{STATUSES.map((s) => <option key={s} value={s}>{t(`lib.status.${s}` as "lib.status.DRAFT")}</option>)}</select>
         <select name="categoryId" defaultValue={sp.categoryId ?? ""} aria-label={t("lib.f.category")} className={SELECT}><option value="">{t("lib.f.any")}</option>{opts?.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-        <button type="submit" className="min-h-11 rounded-lg bg-brand-700 px-5 font-semibold text-white hover:bg-brand-800 sm:col-span-4 sm:w-40">{t("lib.search.button")}</button>
+        <button type="submit" className="min-h-11 rounded-lg bg-brand-700 px-5 font-semibold text-white hover:bg-brand-800 sm:col-span-4 sm:w-40 btn-primary">{t("lib.search.button")}</button>
       </form>
       {res.items.length === 0 ? <EmptyState>{t("lib.admin.none")}</EmptyState> : (
         <div className="overflow-x-auto rounded-xl border border-line bg-surface">

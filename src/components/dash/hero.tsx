@@ -1,34 +1,51 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { Search } from "lucide-react";
 import siteMedia from "@/lib/site-media.json";
+import { LiveClock } from "./live-clock";
 
 type Media = { gallery: { path: string; width: number; height: number; alt: string }[] };
 
 /**
- * The first thing on a home screen: who you are, what role you are acting as, and one plain sentence about the school today
- * (every number in `children` comes from the school's own records). The photograph is one of the school's own, fading out
- * to the left so the text stays readable; with no photograph the banner is simply the dark surface.
+ * The first thing on a home screen: the date and the role you are acting as, a greeting, one plain sentence about the school today (every number
+ * in `children` comes from the school's own records), and, for staff, a search box and the main actions. The banner is a deep green-to-teal
+ * gradient with a faint grid; one of the school's own photographs shows through on the right. Colours stay the same in light and dark mode.
  */
-export function DashHero({ eyebrow, title, children, photoIndex = 1 }: { eyebrow: string; title: string; children: ReactNode; photoIndex?: number }) {
+export function DashHero({ eyebrow, title, children, photoIndex = 1, search, actions, tz = "Africa/Dar_es_Salaam", locale = "EN" }: {
+  eyebrow: string; title: string; children: ReactNode; photoIndex?: number;
+  search?: { action: string; placeholder: string; label: string; button: string }; actions?: ReactNode; tz?: string; locale?: "EN" | "SW";
+}) {
   const photo = (siteMedia as unknown as Media).gallery?.[photoIndex] ?? (siteMedia as unknown as Media).gallery?.[0];
+  const date = new Intl.DateTimeFormat(locale === "SW" ? "sw-TZ" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: tz }).format(new Date());
   return (
-    <section className="relative isolate overflow-hidden rounded-3xl border border-line bg-surface shadow-[var(--shadow-card)]">
-      {photo && (
-        <>
-          <Image src={photo.path} alt="" width={photo.width} height={photo.height} sizes="(min-width: 1024px) 45vw, 100vw" priority className="absolute inset-y-0 right-0 -z-20 h-full w-full object-cover object-center opacity-60 md:w-[58%]" />
-          <div aria-hidden className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,var(--color-surface)_0%,var(--color-surface)_38%,transparent_100%)] max-md:bg-[linear-gradient(180deg,transparent,var(--color-surface))]" />
-        </>
-      )}
-      <div className="max-w-2xl px-6 py-7 sm:px-9 sm:py-9">
-        <p className="text-[11px] font-bold uppercase tracking-[.22em] text-sun">{eyebrow}</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-heading sm:text-4xl">{title}</h1>
-        <p className="mt-3 max-w-xl text-base leading-relaxed text-ink/85 sm:text-lg">{children}</p>
+    <section className="relative isolate overflow-hidden rounded-2xl border border-white/10 text-white shadow-[var(--shadow-lift)]">
+      <div aria-hidden className="dash-hero-bg absolute inset-0 -z-30" />
+      {photo && <Image src={photo.path} alt="" width={photo.width} height={photo.height} sizes="(min-width: 1024px) 45vw, 100vw" priority className="absolute inset-y-0 right-0 -z-20 hidden h-full w-[48%] object-cover opacity-35 mix-blend-luminosity md:block" />}
+      <div aria-hidden className="dash-hero-grid absolute inset-0 -z-10" />
+      <div className="px-6 py-6 sm:px-9 sm:py-8">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-xs">
+          <p className="flex items-center gap-2 font-semibold uppercase tracking-[.16em] text-white/90"><span className="live-dot" aria-hidden />{eyebrow}</p>
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-white/80"><span>{date}</span><LiveClock zones={[{ label: "", tz }]} /></span>
+        </div>
+        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-[2.5rem] sm:leading-[1.1]">{title}</h1>
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-white/85 sm:text-lg">{children}</p>
+        {search && (
+          <form action={search.action} method="get" className="mt-5 flex max-w-2xl gap-2" role="search">
+            <label className="relative min-w-0 flex-1">
+              <span className="sr-only">{search.label}</span>
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-white/60" aria-hidden />
+              <input name="q" placeholder={search.placeholder} className="min-h-11 w-full !border-white/20 !bg-black/25 pl-10 pr-3 text-[15px] !text-white placeholder:text-white/55" />
+            </label>
+            <button className="min-h-11 shrink-0 rounded-[0.625rem] bg-white px-5 text-sm font-medium text-brand-900 shadow-sm transition-colors hover:bg-brand-50">{search.button}</button>
+          </form>
+        )}
+        {actions && <div className="mt-4 flex flex-wrap gap-2">{actions}</div>}
       </div>
     </section>
   );
 }
 
-/** A number highlighted inside the hero sentence. */
+/** A number highlighted inside the hero sentence (the hero is always dark, so these are light tones). */
 export const Hi = ({ tone = "ok", children }: { tone?: "ok" | "warn" | "bad"; children: ReactNode }) => (
-  <strong className={`font-semibold ${tone === "ok" ? "text-ok" : tone === "warn" ? "text-sun" : "text-bad"}`}>{children}</strong>
+  <strong className={`font-semibold ${tone === "ok" ? "text-emerald-200" : tone === "warn" ? "text-yellow-200" : "text-red-200"}`}>{children}</strong>
 );

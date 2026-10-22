@@ -12,7 +12,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
       <h1 className="mt-3 text-lg font-semibold">Something went wrong</h1>
       <p className="mt-1 text-sm text-muted">This page could not be loaded. Your data has not been changed. Please try again.</p>
       {error.digest && <p className="mt-2 text-xs text-muted">Reference: {error.digest}</p>}
-      <button type="button" onClick={reset} className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-800">Try again</button>
+      <button type="button" onClick={reset} className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">Try again</button>
     </div>
   );
 }

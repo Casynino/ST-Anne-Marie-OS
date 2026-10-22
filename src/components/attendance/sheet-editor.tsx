@@ -153,7 +153,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
           {fmtDate(sheet.date, locale)} · {sheet.session.name}
         </span>
         {onClose && (
-          <button type="button" onClick={onClose} className="ml-auto min-h-11 rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas">
+          <button type="button" onClick={onClose} className="ml-auto min-h-11 rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas btn-secondary">
             {t("off.back")}
           </button>
         )}
@@ -265,7 +265,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
             {lateMode && (
               <div>
                 <p className="mb-2 text-sm text-muted">{t("att.late.hint")}</p>
-                <button type="button" disabled={busy || lateJoiners.every((s) => !marks[s.id]?.status)} onClick={() => submit("FINALISE", true)} className="min-h-12 w-full rounded-xl bg-brand-700 px-3 text-base font-semibold text-white hover:bg-brand-800 disabled:opacity-50">
+                <button type="button" disabled={busy || lateJoiners.every((s) => !marks[s.id]?.status)} onClick={() => submit("FINALISE", true)} className="min-h-12 w-full rounded-xl bg-brand-700 px-3 text-base font-semibold text-white hover:bg-brand-800 disabled:opacity-50 btn-primary">
                   {busy ? <Loader2 className="mx-auto size-5 animate-spin" aria-hidden /> : t("att.late.add")}
                 </button>
               </div>
@@ -275,7 +275,7 @@ export function SheetEditor({ userId, locale, sheet, source, onClose }: { userId
                 <button type="button" disabled={busy || markedCount === 0} onClick={() => submit("SAVE_DRAFT")} className="min-h-12 rounded-xl border border-brand-700 bg-surface px-3 text-base font-semibold text-link hover:bg-tint disabled:opacity-50">
                   {t("att.saveDraft")}
                 </button>
-                <button type="button" disabled={busy || unmarked > 0 || markable.length === 0 || sheet.markedElsewhere.length > 0} onClick={() => submit("FINALISE")} className="min-h-12 rounded-xl bg-brand-700 px-3 text-base font-semibold text-white hover:bg-brand-800 disabled:opacity-50">
+                <button type="button" disabled={busy || unmarked > 0 || markable.length === 0 || sheet.markedElsewhere.length > 0} onClick={() => submit("FINALISE")} className="min-h-12 rounded-xl bg-brand-700 px-3 text-base font-semibold text-white hover:bg-brand-800 disabled:opacity-50 btn-primary">
                   {busy ? <Loader2 className="mx-auto size-5 animate-spin" aria-hidden /> : t("att.finalise")}
                 </button>
               </div>
@@ -296,7 +296,7 @@ export function ConnectionLine({ t, online, unsynced, syncing, onSync }: { t: Re
       </span>
       <span className="text-muted">{unsynced > 0 ? t("off.unsynced", { count: unsynced }) : t("off.allSynced")}</span>
       {unsynced > 0 && (
-        <button type="button" onClick={onSync} disabled={syncing || !online} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas disabled:opacity-50">
+        <button type="button" onClick={onSync} disabled={syncing || !online} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas disabled:opacity-50 btn-secondary">
           <RefreshCw className={`size-4 ${syncing ? "animate-spin" : ""}`} aria-hidden /> {syncing ? t("off.syncing") : t("off.syncNow")}
         </button>
       )}

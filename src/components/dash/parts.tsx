@@ -3,16 +3,18 @@ import type { ReactNode } from "react";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 import { Ring, Spark, type VizTone } from "./viz";
 
-/** Section heading in the dashboard: a bold title with a one-line purpose, closed by a hairline. */
-export function DashSection({ id, eyebrow, title, subtitle, children }: { id: string; eyebrow?: string; title: string; subtitle?: string; children: ReactNode }) {
+/** Section heading in the dashboard: a short yellow bar, a spaced capital title, one line of purpose, and an optional link on the right. */
+export function DashSection({ id, eyebrow, title, subtitle, link, children }: { id: string; eyebrow?: string; title: string; subtitle?: string; link?: { href: string; label: string }; children: ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-h`} className="mt-8 scroll-mt-24">
-      {eyebrow && (
-        <div className="mb-3 flex items-center gap-3"><span className="text-xs font-semibold text-muted">{eyebrow}</span><span aria-hidden className="h-px flex-1 bg-line" /></div>
-      )}
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-line pb-2">
-        <h2 id={`${id}-h`} className="text-xl font-semibold tracking-tight text-ink">{title}</h2>
-        {subtitle && <p className="text-sm text-muted">{subtitle}</p>}
+    <section id={id} aria-labelledby={`${id}-h`} className="mt-10 scroll-mt-24">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+        <div className="min-w-0">
+          <span aria-hidden className="mb-2 block h-[3px] w-9 rounded-sm bg-sun" />
+          {eyebrow && <p className="mb-0.5 text-xs text-muted">{eyebrow}</p>}
+          <h2 id={`${id}-h`} className="text-[13px] font-semibold uppercase tracking-[.16em] text-ink">{title}</h2>
+          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+        </div>
+        {link && <Link href={link.href} className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">{link.label}<ArrowRight className="size-4" aria-hidden /></Link>}
       </div>
       {children}
     </section>
@@ -30,35 +32,75 @@ const PILL = {
 export type PillTone = keyof typeof PILL;
 export const Pill = ({ tone = "neutral", children }: { tone?: PillTone; children: ReactNode }) => <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${PILL[tone]}`}>{children}</span>;
 
-/** A headline number: small capital label, big figure, one line of context and a status pill. It can carry a trend line (`spark`) or a progress ring (`ring`, a percentage) when the numbers exist. */
+const ACCENT = {
+  ok: { tile: "bg-ok/15 text-ok", bar: "bg-ok/70", glow: "from-ok/10" },
+  warn: { tile: "bg-warn/15 text-warn", bar: "bg-warn/70", glow: "from-warn/10" },
+  bad: { tile: "bg-bad/15 text-bad", bar: "bg-bad/70", glow: "from-bad/12" },
+  info: { tile: "bg-[#8b80ff]/15 text-[#a9a0ff]", bar: "bg-[#8b80ff]/70", glow: "from-[#8b80ff]/10" },
+  brand: { tile: "bg-brand-500/15 text-link", bar: "bg-brand-500/70", glow: "from-brand-500/10" },
+} as const;
+function accentOf(pill: PillTone | undefined, tone: VizTone): keyof typeof ACCENT {
+  if (pill === "bad" || tone === "bad") return "bad";
+  if (pill === "warn" || tone === "warn" || tone === "sun") return "warn";
+  if (pill === "info" || tone === "indigo" || tone === "sky") return "info";
+  if (pill === "ok" || tone === "ok") return "ok";
+  return "brand";
+}
+
+/** A headline number: a label with a tinted icon, a big figure, one line of context and a status pill. The card's colour follows its status; it can carry a trend line (`spark`) or a progress ring (`ring`, a percentage) when the numbers exist. */
 export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLabel, spark, ring, tone = "ok" }: { label: string; value: ReactNode; caption?: string; pill?: { text: string; tone: PillTone }; icon: LucideIcon; href?: string; openLabel?: string; spark?: number[]; ring?: number | null; tone?: VizTone }) {
+  const a = ACCENT[accentOf(pill?.tone, tone)];
   const body = (
     <>
-      <span className="flex items-start justify-between gap-3">
-        <span className="text-[13px] font-medium text-muted">{label}</span>
-        {ring !== undefined && ring !== null
-          ? <Ring value={ring} size={46} stroke={12} tone={tone} label={label}><span className="text-[10px] font-semibold tabular-nums text-ink">{Math.round(ring)}%</span></Ring>
-          : <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-600/12 text-link"><Icon className="size-[1.15rem]" aria-hidden /></span>}
-      </span>
-      <span className={`mt-2 block font-semibold tabular-nums tracking-tight text-ink ${typeof value === "string" && value.length > 9 ? "whitespace-nowrap text-xl leading-8" : "text-3xl"}`}>{value}</span>
-      {caption && <span className="mt-0.5 block text-sm text-muted">{caption}</span>}
-      {spark && spark.length > 1 && <span className="mt-3 block"><Spark values={spark} tone={tone} /></span>}
-      <span className="mt-auto flex items-center justify-between gap-2 pt-3">
-        {pill ? <Pill tone={pill.tone}>{pill.text}</Pill> : <span />}
-        {href && openLabel && <span className="inline-flex items-center gap-1 text-xs font-semibold text-link group-hover:underline">{openLabel}<ArrowRight className="size-3.5" aria-hidden /></span>}
+      <span aria-hidden className={`absolute inset-x-0 top-0 h-[2px] ${a.bar}`} />
+      <span aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${a.glow} to-transparent`} />
+      <span className="relative flex h-full flex-col">
+        <span className="flex items-start justify-between gap-3">
+          <span className="text-[13px] font-medium text-muted">{label}</span>
+          {ring !== undefined && ring !== null
+            ? <Ring value={ring} size={46} stroke={12} tone={tone} label={label}><span className="text-[10px] font-semibold tabular-nums text-ink">{Math.round(ring)}%</span></Ring>
+            : <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${a.tile}`}><Icon className="size-[1.15rem]" aria-hidden /></span>}
+        </span>
+        <span className={`mt-2 block font-semibold tabular-nums tracking-tight text-ink ${typeof value === "string" && value.length > 9 ? "whitespace-nowrap text-2xl leading-9" : "text-[2rem] leading-9"}`}>{value}</span>
+        {caption && <span className="mt-0.5 block text-sm text-muted">{caption}</span>}
+        {spark && spark.length > 1 && <span className="mt-3 block"><Spark values={spark} tone={tone} /></span>}
+        <span className="mt-auto flex items-center justify-between gap-2 pt-3">
+          {pill ? <Pill tone={pill.tone}>{pill.text}</Pill> : <span />}
+          {href && openLabel && <span className="inline-flex items-center gap-1 text-xs font-medium text-link group-hover:underline">{openLabel}<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden /></span>}
+        </span>
       </span>
     </>
   );
-  const cls = "group flex h-full min-h-[8rem] flex-col rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]";
-  return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
+  const cls = "group relative flex h-full min-h-[8.5rem] flex-col overflow-hidden rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]";
+  return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-link/40 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
-export const Panel = ({ title, subtitle, children, className = "", right }: { title: string; subtitle?: string; children: ReactNode; className?: string; right?: ReactNode }) => (
+export const Panel = ({ title, subtitle, children, className = "", right, icon: Icon }: { title: string; subtitle?: string; children: ReactNode; className?: string; right?: ReactNode; icon?: LucideIcon }) => (
   <section className={`min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] ${className}`}>
-    <header className="mb-4 flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="text-base font-semibold text-ink">{title}</h3>{subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}</div>{right}</header>
+    <header className="mb-4 flex items-start justify-between gap-3">
+      <div className="min-w-0"><h3 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{title}</h3>{subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}</div>
+      {right ?? (Icon ? <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-500/15 text-link"><Icon className="size-[1.1rem]" aria-hidden /></span> : null)}
+    </header>
     {children}
   </section>
 );
+
+/** A department's standing at a glance: a coloured top edge, a capital label, a big number with its noun, what it means, and the one thing wrong. */
+export function DeskCard({ label, value, noun, note, foot, tone = "brand", href }: { label: string; value: ReactNode; noun: string; note?: string; foot?: { text: string; tone: "ok" | "warn" | "bad" | "brand" }; tone?: keyof typeof ACCENT; href?: string }) {
+  const a = ACCENT[tone];
+  const FOOT = { ok: "text-ok", warn: "text-warn", bad: "text-bad", brand: "text-link" } as const;
+  const body = (
+    <>
+      <span aria-hidden className={`absolute inset-x-0 top-0 h-[3px] ${a.bar}`} />
+      <span className="flex items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-[.14em] text-muted">{label}</span>{href && <ArrowRight className="size-4 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />}</span>
+      <span className="mt-2 flex items-baseline gap-2"><span className="text-[2rem] font-semibold leading-9 tabular-nums text-ink">{value}</span><span className="text-sm text-muted">{noun}</span></span>
+      {note && <span className="mt-1 block text-sm text-muted">{note}</span>}
+      {foot && <span className={`mt-3 block border-t border-line pt-3 text-sm font-medium ${FOOT[foot.tone]}`}>{foot.text}</span>}
+    </>
+  );
+  const cls = "group relative block overflow-hidden rounded-xl border border-line bg-surface p-4 pt-5 shadow-[var(--shadow-card)]";
+  return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
 
 export const SERIES_COLORS = ["#0f9462", "#4f46e5", "#e0a100", "#14a3b8", "#e5604d", "#8b95a1", "#a066d9"] as const;
 

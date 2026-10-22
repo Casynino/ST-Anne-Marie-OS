@@ -31,7 +31,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       <PageHeader
         title={inv.number}
         subtitle={`${sName} · ${d.student.admissionNo}${d.className ? ` · ${d.className}` : ""}${d.termName ? ` · ${d.termName}` : ""}`}
-        actions={<><a href={`/api/invoices/${inv.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800"><FileDown className="size-4" aria-hidden />{t("rc.pdf")}</a><Link href={`/finance/students/${d.student.id}`} className="text-sm font-medium text-link hover:underline">{t("fin.student.statement")}</Link></>}
+        actions={<><a href={`/api/invoices/${inv.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary"><FileDown className="size-4" aria-hidden />{t("rc.pdf")}</a><Link href={`/finance/students/${d.student.id}`} className="text-sm font-medium text-link hover:underline">{t("fin.student.statement")}</Link></>}
       />
       <FinanceNav ctx={ctx} t={t} current="/finance/invoices" unmatched={unmatched} />
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">

@@ -31,7 +31,7 @@ export default async function StudentFeesPage({ params }: { params: Promise<{ id
   return (
     <>
       <PageHeader title={name} subtitle={`${s.admissionNo} · ${t("fin.student.statement")}`} actions={<>
-        {hasAny(ctx, ["payment.record"]) && <Link href={`/finance/payments/new?studentId=${s.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("fin.payments.record")}</Link>}
+        {hasAny(ctx, ["payment.record"]) && <Link href={`/finance/payments/new?studentId=${s.id}`} className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{t("fin.payments.record")}</Link>}
         {hasAny(ctx, ["student.read"]) && <Link href={`/students/${s.id}`} className="text-sm font-medium text-link hover:underline">{t("fin.student.profile")}</Link>}
       </>} />
       <FinanceNav ctx={ctx} t={t} current="/finance" unmatched={unmatched} />

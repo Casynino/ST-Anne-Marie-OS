@@ -188,7 +188,7 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
                 {docs.map((d) => (
                   <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <span className="min-w-0 break-words"><strong>{d.fileName}</strong> <span className="text-muted">· {t(`doc.type.${d.docType as "OTHER"}`)}</span></span>
-                    <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 font-medium text-link hover:bg-canvas">{t("doc.download")}</a>
+                    <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 font-medium text-link hover:bg-canvas btn-secondary">{t("doc.download")}</a>
                   </li>
                 ))}
               </ul>

@@ -34,7 +34,7 @@ export default async function ReportCardPage({ params }: { params: Promise<{ id:
         actions={
           <>
             <Badge tone={TONE[card.status]}>{t(`rc.status.${card.status}` as never)}</Badge>
-            <a href={`/api/report-cards/${card.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800"><FileDown className="size-4" aria-hidden />{t("rc.pdf")}</a>
+            <a href={`/api/report-cards/${card.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary"><FileDown className="size-4" aria-hidden />{t("rc.pdf")}</a>
             <Link href={`/report-cards?termId=${card.termId}&classId=${card.classId}${card.streamId ? `&streamId=${card.streamId}` : ""}`} className="text-sm font-medium text-link hover:underline">{t("rc.page.title")}</Link>
           </>
         }

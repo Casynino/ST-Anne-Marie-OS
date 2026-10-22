@@ -54,7 +54,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
       <PageHeader
         title={t("rc.page.title")}
         subtitle={t("rc.page.subtitle")}
-        actions={hasAny(ctx, ["remarks.class", "remarks.head"]) && cls ? <Link href={`/report-cards/remarks?${q}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas">{t("rc.remarks.open")}</Link> : undefined}
+        actions={hasAny(ctx, ["remarks.class", "remarks.head"]) && cls ? <Link href={`/report-cards/remarks?${q}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas btn-secondary">{t("rc.remarks.open")}</Link> : undefined}
       />
       <FilterBar t={t} resetHref="/report-cards">
         <Field name="termId" type="select" label={t("exam.term")} options={terms.map((x) => ({ value: x.id, label: `${x.academicYear.name} · ${x.name}` }))} defaultValue={termId ?? ""} />
@@ -81,7 +81,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
             {canGenerate && <ActionForm action={generateCardsAction} submitLabel={t("rc.generate")} className="space-y-0">{hidden}</ActionForm>}
             {canPublish && <ActionForm action={publishCardsAction} submitLabel={t("rc.publish")} className="space-y-0" confirm={t("rc.publish.confirm")}>{hidden}</ActionForm>}
             {data.rows.some((r) => r.card && r.card.status !== "WITHDRAWN") && (
-              <a href={`/api/report-cards/class?${q}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas"><FileDown className="size-4" aria-hidden />{t("rc.printAll")}</a>
+              <a href={`/api/report-cards/class?${q}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas btn-secondary"><FileDown className="size-4" aria-hidden />{t("rc.printAll")}</a>
             )}
           </div>
 

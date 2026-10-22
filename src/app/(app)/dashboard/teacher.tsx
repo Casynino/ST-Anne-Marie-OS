@@ -38,7 +38,7 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
 
   return (
     <>
-      <DashHero photoIndex={4} eyebrow={`${schoolName} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
+      <DashHero photoIndex={4} locale={locale} search={{ action: "/students", placeholder: t("search.students"), label: t("search.students"), button: t("common.search") }} eyebrow={`${schoolName} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
         {bits.length > 0 ? bits.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("tch.hero.calm")}
       </DashHero>
       <ActionBar label={t("dash.quick.title")} items={quick} trailing={<span className="ml-auto text-sm text-muted">{displayDate(new Date(`${today}T00:00:00Z`), locale)}{d.term ? ` · ${d.term.name}` : ""}</span>} />

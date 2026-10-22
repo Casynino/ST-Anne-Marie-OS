@@ -30,7 +30,7 @@ export default async function PaymentPage({ params }: { params: Promise<{ id: st
         subtitle={`${name} · ${d.student.admissionNo}`}
         actions={<>
           <Badge tone={p.status === "POSTED" ? "ok" : "bad"}>{t(`fin.pay.${p.status}` as never)}</Badge>
-          {p.receipt && <a href={`/api/receipts/${p.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800"><FileDown className="size-4" aria-hidden />{t("fin.pdf.receipt")}</a>}
+          {p.receipt && <a href={`/api/receipts/${p.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary"><FileDown className="size-4" aria-hidden />{t("fin.pdf.receipt")}</a>}
           <Link href={`/finance/students/${d.student.id}`} className="text-sm font-medium text-link hover:underline">{t("fin.student.statement")}</Link>
         </>}
       />

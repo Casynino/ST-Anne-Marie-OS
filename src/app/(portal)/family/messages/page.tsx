@@ -14,7 +14,7 @@ export default async function FamilyMessagesPage() {
   const [rows, school] = await Promise.all([listMyThreads(ctx), getSchoolBasics(ctx.schoolId)]);
   return (
     <>
-      <PageHeader title={t("msg.title")} subtitle={t("fam.messages.subtitle")} actions={<Link href="/family/messages/new" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("fam.messages.new")}</Link>} />
+      <PageHeader title={t("msg.title")} subtitle={t("fam.messages.subtitle")} actions={<Link href="/family/messages/new" className="inline-flex min-h-11 items-center rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{t("fam.messages.new")}</Link>} />
       {rows.length === 0 ? <EmptyState>{t("fam.messages.empty")}</EmptyState> : (
         <ul className="space-y-2">
           {rows.map((r) => (

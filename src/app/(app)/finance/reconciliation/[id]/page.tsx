@@ -53,7 +53,7 @@ export default async function ReconcileEventPage({ params, searchParams }: { par
               <Card title={t("fin.payments.findStudent")}>
                 <form method="get" className="flex flex-wrap items-end gap-3">
                   <Field name="q" label={t("fin.payments.findStudent")} defaultValue={sp.q ?? ev.reference ?? ""} className="min-w-56 flex-1" required />
-                  <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("common.search")}</button>
+                  <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{t("common.search")}</button>
                 </form>
                 <ul className="mt-4 space-y-2">
                   {matches.map((s) => <li key={s.id}><Link href={`/finance/reconciliation/${ev.id}?studentId=${s.id}`} className="flex min-h-14 items-center justify-between rounded-xl border border-line px-4 hover:border-brand-400"><span className="font-medium">{[s.firstName, s.middleName, s.lastName].filter(Boolean).join(" ")}</span><span className="text-sm text-muted">{s.admissionNo}</span></Link></li>)}

@@ -79,7 +79,7 @@ export default async function NewBroadcastPage({ searchParams }: { searchParams:
             <Field name="sendSms" type="checkbox" label={t("comm.f.sms")} defaultValue={formValues.sendSms === "on"} />
           </fieldset>
           <Field name="sendAt" type="text" label={t("comm.f.sendAt")} defaultValue={formValues.sendAt} optionalLabel={t("comm.f.sendNow")} placeholder="2026-11-03T08:00" hint={t("comm.f.sendAtHint", { zone: school.timezone })} />
-          <button className="min-h-11 rounded-lg bg-brand-700 px-5 text-base font-semibold text-white hover:bg-brand-800">{t("comm.f.preview")}</button>
+          <button className="min-h-11 rounded-lg bg-brand-700 px-5 text-base font-semibold text-white hover:bg-brand-800 btn-primary">{t("comm.f.preview")}</button>
         </form>
 
         <div className="space-y-4">

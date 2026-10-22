@@ -102,7 +102,7 @@ export default async function FeesSetupPage({ searchParams }: { searchParams: Pr
         <div className="space-y-6">
           <form method="get" className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface p-3">
             <Field name="yearId" type="select" label={t("fin.fees.year")} options={years.map((y) => ({ value: y.id, label: y.name }))} defaultValue={yearId ?? ""} />
-            <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("common.filter")}</button>
+            <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{t("common.filter")}</button>
             {yearId && structures.some((s) => s.isActive) && <a href={`/api/fees/sheet?yearId=${yearId}`} target="_blank" rel="noopener" className="ml-auto inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:border-brand-500 hover:text-link">{t("fin.sheet.print")}</a>}
           </form>
           <h2 className="text-lg font-semibold">{t("fin.fees.structures")}</h2>

@@ -75,7 +75,7 @@ export function OfflineHub() {
                   </p>
                   {stale && <p className="text-sm text-warn">{t("off.staleDate", { date: s.sheet.date })}</p>}
                 </div>
-                <button type="button" onClick={() => setOpenKey(s.key)} className="min-h-12 rounded-xl bg-brand-700 px-5 text-base font-semibold text-white hover:bg-brand-800">
+                <button type="button" onClick={() => setOpenKey(s.key)} className="min-h-12 rounded-xl bg-brand-700 px-5 text-base font-semibold text-white hover:bg-brand-800 btn-primary">
                   {t("off.open")}
                 </button>
               </li>

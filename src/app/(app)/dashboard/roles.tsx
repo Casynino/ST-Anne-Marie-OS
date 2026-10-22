@@ -21,10 +21,11 @@ import { jumpItems, quickItems } from "./quick";
 
 export type HomeProps = { env: DashEnv; first: string; hour: number; portal: string; today: string; can: (p: string) => boolean };
 
-function Greeting({ env, first, hour, portal, children, photoIndex = 1 }: { env: DashEnv; first: string; hour: number; portal: string; children: ReactNode; photoIndex?: number }) {
+function Greeting({ env, first, hour, portal, children, photoIndex = 1, can }: { env: DashEnv; first: string; hour: number; portal: string; children: ReactNode; photoIndex?: number; can?: (p: string) => boolean }) {
   const { t, school } = env;
+  const canSearch = !!can && (can("student.read") || can("student.read_assigned"));
   return (
-    <DashHero photoIndex={photoIndex} eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
+    <DashHero photoIndex={photoIndex} locale={env.locale} tz={school.timezone} search={canSearch ? { action: "/students", placeholder: t("search.students"), label: t("search.students"), button: t("common.search") } : undefined} eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
       {children}
     </DashHero>
   );

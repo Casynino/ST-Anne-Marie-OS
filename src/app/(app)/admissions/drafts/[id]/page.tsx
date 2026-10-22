@@ -34,7 +34,7 @@ export default async function OfficeDraftPage({ params }: { params: Promise<{ id
         title={[f.firstName, f.middleName, f.lastName].filter(Boolean).join(" ")}
         subtitle={`${d.reference} · ${t(`apf.status.${d.status}` as "apf.status.SUBMITTED")}`}
         actions={<div className="flex flex-wrap gap-2">
-          {(waiting || d.status === "SUBMITTED") && <a href={`/api/applications/${d.id}/form`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800"><Printer className="size-4" aria-hidden />{t("adm.draft.print")}</a>}
+          {(waiting || d.status === "SUBMITTED") && <a href={`/api/applications/${d.id}/form`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary"><Printer className="size-4" aria-hidden />{t("adm.draft.print")}</a>}
           {canEdit && <LinkButton href={`/admissions/drafts/${d.id}/edit`} variant="secondary">{t("adm.draft.edit")}</LinkButton>}
         </div>}
       />

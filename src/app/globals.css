@@ -167,3 +167,81 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
   .frame img, .index-row, .draw { transition: none !important; }
   .frame:hover img, a:hover > .frame img, .group:hover .frame img { transform: none !important; }
 }
+
+/*
+ * Controls in the signed-in areas: buttons, fields and selects. Unlayered on purpose, so they win over the utility classes some screens still carry
+ * (a screen only has to add `btn-primary`, `btn-secondary` or `btn-danger`). The public site is not touched (everything is scoped to .app-root).
+ */
+.app-root .btn-primary {
+  background-color: var(--color-brand-600);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / .16), rgb(255 255 255 / 0) 58%);
+  border: 1px solid rgb(255 255 255 / .1);
+  border-radius: 0.625rem;
+  color: #fff;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  box-shadow: 0 1px 0 rgb(255 255 255 / .2) inset, 0 1px 2px rgb(0 0 0 / .3), 0 8px 16px -10px rgb(15 148 98 / .8);
+  transition: transform .12s ease, filter .15s ease, box-shadow .15s ease;
+}
+.app-root .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 1px 0 rgb(255 255 255 / .22) inset, 0 2px 4px rgb(0 0 0 / .3), 0 12px 20px -10px rgb(15 148 98 / .9); }
+.app-root .btn-primary:active:not(:disabled) { transform: translateY(0); filter: brightness(.95); }
+.app-root .btn-primary:focus-visible, .app-root .btn-secondary:focus-visible, .app-root .btn-danger:focus-visible { outline: 2px solid var(--color-brand-300); outline-offset: 2px; }
+.app-root .btn-primary:disabled, .app-root .btn-secondary:disabled, .app-root .btn-danger:disabled { opacity: .55; cursor: not-allowed; }
+
+.app-root .btn-secondary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 0.625rem;
+  color: var(--color-ink);
+  font-weight: 500;
+  box-shadow: 0 1px 0 rgb(255 255 255 / .04) inset, 0 1px 2px rgb(0 0 0 / .12);
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease, transform .12s ease;
+}
+.app-root .btn-secondary:hover:not(:disabled):not([aria-disabled="true"]) { border-color: color-mix(in srgb, var(--color-link) 55%, var(--color-line)); background: color-mix(in srgb, var(--color-tint) 75%, var(--color-surface)); color: var(--color-link); }
+.app-root .btn-secondary:active:not(:disabled) { transform: translateY(1px); }
+
+.app-root .btn-danger {
+  background: color-mix(in srgb, var(--color-bad) 14%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-bad) 45%, transparent);
+  border-radius: 0.625rem;
+  color: var(--color-bad);
+  font-weight: 500;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.app-root .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-bad) 24%, var(--color-surface)); }
+
+/* Text fields, selects and text areas: one calm look with a clear focus ring. */
+.app-root :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"], [type="range"], [type="color"], [type="submit"], [type="button"]), select, textarea) {
+  border-radius: 0.625rem;
+  border: 1px solid var(--color-line);
+  background-color: color-mix(in srgb, var(--color-canvas) 60%, var(--color-surface));
+  color: var(--color-ink);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.app-root :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"], [type="range"], [type="color"], [type="submit"], [type="button"]), select, textarea):hover:not(:disabled) { border-color: color-mix(in srgb, var(--color-link) 35%, var(--color-line)); }
+.app-root :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"], [type="range"], [type="color"], [type="submit"], [type="button"]), select, textarea):focus { outline: none; border-color: var(--color-brand-500); box-shadow: 0 0 0 3px rgb(15 148 98 / .22); }
+.app-root :is(input, select, textarea)[aria-invalid="true"] { border-color: var(--color-bad); }
+.app-root select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2393a79b' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 7.5 5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem; padding-right: 2.25rem;
+}
+.app-root input[type="checkbox"], .app-root input[type="radio"] { accent-color: var(--color-brand-500); }
+
+/* ───── Dashboard hero and surfaces ───── */
+@layer components {
+  .dash-hero-bg {
+    background:
+      radial-gradient(52rem 24rem at 108% -12%, rgb(232 220 46 / .30), transparent 62%),
+      radial-gradient(40rem 26rem at -8% 118%, rgb(20 163 184 / .50), transparent 62%),
+      linear-gradient(115deg, #064e36 0%, #0a6a4c 36%, #107a8c 72%, #3a3fb4 100%);
+  }
+  .dash-hero-grid {
+    background-image: linear-gradient(rgb(255 255 255 / .06) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / .06) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 28%, #000 72%, transparent); mask-image: linear-gradient(90deg, transparent, #000 28%, #000 72%, transparent);
+  }
+  .live-dot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: #4ade9a; animation: live-pulse 2.2s ease-out infinite; }
+  @keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgb(74 222 154 / .55); } 70% { box-shadow: 0 0 0 8px rgb(74 222 154 / 0); } 100% { box-shadow: 0 0 0 0 rgb(74 222 154 / 0); } }
+}
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } .app-root .btn-primary, .app-root .btn-secondary { transition: none; } }

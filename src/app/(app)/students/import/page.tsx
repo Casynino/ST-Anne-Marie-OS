@@ -28,7 +28,7 @@ export default async function ImportPage() {
               <li key={k}>{t(k)}</li>
             ))}
           </ul>
-          <a href="/api/import/template" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-link hover:bg-canvas">
+          <a href="/api/import/template" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-link hover:bg-canvas btn-secondary">
             <Download className="size-4" aria-hidden /> {t("imp.template")}
           </a>
         </Card>

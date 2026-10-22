@@ -32,7 +32,7 @@ export default async function AcademicOfficePage() {
 
   return (
     <>
-      <DashHero photoIndex={3} eyebrow={`${school.name} · ${t(portalLabelKey("academic"))}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}>
+      <DashHero photoIndex={3} locale={ctx.locale} tz={school.timezone} search={{ action: "/students", placeholder: t("search.students"), label: t("search.students"), button: t("common.search") }} eyebrow={`${school.name} · ${t(portalLabelKey("academic"))}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}>
         {[
           <><Hi>{d.students.enrolled.toLocaleString()}</Hi> {t("dash.hero.students")}</>,
           ...(att && att.rate !== null ? [<>{t("dash.hero.attendance")} <Hi tone={att.rate >= 90 ? "ok" : "warn"}>{att.rate}%</Hi></>] : []),

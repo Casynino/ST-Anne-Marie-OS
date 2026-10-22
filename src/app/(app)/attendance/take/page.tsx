@@ -33,11 +33,11 @@ export default async function TakeAttendancePage({ searchParams }: { searchParam
         actions={
           <>
             {sheet.register && (
-              <Link href={`/attendance/register/${sheet.register.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas">
+              <Link href={`/attendance/register/${sheet.register.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas btn-secondary">
                 {t("att.openRegister")}
               </Link>
             )}
-            <Link href={`/attendance?date=${sheet.date}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas">
+            <Link href={`/attendance?date=${sheet.date}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 text-sm font-medium hover:bg-canvas btn-secondary">
               {t("common.back")}
             </Link>
           </>

@@ -52,7 +52,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
             <input type="hidden" name="preview" value="1" />
             <Field name="classId" type="select" label={t("exam.class")} options={classes.map((c) => ({ value: c.id, label: c.name }))} defaultValue={classId ?? ""} placeholder={t("fin.invoices.allClasses")} />
             <Field name="due" type="date" label={t("fin.invoices.dueDate")} defaultValue={due} required />
-            <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas">{t("fin.invoices.preview")}</button>
+            <button className="min-h-11 rounded-lg border border-line bg-surface px-4 text-sm font-semibold hover:bg-canvas btn-secondary">{t("fin.invoices.preview")}</button>
           </form>
           {previewError && <p role="alert" className="mt-3 text-sm text-bad">{previewError}</p>}
           {preview && (

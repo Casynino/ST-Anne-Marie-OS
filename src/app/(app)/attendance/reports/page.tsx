@@ -154,7 +154,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <Field name="to" type="date" label={t("rep.to")} defaultValue={to} />
           </>
         )}
-        <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800">{t("common.filter")}</button>
+        <button className="min-h-11 rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white hover:bg-brand-800 btn-primary">{t("common.filter")}</button>
       </form>
 
       {view === "student" && matches.length > 0 && (

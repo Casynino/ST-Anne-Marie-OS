@@ -77,7 +77,7 @@ export function OfflinePanel({ userId, locale, timezone, fullName, canTake }: { 
       {canTake && (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={download} disabled={busy || !outbox.online} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-700 px-4 text-base font-semibold text-white hover:bg-brand-800 disabled:opacity-50">
+            <button type="button" onClick={download} disabled={busy || !outbox.online} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-700 px-4 text-base font-semibold text-white hover:bg-brand-800 disabled:opacity-50 btn-primary">
               <Download className="size-5" aria-hidden /> {busy ? t("off.downloading") : t("off.download")}
             </button>
             <Link href="/offline-attendance" className="inline-flex min-h-12 items-center rounded-xl border border-line px-4 text-base font-medium hover:bg-canvas">

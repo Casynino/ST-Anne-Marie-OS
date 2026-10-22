@@ -24,7 +24,7 @@ export default async function FamilyHome() {
   const first = ctx.fullName.split(" ")[0] ?? ctx.fullName;
   return (
     <>
-      <DashHero photoIndex={2} eyebrow={`${school.name} · ${t("fam.portal")}`.toUpperCase()} title={t("fam.welcome", { name: first })}>
+      <DashHero photoIndex={2} locale={ctx.locale} eyebrow={`${school.name} · ${t("fam.portal")}`.toUpperCase()} title={t("fam.welcome", { name: first })}>
         {children.length > 0 ? <><Hi>{children.length}</Hi> {t("fam.hero.children")}</> : t("fam.noChildren")}
       </DashHero>
       <DashSection id="children" title={t("fam.children.title")} subtitle={t("fam.home.subtitle")}>

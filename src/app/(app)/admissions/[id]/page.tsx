@@ -93,8 +93,8 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
         subtitle={`${app.applicationNo} · ${t(`adm.status.${app.status}`)} · ${t(`adm.channel.${app.source}` as "adm.channel.ONLINE")}`}
         actions={
           <div className="flex flex-wrap gap-2">
-            <a href={`/api/applications/${id}/form`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-semibold hover:bg-canvas"><Printer className="size-4" aria-hidden />{t("adm.app.print")}</a>
-            {feeDraft?.paidAt && feeDraft.receiptNo && <a href={`/api/applications/${feeDraft.id}/receipt`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-semibold hover:bg-canvas"><Printer className="size-4" aria-hidden />{t("adm.app.receipt")}</a>}
+            <a href={`/api/applications/${id}/form`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-semibold hover:bg-canvas btn-secondary"><Printer className="size-4" aria-hidden />{t("adm.app.print")}</a>
+            {feeDraft?.paidAt && feeDraft.receiptNo && <a href={`/api/applications/${feeDraft.id}/receipt`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-semibold hover:bg-canvas btn-secondary"><Printer className="size-4" aria-hidden />{t("adm.app.receipt")}</a>}
             {open && can("admission.create") && <LinkButton href={`/admissions/${id}/edit`} variant="secondary">{t("adm.edit")}</LinkButton>}
           </div>
         }
@@ -169,7 +169,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                       <p className="text-muted">{t(`doc.type.${d.docType as "OTHER"}`)} · {kb(d.sizeBytes)} · {t("doc.uploadedBy", { name: d.uploadedBy })} · {displayDateTime(d.createdAt, school.timezone, ctx.locale)}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 font-medium text-link hover:bg-canvas">{t("doc.download")}</a>
+                      <a href={`/api/documents/${d.id}`} className="inline-flex min-h-11 items-center rounded-lg border border-line bg-surface px-3 font-medium text-link hover:bg-canvas btn-secondary">{t("doc.download")}</a>
                       {can("document.delete") && (
                         <details>
                           <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-lg px-3 text-bad">{t("doc.remove")}</summary>
