@@ -4,6 +4,7 @@ import { run, str, list, type ActionState } from "@/lib/action";
 import { invalid } from "@/lib/errors";
 import { makeT } from "@/lib/i18n";
 import * as reg from "@/server/annual-registration";
+import { addRegistrationFollowUp } from "@/server/registration-followups";
 
 const saved = (ctx: { locale: "EN" | "SW" }) => ({ message: makeT(ctx.locale)("common.saved") });
 
@@ -53,4 +54,8 @@ export async function clearanceExceptionAction(_: ActionState, form: FormData) {
 }
 export async function removeClearanceExceptionAction(_: ActionState, form: FormData) {
   return run(form, async (ctx, i) => { await reg.removeClearanceException(ctx, { registrationId: i.id }); return saved(ctx); });
+}
+
+export async function followUpAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => { await addRegistrationFollowUp(ctx, { registrationId: i.id, outcome: i.outcome, note: i.note }); return saved(ctx); });
 }

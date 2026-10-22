@@ -156,6 +156,7 @@ model School {
   admissionPayments      AdmissionPayment[]
   applicationExams       ApplicationExam[]
   studentProgressions    StudentProgression[]
+  registrationFollowUps  RegistrationFollowUp[]
   annualRegistrations    AnnualRegistration[]
   applicationExamEvents  ApplicationExamEvent[]
   applicationDrafts      ApplicationDraft[]
@@ -1475,10 +1476,11 @@ model AnnualRegistration {
   createdAt                DateTime           @default(now())
   updatedAt                DateTime           @updatedAt
 
-  school       School             @relation(fields: [schoolId], references: [id])
-  student      Student            @relation(fields: [studentId], references: [id])
-  academicYear AcademicYear       @relation(fields: [academicYearId], references: [id])
-  progression  StudentProgression @relation(fields: [progressionId], references: [id])
+  school       School                 @relation(fields: [schoolId], references: [id])
+  student      Student                @relation(fields: [studentId], references: [id])
+  academicYear AcademicYear           @relation(fields: [academicYearId], references: [id])
+  progression  StudentProgression     @relation(fields: [progressionId], references: [id])
+  followUps    RegistrationFollowUp[]
 
   @@unique([studentId, academicYearId])
   @@index([schoolId, academicYearId, status])
@@ -3241,4 +3243,30 @@ model LibrarySession {
 
   @@index([schoolId, expiresAt])
   @@map("library_sessions")
+}
+
+enum FollowUpOutcome {
+  WILL_RETURN
+  NOT_RETURNING
+  NO_ANSWER
+  OTHER
+}
+
+// A note from Admissions about a returning student who has not registered yet: who was contacted, what the family said. Append-only history;
+// it never changes the registration itself (a student is never withdrawn because nobody answered).
+model RegistrationFollowUp {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  schoolId       String          @db.Uuid
+  registrationId String          @db.Uuid
+  outcome        FollowUpOutcome
+  note           String?
+  createdById    String?         @db.Uuid
+  createdAt      DateTime        @default(now())
+
+  school       School             @relation(fields: [schoolId], references: [id])
+  registration AnnualRegistration @relation(fields: [registrationId], references: [id])
+
+  @@index([registrationId, createdAt])
+  @@index([schoolId, createdAt])
+  @@map("registration_follow_ups")
 }

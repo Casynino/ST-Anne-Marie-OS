@@ -9,12 +9,12 @@ import { ActionForm, Field } from "@/components/form";
 import { RowAction } from "@/components/lifecycle/row-action";
 import { SubmitButton } from "@/components/submit-button";
 import { SelectAll } from "@/components/lifecycle/select-all";
-import { ClearanceBadge, CountTabs, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
+import { ClearanceBadge, CountTabs, FollowUpForm, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
 import { DefList, EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { Panel } from "@/components/dash/parts";
 import { Row } from "@/components/dash/rows";
 import { Check, Info } from "lucide-react";
-import { activateAction, confirmRegistrationAction, createRegistrationsAction, placeReturningAction } from "./actions";
+import { activateAction, confirmRegistrationAction, createRegistrationsAction, followUpAction, placeReturningAction } from "./actions";
 
 export const metadata: Metadata = { title: "Returning students" };
 
@@ -30,7 +30,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
   if (!can("registration.read")) return <NoAccess t={t} />;
   const sp = await searchParams;
   const money = sp.money === "cleared" || sp.money === "owing" ? sp.money : undefined;
-  const b = await returningBoard(ctx, { yearId: sp.year, classId: sp.class, stage: sp.stage, q: sp.q, money, page: Number(sp.page) || 1 });
+  const b = await returningBoard(ctx, { yearId: sp.year, classId: sp.class, stage: sp.stage, q: sp.q, money, notRegistered: sp.notreg === "1", page: Number(sp.page) || 1 });
   const canManage = can("registration.manage");
   if (!b.year) return <><PageHeader title={t("lc.ret.title")} /><EmptyState>{t("lc.noNextYear")}</EmptyState></>;
 
@@ -43,7 +43,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
 
   const q = (extra: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money, ...extra })) if (v) p.set(k, v);
+    for (const [k, v] of Object.entries({ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money, notreg: sp.notreg, ...extra })) if (v) p.set(k, v);
     const s = p.toString();
     return s ? `/students/returning?${s}` : "/students/returning";
   };
@@ -111,6 +111,13 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
 
       <p className="mb-4 flex items-start gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm text-muted"><Info className="mt-0.5 size-4 shrink-0 text-link" aria-hidden /><span>{notes.join(" · ")}</span></p>
 
+      {b.counts.notRegistered > 0 && (
+        <p role="status" className={`mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-4 py-2.5 text-sm ${b.windowClosed ? "border-warn/40 bg-warn/10 text-warn" : "border-line bg-surface text-muted"}`}>
+          <span>{b.windowClosed && b.year.registrationClosesOn ? t("lc.nr.bannerClosed", { date: displayDate(b.year.registrationClosesOn, ctx.locale), n: b.counts.notRegistered, c: b.counts.contacted }) : t("lc.nr.banner", { n: b.counts.notRegistered, c: b.counts.contacted })}</span>
+          {sp.notreg !== "1" && <Link href={q({ notreg: "1", stage: undefined, page: undefined })} className="font-medium text-link hover:underline">{t("lc.nr.tab")} →</Link>}
+        </p>
+      )}
+
       {b.missing > 0 && canManage && (
         <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-warn/40 bg-warn/10 px-4 py-2.5 text-sm text-warn">
           <span>{t("lc.ret.missing", { n: b.missing })}</span>
@@ -121,12 +128,13 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
       <Row>
         <Panel className="flex-[3_1_40rem]" title={t("lc.ret.fig.total")}>
           <CountTabs items={[
-            { href: q({ stage: undefined, page: undefined }), label: t("lc.tab.all"), count: b.counts.total, active: !sp.stage },
-            ...REGISTRATION_STAGES.filter((s) => (by[s] ?? 0) > 0).map((s) => ({ href: q({ stage: s, page: undefined }), label: stageLabel(t, s), count: by[s], active: sp.stage === s })),
+            { href: q({ stage: undefined, notreg: undefined, page: undefined }), label: t("lc.tab.all"), count: b.counts.total, active: !sp.stage && sp.notreg !== "1" },
+            ...(b.counts.notRegistered > 0 ? [{ href: q({ stage: undefined, notreg: "1", page: undefined }), label: t("lc.nr.tab"), count: b.counts.notRegistered, active: sp.notreg === "1" }] : []),
+            ...REGISTRATION_STAGES.filter((s) => (by[s] ?? 0) > 0).map((s) => ({ href: q({ stage: s, notreg: undefined, page: undefined }), label: stageLabel(t, s), count: by[s], active: sp.stage === s })),
           ]} />
           <form method="get" className="mb-4 flex flex-wrap items-end gap-2.5">
             {sp.year && <input type="hidden" name="year" value={sp.year} />}
-            {sp.stage && <input type="hidden" name="stage" value={sp.stage} />}
+            {sp.stage && <input type="hidden" name="stage" value={sp.stage} />}{sp.notreg && <input type="hidden" name="notreg" value={sp.notreg} />}
             <label className="text-xs text-muted"><span className="mb-1 block">{t("lc.col.class")}</span>
               <select name="class" defaultValue={sp.class ?? ""} className="min-h-10 rounded-lg border border-line bg-surface px-3 text-sm text-ink"><option value="">{t("lc.allClasses")}</option>{b.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
             </label>
@@ -164,12 +172,13 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
                             {seeMoney && r.firstTermOutstanding ? <span className="mt-1 block text-xs tabular-nums text-muted">{formatMoney(r.firstTermOutstanding)}</span> : null}
                             {r.hasPreviousDebt && <span className="mt-1 block text-xs text-warn">{t("lc.ret.olderDebt")}{seeMoney && r.previousOutstanding ? ` · ${formatMoney(r.previousOutstanding)}` : ""}</span>}
                           </td>
-                          <td className={td}><span className={r.blocked ? "text-warn" : "text-ink"}>{stageLabel(t, r.stage)}</span>{r.department !== "NONE" && <span className="block text-xs text-muted">{deptLabel(t, r.department)}</span>}</td>
+                          <td className={td}><span className={r.blocked ? "text-warn" : "text-ink"}>{stageLabel(t, r.stage)}</span>{r.department !== "NONE" && <span className="block text-xs text-muted">{deptLabel(t, r.department)}</span>}{r.notRegistered && <span className={`block text-xs ${r.followUp?.outcome === "NOT_RETURNING" ? "text-warn" : "text-muted"}`} title={r.followUp?.note ?? undefined}>{r.followUp ? t("lc.nr.last", { outcome: t(`lc.nr.o.${r.followUp.outcome}` as "lc.nr.o.OTHER"), date: displayDate(r.followUp.at, ctx.locale) }) : t("lc.nr.none")}</span>}</td>
                           <td className={`${td} whitespace-nowrap text-right`}>
                             <span className="inline-flex items-center justify-end gap-2">
                               {canManage && r.stage === "NEEDS_PLACEMENT" && <RowAction primary label={t("lc.row.place")} title={t("lc.row.placeTitle", { name: r.name })} closeLabel={t("common.cancel")}>{placeForm(r, preferredFor(r))}</RowAction>}
                               {canManage && r.stage === "NEEDS_REGISTRATION" && <RowAction primary label={t("lc.row.register")} title={t("lc.row.registerTitle", { name: r.name })} closeLabel={t("common.cancel")}>{registerForm(r)}</RowAction>}
                               {canManage && r.stage === "READY_TO_ACTIVATE" && joinForm(r)}
+                              {canManage && r.notRegistered && <RowAction link label={t("lc.nr.row")} title={t("lc.nr.title", { name: r.name })} closeLabel={t("common.cancel")}><FollowUpForm id={r.id} t={t} action={followUpAction} /></RowAction>}
                               <RowAction link wide label={t("common.view")} title={r.name} closeLabel={t("common.cancel")}>{quick(r)}</RowAction>
                             </span>
                           </td>
@@ -181,7 +190,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
               </div>
             </>
           )}
-          <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money }} t={t} />
+          <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money, notreg: sp.notreg }} t={t} />
         </Panel>
 
       </Row>

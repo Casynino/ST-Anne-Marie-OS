@@ -107,6 +107,8 @@ export type RegistrationRow = {
   status: string; stage: Stage; department: Department; blocked: boolean;
   clearance: ClearanceState; firstTermOutstanding: number | null; previousOutstanding: number | null; hasPreviousDebt: boolean; exception: boolean;
   placedAt: Date | null; registeredAt: Date | null; activatedAt: Date | null; gradeOverrideReason: string | null; capacityOverrideReason: string | null;
+  /** The family has not registered yet (status PENDING), and the latest note from Admissions about them, if any. */
+  notRegistered: boolean; followUp: { outcome: string; note: string | null; at: Date } | null; followUps: number;
 };
 export type ClassPlaces = { classId: string; name: string; capacity: number | null; inClass: number; reserved: number; left: number | null; streams: { id: string; name: string; count: number }[]; recommendedStreamId: string | null };
 
@@ -142,18 +144,18 @@ export async function classPlaces(client: Client, schoolId: string, yearId: stri
 }
 
 const PAGE = 50;
-export type ReturningFilter = { yearId?: string; classId?: string; stage?: string; q?: string; money?: "cleared" | "owing"; page?: number };
+export type ReturningFilter = { yearId?: string; classId?: string; stage?: string; q?: string; money?: "cleared" | "owing"; notRegistered?: boolean; page?: number };
 
 export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {}) {
   requirePermission(ctx, "registration.read");
   const { years, target: fallback } = await defaultTargetYear(db, ctx.schoolId);
   const year = (opts.yearId ? years.find((y) => y.id === opts.yearId) : null) ?? fallback;
-  if (!year) return { year: null, years, rows: [] as RegistrationRow[], total: 0, page: 1, pages: 1, counts: emptyCounts(), places: [] as ClassPlaces[], options: [] as PlaceOption[], missing: 0, settings: await getLifecycleSettings(db, ctx.schoolId), open: false, classes: [] as { id: string; name: string }[] };
+  if (!year) return { year: null, years, rows: [] as RegistrationRow[], total: 0, page: 1, pages: 1, counts: emptyCounts(), places: [] as ClassPlaces[], options: [] as PlaceOption[], missing: 0, settings: await getLifecycleSettings(db, ctx.schoolId), open: false, windowClosed: false, classes: [] as { id: string; name: string }[] };
 
   const [settings, grades, today] = await Promise.all([getLifecycleSettings(db, ctx.schoolId), loadGrades(db, ctx.schoolId), schoolToday(db, ctx.schoolId)]);
   const regs = await db.annualRegistration.findMany({
     where: { schoolId: ctx.schoolId, academicYearId: year.id },
-    include: { student: { select: { firstName: true, middleName: true, lastName: true, admissionNo: true, status: true } }, progression: true },
+    include: { student: { select: { firstName: true, middleName: true, lastName: true, admissionNo: true, status: true } }, progression: true, followUps: { orderBy: { createdAt: "desc" }, select: { outcome: true, note: true, createdAt: true } } },
   });
   const exceptions = new Set(regs.filter((r) => r.clearanceExceptionReason).map((r) => r.studentId));
   const money = await yearFinances(db, ctx.schoolId, regs.map((r) => r.studentId), year.id, settings, exceptions);
@@ -162,6 +164,7 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
   const streamName = new Map(streams.map((s) => [s.id, s.name]));
   const open = today >= formatDateOnly(year.startsOn) && today <= formatDateOnly(year.endsOn);
   const seeMoney = ctx.permissions.has("fees.read");
+  const windowClosed = year.registrationClosesOn ? today > formatDateOnly(year.registrationClosesOn) : false;
 
   const all: RegistrationRow[] = regs.map((r) => {
     const m: YearFinance | undefined = money.get(r.studentId);
@@ -176,13 +179,16 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
       // Amounts are for people who may see money; everyone with access sees the clearance state and whether older debt exists.
       firstTermOutstanding: seeMoney ? m?.firstTerm.outstanding ?? 0 : null, previousOutstanding: seeMoney ? m?.previousOutstanding ?? 0 : null, hasPreviousDebt: (m?.previousOutstanding ?? 0) > 0, exception: r.clearanceExceptionReason !== null,
       placedAt: r.placedAt, registeredAt: r.registeredAt, activatedAt: r.activatedAt, gradeOverrideReason: r.gradeOverrideReason, capacityOverrideReason: r.capacityOverrideReason,
+      notRegistered: r.status === "PENDING", followUp: r.followUps[0] ? { outcome: r.followUps[0].outcome, note: r.followUps[0].note, at: r.followUps[0].createdAt } : null, followUps: r.followUps.length,
     };
   });
   const counts = emptyCounts();
+  counts.notRegistered = all.filter((r) => r.notRegistered).length;
+  counts.contacted = all.filter((r) => r.notRegistered && r.followUps > 0).length;
   for (const r of all) { counts.total++; counts.byStage[r.stage] = (counts.byStage[r.stage] ?? 0) + 1; if (isCleared(r.clearance)) counts.cleared++; else if (r.stage !== "NOT_RETURNING") counts.owing++; }
 
   const q = opts.q?.trim().toLowerCase();
-  let rows = all.filter((r) => (!opts.classId || (r.classId ?? r.decidedClassId) === opts.classId) && (!opts.stage || r.stage === opts.stage) && (!q || r.name.toLowerCase().includes(q) || r.admissionNo.toLowerCase().includes(q)) && (!opts.money || (opts.money === "cleared" ? isCleared(r.clearance) : !isCleared(r.clearance))));
+  let rows = all.filter((r) => (!opts.classId || (r.classId ?? r.decidedClassId) === opts.classId) && (!opts.stage || r.stage === opts.stage) && (!opts.notRegistered || r.notRegistered) && (!q || r.name.toLowerCase().includes(q) || r.admissionNo.toLowerCase().includes(q)) && (!opts.money || (opts.money === "cleared" ? isCleared(r.clearance) : !isCleared(r.clearance))));
   // Students who need something done come first (grade, registration, joining the class), then those waiting on others, then those already in.
   const ORDER: Stage[] = ["NEEDS_PLACEMENT", "NEEDS_REGISTRATION", "READY_TO_ACTIVATE", "NEEDS_FEE", "WAITING_YEAR_OPEN", "ACTIVE", "NOT_RETURNING"];
   const urgency = (st: Stage) => { const i = ORDER.indexOf(st); return i < 0 ? 99 : i; };
@@ -204,9 +210,9 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
     const full = p?.left === 0;
     return c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}`, full })) : [{ value: c.id, label: `${c.name}${note}`, full }];
   });
-  return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, counts, places, options, missing, settings, open, classes: grades.map((g) => ({ id: g.id, name: g.name })) };
+  return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, counts, places, options, missing, settings, open, windowClosed, classes: grades.map((g) => ({ id: g.id, name: g.name })) };
 }
-function emptyCounts() { return { total: 0, cleared: 0, owing: 0, byStage: {} as Partial<Record<Stage, number>> }; }
+function emptyCounts() { return { total: 0, cleared: 0, owing: 0, notRegistered: 0, contacted: 0, byStage: {} as Partial<Record<Stage, number>> }; }
 
 export type PlaceOption = { value: string; label: string; full: boolean };
 

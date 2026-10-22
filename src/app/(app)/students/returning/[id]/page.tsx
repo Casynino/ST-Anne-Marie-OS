@@ -7,14 +7,15 @@ import { AppError } from "@/lib/errors";
 import { ageOn, displayDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
 import { registrationDetail } from "@/server/annual-registration";
+import { registrationFollowUps } from "@/server/registration-followups";
 import { studentTimeline } from "@/server/year-readiness";
 import { ActionForm, Field } from "@/components/form";
-import { ClearanceBadge, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
+import { ClearanceBadge, FollowUpForm, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
 import { Timeline } from "@/components/lifecycle/timeline";
 import { DefList, NoAccess } from "@/components/ui";
 import { Avatar, Panel } from "@/components/dash/parts";
 import { Row } from "@/components/dash/rows";
-import { activateAction, cancelRegistrationAction, clearanceExceptionAction, confirmRegistrationAction, placeReturningAction, removeClearanceExceptionAction, reopenRegistrationAction } from "../actions";
+import { activateAction, cancelRegistrationAction, clearanceExceptionAction, confirmRegistrationAction, followUpAction, placeReturningAction, removeClearanceExceptionAction, reopenRegistrationAction } from "../actions";
 
 export const metadata: Metadata = { title: "Returning student" };
 
@@ -38,7 +39,7 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
     if (e instanceof AppError && e.code === "NOT_FOUND") notFound();
     throw e;
   }
-  const timeline = await studentTimeline(ctx, d.student.id);
+  const [timeline, followUps] = await Promise.all([studentTimeline(ctx, d.student.id), registrationFollowUps(ctx, d.reg.id)]);
   const r = d.reg;
   const manage = can("registration.manage");
   const st = r.status;
@@ -145,6 +146,24 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
                 <summary className="min-h-10 cursor-pointer py-1.5 text-sm font-medium text-link">{t("lc.step.placeChange")}</summary>
                 <div className="mt-3"><PlaceForm d={d} r={r} t={t} can={can} change /></div>
               </details>
+            </Panel>
+          )}
+
+          {(st === "PENDING" || followUps.length > 0) && (
+            <Panel title={t("lc.nr.history")}>
+              {followUps.length === 0 ? <p className="text-sm text-muted">{t("lc.nr.empty")}</p> : (
+                <ol className="mb-4 space-y-2.5 text-sm">
+                  {followUps.map((f) => (
+                    <li key={f.id} className="border-l-2 border-line pl-3">
+                      <p className={f.outcome === "NOT_RETURNING" ? "font-medium text-warn" : "font-medium text-ink"}>{t(`lc.nr.o.${f.outcome}` as "lc.nr.o.OTHER")}</p>
+                      {f.note && <p className="text-ink">{f.note}</p>}
+                      <p className="text-xs text-muted">{[f.by, displayDate(f.at, ctx.locale)].filter(Boolean).join(" · ")}</p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {manage && st === "PENDING" && <FollowUpForm id={r.id} t={t} action={followUpAction} />}
+              {manage && st === "PENDING" && <p className="mt-3 text-xs text-muted">{t("lc.nr.cancelHint")}</p>}
             </Panel>
           )}
 

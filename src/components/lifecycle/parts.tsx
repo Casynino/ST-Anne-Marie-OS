@@ -1,5 +1,7 @@
 import type { Translate } from "@/lib/i18n";
 import { Badge } from "@/components/ui";
+import { ActionForm, Field } from "@/components/form";
+import type { ActionState } from "@/lib/action";
 import type { ExamCompletion, ClearanceState, NextStage } from "@/lib/lifecycle/rules";
 
 /*
@@ -59,5 +61,16 @@ export function Figures({ items }: { items: { label: string; value: string | num
         </div>
       ))}
     </dl>
+  );
+}
+
+/** The follow-up note form for a family that has not registered (shared by the list pop-up and the registration page). */
+export function FollowUpForm({ id, t, action }: { id: string; t: Translate; action: (prev: ActionState, form: FormData) => Promise<ActionState> }) {
+  return (
+    <ActionForm action={action} submitLabel={t("lc.nr.go")} buttonClassName="btn-sm" className="space-y-3">
+      <input type="hidden" name="id" value={id} />
+      <Field name="outcome" type="select" required label={t("lc.nr.outcome")} placeholder={t("common.select")} options={(["WILL_RETURN", "NO_ANSWER", "NOT_RETURNING", "OTHER"] as const).map((o) => ({ value: o, label: t(`lc.nr.o.${o}` as "lc.nr.o.OTHER") }))} />
+      <Field name="note" type="textarea" rows={2} label={t("lc.nr.note")} optionalLabel={t("common.optional")} hint={t("lc.nr.noteHint")} />
+    </ActionForm>
   );
 }
