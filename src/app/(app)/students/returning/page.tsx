@@ -77,7 +77,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
       <Field name="note" label={t("lc.bulk.note")} optionalLabel={t("common.optional")} />
     </ActionForm>
   );
-  const joinForm = (r: Row) => <ActionForm action={activateAction} submitLabel={t("lc.row.join")} inline className="inline" buttonClassName="btn-sm"><input type="hidden" name="ids" value={r.id} /></ActionForm>;
+  const joinForm = (r: Row) => <ActionForm action={activateAction} submitLabel={t("lc.row.join")} inline plain className="inline"><input type="hidden" name="ids" value={r.id} /></ActionForm>;
   const preferredFor = (r: Row) => {
     const decided = r.decidedClassId ? b.places.find((p) => p.classId === r.decidedClassId) : undefined;
     return r.classId ? (r.streamId ? `${r.classId}|${r.streamId}` : r.classId) : decided ? (decided.streams.length && decided.recommendedStreamId ? `${decided.classId}|${decided.recommendedStreamId}` : decided.classId) : "";

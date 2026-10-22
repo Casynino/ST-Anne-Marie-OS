@@ -17,6 +17,7 @@ export function ActionForm({
   className = "space-y-4",
   hideSubmit,
   inline,
+  plain,
   tone = "primary",
   confirm,
   successTitle,
@@ -30,6 +31,8 @@ export function ActionForm({
   hideSubmit?: boolean;
   /** Compact single-button form (e.g. "Make current"). */
   inline?: boolean;
+  /** With `inline`: the button is a plain text action (no box), for list rows. */
+  plain?: boolean;
   tone?: "primary" | "danger" | "neutral";
   confirm?: string;
   /** When set, a successful submit replaces the form with this title + the server message (used by public forms). */
@@ -91,7 +94,7 @@ export function ActionForm({
             disabled={pending}
             className={
               inline
-                ? `btn-sm inline-flex items-center font-medium disabled:opacity-60 ${tone === "danger" ? "btn-danger" : "btn-secondary"} ${buttonClassName ?? ""}`
+                ? plain ? `inline-flex items-center px-1.5 text-[13px] font-semibold text-link hover:underline disabled:opacity-60 ${buttonClassName ?? ""}` : `btn-sm inline-flex items-center font-medium disabled:opacity-60 ${tone === "danger" ? "btn-danger" : "btn-secondary"} ${buttonClassName ?? ""}`
                 : `inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-[15px] font-medium text-white disabled:opacity-60 ${
                     tone === "danger" ? "bg-bad hover:bg-red-800" : "bg-brand-700 hover:bg-brand-800"
                   } ${buttonClassName ?? ""}`
