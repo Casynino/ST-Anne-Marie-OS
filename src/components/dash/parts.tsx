@@ -75,7 +75,7 @@ export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLab
   return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-link/40 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
-const GRADIENT = {
+export const GRADIENT = {
   green: "from-[#0a7048] to-[#1aa971]",
   teal: "from-[#0a6f82] to-[#14a5bd]",
   violet: "from-[#5446cf] to-[#8579f0]",
@@ -93,16 +93,16 @@ export function GradientTile({ label, value, caption, icon: Icon, tone = "green"
   const long = typeof value === "string" && value.length > 7;
   const body = (
     <>
-      <span className="flex items-center justify-between gap-3">
-        <span className="min-w-0 truncate text-[13px] font-medium text-white/90">{label}</span>
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/95 shadow-sm"><Icon className="size-[1.15rem] text-[#10231a]" aria-hidden /></span>
+      <span className="relative z-10 min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium text-white/90">{label}</span>
+        <span className={`block whitespace-nowrap font-semibold tabular-nums tracking-tight text-white ${long ? "text-[1.3rem] leading-7" : "text-[1.65rem] leading-8"}`}>{value}</span>
+        {caption && <span className="block truncate text-[11px] leading-4 text-white/80">{caption}</span>}
       </span>
-      <span className={`mt-1.5 block whitespace-nowrap font-semibold tabular-nums tracking-tight text-white ${long ? "text-[1.65rem] leading-8" : "text-[2rem] leading-9"}`}>{value}</span>
-      {caption && <span className="mt-0.5 block truncate text-xs text-white/85">{caption}</span>}
-      {spark && spark.length > 1 && <span className="mt-2 block opacity-90"><Spark values={spark} tone="white" /></span>}
+      {spark && spark.length > 1 && <span aria-hidden className="pointer-events-none absolute bottom-1 right-2 h-7 w-20 overflow-hidden opacity-60 [&_svg]:h-7"><Spark values={spark} tone="white" /></span>}
+      <span className="relative z-10 grid size-8 shrink-0 place-items-center self-start rounded-lg bg-white/95 shadow-sm"><Icon className="size-4 text-[#10231a]" aria-hidden /></span>
     </>
   );
-  const cls = `group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br ${GRADIENT[tone]} p-4 shadow-[var(--shadow-card)]`;
+  const cls = `group relative flex h-full items-start justify-between gap-2 overflow-hidden rounded-xl bg-gradient-to-br ${GRADIENT[tone]} px-3.5 py-2.5 shadow-[var(--shadow-card)]`;
   return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 

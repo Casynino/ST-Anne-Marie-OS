@@ -4758,6 +4758,16 @@ export const en = {
   "lc.row.registerTitle": "Register {name} for the year",
   "lc.row.join": "Join class",
   "lc.col.action": "Action",
+  "lc.d.now": "What to do now",
+  "lc.d.lastYear": "Last year",
+  "lc.d.movingTo": "Moving to",
+  "lc.d.waiting": "Waiting",
+  "lc.d.profile": "The student",
+  "lc.d.allDone": "Nothing more to do: the student is in the class.",
+  "lc.d.changeGrade": "Change the grade",
+  "lc.d.places": "Places in the grade",
+  "lc.d.placesLeft": "{left} left of {cap}",
+  "lc.d.step": "Step {n}",
 } as const;
 
 export type MessageKey = keyof typeof en;

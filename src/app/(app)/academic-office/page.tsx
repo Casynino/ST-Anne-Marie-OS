@@ -51,7 +51,7 @@ export default async function AcademicOfficePage() {
 
       <AttentionBlock t={t} rows={alertRows} />
 
-      <ul className="mt-6 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))]" aria-label={t("ac.title")}>
+      <ul className="mt-5 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("ac.title")}>
         <li><GradientTile icon={GraduationCap} tone="orange" label={t("ac.kpi.enrolled")} value={d.students.enrolled.toLocaleString()} caption={t("ac.kpi.enrolled.cap")} href="/students" /></li>
         <li><GradientTile icon={Users} tone={d.students.awaitingPlacement > 0 ? "rose" : "green"} label={t("ac.kpi.placement")} value={d.students.awaitingPlacement} caption={t("ac.kpi.placement.cap")} href="/admissions/placement" /></li>
         <li><GradientTile icon={HeartHandshake} tone="violet" label={t("ac.kpi.concerns")} value={d.students.openConcerns} caption={t("ac.kpi.concerns.cap")} href="/academic-office/concerns" /></li>

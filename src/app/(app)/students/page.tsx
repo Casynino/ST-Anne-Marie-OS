@@ -151,7 +151,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
       {viewBar}
       {!overview.year ? <EmptyState>{t("student.class.noYear")}</EmptyState> : (
         <>
-          <ul className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
+          <ul className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
             <li><GradientTile icon={GraduationCap} tone="orange" label={t("student.fig.enrolled")} value={overview.enrolled} caption={t("reg.tile.girls", { g: girls, b: boys })} /></li>
             <li><GradientTile icon={LayoutGrid} tone="violet" label={t("student.fig.classes")} value={overview.cards.length} caption={levels.join(" · ")} /></li>
             <li><GradientTile icon={Users} tone={overview.noClass > 0 ? "rose" : "green"} label={t("student.fig.noClass")} value={overview.noClass} href={overview.noClass > 0 && ctx.permissions.has("student.enroll") ? "/admissions/placement" : undefined} /></li>

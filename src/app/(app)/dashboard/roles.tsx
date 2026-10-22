@@ -84,7 +84,7 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
       <DeskRow env={env} />
 
       {tot && (
-        <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))]">
+        <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
           <li><GradientTile icon={Users} tone="orange" label={t("head.kpi.teachers")} value={tot.teachers} caption={tot.neverSignedIn > 0 ? t("head.kpi.teachers.never", { n: tot.neverSignedIn }) : t("head.kpi.teachers.cap")} /></li>
           <li><GradientTile icon={CalendarCheck} tone={tot.registersTotal > 0 && tot.registersFinalised < tot.registersTotal ? "rose" : "green"} label={t("head.kpi.registers")} value={tot.registersTotal === 0 ? "—" : `${tot.registersFinalised}/${tot.registersTotal}`} caption={t("head.kpi.registers.cap")} href="/attendance" /></li>
           <li><GradientTile icon={FileCheck} tone="teal" label={t("head.kpi.sheets")} value={tot.sheetsAwaiting} caption={tot.sheetsOverdue > 0 ? t("head.kpi.sheets.overdue", { n: tot.sheetsOverdue }) : t("head.kpi.sheets.cap")} href="/marks" /></li>
@@ -117,7 +117,7 @@ export function AccountantDashboard({ props }: { props: HomeProps }) {
       <AttentionBlock t={t} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />
 
       {f && (
-        <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))]" aria-label={t("dash.money.title")}>
+        <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("dash.money.title")}>
           <li><GradientTile icon={Wallet} tone="green" spark={f.trend.some((p) => p.cents > 0) ? running(f.trend.map((p) => p.cents)) : undefined} label={t("dash.kpi.collected")} value={`${env.school.currency} ${compactMoney(f.collected)}`} caption={f.ratePct !== null ? t("dash.kpi.collected.hint", { pct: String(f.ratePct) }) : undefined} href="/finance/payments" /></li>
           <li><GradientTile icon={Receipt} tone="violet" label={t("dash.money.billed")} value={`${env.school.currency} ${compactMoney(f.billed)}`} caption={f.term.name} href="/finance/invoices" /></li>
           <li><GradientTile icon={Receipt} tone="orange" label={t("dash.kpi.outstanding")} value={`${env.school.currency} ${compactMoney(f.outstanding)}`} caption={t("dash.money.notYet")} href="/finance/reports" /></li>

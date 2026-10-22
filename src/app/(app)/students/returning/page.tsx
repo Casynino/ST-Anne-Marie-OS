@@ -13,7 +13,7 @@ import { ClearanceBadge, CountTabs, OutcomeBadge, deptLabel, stageLabel } from "
 import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { ColorBars, DonutStat, Panel } from "@/components/dash/parts";
 import { Row } from "@/components/dash/rows";
-import { Info } from "lucide-react";
+import { ArrowRight, Info } from "lucide-react";
 import { activateAction, confirmRegistrationAction, createRegistrationsAction, placeReturningAction } from "./actions";
 
 export const metadata: Metadata = { title: "Returning students" };
@@ -148,9 +148,9 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
                                 </RowAction>
                               )}
                               {canManage && r.stage === "READY_TO_ACTIVATE" && (
-                                <ActionForm action={activateAction} submitLabel={t("lc.row.join")} inline className="inline"><input type="hidden" name="ids" value={r.id} /></ActionForm>
+                                <ActionForm action={activateAction} submitLabel={t("lc.row.join")} inline className="inline" buttonClassName="btn-sm"><input type="hidden" name="ids" value={r.id} /></ActionForm>
                               )}
-                              <Link href={`/students/returning/${r.id}`} className="btn-secondary inline-flex min-h-9 items-center rounded-lg px-3.5 text-sm font-medium">{t("common.view")}</Link>
+                              <Link href={`/students/returning/${r.id}`} className="inline-flex items-center gap-1 px-1.5 text-sm font-medium text-link hover:underline">{t("common.view")}<ArrowRight className="size-3.5" aria-hidden /></Link>
                             </span>
                           </td>
                         </tr>

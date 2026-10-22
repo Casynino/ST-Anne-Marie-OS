@@ -59,7 +59,7 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
 
       <AttentionBlock t={t} rows={rows} />
 
-      <ul className="mt-6 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))]" aria-label={t("dash.kpis")}>
+      <ul className="mt-5 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("dash.kpis")}>
         {d.myRegisters.length > 0 && <li><GradientTile icon={CalendarCheck} tone={regDone === d.myRegisters.length ? "green" : "rose"} label={t("tch.kpi.registers")} value={`${regDone}/${d.myRegisters.length}`} caption={t("tch.kpi.registers.cap", { done: regDone, total: d.myRegisters.length })} href="/attendance" /></li>}
         <li><GradientTile icon={Users} tone="orange" label={t("tch.kpi.students")} value={th.studentCount} caption={t("tch.kpi.students.cap")} href="/students" /></li>
         <li><GradientTile icon={CalendarClock} tone="teal" label={t("tch.kpi.lessons")} value={th.today.length} caption={t("tch.kpi.lessons.cap")} href="/timetable" /></li>

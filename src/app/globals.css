@@ -210,6 +210,11 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
 }
 .app-root .btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-bad) 24%, var(--color-surface)); }
 
+/* A smaller button for actions inside table rows (add it next to btn-primary / btn-secondary): flat, 2rem high, no glow. */
+.app-root .btn-sm { min-height: 2rem; padding: 0 0.75rem; font-size: 0.8125rem; line-height: 1; border-radius: 0.5rem; box-shadow: none; transform: none; }
+.app-root .btn-primary.btn-sm { background-image: none; box-shadow: none; }
+.app-root .btn-primary.btn-sm:hover:not(:disabled):not([aria-disabled="true"]), .app-root .btn-secondary.btn-sm:hover:not(:disabled) { transform: none; box-shadow: none; }
+
 /* Text fields, selects and text areas: one calm look with a clear focus ring. */
 .app-root :is(input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="file"], [type="range"], [type="color"], [type="submit"], [type="button"]), select, textarea) {
   border-radius: 0.625rem;

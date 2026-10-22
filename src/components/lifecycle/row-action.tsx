@@ -10,7 +10,7 @@ export function RowAction({ label, title, closeLabel, primary = false, children 
   const ref = useRef<HTMLDialogElement>(null);
   return (
     <>
-      <button type="button" onClick={() => ref.current?.showModal()} className={`inline-flex min-h-9 items-center rounded-lg px-3.5 text-sm font-medium ${primary ? "btn-primary" : "btn-secondary"}`}>{label}</button>
+      <button type="button" onClick={() => ref.current?.showModal()} className={`btn-sm inline-flex items-center font-medium ${primary ? "btn-primary" : "btn-secondary"}`}>{label}</button>
       <dialog ref={ref} className="m-auto w-[min(34rem,calc(100vw-2rem))] rounded-xl border border-line bg-surface p-0 text-ink shadow-[var(--shadow-lift)] backdrop:bg-black/60">
         <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
           <h2 className="text-base font-semibold">{title}</h2>
