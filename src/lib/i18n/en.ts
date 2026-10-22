@@ -4752,6 +4752,12 @@ export const en = {
   "attd.nodata": "No finalised register in the last 14 days yet.",
   "attd.date": "Day",
   "attd.col.students": "Students",
+  "lc.row.place": "Place",
+  "lc.row.placeTitle": "Place {name} in a grade",
+  "lc.row.register": "Register",
+  "lc.row.registerTitle": "Register {name} for the year",
+  "lc.row.join": "Join class",
+  "lc.col.action": "Action",
 } as const;
 
 export type MessageKey = keyof typeof en;

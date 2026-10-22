@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { displayDate, formatDateOnly, todayInTimezone } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
 import { returningBoard, REGISTRATION_STAGES } from "@/server/annual-registration";
-import { ActionForm } from "@/components/form";
+import { ActionForm, Field } from "@/components/form";
+import { RowAction } from "@/components/lifecycle/row-action";
 import { SubmitButton } from "@/components/submit-button";
 import { SelectAll } from "@/components/lifecycle/select-all";
 import { ClearanceBadge, CountTabs, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
@@ -13,7 +14,7 @@ import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { ColorBars, DonutStat, GradientTile, Panel } from "@/components/dash/parts";
 import { Row } from "@/components/dash/rows";
 import { CheckCircle2, ClipboardCheck, GraduationCap, Hourglass, Info, Repeat2, Wallet } from "lucide-react";
-import { activateAction, createRegistrationsAction } from "./actions";
+import { activateAction, confirmRegistrationAction, createRegistrationsAction, placeReturningAction } from "./actions";
 
 export const metadata: Metadata = { title: "Returning students" };
 
@@ -98,38 +99,76 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
           </form>
 
           {b.rows.length === 0 ? <EmptyState>{t("lc.ret.none")}</EmptyState> : (
-            <ActionForm action={activateAction} hideSubmit className="space-y-3">
+            <>
               {canManage && ready.length > 0 && (
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-canvas/50 px-3 py-2.5">
+                <ActionForm id="bulk-activate" action={activateAction} hideSubmit className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-canvas/50 px-3 py-2.5">
                   <SubmitButton>{t("lc.ret.activate")}</SubmitButton>
                   <span className="text-xs text-muted">{t("lc.ret.activateHint")}</span>
-                </div>
+                </ActionForm>
               )}
               <div className="-mx-5 overflow-x-auto">
-                <table className="w-full min-w-[44rem] text-sm">
+                <table className="w-full min-w-[56rem] text-sm">
                   <thead><tr className="border-y border-line">
-                    <th className={`${th} w-10`}>{canManage && ready.length > 0 ? <SelectAll name="ids" label={t("lc.selectAll")} /> : null}</th>
-                    <th className={th}>{t("lc.col.student")}</th><th className={th}>{t("lc.col.decision")}</th><th className={th}>{t("lc.col.placed")}</th><th className={th}>{t("lc.col.fees")}</th><th className={th}>{t("lc.col.next")}</th>
+                    <th className={`${th} w-10`}>{canManage && ready.length > 0 ? <SelectAll formId="bulk-activate" name="ids" label={t("lc.selectAll")} /> : null}</th>
+                    <th className={th}>{t("lc.col.student")}</th><th className={th}>{t("lc.col.decision")}</th><th className={th}>{t("lc.col.placed")}</th><th className={th}>{t("lc.col.fees")}</th><th className={th}>{t("lc.col.next")}</th><th className={`${th} text-right`}><span className="sr-only">{t("lc.col.action")}</span></th>
                   </tr></thead>
                   <tbody className="divide-y divide-line">
-                    {b.rows.map((r) => (
-                      <tr key={r.id} className="hover:bg-canvas/50">
-                        <td className={`${td} w-10`}>{canManage && r.stage === "READY_TO_ACTIVATE" && <input type="checkbox" name="ids" value={r.id} aria-label={r.name} className="size-4 accent-brand-700" />}</td>
-                        <td className={td}><Link href={`/students/returning/${r.id}`} className="font-medium text-ink hover:text-link hover:underline">{r.name}</Link><span className="block text-xs tabular-nums text-muted">{r.admissionNo}</span></td>
-                        <td className={td}><span className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-muted">→ {r.decidedClassName}</span>}</span></td>
-                        <td className={`${td} whitespace-nowrap`}>{r.className ? `${r.className}${r.streamName ? ` · ${r.streamName}` : ""}` : <span className="text-muted">—</span>}</td>
-                        <td className={td}>
-                          <ClearanceBadge state={r.clearance} t={t} />
-                          {seeMoney && r.firstTermOutstanding ? <span className="mt-1 block text-xs tabular-nums text-muted">{formatMoney(r.firstTermOutstanding)}</span> : null}
-                          {r.hasPreviousDebt && <span className="mt-1 block text-xs text-warn">{t("lc.ret.olderDebt")}{seeMoney && r.previousOutstanding ? ` · ${formatMoney(r.previousOutstanding)}` : ""}</span>}
-                        </td>
-                        <td className={td}><span className={r.blocked ? "text-warn" : "text-ink"}>{stageLabel(t, r.stage)}</span>{r.department !== "NONE" && <span className="block text-xs text-muted">{deptLabel(t, r.department)}</span>}</td>
-                      </tr>
-                    ))}
+                    {b.rows.map((r) => {
+                      const decided = r.decidedClassId ? b.places.find((p) => p.classId === r.decidedClassId) : undefined;
+                      const preferred = r.classId ? (r.streamId ? `${r.classId}|${r.streamId}` : r.classId) : decided ? (decided.streams.length && decided.recommendedStreamId ? `${decided.classId}|${decided.recommendedStreamId}` : decided.classId) : "";
+                      return (
+                        <tr key={r.id} className="hover:bg-canvas/50">
+                          <td className={`${td} w-10`}>{canManage && r.stage === "READY_TO_ACTIVATE" && <input type="checkbox" name="ids" value={r.id} form="bulk-activate" aria-label={r.name} className="size-4 accent-brand-700" />}</td>
+                          <td className={td}><Link href={`/students/returning/${r.id}`} className="font-medium text-ink hover:text-link hover:underline">{r.name}</Link><span className="block text-xs tabular-nums text-muted">{r.admissionNo}</span></td>
+                          <td className={td}><span className="flex flex-wrap items-center gap-2"><OutcomeBadge outcome={r.outcome} t={t} />{r.decidedClassName && <span className="text-muted">→ {r.decidedClassName}</span>}</span></td>
+                          <td className={`${td} whitespace-nowrap`}>{r.className ? `${r.className}${r.streamName ? ` · ${r.streamName}` : ""}` : <span className="text-muted">—</span>}</td>
+                          <td className={td}>
+                            <ClearanceBadge state={r.clearance} t={t} />
+                            {seeMoney && r.firstTermOutstanding ? <span className="mt-1 block text-xs tabular-nums text-muted">{formatMoney(r.firstTermOutstanding)}</span> : null}
+                            {r.hasPreviousDebt && <span className="mt-1 block text-xs text-warn">{t("lc.ret.olderDebt")}{seeMoney && r.previousOutstanding ? ` · ${formatMoney(r.previousOutstanding)}` : ""}</span>}
+                          </td>
+                          <td className={td}><span className={r.blocked ? "text-warn" : "text-ink"}>{stageLabel(t, r.stage)}</span>{r.department !== "NONE" && <span className="block text-xs text-muted">{deptLabel(t, r.department)}</span>}</td>
+                          <td className={`${td} whitespace-nowrap text-right`}>
+                            <span className="inline-flex items-center justify-end gap-2">
+                              {canManage && r.stage === "NEEDS_PLACEMENT" && (
+                                <RowAction primary label={t("lc.row.place")} title={t("lc.row.placeTitle", { name: r.name })} closeLabel={t("common.cancel")}>
+                                  <ActionForm action={placeReturningAction} submitLabel={t("lc.step.placeGo")} className="space-y-3">
+                                    <input type="hidden" name="id" value={r.id} />
+                                    <Field name="placement" type="select" label={t("lc.step.placeLabel")} hint={t("lc.step.placeHint")} defaultValue={preferred} placeholder={t("common.select")} required options={b.options.map((o) => ({ value: o.value, label: o.full ? `${o.label} – ${t("adm.place.full")}` : o.label }))} />
+                                    {(can("progression.exception") || can("class.capacity_override")) && (
+                                      <details>
+                                        <summary className="min-h-11 cursor-pointer py-2 text-sm text-muted">{t("lc.step.exceptions")}</summary>
+                                        <div className="space-y-3">
+                                          {can("progression.exception") && <Field name="gradeReason" label={t("lc.step.gradeReason")} optionalLabel={t("common.optional")} hint={t("lc.step.gradeReasonHint")} />}
+                                          {can("class.capacity_override") && <><Field name="overrideCapacity" type="checkbox" label={t("adm.enrol.override")} /><Field name="overrideReason" label={t("adm.enrol.overrideReason")} optionalLabel={t("common.optional")} /></>}
+                                        </div>
+                                      </details>
+                                    )}
+                                  </ActionForm>
+                                </RowAction>
+                              )}
+                              {canManage && r.stage === "NEEDS_REGISTRATION" && (
+                                <RowAction primary label={t("lc.row.register")} title={t("lc.row.registerTitle", { name: r.name })} closeLabel={t("common.cancel")}>
+                                  <ActionForm action={confirmRegistrationAction} submitLabel={t("lc.step.registerGo")} className="space-y-3">
+                                    <input type="hidden" name="id" value={r.id} />
+                                    <Field name="confirmed" type="checkbox" label={t("lc.step.confirmed")} hint={t("lc.step.confirmedHint")} />
+                                    <Field name="note" label={t("lc.bulk.note")} optionalLabel={t("common.optional")} />
+                                  </ActionForm>
+                                </RowAction>
+                              )}
+                              {canManage && r.stage === "READY_TO_ACTIVATE" && (
+                                <ActionForm action={activateAction} submitLabel={t("lc.row.join")} inline className="inline"><input type="hidden" name="ids" value={r.id} /></ActionForm>
+                              )}
+                              <Link href={`/students/returning/${r.id}`} className="btn-secondary inline-flex min-h-9 items-center rounded-lg px-3.5 text-sm font-medium">{t("common.view")}</Link>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-            </ActionForm>
+            </>
           )}
           <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money }} t={t} />
         </Panel>

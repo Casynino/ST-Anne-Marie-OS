@@ -146,7 +146,7 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
   requirePermission(ctx, "registration.read");
   const { years, target: fallback } = await defaultTargetYear(db, ctx.schoolId);
   const year = (opts.yearId ? years.find((y) => y.id === opts.yearId) : null) ?? fallback;
-  if (!year) return { year: null, years, rows: [] as RegistrationRow[], total: 0, page: 1, pages: 1, counts: emptyCounts(), places: [] as ClassPlaces[], missing: 0, settings: await getLifecycleSettings(db, ctx.schoolId), open: false, classes: [] as { id: string; name: string }[] };
+  if (!year) return { year: null, years, rows: [] as RegistrationRow[], total: 0, page: 1, pages: 1, counts: emptyCounts(), places: [] as ClassPlaces[], options: [] as PlaceOption[], missing: 0, settings: await getLifecycleSettings(db, ctx.schoolId), open: false, classes: [] as { id: string; name: string }[] };
 
   const [settings, grades, today] = await Promise.all([getLifecycleSettings(db, ctx.schoolId), loadGrades(db, ctx.schoolId), schoolToday(db, ctx.schoolId)]);
   const regs = await db.annualRegistration.findMany({
@@ -191,7 +191,15 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
     ? await db.studentProgression.count({ where: { schoolId: ctx.schoolId, fromAcademicYearId: previous.id, status: "APPROVED", outcome: { in: ["PROMOTED", "REPEAT"] }, student: { status: "ENROLLED", registrations: { none: { academicYearId: year.id } } } } })
     : 0;
   const places = [...(await classPlaces(db, ctx.schoolId, year.id)).values()];
-  return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, counts, places, missing, settings, open, classes: grades.map((g) => ({ id: g.id, name: g.name })) };
+  // Where a student can be placed (every active class and stream, with the places taken), so a row can place someone without opening their page.
+  const active = await db.schoolClass.findMany({ where: { schoolId: ctx.schoolId, isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { streams: { orderBy: { name: "asc" } } } });
+  const options: PlaceOption[] = active.flatMap((c) => {
+    const p = places.find((x) => x.classId === c.id);
+    const note = c.capacity ? ` (${(p?.inClass ?? 0) + (p?.reserved ?? 0)}/${c.capacity})` : "";
+    const full = p?.left === 0;
+    return c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}`, full })) : [{ value: c.id, label: `${c.name}${note}`, full }];
+  });
+  return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, counts, places, options, missing, settings, open, classes: grades.map((g) => ({ id: g.id, name: g.name })) };
 }
 function emptyCounts() { return { total: 0, cleared: 0, owing: 0, byStage: {} as Partial<Record<Stage, number>> }; }
 

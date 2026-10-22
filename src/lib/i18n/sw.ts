@@ -4754,4 +4754,10 @@ export const sw: Record<MessageKey, string> = {
   "attd.nodata": "Bado hakuna daftari lililokamilika siku 14 zilizopita.",
   "attd.date": "Siku",
   "attd.col.students": "Wanafunzi",
+  "lc.row.place": "Weka darasani",
+  "lc.row.placeTitle": "Mweke {name} kwenye gredi",
+  "lc.row.register": "Sajili",
+  "lc.row.registerTitle": "Msajili {name} kwa mwaka",
+  "lc.row.join": "Ingia darasani",
+  "lc.col.action": "Hatua",
 };
