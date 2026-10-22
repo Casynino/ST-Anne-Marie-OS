@@ -8,6 +8,7 @@ import { actorOf, writeAudit } from "@/server/audit";
 import { schoolToday } from "@/server/balances";
 import { getLifecycleSettings } from "@/server/lifecycle-settings";
 import { loadGrades, loadYears, yearAfter, yearFinances, type YearFinance } from "@/server/lifecycle-data";
+import { getFeeSettings } from "@/server/fees";
 import { placeStudentTx } from "@/server/students";
 import { closeTasks, openTask } from "@/server/workflow";
 import { childIds } from "@/server/portal";
@@ -351,6 +352,8 @@ export type FamilyRegistration = {
   year: { id: string; name: string; startsOn: string; opensOn: string | null; closesOn: string | null };
   toClassName: string;
   placed: string | null;
+  /** What the new year costs this child and what verified payments cover (the one balance calculation); earlier-year debt stays on its own line. */
+  fees: { state: ClearanceState; firstTerm: { billed: boolean; charged: number; paid: number; outstanding: number }; initialRequired: number | null; previousOutstanding: number; previous: { yearName: string; outstanding: number }[]; paymentInstructions: string } | null;
 };
 
 /** The decision and registration for the family's child for the coming year: only an APPROVED promote/repeat decision with a registration record counts. */
@@ -372,18 +375,21 @@ export async function familyRegistrationView(ctx: AuthContext, studentId: string
   const stream = reg.streamId ? (await db.stream.findFirst({ where: { id: reg.streamId }, select: { name: true } }))?.name ?? null : null;
   const placedName = reg.classId ? `${grades.find((g) => g.id === reg.classId)?.name ?? ""}${stream ? ` · ${stream}` : ""}` : null;
   const year = { id: reg.academicYear.id, name: reg.academicYear.name, startsOn: formatDateOnly(reg.academicYear.startsOn), opensOn: reg.academicYear.registrationOpensOn ? formatDateOnly(reg.academicYear.registrationOpensOn) : null, closesOn: reg.academicYear.registrationClosesOn ? formatDateOnly(reg.academicYear.registrationClosesOn) : null };
-  const base = { outcome: prog.outcome as "PROMOTED" | "REPEAT", year, toClassName, placed: placedName };
+  const [settings, feeSettings] = await Promise.all([getLifecycleSettings(db, ctx.schoolId), getFeeSettings(db, ctx.schoolId)]);
+  const m = (await yearFinances(db, ctx.schoolId, [studentId], reg.academicYearId, settings, new Set(reg.clearanceExceptionReason ? [studentId] : []))).get(studentId);
+  const fees: FamilyRegistration["fees"] = m ? {
+    state: m.state, firstTerm: m.firstTerm,
+    initialRequired: feeSettings.initialPaymentPct !== null && m.firstTerm.billed ? Math.ceil((m.firstTerm.charged * feeSettings.initialPaymentPct) / 100) : null,
+    previousOutstanding: m.previousOutstanding, previous: m.previous.map((p) => ({ yearName: p.yearName, outstanding: p.outstanding })), paymentInstructions: feeSettings.paymentInstructions,
+  } : null;
+  const base = { outcome: prog.outcome as "PROMOTED" | "REPEAT", year, toClassName, placed: placedName, fees };
   if (reg.status === "CANCELLED") return { ...base, state: "CANCELLED" };
   if (reg.status === "ACTIVE") return { ...base, state: "JOINED" };
   if (reg.status === "REGISTERED") return { ...base, state: "REGISTERED" };
   const today = await schoolToday(db, ctx.schoolId);
   if (year.opensOn && today < year.opensOn) return { ...base, state: "NOT_YET" };
   if (year.closesOn && today > year.closesOn) return { ...base, state: "CLOSED" };
-  const settings = await getLifecycleSettings(db, ctx.schoolId);
-  if (settings.feePolicy === "BLOCK_REGISTRATION") {
-    const m = (await yearFinances(db, ctx.schoolId, [studentId], reg.academicYearId, settings, new Set(reg.clearanceExceptionReason ? [studentId] : []))).get(studentId);
-    if (!m || !isCleared(m.state)) return { ...base, state: "FEES" };
-  }
+  if (settings.feePolicy === "BLOCK_REGISTRATION" && (!m || !isCleared(m.state))) return { ...base, state: "FEES" };
   return { ...base, state: "OPEN" };
 }
 

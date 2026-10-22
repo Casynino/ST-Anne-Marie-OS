@@ -9,8 +9,8 @@ import { optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
 // ───────────────────────── Settings ─────────────────────────
 
-export type FeeSettings = { paymentInstructions: string; defaultDueDays: number; clearanceMaxOutstandingCents: number; /** An expense of this size or more waits for approval (0 = only categories marked as needing approval). */ expenseApprovalAboveCents: number; /** Show academic staff a plain "fees need review" flag for a student (no amounts). The school chooses; nothing is blocked by it. */ academicReviewFlag: boolean };
-export const DEFAULT_FEE_SETTINGS: FeeSettings = { paymentInstructions: "", defaultDueDays: 14, clearanceMaxOutstandingCents: 0, expenseApprovalAboveCents: 0, academicReviewFlag: false };
+export type FeeSettings = { paymentInstructions: string; defaultDueDays: number; clearanceMaxOutstandingCents: number; /** The share (percent) of a returning student's first-term bill that must be paid before annual registration counts as cleared. null = not set: the fixed limit above applies. */ initialPaymentPct: number | null; /** An expense of this size or more waits for approval (0 = only categories marked as needing approval). */ expenseApprovalAboveCents: number; /** Show academic staff a plain "fees need review" flag for a student (no amounts). The school chooses; nothing is blocked by it. */ academicReviewFlag: boolean };
+export const DEFAULT_FEE_SETTINGS: FeeSettings = { paymentInstructions: "", defaultDueDays: 14, clearanceMaxOutstandingCents: 0, initialPaymentPct: null, expenseApprovalAboveCents: 0, academicReviewFlag: false };
 
 export async function getFeeSettings(client: Db | Tx, schoolId: string): Promise<FeeSettings> {
   const row = await client.schoolSetting.findUnique({ where: { schoolId_key: { schoolId, key: "fees" } } });
@@ -19,6 +19,7 @@ export async function getFeeSettings(client: Db | Tx, schoolId: string): Promise
     paymentInstructions: typeof s.paymentInstructions === "string" ? s.paymentInstructions : "",
     defaultDueDays: Number.isInteger(s.defaultDueDays) ? (s.defaultDueDays as number) : DEFAULT_FEE_SETTINGS.defaultDueDays,
     clearanceMaxOutstandingCents: Number.isInteger(s.clearanceMaxOutstandingCents) ? (s.clearanceMaxOutstandingCents as number) : 0,
+    initialPaymentPct: typeof s.initialPaymentPct === "number" && s.initialPaymentPct > 0 && s.initialPaymentPct <= 100 ? s.initialPaymentPct : null,
     expenseApprovalAboveCents: Number.isInteger(s.expenseApprovalAboveCents) && (s.expenseApprovalAboveCents as number) >= 0 ? (s.expenseApprovalAboveCents as number) : 0,
     academicReviewFlag: s.academicReviewFlag === true,
   };
@@ -28,6 +29,7 @@ const settingsSchema = z.object({
   paymentInstructions: optText(1000),
   defaultDueDays: z.coerce.number().int().min(0).max(120),
   clearanceMaxOutstanding: z.preprocess((v) => (v === "" || v === undefined ? "0" : v), z.union([z.string(), z.number()])),
+  initialPaymentPct: z.preprocess((v) => (v === undefined ? undefined : v === "" || v === null ? null : v), z.coerce.number().min(0).max(100).nullable().optional()),
   expenseApprovalAbove: z.preprocess((v) => (v === "" || v === undefined ? undefined : v), z.union([z.string(), z.number()]).optional()),
   academicReviewFlag: z.preprocess((v) => (v === undefined ? undefined : v === "on" || v === "true" || v === true), z.boolean().optional()),
 });
@@ -41,7 +43,7 @@ export async function updateFeeSettings(ctx: AuthContext, input: unknown) {
   // A form that does not send the field leaves the threshold as it was; an explicit 0 turns it off.
   const approvalAbove = d.expenseApprovalAbove === undefined ? before.expenseApprovalAboveCents : parseAmount(d.expenseApprovalAbove);
   if (approvalAbove === null) throw invalid("Please correct the highlighted fields.", { expenseApprovalAbove: "Enter an amount such as 0 or 500000" });
-  const value: FeeSettings = { paymentInstructions: d.paymentInstructions ?? "", defaultDueDays: d.defaultDueDays, clearanceMaxOutstandingCents: max, expenseApprovalAboveCents: approvalAbove, academicReviewFlag: d.academicReviewFlag ?? before.academicReviewFlag };
+  const value: FeeSettings = { paymentInstructions: d.paymentInstructions ?? "", defaultDueDays: d.defaultDueDays, clearanceMaxOutstandingCents: max, initialPaymentPct: d.initialPaymentPct === undefined ? before.initialPaymentPct : d.initialPaymentPct && d.initialPaymentPct > 0 ? d.initialPaymentPct : null, expenseApprovalAboveCents: approvalAbove, academicReviewFlag: d.academicReviewFlag ?? before.academicReviewFlag };
   await db.$transaction(async (tx) => {
     await tx.schoolSetting.upsert({ where: { schoolId_key: { schoolId: ctx.schoolId, key: "fees" } }, create: { schoolId: ctx.schoolId, key: "fees", value, updatedById: ctx.userId }, update: { value, updatedById: ctx.userId } });
     await writeAudit(tx, actorOf(ctx), { action: "fees.settings_update", entityType: "SchoolSetting", entityId: "fees", changes: { before: { ...before, paymentInstructions: undefined }, after: { ...value, paymentInstructions: undefined } } });

@@ -96,6 +96,40 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
         <section aria-label={t("fam.next.title", { year: next.year.name })} className="mt-5 rounded-2xl border border-link/40 bg-link/10 p-5">
           <h2 className="text-[17px] font-semibold text-ink">{t("fam.next.title", { year: next.year.name })}</h2>
           <p className="mt-1 text-sm text-ink">{t(next.outcome === "PROMOTED" ? "fam.next.promoted" : "fam.next.repeat", { name: child.name, class: next.toClassName })}</p>
+          {(() => {
+            const registered = next.state === "REGISTERED" || next.state === "JOINED";
+            const pay = next.fees?.state ?? "NOT_BILLED";
+            const payOk = pay === "CLEARED" || pay === "CLEARED_EXCEPTION";
+            const steps: { label: string; text: string; ok: boolean; now: boolean }[] = [
+              { label: t("fam.next.step.decision"), text: t("fam.next.s.done"), ok: true, now: false },
+              { label: t("fam.next.step.register"), text: registered ? t("fam.next.s.done") : next.state === "OPEN" ? t("fam.next.s.now") : t("fam.next.s.waiting"), ok: registered, now: next.state === "OPEN" },
+              { label: t("fam.next.step.pay"), text: t(`fam.next.pay.${pay}` as "fam.next.pay.CLEARED"), ok: payOk, now: registered && !payOk && pay === "OUTSTANDING" },
+              { label: t("fam.next.step.class"), text: next.placed ?? t(registered ? "fam.next.s.school" : "fam.next.s.waiting"), ok: !!next.placed && registered, now: false },
+              { label: t("fam.next.step.join"), text: next.state === "JOINED" ? t("fam.next.s.done") : t("fam.next.s.waiting"), ok: next.state === "JOINED", now: false },
+            ];
+            return (
+              <ol className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5" aria-label={t("fam.next.title", { year: next.year.name })}>
+                {steps.map((x, i) => (
+                  <li key={x.label} className={`rounded-lg border px-2.5 py-2 ${x.ok ? "border-ok/30 bg-ok/5" : x.now ? "border-link/60 bg-link/10" : "border-line bg-canvas/50"}`} aria-current={x.now ? "step" : undefined}>
+                    <span className="flex items-center gap-1 text-muted">{x.ok ? <CheckCircle2 className="size-3.5 text-ok" aria-hidden /> : null}{i + 1}</span>
+                    <span className="mt-0.5 block font-medium text-ink">{x.label}</span>
+                    <span className={`block ${x.ok ? "text-ok" : x.now ? "text-link" : "text-muted"}`}>{x.text}</span>
+                  </li>
+                ))}
+              </ol>
+            );
+          })()}
+          <div className="mt-3 rounded-lg border border-line bg-canvas/50 px-3.5 py-3 text-sm">
+            <p className="font-medium text-ink">{t("fam.next.fees.title", { year: next.year.name })}</p>
+            {!next.fees || !next.fees.firstTerm.billed ? <p className="mt-1 text-muted">{t("fam.next.fees.none", { year: next.year.name })}</p> : (
+              <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-4">
+                {[[t("fam.next.fees.first"), formatMoney(next.fees.firstTerm.charged, fees.currency)], [t("fam.next.fees.paid"), formatMoney(next.fees.firstTerm.paid, fees.currency)], [t("fam.next.fees.left"), formatMoney(next.fees.firstTerm.outstanding, fees.currency)], ...(next.fees.initialRequired !== null ? [[t("fam.next.fees.initial"), formatMoney(next.fees.initialRequired, fees.currency)]] : [])].map(([l, v]) => <div key={l}><dt className="text-xs text-muted">{l}</dt><dd className="font-semibold tabular-nums text-ink">{v}</dd></div>)}
+              </dl>
+            )}
+            {next.fees && next.fees.previousOutstanding > 0 && <p className="mt-2 text-warn">{t("fam.next.fees.older")}: {formatMoney(next.fees.previousOutstanding, fees.currency)} ({next.fees.previous.map((p) => p.yearName).join(", ")})</p>}
+            {next.fees?.paymentInstructions && <p className="mt-2 whitespace-pre-line text-muted"><span className="font-medium text-ink">{t("fam.next.how")}:</span> {next.fees.paymentInstructions}</p>}
+            <p className="mt-2 text-xs text-muted">{t("fam.next.verify")}</p>
+          </div>
           {next.state === "OPEN" && (
             <ActionForm action={registerChildAction} submitLabel={t("fam.next.go", { year: next.year.name })} buttonClassName="btn-sm" className="mt-3 space-y-3">
               <input type="hidden" name="studentId" value={child.id} />

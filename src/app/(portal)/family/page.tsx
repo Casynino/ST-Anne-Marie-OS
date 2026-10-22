@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { myChildren } from "@/server/portal";
+import { familyRegistrationView } from "@/server/annual-registration";
 import { myApplications } from "@/server/application-fee";
 import { getSchoolBasics } from "@/server/settings";
 import { listPublicNews } from "@/server/website";
@@ -21,6 +22,7 @@ export default async function FamilyHome() {
   // A family that has only applied (no child enrolled yet) lands on its applications.
   if (children.length === 0 && (await myApplications(ctx)).length > 0) redirect("/family/applications");
   const [news, school] = await Promise.all([listPublicNews(ctx.schoolId, { limit: 3 }), getSchoolBasics(ctx.schoolId)]);
+  const next = new Map((await Promise.all(children.map(async (c) => [c.id, await familyRegistrationView(ctx, c.id).catch(() => null)] as const))));
   const first = ctx.fullName.split(" ")[0] ?? ctx.fullName;
   return (
     <>
@@ -40,6 +42,7 @@ export default async function FamilyHome() {
                     <span className="block truncate text-lg font-semibold text-heading">{c.name}</span>
                     <span className="block text-sm text-muted">{c.className ? `${c.className}${c.streamName ? ` ${c.streamName}` : ""}` : t("fam.notPlaced")} · {c.admissionNo}</span>
                     {c.status !== "ENROLLED" && <span className="mt-1 inline-block"><Pill>{t(`student.status.${c.status}` as never)}</Pill></span>}
+                    {(() => { const n = next.get(c.id); return n ? <span className={`mt-1 block text-sm font-medium ${n.state === "OPEN" ? "text-link" : n.state === "REGISTERED" || n.state === "JOINED" ? "text-ok" : "text-warn"}`}>{t(`fam.next.chip.${n.state}` as "fam.next.chip.OPEN", { year: n.year.name, date: n.year.opensOn ?? "" })}</span> : null; })()}
                   </span>
                   <ChevronRight className="size-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />
                 </Link>

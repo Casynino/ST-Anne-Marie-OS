@@ -67,7 +67,7 @@ export async function examCompletions(client: Client, schoolId: string, yearId: 
 export type YearMoney = { billed: boolean; charged: number; paid: number; outstanding: number };
 export type YearFinance = {
   state: ClearanceState; yearId: string;
-  /** The bill the registration needs: the first term of the year. */
+  /** The bill the registration needs: the first term of the year. Cleared when the school's initial payment (a share of this bill, or a fixed limit) is covered by verified payments. */
   firstTerm: YearMoney;
   /** Everything billed for the year. */
   year: YearMoney;
@@ -105,7 +105,7 @@ export async function yearFinances(client: Client, schoolId: string, studentIds:
     const yearMoney = sum(inYear);
     out.set(id, {
       yearId, firstTerm, year: yearMoney, previousOutstanding, previous, totalOutstanding: yearMoney.outstanding + previousOutstanding, exception: exceptions.has(id),
-      state: clearanceState({ billed: firstTerm.billed, currentOutstanding: firstTerm.outstanding, previousOutstanding, maxOutstanding: fee.clearanceMaxOutstandingCents, previousCounts: settings.previousDebtCounts, exception: exceptions.has(id) }),
+      state: clearanceState({ billed: firstTerm.billed, currentOutstanding: firstTerm.outstanding, previousOutstanding, maxOutstanding: fee.initialPaymentPct !== null && firstTerm.billed ? Math.max(0, Math.floor((firstTerm.charged * (100 - fee.initialPaymentPct)) / 100)) : fee.clearanceMaxOutstandingCents, previousCounts: settings.previousDebtCounts, exception: exceptions.has(id) }),
     });
   }
   return out;
