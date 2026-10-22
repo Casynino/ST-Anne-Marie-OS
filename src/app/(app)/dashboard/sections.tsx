@@ -8,7 +8,7 @@ import type { classCollectionReport } from "@/server/finance-reports";
 import { displayDate, displayDateTime } from "@/lib/dates";
 import { Badge } from "@/components/ui";
 import { ChartCard } from "@/components/charts";
-import { Cell, DashSection, DashTable, DonutStat, EmptyLine, HBars, KpiCard, Panel, PersonCell, Pill, SERIES_COLORS, StackedBars, type PillTone } from "@/components/dash/parts";
+import { Cell, DashSection, DashTable, DonutStat, EmptyLine, GradientTile, HBars, KpiCard, Panel, PersonCell, Pill, SERIES_COLORS, StackedBars, type PillTone } from "@/components/dash/parts";
 import { AreaChart, BarLineChart } from "@/components/dash/charts-client";
 import { ClassGrid, type ClassCell } from "@/components/dash/class-grid";
 import { MetricStrip, RateBars, Ring, StageBar } from "@/components/dash/viz";
@@ -44,7 +44,7 @@ const rateOf = (v: unknown) => { const n = parseFloat(String(v)); return Number.
 const running = (xs: number[]) => { let a = 0; return xs.map((x) => (a += x)); };
 const movingAvg = (xs: number[], n: number) => xs.map((_, i) => { const w = xs.slice(Math.max(0, i - n + 1), i + 1); return Math.round(w.reduce((a, b) => a + b, 0) / w.length); });
 const periods = (t: Translate, counts: number[]) => counts.map((n) => ({ label: t(`dash.period.${n}` as "dash.period.7"), count: n }));
-const compactMoney = (cents: number) => { const n = cents / 100; return n >= 1_000_000 ? `${Math.round(n / 100_000) / 10}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(Math.round(n)); };
+export const compactMoney = (cents: number) => { const n = cents / 100; return n >= 1_000_000 ? `${Math.round(n / 100_000) / 10}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(Math.round(n)); };
 const STAGE = { sky: "#14a3b8", violet: "#8b80ff", sun: "#f3b94c", ok: "#2fd08f", bad: "#ff8574", muted: "#4b5a52" } as const;
 
 function entityHref(type: string, id: string | null): string | null {
@@ -54,20 +54,22 @@ function entityHref(type: string, id: string | null): string | null {
   return null;
 }
 
-export function KpiSection({ env }: { env: DashEnv }) {
+export function KpiSection({ env, bare = false }: { env: DashEnv; bare?: boolean }) {
   const { t, money, d, school } = env;
   const attSpark = d.attendanceTrend && d.attendanceTrend.length > 1 ? d.attendanceTrend.map((p) => p.rate) : undefined;
   const cashSpark = d.finance && d.finance.trend.some((p) => p.cents > 0) ? running(d.finance.trend.map((p) => p.cents)) : undefined;
   const appsSpark = env.o.applications && env.o.applications.some((p) => p.count > 0) ? env.o.applications.slice(-14).map((p) => p.count) : undefined;
+  const ORDER = ["enrolled", "attendanceToday", "collected", "outstanding", "pipeline", "resultsLocked", "enquiries", "staff"];
+  const kpis = bare ? [...d.kpis].sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key)).slice(0, 6) : d.kpis;
   return (
     <>
       {d.kpis.length > 0 && (
-        <DashSection id="school" title={t("dash.sec.school")} subtitle={t("dash.sec.school.sub")}>
-          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("dash.kpis")}>
-            {d.kpis.map((k) => {
+        <Wrap bare={bare} t={t}>
+          <ul className={bare ? "mt-6 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]" : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"} aria-label={t("dash.kpis")}>
+            {kpis.map((k) => {
               const Icon = KPI_ICON[k.key as keyof typeof KPI_ICON];
               const money_ = k.key === "collected" || k.key === "outstanding";
-              const caption = k.key === "collected" ? (k.hint ? t("dash.kpi.collected.hint", { pct: k.hint }) : undefined) : k.key === "outstanding" ? t("dash.kpi.outstanding.hint", { amount: money(Number(k.hint ?? 0)) }) : k.key === "resultsLocked" ? t("dash.kpi.resultsLocked.hint", { done: k.hint?.split("/")[0] ?? "0", total: k.hint?.split("/")[1] ?? "0" }) : k.key === "pipeline" ? t("dash.kpi.pipeline.hint", { count: Number(k.hint ?? 0) }) : k.key === "attendanceToday" ? (k.value === null ? t("dash.kpi.attendanceToday.none") : t("dash.kpi.attendanceToday.hint", { done: k.hint?.split("/")[0] ?? "0", total: k.hint?.split("/")[1] ?? "0" })) : undefined;
+              const caption = k.key === "enrolled" && d.gender ? `${d.gender.FEMALE ?? 0} ${t("student.female").toLowerCase()} · ${d.gender.MALE ?? 0} ${t("student.male").toLowerCase()}` : k.key === "collected" ? (k.hint ? t("dash.kpi.collected.hint", { pct: k.hint }) : undefined) : k.key === "outstanding" ? t("dash.kpi.outstanding.hint", { amount: money(Number(k.hint ?? 0)) }) : k.key === "resultsLocked" ? t("dash.kpi.resultsLocked.hint", { done: k.hint?.split("/")[0] ?? "0", total: k.hint?.split("/")[1] ?? "0" }) : k.key === "pipeline" ? t("dash.kpi.pipeline.hint", { count: Number(k.hint ?? 0) }) : k.key === "attendanceToday" ? (k.value === null ? t("dash.kpi.attendanceToday.none") : t("dash.kpi.attendanceToday.hint", { done: k.hint?.split("/")[0] ?? "0", total: k.hint?.split("/")[1] ?? "0" })) : undefined;
               const num = typeof k.value === "number" ? k.value : 0;
               const pill: { text: string; tone: PillTone } =
                 k.key === "enrolled" ? { text: t("dash.pill.active"), tone: "brand" }
@@ -78,6 +80,11 @@ export function KpiSection({ env }: { env: DashEnv }) {
                 : k.key === "collected" ? { text: t("dash.pill.collected"), tone: "ok" }
                 : k.key === "outstanding" ? (Number(k.hint ?? 0) > 0 ? { text: t("dash.pill.overdue"), tone: "bad" } : { text: t("dash.pill.clear"), tone: "ok" })
                 : { text: t("dash.pill.locked"), tone: "brand" };
+              const value = k.value === null ? <span aria-label={t("dash.unavailable")}>—</span> : money_ && typeof k.value === "number" ? money(k.value) : typeof k.value === "number" ? k.value.toLocaleString() : k.value;
+              if (bare) {
+                const GT = { enrolled: "orange", attendanceToday: "green", collected: "violet", outstanding: "rose", pipeline: "teal", resultsLocked: "indigo", enquiries: "rose", staff: "indigo" } as const;
+                return <li key={k.key}><GradientTile icon={Icon} tone={GT[k.key as keyof typeof GT] ?? "green"} label={t(`dash.kpi.${k.key}` as "dash.kpi.enrolled")} value={money_ && typeof k.value === "number" ? `${school.currency} ${compactMoney(k.value)}` : value} caption={caption} spark={k.key === "attendanceToday" ? attSpark : k.key === "collected" ? cashSpark : k.key === "pipeline" ? appsSpark : undefined} href={k.href} /></li>;
+              }
               return (
                 <li key={k.key}>
                   <KpiCard label={t(`dash.kpi.${k.key}` as "dash.kpi.enrolled")} icon={Icon} href={k.href} openLabel={t("dash.kpi.open")} caption={caption} pill={pill}
@@ -89,10 +96,14 @@ export function KpiSection({ env }: { env: DashEnv }) {
               );
             })}
           </ul>
-        </DashSection>
+        </Wrap>
       )}
     </>
   );
+}
+
+function Wrap({ bare, t, children }: { bare: boolean; t: Translate; children: React.ReactNode }) {
+  return bare ? <>{children}</> : <DashSection id="school" title={t("dash.sec.school")} subtitle={t("dash.sec.school.sub")}>{children}</DashSection>;
 }
 
 export function AttentionSection({ env }: { env: DashEnv }) {

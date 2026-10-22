@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { listLessonPlans, listSchemes } from "@/server/lesson-plans";
-import { Badge, DataTable, EmptyState, LinkButton, NoAccess, PageHeader, Td } from "@/components/ui";
+import { Badge, DataTable, EmptyState, LinkButton, NoAccess, PageHeader, Td, segClass } from "@/components/ui";
 import { STATUS_TONE } from "@/lib/learning/labels";
 
 export const metadata: Metadata = { title: "Planning" };
@@ -26,7 +26,7 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title={t("learn.plan.title")} subtitle={t("learn.plan.subtitle")} actions={writer ? <div className="flex gap-2"><LinkButton href="/planning/schemes/new" variant="secondary">{t("learn.scheme.new")}</LinkButton><LinkButton href="/planning/lessons/new">{t("learn.lesson.new")}</LinkButton></div> : undefined} />
       <nav aria-label={t("learn.plan.title")} className="mb-4 flex flex-wrap gap-2">
-        {tabs.map((x) => <Link key={x.id} href={`/planning?tab=${x.id}`} aria-current={tab === x.id ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${tab === x.id ? "bg-brand-700 text-white" : "border border-line bg-surface hover:bg-canvas"}`}>{x.label}</Link>)}
+        {tabs.map((x) => <Link key={x.id} href={`/planning?tab=${x.id}`} aria-current={tab === x.id ? "page" : undefined} className={segClass(tab === x.id)}>{x.label}</Link>)}
       </nav>
 
       {(tab === "schemes" || tab === "review") && (

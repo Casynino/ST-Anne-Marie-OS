@@ -7,7 +7,9 @@ import { displayDate, displayDateTime } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
 import { academicDesk } from "@/server/academic-office";
 import { ActionForm, Field } from "@/components/form";
-import { Cell, DashSection, DashTable, DonutStat, EmptyLine, HBars, KpiCard, Panel, Pill, StackedBars } from "@/components/dash/parts";
+import { Cell, DashSection, DashTable, DonutStat, EmptyLine, GradientTile, HBars, Panel, Pill, StackedBars } from "@/components/dash/parts";
+import type { AttentionRow } from "@/components/dash/attention-tabs";
+import { AttentionBlock } from "../dashboard/attention";
 import { Badge, LinkButton, NoAccess } from "@/components/ui";
 import { DashHero, Hi } from "@/components/dash/hero";
 import { JumpNav } from "@/components/dash/jump-nav";
@@ -30,9 +32,13 @@ export default async function AcademicOfficePage() {
   const fmt = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), ctx.locale);
   const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: school.timezone }).format(new Date()));
 
+  const quick = quickItems("academic", t, (p) => can(p as never), d.alerts.map((a) => ({ key: a.key, count: a.count })));
+  const SEV: Record<string, "bad" | "warn" | "info"> = { marksOverdue: "bad", attendanceMissing: "warn", resultsToApprove: "warn", awaitingPlacement: "warn", repeatedAbsences: "warn", pendingTransfers: "warn", headProgression: "warn", configGaps: "info", cardsToPrepare: "info", cardsToPublish: "info", capacityWarnings: "info", openConcerns: "info", progressionTodo: "info" };
+  const AREA: Record<string, string> = { marksOverdue: "results", resultsToApprove: "results", cardsToPrepare: "results", cardsToPublish: "results", attendanceMissing: "attendance", repeatedAbsences: "attendance" };
+  const alertRows: AttentionRow[] = d.alerts.map((a) => ({ key: a.key, area: AREA[a.key] ?? "academic", href: a.href, tone: SEV[a.key] ?? "warn", text: t(`ac.alert.${a.key}` as "ac.alert.configGaps"), detail: t(`att.d.ac.${a.key}` as "att.d.ac.configGaps"), count: a.count }));
   return (
     <>
-      <DashHero photoIndex={3} locale={ctx.locale} tz={school.timezone} search={{ action: "/students", placeholder: t("search.students"), label: t("search.students"), button: t("common.search") }} eyebrow={`${school.name} · ${t(portalLabelKey("academic"))}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}>
+      <DashHero photoIndex={3} eyebrow={`${school.name} · ${t(portalLabelKey("academic"))}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}>
         {[
           <><Hi>{d.students.enrolled.toLocaleString()}</Hi> {t("dash.hero.students")}</>,
           ...(att && att.rate !== null ? [<>{t("dash.hero.attendance")} <Hi tone={att.rate >= 90 ? "ok" : "warn"}>{att.rate}%</Hi></>] : []),
@@ -40,26 +46,18 @@ export default async function AcademicOfficePage() {
           ...(d.students.openConcerns > 0 ? [<><Hi tone="warn">{d.students.openConcerns}</Hi> {t("ac.kpi.concerns").toLowerCase()}</>] : []),
         ].map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>)}
       </DashHero>
-      <ActionBar label={t("dash.quick.title")} items={quickItems("academic", t, (p) => can(p as never), d.alerts.map((a) => ({ key: a.key, count: a.count })))} trailing={<span className="ml-auto text-sm text-muted">{d.year ? d.year.name : t("ac.noYear")}{d.term ? ` · ${d.term.name}` : ""}</span>} />
-      <JumpNav label={t("dash.jump")} items={[{ id: "alerts", label: t("ac.alerts") }, { id: "students", label: t("ac.students") }, { id: "attendance", label: t("ac.attendance") }, { id: "performance", label: t("ac.performance") }, ...(d.teachers ? [{ id: "teachers", label: t("ac.teachers") }] : []), { id: "calendar", label: t("ac.calendar") }]} />
+      <ActionBar label={t("dash.quick.title")} items={quick} trailing={<span className="ml-auto text-sm text-muted">{d.year ? d.year.name : t("ac.noYear")}{d.term ? ` · ${d.term.name}` : ""}</span>} />
+      <JumpNav label={t("dash.jump")} items={[{ id: "students", label: t("ac.students") }, { id: "attendance", label: t("ac.attendance") }, { id: "performance", label: t("ac.performance") }, ...(d.teachers ? [{ id: "teachers", label: t("ac.teachers") }] : []), { id: "calendar", label: t("ac.calendar") }]} />
 
-      <ul className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("ac.title")}>
-        <li><KpiCard icon={GraduationCap} label={t("ac.kpi.enrolled")} value={d.students.enrolled.toLocaleString()} caption={t("ac.kpi.enrolled.cap")} href="/students" openLabel={t("dash.kpi.open")} pill={{ text: t("dash.pill.active"), tone: "brand" }} /></li>
-        <li><KpiCard icon={Users} label={t("ac.kpi.placement")} value={d.students.awaitingPlacement} caption={t("ac.kpi.placement.cap")} href="/admissions/placement" openLabel={t("dash.kpi.open")} pill={d.students.awaitingPlacement > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
-        <li><KpiCard icon={HeartHandshake} label={t("ac.kpi.concerns")} value={d.students.openConcerns} caption={t("ac.kpi.concerns.cap")} href="/academic-office/concerns" openLabel={t("dash.kpi.open")} pill={d.students.openConcerns > 0 ? { text: t("dash.pill.watch"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
-        <li><KpiCard icon={MoveRight} label={t("ac.kpi.transfers")} value={d.students.pendingTransfers} caption={t("ac.kpi.transfers.cap", { n: d.students.transfersThisTerm })} href="/academic-office/transfers" openLabel={t("dash.kpi.open")} pill={d.students.pendingTransfers > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
-        <li><KpiCard icon={ListChecks} label={t("ac.kpi.tasks")} value={d.tasks?.open ?? 0} caption={d.tasks && d.tasks.overdue > 0 ? t("ac.kpi.tasks.overdue", { n: d.tasks.overdue }) : t("ac.kpi.tasks.cap")} href="/tasks?department=ACADEMIC" openLabel={t("dash.kpi.open")} pill={d.tasks && d.tasks.overdue > 0 ? { text: t("dash.pill.overdue"), tone: "bad" } : { text: t("dash.pill.onTrack"), tone: "ok" }} /></li>
+      <AttentionBlock t={t} rows={alertRows} />
+
+      <ul className="mt-6 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))]" aria-label={t("ac.title")}>
+        <li><GradientTile icon={GraduationCap} tone="orange" label={t("ac.kpi.enrolled")} value={d.students.enrolled.toLocaleString()} caption={t("ac.kpi.enrolled.cap")} href="/students" /></li>
+        <li><GradientTile icon={Users} tone={d.students.awaitingPlacement > 0 ? "rose" : "green"} label={t("ac.kpi.placement")} value={d.students.awaitingPlacement} caption={t("ac.kpi.placement.cap")} href="/admissions/placement" /></li>
+        <li><GradientTile icon={HeartHandshake} tone="violet" label={t("ac.kpi.concerns")} value={d.students.openConcerns} caption={t("ac.kpi.concerns.cap")} href="/academic-office/concerns" /></li>
+        <li><GradientTile icon={MoveRight} tone="teal" label={t("ac.kpi.transfers")} value={d.students.pendingTransfers} caption={t("ac.kpi.transfers.cap", { n: d.students.transfersThisTerm })} href="/academic-office/transfers" /></li>
+        <li><GradientTile icon={ListChecks} tone={d.tasks && d.tasks.overdue > 0 ? "rose" : "indigo"} label={t("ac.kpi.tasks")} value={d.tasks?.open ?? 0} caption={d.tasks && d.tasks.overdue > 0 ? t("ac.kpi.tasks.overdue", { n: d.tasks.overdue }) : t("ac.kpi.tasks.cap")} href="/tasks?department=ACADEMIC" /></li>
       </ul>
-
-      <DashSection id="alerts" title={t("ac.alerts")} subtitle={t("ac.alerts.sub")}>
-        {d.alerts.length === 0 ? <EmptyLine>{t("ac.alerts.none")}</EmptyLine> : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {d.alerts.map((a) => (
-              <li key={a.key}><Link href={a.href} className="group flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-[var(--shadow-card)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"><span className="flex items-center gap-2 text-sm font-medium"><AlertTriangle className="size-4 text-sun" aria-hidden />{t(`ac.alert.${a.key}` as "ac.alert.configGaps")}</span><span className="text-2xl font-semibold tabular-nums text-link">{a.count}</span></Link></li>
-            ))}
-          </ul>
-        )}
-      </DashSection>
 
       <DashSection id="students" title={t("ac.students")} subtitle={t("ac.students.sub")}>
         <Panel title={t("ac.byClass")} subtitle={t("ac.byClass.sub")} right={<Link href="/academic-setup" className="text-sm font-semibold text-link hover:underline">{t("ac.manageClasses")}</Link>}>

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { requireContext, getT } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { listConcerns } from "@/server/concerns";
-import { Badge, DataTable, EmptyState, NoAccess, PageHeader, Td } from "@/components/ui";
+import { Badge, DataTable, EmptyState, NoAccess, PageHeader, Td, segClass } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Academic concerns" };
 const TONE = { OPEN: "warn", IN_PROGRESS: "brand", RESOLVED: "ok", DISMISSED: "neutral" } as const;
@@ -20,7 +20,7 @@ export default async function ConcernsPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title={t("concern.title")} subtitle={manage ? t("concern.sub") : t("concern.subMine")} />
       <ul className="mb-4 flex flex-wrap gap-2">
-        {(["open", "closed", "all"] as const).map((s) => <li key={s}><Link href={`/academic-office/concerns?status=${s}`} aria-current={status === s ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm ${status === s ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{t(`concern.filter.${s}` as "concern.filter.open")}</Link></li>)}
+        {(["open", "closed", "all"] as const).map((s) => <li key={s}><Link href={`/academic-office/concerns?status=${s}`} aria-current={status === s ? "page" : undefined} className={segClass(status === s)}>{t(`concern.filter.${s}` as "concern.filter.open")}</Link></li>)}
       </ul>
       {rows.length === 0 ? <EmptyState>{t("concern.none")}</EmptyState> : (
         <DataTable head={[t("learn.student"), t("concern.category"), t("concern.summary"), t("concern.flaggedBy"), t("task.col.assigned"), t("common.status")]}>

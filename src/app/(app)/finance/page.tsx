@@ -5,6 +5,7 @@ import { hasAny } from "@/lib/auth/next";
 import { tDynamic } from "@/lib/i18n";
 import { listExamTerms } from "@/server/exams";
 import { financeOverview } from "@/server/finance-reports";
+import { Banknote, Coins, HandCoins, Hourglass, Receipt, ReceiptText, TrendingUp, Wallet } from "lucide-react";
 import { Badge, Card, EmptyState, FilterBar, NoAccess, PageHeader, Stat } from "@/components/ui";
 import { Field } from "@/components/form";
 import { FinanceNav } from "@/components/finance/subnav";
@@ -32,20 +33,23 @@ export default async function FinanceOverviewPage({ searchParams }: { searchPara
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat label={t("fin.billed")} value={money(o.billed)} hint={t("fin.overview.invoices", { count: o.invoices.total })} />
-            <Stat label={t("fin.collected")} value={money(o.collected)} hint={t("fin.overview.payments", { count: o.payments })} />
-            <Stat label={t("fin.outstanding")} value={money(o.outstanding)} hint={o.collectionRatePct === null ? undefined : t("fin.overview.rate", { pct: o.collectionRatePct })} />
-            <Stat label={t("fin.overdue")} value={money(o.overdue)} />
-            <Stat label={t("fin.credit")} value={money(o.credit)} hint={t("fin.overview.creditHint")} />
-            <Stat label={t("fin.expenses")} value={money(o.expenses)} />
-            <Stat label={t("fin.refundsPaid")} value={money(o.refundsPaid)} />
-            <Stat label={t("fin.net")} value={money(o.net)} hint={t("fin.overview.netHint")} />
+            <Stat tone="info" icon={ReceiptText} label={t("fin.billed")} value={money(o.billed)} hint={t("fin.overview.invoices", { count: o.invoices.total })} />
+            <Stat tone="ok" icon={Wallet} label={t("fin.collected")} value={money(o.collected)} hint={t("fin.overview.payments", { count: o.payments })} />
+            <Stat tone="warn" icon={Hourglass} label={t("fin.outstanding")} value={money(o.outstanding)} hint={o.collectionRatePct === null ? undefined : t("fin.overview.rate", { pct: o.collectionRatePct })} />
+            <Stat tone={o.overdue > 0 ? "bad" : "ok"} icon={Receipt} label={t("fin.overdue")} value={money(o.overdue)} />
+            <Stat tone="brand" icon={Coins} label={t("fin.credit")} value={money(o.credit)} hint={t("fin.overview.creditHint")} />
+            <Stat tone="warn" icon={Banknote} label={t("fin.expenses")} value={money(o.expenses)} />
+            <Stat tone="brand" icon={HandCoins} label={t("fin.refundsPaid")} value={money(o.refundsPaid)} />
+            <Stat tone={o.net >= 0 ? "ok" : "bad"} icon={TrendingUp} label={t("fin.net")} value={money(o.net)} hint={t("fin.overview.netHint")} />
           </div>
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Card title={t("fin.overview.status")}>
-              <ul className="space-y-2 text-sm">
+              <ul className="space-y-3 text-sm">
                 {([["PAID", o.invoices.paid], ["PARTIAL", o.invoices.partial], ["UNPAID", o.invoices.unpaid], ["NO_CHARGE", o.invoices.noCharge]] as const).map(([k, v]) => (
-                  <li key={k} className="flex items-center justify-between"><Badge tone={k === "PAID" ? "ok" : k === "PARTIAL" ? "warn" : k === "UNPAID" ? "bad" : "neutral"}>{tDynamic(t, "fin.state", k)}</Badge><span className="tabular-nums">{v}</span></li>
+                  <li key={k}>
+                    <span className="flex items-center justify-between"><Badge tone={k === "PAID" ? "ok" : k === "PARTIAL" ? "warn" : k === "UNPAID" ? "bad" : "neutral"}>{tDynamic(t, "fin.state", k)}</Badge><span className="tabular-nums">{v}</span></span>
+                    <span className="mt-1.5 block h-1.5 overflow-hidden rounded-sm bg-line"><span className={`block h-full rounded-sm ${k === "PAID" ? "bg-ok" : k === "PARTIAL" ? "bg-warn" : k === "UNPAID" ? "bg-bad" : "bg-muted"}`} style={{ width: `${o.invoices.total ? Math.round((v / o.invoices.total) * 100) : 0}%` }} /></span>
+                  </li>
                 ))}
               </ul>
             </Card>

@@ -29,9 +29,11 @@ function Brand({ name, subtitle, initials, logo, collapsed }: { name: string; su
  */
 function Groups({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
+  // Only the most specific menu entry is "current" (Returning students sits under /students, but Students must not light up with it).
+  const current = groups.flatMap((g) => g.items).filter((i) => isActive(pathname, i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
   const link = (item: NavGroup["items"][number], nested: boolean) => {
     const Icon = NAV_ICONS[item.icon];
-    const active = isActive(pathname, item.href);
+    const active = item.href === current;
     return (
       <Link
         href={item.href}

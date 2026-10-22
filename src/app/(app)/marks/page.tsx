@@ -6,7 +6,7 @@ import { SUBMISSION_TONE } from "@/lib/results/ui";
 import { getCurrentAcademicContext } from "@/server/academics";
 import { listExamTerms } from "@/server/exams";
 import { listSubmissions } from "@/server/marks";
-import { Badge, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Td } from "@/components/ui";
+import { Badge, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Td, segClass } from "@/components/ui";
 import { Field } from "@/components/form";
 
 export const metadata: Metadata = { title: "Marks" };
@@ -25,7 +25,7 @@ export default async function MarksPage({ searchParams }: { searchParams: Promis
   const rows = view === "queue" ? all.filter((s) => s.status === "SUBMITTED" || s.status === "APPROVED") : sp.status ? all.filter((s) => s.status === sp.status) : all;
 
   const tab = (v: string, label: string) => (
-    <Link key={v} href={`/marks?view=${v}${termId ? `&termId=${termId}` : ""}`} aria-current={view === v ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-medium ${view === v ? "bg-brand-700 text-white" : "border border-line bg-surface text-ink hover:bg-canvas"}`}>
+    <Link key={v} href={`/marks?view=${v}${termId ? `&termId=${termId}` : ""}`} aria-current={view === v ? "page" : undefined} className={segClass(view === v)}>
       {label}
     </Link>
   );

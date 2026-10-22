@@ -6,7 +6,7 @@ import { smoothPath } from "./path";
  * alternative, and never relies on colour alone.
  */
 
-const TONE = { ok: "text-ok", warn: "text-warn", bad: "text-bad", sun: "text-sun", link: "text-link", indigo: "text-[#8b80ff]", sky: "text-[#14a3b8]" } as const;
+const TONE = { ok: "text-ok", warn: "text-warn", bad: "text-bad", sun: "text-sun", link: "text-link", indigo: "text-[#8b80ff]", sky: "text-[#14a3b8]", white: "text-white/90" } as const;
 export type VizTone = keyof typeof TONE;
 
 /** A tiny trend line with a soft fill, for the bottom of a headline number. */

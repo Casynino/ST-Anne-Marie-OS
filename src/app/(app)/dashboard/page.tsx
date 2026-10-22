@@ -14,15 +14,18 @@ import { JumpNav } from "@/components/dash/jump-nav";
 import { ActivityBlock } from "@/components/dash/activity";
 import { teacherHome } from "@/server/teacher-home";
 import { headHome } from "@/server/head-home";
+import { registrarHome } from "@/server/registrar-home";
 import { accountsByRole, adminHome } from "@/server/admin-home";
 import { activityPanel } from "@/server/ops";
 import * as ov from "@/server/school-overview";
 import { classCollectionReport } from "@/server/finance-reports";
 import { admissionOverview, admissionQueues } from "@/server/admission-queues";
 import { TeacherDashboard } from "./teacher";
-import { AccountantDashboard, HeadDashboard, RegistrarDashboard, SetupSection, type HomeProps } from "./roles";
+import { AccountantDashboard, HeadDashboard, RegistrarDashboard, type HomeProps } from "./roles";
+import { AdminBody } from "./homes";
 import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LatestSection, LearningSection, MyRegistersSection, PeopleSection, PulseSection, ResultsSection, StudentsSection, type DashEnv, type Overview } from "./sections";
 import { ActionBar } from "@/components/dash/action-bar";
+import { financeRows, standardRows } from "./attention";
 import { jumpItems, quickItems } from "./quick";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -51,8 +54,9 @@ export default async function DashboardPage() {
   const portal = t(portalLabelKey(kind));
 
   if (kind === "teacher") {
-    const th = await teacherHome(ctx);
-    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} quick={quickItems("teacher", t, can, d.attention)} />;
+    const [th, evs] = await Promise.all([teacherHome(ctx), optional("events", () => ov.upcomingEvents(ctx, 12))]);
+    const events = (evs ?? []).flatMap((e) => (e.to ? [e.from, e.to] : [e.from]));
+    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} events={events} quick={quickItems("teacher", t, can, d.attention)} />;
   }
 
   // School data panels: each is gated by the permission of its detail screen and fails alone, never the whole page.
@@ -80,7 +84,7 @@ export default async function DashboardPage() {
 
   if (kind === "head") return <HeadDashboard props={props} head={await optional("head", () => headHome(ctx))} />;
   if (kind === "accountant") return <AccountantDashboard props={props} />;
-  if (kind === "registrar") return <RegistrarDashboard props={props} />;
+  if (kind === "registrar") return <RegistrarDashboard props={props} reg={await optional("registrar", () => registrarHome(ctx))} />;
 
   // Administrator (and staff with a custom role): the school overview, with the set-up checklist for people who run the school.
   const [setup, act, accounts] = kind === "admin"
@@ -103,12 +107,10 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <DashHero locale={locale} tz={school.timezone} search={{ action: "/students", placeholder: t("search.students"), label: t("search.students"), button: t("common.search") }} eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
+      <DashHero eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
         {summary.length > 0 ? summary.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("dash.hero.empty")}
       </DashHero>
       <ActionBar label={t("dash.quick.title")} items={quick} trailing={<span className="ml-auto inline-flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" aria-hidden />{displayDate(new Date(`${d.today}T00:00:00Z`), locale)}{d.year ? ` · ${d.year.name}` : ""}{d.term ? ` · ${d.term.name}` : ""}</span>} />
-      <JumpNav items={chips} label={t("dash.jump")} />
-
       {d.needsSetup && !setup && (
         <Card className="mb-5 mt-5 border-amber-200 bg-amber-50">
           <h2 className="font-semibold text-warn">{t("dash.setup.title")}</h2>
@@ -117,23 +119,7 @@ export default async function DashboardPage() {
         </Card>
       )}
       {nothingToShow && <EmptyState><p className="font-semibold text-ink">{t("dash.empty.title")}</p><p className="mt-1">{t("dash.empty.body")}</p></EmptyState>}
-
-      {setup && <SetupSection env={env} setup={setup} />}
-      <QueueSection env={env} />
-      <KpiSection env={env} />
-      <AttentionSection env={env} />
-      <PulseSection env={env} />
-      <ClassesSection env={env} />
-      <MyRegistersSection env={env} />
-      <StudentsSection env={env} />
-      <FeesSection env={env} />
-      <ResultsSection env={env} />
-      <AdmissionsSection env={env} />
-      <LearningSection env={env} />
-      {act && <ActivityBlock t={t} act={act} failed24={act.failed24} fmtDay={fmtDay} ago={ago} />}
-      <PeopleSection env={env} accounts={accounts} />
-      <CalendarSection env={env} />
-      <LatestSection env={env} />
+      <AdminBody env={env} setup={setup} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />
     </>
   );
 }

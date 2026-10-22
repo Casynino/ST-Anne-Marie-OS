@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { classTimetable, teacherTimetable, timetableOptions, type Lesson } from "@/server/timetable";
 import { listPeriods } from "@/server/timetable";
-import { Card, EmptyState, FilterBar, LinkButton, NoAccess, PageHeader } from "@/components/ui";
+import { Card, EmptyState, FilterBar, LinkButton, NoAccess, PageHeader, segClass } from "@/components/ui";
 import { ActionForm, Field } from "@/components/form";
 import { TimetableGrid } from "@/components/learning/timetable-grid";
 import { dayLabels } from "@/lib/learning/labels";
@@ -39,7 +39,7 @@ export default async function TimetablePage({ searchParams }: { searchParams: Pr
       <PageHeader title={t("learn.tt.title")} subtitle={t("learn.tt.subtitle")} actions={canManage ? <LinkButton href="/timetable/periods" variant="secondary">{t("learn.periods.title")}</LinkButton> : undefined} />
       <nav aria-label={t("learn.tt.title")} className="mb-4 flex gap-2">
         {([["class", t("learn.tt.byClass")], ["teacher", t("learn.tt.byTeacher")]] as const).map(([v, label]) => (
-          <Link key={v} href={qs({ view: v })} aria-current={view === v ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${view === v ? "bg-brand-700 text-white" : "border border-line bg-surface text-ink hover:bg-canvas"}`}>{label}</Link>
+          <Link key={v} href={qs({ view: v })} aria-current={view === v ? "page" : undefined} className={segClass(view === v)}>{label}</Link>
         ))}
       </nav>
       {view === "class" ? (

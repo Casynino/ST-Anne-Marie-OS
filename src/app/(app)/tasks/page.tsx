@@ -4,7 +4,7 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { assignableStaff, listTasks, taskCounts, taskHref, visibleDepartments } from "@/server/workflow";
 import { ActionForm, Field } from "@/components/form";
-import { Badge, DataTable, EmptyState, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
+import { Badge, DataTable, EmptyState, NoAccess, PageHeader, Pagination, Td, segClass } from "@/components/ui";
 import { assignTaskAction, completeTaskAction, refreshFinanceTasksAction, startTaskAction } from "./actions";
 
 export const metadata: Metadata = { title: "Tasks" };
@@ -20,7 +20,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const data = await listTasks(ctx, { department: sp.department ?? "", state, page: Number(sp.page) || 1 });
   const [counts, staff] = await Promise.all([taskCounts(ctx), assignableStaff(ctx).catch(() => [])]);
   const chip = (href: string, active: boolean, label: string, n?: number) => (
-    <li key={href}><Link href={href} aria-current={active ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm ${active ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{label}{n !== undefined && <span className="tabular-nums opacity-80">{n}</span>}</Link></li>
+    <li key={href}><Link href={href} aria-current={active ? "page" : undefined} className={segClass(active)}>{label}{n !== undefined && <span className="tabular-nums opacity-80">{n}</span>}</Link></li>
   );
   const q = (o: Record<string, string | undefined>) => `/tasks?${new URLSearchParams(Object.entries({ department: sp.department, state, ...o }).filter(([, v]) => v) as [string, string][]).toString()}`;
   return (

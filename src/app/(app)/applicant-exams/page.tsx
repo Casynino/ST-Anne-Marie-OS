@@ -4,7 +4,7 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { displayDate, displayDateTime } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
 import { listExams } from "@/server/admission-exams";
-import { Badge, EmptyState, NoAccess, PageHeader } from "@/components/ui";
+import { Badge, EmptyState, NoAccess, PageHeader, segClass } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Applicant examinations" };
 const TONE = { SCHEDULED: "neutral", AWAITING_MARKING: "warn", MARKING: "brand", SUBMITTED: "ok", AWAITING_REVIEW: "warn", RETURNED: "bad", APPROVED: "ok", CANCELLED: "neutral" } as const;
@@ -31,7 +31,7 @@ export default async function ApplicantExamsPage({ searchParams }: { searchParam
       <PageHeader title={t("appexam.title")} subtitle={all ? t("exam.sub.all") : t("exam.sub.mine")} />
       <nav aria-label={t("appexam.title")} className="mb-4 flex flex-wrap gap-2">
         {tabs.map((x) => (
-          <Link key={x.key} href={x.key === "open" ? "/applicant-exams" : `/applicant-exams?view=${x.key}`} aria-current={view === x.key ? "page" : undefined} className={`inline-flex min-h-10 items-center rounded-lg border px-3 text-sm font-medium ${view === x.key ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface text-ink hover:bg-canvas"}`}>{x.label}</Link>
+          <Link key={x.key} href={x.key === "open" ? "/applicant-exams" : `/applicant-exams?view=${x.key}`} aria-current={view === x.key ? "page" : undefined} className={segClass(view === x.key)}>{x.label}</Link>
         ))}
       </nav>
       {rows.length === 0 ? <EmptyState>{view === "review" ? t("exam.none.review") : t("appexam.none")}</EmptyState> : (

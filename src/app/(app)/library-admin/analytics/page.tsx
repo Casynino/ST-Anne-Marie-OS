@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { libraryAnalytics } from "@/server/library";
-import { Card, NoAccess, PageHeader } from "@/components/ui";
+import { Card, NoAccess, PageHeader, segClass } from "@/components/ui";
 import { LibraryNav } from "@/components/library/subnav";
 
 export const metadata: Metadata = { title: "Library statistics" };
@@ -30,7 +30,7 @@ export default async function LibraryAnalyticsPage({ searchParams }: { searchPar
     <>
       <PageHeader title={t("lib.nav.analytics")} subtitle={t("lib.an.sub")} />
       <LibraryNav ctx={ctx} t={t} current="/library-admin/analytics" />
-      <div className="mb-4 flex gap-2">{[7, 30, 90].map((d) => <Link key={d} href={`/library-admin/analytics?days=${d}`} aria-current={d === days ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${d === days ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface"}`}>{t("lib.an.days", { n: String(d) })}</Link>)}</div>
+      <div className="mb-4 flex gap-2">{[7, 30, 90].map((d) => <Link key={d} href={`/library-admin/analytics?days=${d}`} aria-current={d === days ? "page" : undefined} className={segClass(d === days)}>{t("lib.an.days", { n: String(d) })}</Link>)}</div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {stat(t("lib.an.published"), a.totalPublished)}
         {stat(t("lib.an.awaiting"), a.awaiting.length, "/library-admin?status=PENDING_REVIEW")}

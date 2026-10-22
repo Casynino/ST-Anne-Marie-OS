@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AlertTriangle, Check, X } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
 import { yearReadiness } from "@/server/year-readiness";
-import { Card, EmptyState, NoAccess, PageHeader } from "@/components/ui";
+import { Card, EmptyState, NoAccess, PageHeader, segClass } from "@/components/ui";
 
 export const metadata: Metadata = { title: "New year checklist" };
 
@@ -23,7 +23,7 @@ export default async function ReadinessPage({ searchParams }: { searchParams: Pr
       <p role="status" className={`mb-4 text-sm font-medium ${r.ready ? "text-ok" : "text-warn"}`}>{r.ready ? t("lc.ready.yes") : t("lc.ready.no")}</p>
       {r.years.length > 1 && (
         <ul className="mb-4 flex flex-wrap gap-2">
-          {r.years.map((y) => <li key={y.id}><Link href={`/academic-setup/readiness?year=${y.id}`} aria-current={y.id === r.year!.id ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm ${y.id === r.year!.id ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{y.name}</Link></li>)}
+          {r.years.map((y) => <li key={y.id}><Link href={`/academic-setup/readiness?year=${y.id}`} aria-current={y.id === r.year!.id ? "page" : undefined} className={segClass(y.id === r.year!.id)}>{y.name}</Link></li>)}
         </ul>
       )}
       <Card>

@@ -37,13 +37,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Navigation is grouped by purpose and only lists modules this user may open. Finance and examinations appear
   // here when those modules exist; nothing is shown for modules that do not.
-  const groups: NavGroup[] = [{ label: t("navgroup.overview"), flat: true, items: [{ href: "/dashboard", label: t("nav.dashboard"), icon: "dashboard" }, ...(hasAny(ctx, ["admission.read", "tasks.academic", "tasks.finance", "tasks.hr", "tasks.admin"]) ? [{ href: "/tasks", label: t("nav.tasks"), icon: "tasks" as const }] : [])] }];
-  const academic_ = [
-    hasAny(ctx, ["academic.office"]) && { href: "/academic-office", label: t("nav.academicOffice"), icon: "academicOffice" as const },
-    hasAny(ctx, ["student.read", "student.read_assigned"]) && { href: "/students", label: t("nav.students"), icon: "students" as const },
+  const groups: NavGroup[] = [{ label: t("navgroup.overview"), flat: true, items: [{ href: "/dashboard", label: t("nav.dashboard"), icon: "dashboard" }] }];
+  // The student's journey, from the lowest step to the highest: apply, come back each year, study in a class, attend, family contacts.
+  const journey = [
     hasAny(ctx, ["admission.read"]) && { href: "/admissions", label: t("nav.admissions"), icon: "admissions" as const },
+    hasAny(ctx, ["registration.read"]) && { href: "/students/returning", label: t("nav.returning"), icon: "returning" as const },
+    hasAny(ctx, ["student.read", "student.read_assigned"]) && { href: "/students", label: t("nav.students"), icon: "students" as const },
     hasAny(ctx, ["attendance.read", "attendance.read_assigned", "attendance.take", "attendance.take_any"]) && { href: "/attendance", label: t("nav.attendance"), icon: "attendance" as const },
     hasAny(ctx, ["guardian.read"]) && { href: "/guardians", label: t("nav.guardians"), icon: "guardians" as const },
+  ].filter(Boolean) as NavGroup["items"];
+  if (journey.length) groups.push({ label: t("navgroup.journey"), icon: "students" as const, items: journey });
+  const academic_ = [
+    hasAny(ctx, ["academic.office"]) && { href: "/academic-office", label: t("nav.academicOffice"), icon: "academicOffice" as const },
     hasAny(ctx, ["academic.read"]) && { href: "/academic-setup", label: t("nav.academics"), icon: "academics" as const },
   ].filter(Boolean) as NavGroup["items"];
   if (academic_.length) groups.push({ label: t("navgroup.academic"), icon: "academics" as const, items: academic_ });

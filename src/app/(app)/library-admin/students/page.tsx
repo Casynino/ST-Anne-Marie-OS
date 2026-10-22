@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { displayDate } from "@/lib/dates";
 import { pinOverview } from "@/server/library-identity";
 import { ActionForm } from "@/components/form";
-import { Badge, Card, EmptyState, NoAccess, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, NoAccess, PageHeader, segClass } from "@/components/ui";
 import { LibraryNav } from "@/components/library/subnav";
 import { setPinAction, setPinsAction } from "../actions";
 
@@ -23,7 +23,7 @@ export default async function StudentPinsPage({ searchParams }: { searchParams: 
     <>
       <PageHeader title={t("lib.nav.pins")} subtitle={t("lib.pin.sub")} />
       <LibraryNav ctx={ctx} t={t} current="/library-admin/students" />
-      <ul className="mb-5 flex flex-wrap gap-2">{classes.map((c) => <li key={c.id}><Link href={`/library-admin/students?classId=${c.id}`} aria-current={c.id === classId ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${c.id === classId ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface"}`}>{c.name}</Link></li>)}</ul>
+      <ul className="mb-5 flex flex-wrap gap-2">{classes.map((c) => <li key={c.id}><Link href={`/library-admin/students?classId=${c.id}`} aria-current={c.id === classId ? "page" : undefined} className={segClass(c.id === classId)}>{c.name}</Link></li>)}</ul>
       {!classId ? <EmptyState>{t("lib.pin.choose")}</EmptyState> : rows.length === 0 ? <EmptyState>{t("lib.pin.noStudents")}</EmptyState> : (
         <div className="space-y-4">
           <Card title={t("lib.pin.bulk")}>

@@ -75,6 +75,55 @@ export function KpiCard({ label, value, caption, pill, icon: Icon, href, openLab
   return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow,border-color] hover:-translate-y-0.5 hover:border-link/40 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
+const GRADIENT = {
+  green: "from-[#0a7048] to-[#1aa971]",
+  teal: "from-[#0a6f82] to-[#14a5bd]",
+  violet: "from-[#5446cf] to-[#8579f0]",
+  orange: "from-[#bd4f08] to-[#e8801f]",
+  rose: "from-[#b8362a] to-[#e8634e]",
+  indigo: "from-[#2a3590] to-[#4a5cc9]",
+} as const;
+export type GradientTone = keyof typeof GRADIENT;
+
+/**
+ * A headline figure on a solid colour: the label, a big number, one line of context, a white icon tile, and (when there is a series) a
+ * sparkline. Colour only tells the cards apart; every card still carries its label and number in text.
+ */
+export function GradientTile({ label, value, caption, icon: Icon, tone = "green", spark, href }: { label: string; value: ReactNode; caption?: string; icon: LucideIcon; tone?: GradientTone; spark?: number[]; href?: string }) {
+  const long = typeof value === "string" && value.length > 7;
+  const body = (
+    <>
+      <span className="flex items-center justify-between gap-3">
+        <span className="min-w-0 truncate text-[13px] font-medium text-white/90">{label}</span>
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/95 shadow-sm"><Icon className="size-[1.15rem] text-[#10231a]" aria-hidden /></span>
+      </span>
+      <span className={`mt-1.5 block whitespace-nowrap font-semibold tabular-nums tracking-tight text-white ${long ? "text-[1.65rem] leading-8" : "text-[2rem] leading-9"}`}>{value}</span>
+      {caption && <span className="mt-0.5 block truncate text-xs text-white/85">{caption}</span>}
+      {spark && spark.length > 1 && <span className="mt-2 block opacity-90"><Spark values={spark} tone="white" /></span>}
+    </>
+  );
+  const cls = `group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br ${GRADIENT[tone]} p-4 shadow-[var(--shadow-card)]`;
+  return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+/** Thick coloured bars, one per row, with the figure inside the bar (the way a subject or class comparison reads best). `mark` draws a tick, e.g. the class average. */
+export function ColorBars({ items, label, max, unit = "", labelWidth = "6.5rem" }: { items: { label: string; value: number; mark?: number | null }[]; label: string; max?: number; unit?: string; labelWidth?: string }) {
+  const top = max ?? Math.max(1, ...items.map((i) => i.value));
+  return (
+    <ul className="space-y-2.5" aria-label={label}>
+      {items.map((i, k) => (
+        <li key={i.label} className="grid items-center gap-3 text-sm" style={{ gridTemplateColumns: `${labelWidth} 1fr` }}>
+          <span className="truncate font-medium text-ink" title={i.label}>{i.label}</span>
+          <span className="relative h-7 rounded-md bg-line/60">
+            <span className="flex h-full items-center justify-end rounded-md px-2 text-xs font-semibold tabular-nums text-white" style={{ width: `${Math.max(12, (i.value / top) * 100)}%`, background: SERIES_COLORS[k % SERIES_COLORS.length] }}>{Math.round(i.value * 10) / 10}{unit}</span>
+            {i.mark !== undefined && i.mark !== null && <span aria-hidden className="absolute -top-1 h-9 w-0.5 rounded-sm bg-ink/70" style={{ left: `calc(${Math.min(100, (i.mark / top) * 100)}% - 1px)` }} title={`${Math.round(i.mark * 10) / 10}${unit}`} />}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export const Panel = ({ title, subtitle, children, className = "", right, icon: Icon }: { title: string; subtitle?: string; children: ReactNode; className?: string; right?: ReactNode; icon?: LucideIcon }) => (
   <section className={`min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] ${className}`}>
     <header className="mb-4 flex items-start justify-between gap-3">

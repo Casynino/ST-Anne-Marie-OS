@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowRight, Plus, Search, UserRound } from "lucide-react";
+import { ArrowRight, Plus, Repeat2, Search, Upload, UserRound } from "lucide-react";
 import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { listStudents } from "@/server/students";
 import { classOverview, type ClassCard } from "@/server/student-classes";
@@ -41,8 +41,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         <>
           {card && <Link href="/students" className="text-sm font-medium text-link hover:underline">{t("student.class.back")}</Link>}
           <ExportMenu base={`/api/export/students?${exportParams}`} t={t} />
-          {!card && ctx.permissions.has("registration.read") && <LinkButton href="/students/returning" variant="secondary">{t("lc.nav.returning")}</LinkButton>}
-          {!card && ctx.permissions.has("student.import") && <LinkButton href="/students/import" variant="secondary">{t("imp.title")}</LinkButton>}
+          {!card && ctx.permissions.has("registration.read") && <LinkButton href="/students/returning" variant="secondary"><Repeat2 className="size-4" aria-hidden /> {t("lc.nav.returning")}</LinkButton>}
+          {!card && ctx.permissions.has("student.import") && <LinkButton href="/students/import" variant="secondary"><Upload className="size-4" aria-hidden /> {t("imp.title")}</LinkButton>}
           {ctx.permissions.has("student.create") && <LinkButton href="/students/new"><Plus className="size-4" aria-hidden /> {t("student.new")}</LinkButton>}
         </>
       }

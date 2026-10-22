@@ -8,7 +8,7 @@ import { AGE_BUCKETS } from "@/lib/finance/ledger";
 import { getCurrentAcademicContext } from "@/server/academics";
 import { listExamClasses, listExamTerms } from "@/server/exams";
 import { arrearsReport, classCollectionReport, collectionsReport, expensesReport } from "@/server/finance-reports";
-import { Card, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Stat, Td } from "@/components/ui";
+import { Card, DataTable, EmptyState, FilterBar, NoAccess, PageHeader, Stat, Td, segClass } from "@/components/ui";
 import { Field } from "@/components/form";
 import { FinanceNav } from "@/components/finance/subnav";
 import { ExportMenu } from "@/components/export-menu";
@@ -106,7 +106,7 @@ export default async function FinanceReportsPage({ searchParams }: { searchParam
       <PageHeader title={t("fin.reports.title")} subtitle={t("fin.reports.subtitle")} actions={exportHref ? <ExportMenu base={exportHref} t={t} /> : undefined} />
       <FinanceNav ctx={ctx} t={t} current="/finance/reports" unmatched={unmatched} />
       <nav className="mb-4 flex flex-wrap gap-2" aria-label={t("fin.reports.title")}>
-        {REPORTS.map((r) => <Link key={r} href={`/finance/reports?report=${r}`} aria-current={report === r ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${report === r ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{t(`fin.report.${r}` as never)}</Link>)}
+        {REPORTS.map((r) => <Link key={r} href={`/finance/reports?report=${r}`} aria-current={report === r ? "page" : undefined} className={segClass(report === r)}>{t(`fin.report.${r}` as never)}</Link>)}
       </nav>
       <FilterBar t={t} resetHref={`/finance/reports?report=${report}`}>
         <input type="hidden" name="report" value={report} />

@@ -1,14 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, type LucideIcon } from "lucide-react";
 import type { Translate } from "@/lib/i18n";
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
+export function PageHeader({ title, subtitle, actions, eyebrow }: { title: string; subtitle?: string; actions?: ReactNode; eyebrow?: string }) {
   return (
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
-        {subtitle && <p className="mt-1 max-w-2xl text-sm text-muted">{subtitle}</p>}
+        <span aria-hidden className="mb-3 block h-[3px] w-9 rounded-sm bg-sun" />
+        {eyebrow && <p className="mb-1 text-xs font-semibold uppercase tracking-[.16em] text-muted">{eyebrow}</p>}
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-tight text-ink">{title}</h1>
+        {subtitle && <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
@@ -19,8 +21,8 @@ export function Card({ title, children, className = "", actions }: { title?: str
   return (
     <section className={`rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)] ${className}`}>
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-          {title && <h2 className="text-base font-semibold">{title}</h2>}
+        <header className="flex items-center justify-between gap-3 border-b border-line bg-canvas/40 px-4 py-3">
+          {title && <h2 className="text-[15px] font-semibold tracking-[-0.005em]">{title}</h2>}
           {actions}
         </header>
       )}
@@ -120,12 +122,29 @@ export function Pagination({ page, pageSize, total, basePath, params, t }: { pag
   );
 }
 
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+const STAT_TONE = {
+  brand: { bar: "bg-brand-500/70", glow: "from-brand-500/10", tile: "bg-brand-500/15 text-link" },
+  ok: { bar: "bg-ok/70", glow: "from-ok/10", tile: "bg-ok/15 text-ok" },
+  warn: { bar: "bg-warn/70", glow: "from-warn/10", tile: "bg-warn/15 text-warn" },
+  bad: { bar: "bg-bad/70", glow: "from-bad/12", tile: "bg-bad/15 text-bad" },
+  info: { bar: "bg-[#8b80ff]/70", glow: "from-[#8b80ff]/10", tile: "bg-[#8b80ff]/15 text-[#a9a0ff]" },
+} as const;
+
+/** A headline figure: a coloured top edge that follows its meaning, a label, a big number and one line of context. */
+export function Stat({ label, value, hint, tone = "brand", icon: Icon }: { label: string; value: ReactNode; hint?: string; tone?: keyof typeof STAT_TONE; icon?: LucideIcon }) {
+  const a = STAT_TONE[tone];
   return (
-    <div className="rounded-xl border border-line bg-surface p-4">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+    <div className="relative overflow-hidden rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
+      <span aria-hidden className={`absolute inset-x-0 top-0 h-[2px] ${a.bar}`} />
+      <span aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${a.glow} to-transparent`} />
+      <div className="relative">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[13px] font-medium text-muted">{label}</p>
+          {Icon && <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${a.tile}`}><Icon className="size-4" aria-hidden /></span>}
+        </div>
+        <p className="mt-1.5 text-[1.65rem] font-semibold leading-8 tabular-nums tracking-tight text-ink">{value}</p>
+        {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+      </div>
     </div>
   );
 }
@@ -155,3 +174,7 @@ export function FilterBar({ children, t, resetHref }: { children: ReactNode; t: 
     </form>
   );
 }
+
+/** Secondary choices (filters, views, status chips): rectangular soft segments, the current one tinted. The main section menus use underline tabs instead. */
+export const segClass = (active: boolean) =>
+  `inline-flex min-h-10 items-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors ${active ? "bg-tint text-link ring-1 ring-inset ring-link/25" : "text-muted hover:bg-canvas hover:text-ink"}`;

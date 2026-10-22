@@ -4,7 +4,7 @@ import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { displayDateTime } from "@/lib/dates";
 import { countStaffAttention, listStaffThreads } from "@/server/messaging";
 import { getSchoolBasics } from "@/server/settings";
-import { Badge, EmptyState, NoAccess, PageHeader } from "@/components/ui";
+import { Badge, EmptyState, NoAccess, PageHeader, segClass } from "@/components/ui";
 import { CommunicationNav } from "@/components/communication-nav";
 
 export const metadata: Metadata = { title: "Messages" };
@@ -24,7 +24,7 @@ export default async function StaffMessagesPage({ searchParams }: { searchParams
       <CommunicationNav ctx={ctx} t={t} current="/communication/messages" attention={attention} />
       {boxes.length > 1 && (
         <nav className="mb-4 flex flex-wrap gap-2" aria-label={t("msg.title")}>
-          {boxes.map((b) => <Link key={b} href={`/communication/messages?box=${b}`} aria-current={box === b ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${box === b ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{t(`msg.box.${b}` as never)}</Link>)}
+          {boxes.map((b) => <Link key={b} href={`/communication/messages?box=${b}`} aria-current={box === b ? "page" : undefined} className={segClass(box === b)}>{t(`msg.box.${b}` as never)}</Link>)}
         </nav>
       )}
       {rows.length === 0 ? <EmptyState>{t("msg.empty")}</EmptyState> : (

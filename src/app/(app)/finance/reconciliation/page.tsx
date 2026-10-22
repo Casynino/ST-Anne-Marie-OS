@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { hasAny } from "@/lib/auth/next";
 import { displayDateTime } from "@/lib/dates";
 import { listPaymentEvents, providerStatuses } from "@/server/payment-events";
-import { Badge, Card, DataTable, EmptyState, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
+import { Badge, Card, DataTable, EmptyState, NoAccess, PageHeader, Pagination, Td, segClass } from "@/components/ui";
 import { FinanceNav } from "@/components/finance/subnav";
 import { financePage } from "../_lib";
 
@@ -28,7 +28,7 @@ export default async function ReconciliationPage({ searchParams }: { searchParam
       </Card>
       <nav className="mb-4 flex flex-wrap gap-2" aria-label={t("marks.status")}>
         {(["UNMATCHED", "POSTED", "NOT_SUCCESSFUL", "REJECTED"] as const).map((s) => (
-          <a key={s} href={`/finance/reconciliation?status=${s}`} aria-current={status === s ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-medium ${status === s ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{t(`fin.event.${s}` as never)}{s === "UNMATCHED" && unmatched > 0 ? ` (${unmatched})` : ""}</a>
+          <a key={s} href={`/finance/reconciliation?status=${s}`} aria-current={status === s ? "page" : undefined} className={segClass(status === s)}>{t(`fin.event.${s}` as never)}{s === "UNMATCHED" && unmatched > 0 ? ` (${unmatched})` : ""}</a>
         ))}
       </nav>
       {data.items.length === 0 ? <EmptyState>{status === "UNMATCHED" ? t("fin.recon.emptyQueue") : t("fin.recon.empty")}</EmptyState> : (

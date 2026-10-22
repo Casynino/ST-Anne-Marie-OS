@@ -4,14 +4,21 @@ import { BookOpen, CalendarCheck, CheckCircle2, ClipboardCheck, Circle, FileChec
 import { displayDate } from "@/lib/dates";
 import { LinkButton } from "@/components/ui";
 import { DashHero, Hi } from "@/components/dash/hero";
-import { Cell, DashSection, DashTable, DonutStat, EmptyLine, KpiCard, Panel, PersonCell, Pill } from "@/components/dash/parts";
+import { Cell, DashSection, DashTable, DonutStat, EmptyLine, GradientTile, KpiCard, Panel, PersonCell, Pill } from "@/components/dash/parts";
 import { JumpNav } from "@/components/dash/jump-nav";
 import { Ring } from "@/components/dash/viz";
 import type { HeadHome } from "@/server/head-home";
 import type { adminHome } from "@/server/admin-home";
 import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LearningSection, MyRegistersSection, PulseSection, ResultsSection, StudentsSection, type DashEnv } from "./sections";
 import { ActionBar } from "@/components/dash/action-bar";
-import { jumpItems, quickItems } from "./quick";
+import type { Quick } from "@/components/dash/quick-links";
+import { AttentionBlock, financeRows, headRows, standardRows } from "./attention";
+import { DeskRow } from "./home";
+import { quickItems } from "./quick";
+import { compactMoney } from "./sections";
+import { AccountantBody, HeadBody } from "./homes";
+import { RegistrarBody } from "./registrar";
+import type { RegistrarHome } from "@/server/registrar-home";
 
 /*
  * The home pages of the different staff roles. Each is a choice and an order of the shared sections (see sections.tsx) plus the few
@@ -21,11 +28,10 @@ import { jumpItems, quickItems } from "./quick";
 
 export type HomeProps = { env: DashEnv; first: string; hour: number; portal: string; today: string; can: (p: string) => boolean };
 
-function Greeting({ env, first, hour, portal, children, photoIndex = 1, can }: { env: DashEnv; first: string; hour: number; portal: string; children: ReactNode; photoIndex?: number; can?: (p: string) => boolean }) {
+function Greeting({ env, first, hour, portal, children, photoIndex = 1 }: { env: DashEnv; first: string; hour: number; portal: string; children: ReactNode; photoIndex?: number }) {
   const { t, school } = env;
-  const canSearch = !!can && (can("student.read") || can("student.read_assigned"));
   return (
-    <DashHero photoIndex={photoIndex} locale={env.locale} tz={school.timezone} search={canSearch ? { action: "/students", placeholder: t("search.students"), label: t("search.students"), button: t("common.search") } : undefined} eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
+    <DashHero photoIndex={photoIndex} eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
       {children}
     </DashHero>
   );
@@ -50,29 +56,10 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
   if (tot && tot.registersTotal > 0) bits.push(<><Hi tone={tot.registersFinalised === tot.registersTotal ? "ok" : "warn"}>{tot.registersFinalised}/{tot.registersTotal}</Hi> {t("head.hero.registers")}</>);
   if (tot && tot.sheetsAwaiting > 0) bits.push(<><Hi tone="warn">{tot.sheetsAwaiting}</Hi> {t("head.hero.sheets")}</>);
   if (tot && tot.plansAwaiting > 0) bits.push(<><Hi tone="warn">{tot.plansAwaiting}</Hi> {t("head.hero.plans")}</>);
-  return (
-    <>
-      <Greeting {...props} photoIndex={0}><Sentence bits={bits} empty={t("head.hero.calm")} /></Greeting>
-      <ActionBar label={t("dash.quick.title")} items={quickItems("head", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
-      <JumpNav label={t("dash.jump")} items={jumpItems(env, ["quick", "queues", "attention", "pulse", "teachers", "classes", "results", "students", "learning", "calendar"], { teachers: !!head && t("head.teachers.title") })} />
-
-      {tot && (
-        <ul className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <li><KpiCard icon={Users} label={t("head.kpi.teachers")} value={tot.teachers} caption={tot.neverSignedIn > 0 ? t("head.kpi.teachers.never", { n: tot.neverSignedIn }) : t("head.kpi.teachers.cap")} pill={tot.neverSignedIn > 0 ? { text: t("dash.pill.watch"), tone: "warn" } : { text: t("dash.pill.team"), tone: "info" }} /></li>
-          <li><KpiCard icon={CalendarCheck} ring={tot.registersTotal > 0 ? Math.round((tot.registersFinalised / tot.registersTotal) * 100) : null} tone={tot.registersFinalised === tot.registersTotal ? "ok" : "warn"} label={t("head.kpi.registers")} value={tot.registersTotal === 0 ? "—" : `${tot.registersFinalised}/${tot.registersTotal}`} caption={t("head.kpi.registers.cap")} href="/attendance" openLabel={t("dash.kpi.open")} pill={tot.registersTotal === 0 ? { text: t("dash.pill.notStarted"), tone: "neutral" } : tot.registersFinalised === tot.registersTotal ? { text: t("dash.pill.onTrack"), tone: "ok" } : { text: t("dash.pill.watch"), tone: "warn" }} /></li>
-          <li><KpiCard icon={FileCheck} label={t("head.kpi.sheets")} value={tot.sheetsAwaiting} caption={tot.sheetsOverdue > 0 ? t("head.kpi.sheets.overdue", { n: tot.sheetsOverdue }) : t("head.kpi.sheets.cap")} href="/marks" openLabel={t("dash.kpi.open")} pill={tot.sheetsAwaiting > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
-          <li><KpiCard icon={BookOpen} label={t("head.kpi.plans")} value={tot.plansAwaiting} caption={t("head.kpi.plans.cap")} href="/planning" openLabel={t("dash.kpi.open")} pill={tot.plansAwaiting > 0 ? { text: t("dash.pill.new"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
-          <li><KpiCard icon={Wallet} spark={d.finance && d.finance.trend.some((p) => p.cents > 0) ? running(d.finance.trend.map((p) => p.cents)) : undefined} label={t("dash.kpi.collected")} value={d.finance ? money(d.finance.collected) : "—"} caption={d.finance ? t("dash.kpi.outstanding.hint", { amount: money(d.finance.outstanding) }) : t("dash.unavailable")} href={d.finance ? "/finance" : undefined} openLabel={t("dash.kpi.open")} pill={d.finance ? { text: t("dash.pill.collected"), tone: "ok" } : undefined} /></li>
-        </ul>
-      )}
-
-      <QueueSection env={env} />
-      <AttentionSection env={env} />
-      <PulseSection env={env} />
-
+  const teachersPanel = (
+    <div className="mt-4">
       {head && (
-        <DashSection id="teachers" title={t("head.teachers.title")} subtitle={head.term ? t("head.teachers.sub", { term: head.term.name }) : t("head.teachers.sub.noterm")}>
-          <Panel title={t("head.teachers.title")} subtitle={tot && tot.sheetsUnassigned > 0 ? t("head.unassigned", { n: tot.sheetsUnassigned }) : undefined} right={<Link href="/users" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
+        <Panel title={t("head.teachers.title")} subtitle={tot && tot.sheetsUnassigned > 0 ? t("head.unassigned", { n: tot.sheetsUnassigned }) : undefined} right={<Link href="/users" className="text-sm font-semibold text-link hover:underline">{t("dash.table.viewAll")}</Link>}>
             <DashTable min="52rem" empty={head.teachers.length === 0 ? t("head.teachers.empty") : undefined} head={[{ label: t("head.col.teacher") }, { label: t("head.col.register") }, { label: t("head.col.sheets") }, { label: t("head.col.homework") }, { label: t("head.col.plans") }, { label: t("head.col.seen") }]}>
               {head.teachers.map((r) => (
                 <tr key={r.staffId}>
@@ -86,14 +73,27 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
               ))}
             </DashTable>
           </Panel>
-        </DashSection>
+      )}
+    </div>
+  );
+  return (
+    <>
+      <Greeting {...props} photoIndex={0}><Sentence bits={bits} empty={t("head.hero.calm")} /></Greeting>
+      <ActionBar label={t("dash.quick.title")} items={quickItems("head", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
+      <AttentionBlock t={t} rows={[...standardRows(env, { queues: true }), ...financeRows(env), ...headRows(t, tot)]} />
+      <DeskRow env={env} />
+
+      {tot && (
+        <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))]">
+          <li><GradientTile icon={Users} tone="orange" label={t("head.kpi.teachers")} value={tot.teachers} caption={tot.neverSignedIn > 0 ? t("head.kpi.teachers.never", { n: tot.neverSignedIn }) : t("head.kpi.teachers.cap")} /></li>
+          <li><GradientTile icon={CalendarCheck} tone={tot.registersTotal > 0 && tot.registersFinalised < tot.registersTotal ? "rose" : "green"} label={t("head.kpi.registers")} value={tot.registersTotal === 0 ? "—" : `${tot.registersFinalised}/${tot.registersTotal}`} caption={t("head.kpi.registers.cap")} href="/attendance" /></li>
+          <li><GradientTile icon={FileCheck} tone="teal" label={t("head.kpi.sheets")} value={tot.sheetsAwaiting} caption={tot.sheetsOverdue > 0 ? t("head.kpi.sheets.overdue", { n: tot.sheetsOverdue }) : t("head.kpi.sheets.cap")} href="/marks" /></li>
+          <li><GradientTile icon={BookOpen} tone="indigo" label={t("head.kpi.plans")} value={tot.plansAwaiting} caption={t("head.kpi.plans.cap")} href="/planning" /></li>
+          <li><GradientTile icon={Wallet} tone="violet" spark={d.finance && d.finance.trend.some((p) => p.cents > 0) ? running(d.finance.trend.map((p) => p.cents)) : undefined} label={t("dash.kpi.collected")} value={d.finance ? money(d.finance.collected) : "—"} caption={d.finance ? t("dash.kpi.outstanding.hint", { amount: money(d.finance.outstanding) }) : t("dash.unavailable")} href={d.finance ? "/finance" : undefined} /></li>
+        </ul>
       )}
 
-      <ClassesSection env={env} />
-      <ResultsSection env={env} />
-      <StudentsSection env={env} />
-      <LearningSection env={env} />
-      <CalendarSection env={env} />
+      <HeadBody env={env} teachers={teachersPanel} />
     </>
   );
 }
@@ -114,30 +114,27 @@ export function AccountantDashboard({ props }: { props: HomeProps }) {
     <>
       <Greeting {...props} photoIndex={2}><Sentence bits={bits} empty={t("acc.hero.empty")} /></Greeting>
       <ActionBar label={t("dash.quick.title")} items={quickItems("accountant", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
-      <JumpNav label={t("dash.jump")} items={jumpItems(env, ["quick", "queues", "attention", "fees", "calendar"])} />
+      <AttentionBlock t={t} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />
 
       {f && (
-        <ul className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label={t("dash.money.title")}>
-          <li><KpiCard icon={Wallet} ring={f.ratePct} spark={f.trend.some((p) => p.cents > 0) ? running(f.trend.map((p) => p.cents)) : undefined} label={t("dash.kpi.collected")} value={money(f.collected)} caption={f.ratePct !== null ? t("dash.kpi.collected.hint", { pct: String(f.ratePct) }) : undefined} href="/finance/payments" openLabel={t("dash.kpi.open")} pill={{ text: t("dash.pill.collected"), tone: "ok" }} /></li>
-          <li><KpiCard icon={Receipt} label={t("dash.money.billed")} value={money(f.billed)} caption={f.term.name} href="/finance/invoices" openLabel={t("dash.kpi.open")} pill={{ text: t("dash.pill.active"), tone: "brand" }} /></li>
-          <li><KpiCard icon={Receipt} label={t("dash.kpi.outstanding")} value={money(f.outstanding)} caption={t("dash.money.notYet")} href="/finance/reports" openLabel={t("dash.kpi.open")} pill={f.outstanding > 0 ? { text: t("dash.pill.watch"), tone: "warn" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
-          <li><KpiCard icon={Receipt} label={t("dash.money.overdue")} value={money(f.overdue)} caption={t("acc.kpi.overdue.cap")} href="/finance/reports" openLabel={t("dash.kpi.open")} pill={f.overdue > 0 ? { text: t("dash.pill.overdue"), tone: "bad" } : { text: t("dash.pill.clear"), tone: "ok" }} /></li>
-          <li><KpiCard icon={Wallet} label={t("dash.money.expenses")} value={money(f.expenses)} caption={t("acc.kpi.expenses.cap")} href="/finance/expenses" openLabel={t("dash.kpi.open")} pill={{ text: t("dash.pill.active"), tone: "neutral" }} /></li>
+        <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))]" aria-label={t("dash.money.title")}>
+          <li><GradientTile icon={Wallet} tone="green" spark={f.trend.some((p) => p.cents > 0) ? running(f.trend.map((p) => p.cents)) : undefined} label={t("dash.kpi.collected")} value={`${env.school.currency} ${compactMoney(f.collected)}`} caption={f.ratePct !== null ? t("dash.kpi.collected.hint", { pct: String(f.ratePct) }) : undefined} href="/finance/payments" /></li>
+          <li><GradientTile icon={Receipt} tone="violet" label={t("dash.money.billed")} value={`${env.school.currency} ${compactMoney(f.billed)}`} caption={f.term.name} href="/finance/invoices" /></li>
+          <li><GradientTile icon={Receipt} tone="orange" label={t("dash.kpi.outstanding")} value={`${env.school.currency} ${compactMoney(f.outstanding)}`} caption={t("dash.money.notYet")} href="/finance/reports" /></li>
+          <li><GradientTile icon={Receipt} tone="rose" label={t("dash.money.overdue")} value={`${env.school.currency} ${compactMoney(f.overdue)}`} caption={t("acc.kpi.overdue.cap")} href="/finance/reports" /></li>
+          <li><GradientTile icon={Wallet} tone="indigo" label={t("dash.money.expenses")} value={`${env.school.currency} ${compactMoney(f.expenses)}`} caption={t("acc.kpi.expenses.cap")} href="/finance/expenses" /></li>
         </ul>
       )}
       {!f && <div className="mt-6"><EmptyLine>{t("acc.empty")}</EmptyLine></div>}
 
-      <QueueSection env={env} />
-      <AttentionSection env={env} />
-      <FeesSection env={env} />
-      <CalendarSection env={env} />
+      <AccountantBody env={env} />
     </>
   );
 }
 
 /* ───────────────────────── Registrar ───────────────────────── */
 
-export function RegistrarDashboard({ props }: { props: HomeProps }) {
+export function RegistrarDashboard({ props, reg }: { props: HomeProps; reg: RegistrarHome | null }) {
   const { env, can } = props;
   const { t, d } = env;
   const enrolled = d.kpis.find((k) => k.key === "enrolled");
@@ -151,16 +148,8 @@ export function RegistrarDashboard({ props }: { props: HomeProps }) {
     <>
       <Greeting {...props} photoIndex={4}><Sentence bits={bits} empty={t("dash.hero.empty")} /></Greeting>
       <ActionBar label={t("dash.quick.title")} items={quickItems("registrar", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
-      <JumpNav label={t("dash.jump")} items={jumpItems(env, ["quick", "queues", "school", "attention", "admissions", "students", "pulse", "classes", "calendar"])} />
-      <QueueSection env={env} />
-      <KpiSection env={env} />
-      <AttentionSection env={env} />
-      <AdmissionsSection env={env} />
-      <StudentsSection env={env} />
-      <PulseSection env={env} />
-      <ClassesSection env={env} />
-      <MyRegistersSection env={env} />
-      <CalendarSection env={env} />
+      <AttentionBlock t={t} rows={standardRows(env, { queues: true, skip: ["registersOpen", "conflicts"] })} />
+      <RegistrarBody env={env} reg={reg} />
     </>
   );
 }

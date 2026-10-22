@@ -4,7 +4,7 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { getRecruitmentSettings, listCandidates } from "@/server/recruitment";
 import { ActionForm, Field } from "@/components/form";
-import { Badge, Card, DataTable, EmptyState, NoAccess, PageHeader, Td } from "@/components/ui";
+import { Badge, Card, DataTable, EmptyState, NoAccess, PageHeader, Td, segClass } from "@/components/ui";
 import { createCandidateAction, updateRecruitmentSettingsAction } from "./actions";
 
 export const metadata: Metadata = { title: "Staff recruitment" };
@@ -21,7 +21,7 @@ export default async function RecruitmentPage({ searchParams }: { searchParams: 
     <>
       <PageHeader title={t("rec.title")} subtitle={t("rec.sub")} />
       <ul className="mb-4 flex gap-2">
-        {([["open", "concern.filter.open"], ["all", "concern.filter.all"]] as const).map(([k, l]) => <li key={k}><Link href={`/staff-recruitment?status=${k}`} aria-current={(sp.status === "all" ? "all" : "open") === k ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm ${(sp.status === "all" ? "all" : "open") === k ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{t(l)}</Link></li>)}
+        {([["open", "concern.filter.open"], ["all", "concern.filter.all"]] as const).map(([k, l]) => <li key={k}><Link href={`/staff-recruitment?status=${k}`} aria-current={(sp.status === "all" ? "all" : "open") === k ? "page" : undefined} className={segClass((sp.status === "all" ? "all" : "open") === k)}>{t(l)}</Link></li>)}
       </ul>
       <div className="grid gap-5 xl:grid-cols-[1fr_22rem]">
         <div>

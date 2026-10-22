@@ -7,7 +7,7 @@ import { listClasses, listAcademicYears } from "@/server/academics";
 import { listTransfers } from "@/server/transfers";
 import { classOccupancy } from "@/server/admission-queues";
 import { ActionForm, Field } from "@/components/form";
-import { Badge, Card, DataTable, EmptyState, NoAccess, PageHeader, Td } from "@/components/ui";
+import { Badge, Card, DataTable, EmptyState, NoAccess, PageHeader, Td, segClass } from "@/components/ui";
 import { applyTransferAction, cancelTransferAction, decideTransferAction, proposePromotionsAction, requestTransferAction } from "../actions";
 
 export const metadata: Metadata = { title: "Transfers and promotions" };
@@ -34,7 +34,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
     <>
       <PageHeader title={t("tr.title")} subtitle={t("tr.sub")} actions={<Link href="/academic-office" className="text-sm font-medium text-link hover:underline">{t("ac.title")}</Link>} />
       <ul className="mb-4 flex flex-wrap gap-2">
-        {[undefined, "REQUESTED", "APPROVED", "APPLIED", "REJECTED", "CANCELLED"].map((s) => <li key={s ?? "all"}><Link href={s ? `/academic-office/transfers?status=${s}` : "/academic-office/transfers"} aria-current={status === s ? "page" : undefined} className={`inline-flex min-h-11 items-center rounded-lg border px-3 text-sm ${status === s ? "border-brand-700 bg-brand-700 text-white" : "border-line bg-surface hover:bg-canvas"}`}>{s ? t(`tr.status.${s}` as "tr.status.REQUESTED") : t("adm.stage.all")}</Link></li>)}
+        {[undefined, "REQUESTED", "APPROVED", "APPLIED", "REJECTED", "CANCELLED"].map((s) => <li key={s ?? "all"}><Link href={s ? `/academic-office/transfers?status=${s}` : "/academic-office/transfers"} aria-current={status === s ? "page" : undefined} className={segClass(status === s)}>{s ? t(`tr.status.${s}` as "tr.status.REQUESTED") : t("adm.stage.all")}</Link></li>)}
       </ul>
       <div className="grid gap-5 xl:grid-cols-[1fr_22rem]">
         <div>
