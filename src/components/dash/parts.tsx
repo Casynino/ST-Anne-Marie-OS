@@ -250,7 +250,7 @@ export function DonutStat({ segments, center, caption, label }: { segments: { la
             return el;
           })}
         </svg>
-        <div className="absolute inset-0 grid place-items-center text-center"><div><div className="text-3xl font-semibold tabular-nums text-heading">{center}</div>{caption && <div className="text-[10px] font-bold uppercase tracking-[.16em] text-muted">{caption}</div>}</div></div>
+        <div className="absolute inset-0 grid place-items-center text-center"><div className="max-w-[5.75rem]"><div className="text-3xl font-semibold leading-8 tabular-nums text-heading">{center}</div>{caption && <div className="mt-0.5 text-[9px] font-bold uppercase leading-[1.15] tracking-[.08em] text-muted">{caption}</div>}</div></div>
       </div>
       <ul className="min-w-[10rem] flex-1 space-y-2 text-sm">
         {segments.map((s) => <li key={s.label} className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 text-ink/90"><span aria-hidden className="size-2.5 rounded-full" style={{ background: s.color }} />{s.label}</span><span className="font-semibold tabular-nums text-ink">{s.text ?? s.value}</span></li>)}
