@@ -3,13 +3,15 @@ import type { AttentionRow } from "@/components/dash/attention-tabs";
 import { KpiSection, type DashEnv } from "./sections";
 import { AbsentPanel, ActivityPanel, AdmissionsPanel, ArrearsPanel, AttendanceDailyPanel, AttendanceTrendPanel, EnrollmentPanel, FillPanel, GenderPanel, CalendarPanel, ClassCollectionPanel, ClassesPanel, CollectionsPanel, DeskRow, FeesPanel, H, InvoicesPanel, LearningPanel, MethodsPanel, N, PaymentsPanel, PeoplePanel, ResultsPanel, Row, SetupBanner, T, TodayPanel, W } from "./home";
 import { AttentionBlock } from "./attention";
+import { Students, Waiting } from "./registrar";
+import type { RegistrarHome } from "@/server/registrar-home";
 
 /*
  * The bodies of the staff home pages (everything under the greeting and the action chips). The order is the same everywhere: what needs
  * attention, every desk at a glance, the headline numbers, then the pictures and tables that explain them. One figure, one place.
  */
 
-export function AdminBody({ env, setup, rows }: { env: DashEnv; setup: Awaited<ReturnType<typeof adminHome>> | null; rows: AttentionRow[] }) {
+export function AdminBody({ env, setup, rows, reg }: { env: DashEnv; setup: Awaited<ReturnType<typeof adminHome>> | null; rows: AttentionRow[]; reg: RegistrarHome | null }) {
   return (
     <>
       <SetupBanner env={env} setup={setup} />
@@ -21,6 +23,7 @@ export function AdminBody({ env, setup, rows }: { env: DashEnv; setup: Awaited<R
       <Row><EnrollmentPanel env={env} className={W} /><GenderPanel env={env} className={N} /></Row>
       <Row><FillPanel env={env} className={W} /><TodayPanel env={env} className={N} /></Row>
       <Row><ClassesPanel env={env} className="flex-[1_1_100%]" /></Row>
+      <Row><Waiting env={env} reg={reg} className={W} /><Students env={env} reg={reg} className={N} /></Row>
       <Row><AdmissionsPanel env={env} className={N} /><ResultsPanel env={env} className={T} /><LearningPanel env={env} className={T} /><PeoplePanel env={env} className={T} /></Row>
       <Row><ArrearsPanel env={env} className={H} /><PaymentsPanel env={env} className={H} /></Row>
       <Row><MethodsPanel env={env} className={N} /><ClassCollectionPanel env={env} className={W} /></Row>

@@ -5,7 +5,7 @@ import { displayDate } from "@/lib/dates";
 import type { DashboardData } from "@/server/dashboard";
 import type { teacherHome } from "@/server/teacher-home";
 import { DashHero, Hi } from "@/components/dash/hero";
-import { Cell, DashTable, DonutStat, EmptyLine, GradientTile, Panel, PersonCell, Pill } from "@/components/dash/parts";
+import { Cell, ColorBars, DashTable, DonutStat, EmptyLine, GradientTile, Panel, PersonCell, Pill } from "@/components/dash/parts";
 import { MonthCard } from "@/components/dash/month-card";
 import type { AttentionRow } from "@/components/dash/attention-tabs";
 import { AttentionBlock } from "./attention";
@@ -116,6 +116,11 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
                 {watch.map((r) => <li key={r.id}><Link href={`/students/${r.id}`} className="flex items-center justify-between gap-3 py-2.5 hover:opacity-90"><PersonCell name={r.name} sub={r.className ?? r.admissionNo} /><span className={`shrink-0 text-sm font-semibold tabular-nums ${(r.ratePct ?? 0) < 70 ? "text-bad" : "text-warn"}`}>{r.ratePct}%</span></Link></li>)}
               </ul>
             )}
+          </Panel>
+        )}
+        {th.week.some((x) => x.count > 0) && (
+          <Panel className={N} title={t("tch.week")} subtitle={t("tch.week.sub")}>
+            <ColorBars label={t("tch.week")} labelWidth="6.5rem" max={Math.max(...th.week.map((x) => x.count), 1)} items={th.week.map((x) => ({ label: t(`learn.day.${x.day}` as "learn.day.1"), value: x.count }))} />
           </Panel>
         )}
         <Panel className={N} title={t("tch.classes.title")} subtitle={t("tch.classes.sub")}>

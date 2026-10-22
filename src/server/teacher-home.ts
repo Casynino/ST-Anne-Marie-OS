@@ -74,6 +74,7 @@ export async function teacherHome(ctx: AuthContext) {
     roster: roster.slice(0, ROSTER_MAX).map(({ classOrder: _o, ...r }) => r),
     rosterTotal: roster.length,
     today,
+    week: [1, 2, 3, 4, 5].map((d) => ({ day: d, count: (tt?.lessons ?? []).filter((l) => l.dayOfWeek === d).length })),
     classes: [...classes.entries()].map(([id, c]) => ({ id, className: c.className, streams: [...c.streams].sort(), subjects: [...c.subjects].sort() })),
     homework: { open: homework.length, toMark, rows: homework.slice(0, 6) },
     plans: { schemes: schemes.length, lessons: plans.length, needs: planNeeds, returned: [...schemes, ...plans].filter((p) => p.status === "RETURNED").length },

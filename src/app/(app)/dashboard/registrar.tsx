@@ -7,7 +7,7 @@ import { MonthCard } from "@/components/dash/month-card";
 import type { RegistrarHome } from "@/server/registrar-home";
 import type { DashEnv } from "./sections";
 import { N, Row, T, W } from "./home";
-import { AttendanceTrendPanel, TodayPanel, H } from "./home";
+import { AttendanceTrendPanel } from "./home";
 
 /*
  * The registrar's home. One strip of small tiles for the headline numbers, then each panel answers a different question: what is waiting
@@ -146,21 +146,76 @@ function Latest({ env, className }: { env: DashEnv; className: string }) {
   );
 }
 
-function Students({ env, reg, className }: { env: DashEnv; reg: RegistrarHome | null; className: string }) {
+/** The newest students given a Student ID: a short list, not a table (name, number and class, and the day). */
+export function Students({ env, reg, className }: { env: DashEnv; reg: RegistrarHome | null; className: string }) {
   const { t, locale } = env;
   if (!reg || reg.recentStudents.length === 0) return null;
   return (
     <Panel className={className} title={t("reg.recentStudents")} subtitle={t("reg.recentStudents.sub")} right={<Link href="/students" className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">{t("dash.table.viewAll")}<ArrowRight className="size-4" aria-hidden /></Link>}>
-      <DashTable min="30rem" head={[{ label: t("learn.student") }, { label: t("reg.col.studentId") }, { label: t("reg.col.class") }, { label: t("reg.col.date"), right: true }]}>
+      <ul className="divide-y divide-line">
         {reg.recentStudents.map((s) => (
-          <tr key={s.id}>
-            <Cell><Link href={`/students/${s.id}`} className="hover:opacity-90"><PersonCell name={s.name} /></Link></Cell>
-            <Cell className="tabular-nums text-muted">{s.admissionNo}</Cell>
-            <Cell>{s.className ?? <span className="text-warn">{t("reg.noClass")}</span>}</Cell>
-            <Cell right className="whitespace-nowrap text-muted">{displayDate(s.at, locale)}</Cell>
-          </tr>
+          <li key={s.id}>
+            <Link href={`/students/${s.id}`} className="flex items-center justify-between gap-3 py-2 hover:opacity-90">
+              <span className="min-w-0"><span className="block truncate text-sm font-medium text-ink">{s.name}</span><span className="block truncate text-xs text-muted"><span className="tabular-nums">{s.admissionNo}</span> · {s.className ?? <span className="text-warn">{t("reg.noClass")}</span>}</span></span>
+              <span className="shrink-0 text-xs text-muted">{displayDate(s.at, locale)}</span>
+            </Link>
+          </li>
         ))}
+      </ul>
+    </Panel>
+  );
+}
+
+/** The open applications that have waited longest, so none is forgotten: the days waiting turn yellow after a week and red after two. */
+export function Waiting({ env, reg, className }: { env: DashEnv; reg: RegistrarHome | null; className: string }) {
+  const { t } = env;
+  if (!reg || reg.waiting.length === 0) return null;
+  const now = Date.now();
+  return (
+    <Panel className={className} title={t("reg.waiting")} subtitle={t("reg.waiting.sub")} right={<Link href="/admissions" className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">{t("dash.table.viewAll")}<ArrowRight className="size-4" aria-hidden /></Link>}>
+      <DashTable min="26rem" head={[{ label: t("adm.applicant") }, { label: t("learn.class") }, { label: t("reg.waiting"), right: true }]}>
+        {reg.waiting.map((a) => {
+          const days = Math.max(0, Math.floor((now - a.since.getTime()) / 86_400_000));
+          return (
+            <tr key={a.id}>
+              <Cell className="py-2"><Link href={`/admissions/${a.id}`} className="font-medium text-ink hover:text-link hover:underline">{a.name}</Link><span className="block text-xs tabular-nums text-muted">{a.applicationNo}</span></Cell>
+              <Cell className="py-2">{a.className ?? "—"}</Cell>
+              <Cell right className={`py-2 font-semibold ${days > 14 ? "text-bad" : days > 7 ? "text-warn" : "text-ink"}`}>{days === 0 ? t("reg.waiting.today") : days === 1 ? t("reg.waiting.day1") : t("reg.waiting.days", { n: days })}</Cell>
+            </tr>
+          );
+        })}
       </DashTable>
+    </Panel>
+  );
+}
+
+/** Where the returning students are for the coming year, one bar per step (steps with nobody are left out). */
+export function ReturningPanel({ env, reg, className }: { env: DashEnv; reg: RegistrarHome | null; className: string }) {
+  const { t } = env;
+  const r = reg?.returning;
+  if (!r || r.total === 0) return null;
+  const ORDER = ["NEEDS_PLACEMENT", "NEEDS_REGISTRATION", "READY_TO_ACTIVATE", "NEEDS_FEE", "WAITING_YEAR_OPEN", "ACTIVE"] as const;
+  return (
+    <Panel className={className} title={t("reg.returning")} subtitle={t("reg.returning.sub", { year: r.yearName })} right={<Link href="/students/returning" className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">{t("dash.table.viewAll")}<ArrowRight className="size-4" aria-hidden /></Link>}>
+      <ColorBars label={t("reg.returning")} labelWidth="9rem" max={r.total} items={ORDER.filter((k) => (r.byStage[k] ?? 0) > 0).map((k) => ({ label: t(`lc.stage.${k}` as "lc.stage.ACTIVE"), value: r.byStage[k] ?? 0 }))} />
+    </Panel>
+  );
+}
+
+/** The newest questions from the website that nobody has answered. */
+export function EnquiriesPanel({ env, reg, className }: { env: DashEnv; reg: RegistrarHome | null; className: string }) {
+  const { t, locale } = env;
+  const e = reg?.enquiries;
+  if (!e) return null;
+  return (
+    <Panel className={className} title={t("reg.enq")} subtitle={t("reg.enq.sub")} right={<Link href="/enquiries" className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">{t("dash.table.viewAll")}<ArrowRight className="size-4" aria-hidden /></Link>}>
+      {e.rows.length === 0 ? <EmptyLine>{t("reg.enq.none")}</EmptyLine> : (
+        <ul className="divide-y divide-line">
+          {e.rows.map((x) => (
+            <li key={x.id}><Link href="/enquiries" className="block py-2 hover:opacity-90"><span className="flex items-baseline justify-between gap-3"><span className="truncate text-sm font-medium text-ink">{x.name}{x.topic && <span className="font-normal text-muted"> · {x.topic}</span>}</span><span className="shrink-0 text-xs text-muted">{displayDate(x.at, locale)}</span></span><span className="block truncate text-xs text-muted">{x.message}</span></Link></li>
+          ))}
+        </ul>
+      )}
     </Panel>
   );
 }
@@ -184,9 +239,9 @@ export function RegistrarBody({ env, reg }: { env: DashEnv; reg: RegistrarHome |
       <Strip env={env} reg={reg} />
       <Row><Received env={env} className={W} /><Standing env={env} className={T} /><MonthCard className="flex-[1_1_19rem]" label={env.t("dash.events.title")} today={env.d.today} locale={env.locale} events={events} marked={interviews} eventsLabel={env.t("dash.events.title")} markedLabel={env.t("reg.iv.title")} /></Row>
       <Row><Interviews env={env} reg={reg} className={W} /><ByClass env={env} reg={reg} className={T} /><Sources env={env} className={T} /></Row>
-      <Row><Room env={env} className={W} /><Latest env={env} className={N} /></Row>
-      <Row><AttendanceTrendPanel env={env} className={H} /><TodayPanel env={env} className={H} /></Row>
-      <Row><Students env={env} reg={reg} className="flex-[1_1_100%]" /></Row>
+      <Row><Waiting env={env} reg={reg} className={W} /><Students env={env} reg={reg} className={N} /></Row>
+      <Row><Room env={env} className={W} /><ReturningPanel env={env} reg={reg} className={N} /></Row>
+      <Row><Latest env={env} className={N} /><EnquiriesPanel env={env} reg={reg} className={N} /><AttendanceTrendPanel env={env} className={W} /></Row>
     </>
   );
 }

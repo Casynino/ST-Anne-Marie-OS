@@ -4840,6 +4840,18 @@ export const en = {
   "sp.admitted": "Admitted {date}",
   "sp.age": "{n} years",
   "sp.noData": "Nothing to show yet.",
+  "reg.waiting": "Waiting longest",
+  "reg.waiting.sub": "Open applications, oldest first",
+  "reg.waiting.days": "{n} days",
+  "reg.waiting.today": "today",
+  "reg.returning": "Returning students",
+  "reg.returning.sub": "Where each one is for {year}",
+  "reg.enq": "New enquiries",
+  "reg.enq.sub": "From the website, not answered yet",
+  "reg.enq.none": "No new enquiry.",
+  "tch.week": "My week",
+  "tch.week.sub": "Lessons on my timetable, day by day",
+  "reg.waiting.day1": "1 day",
 } as const;
 
 export type MessageKey = keyof typeof en;

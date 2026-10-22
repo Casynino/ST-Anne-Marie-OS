@@ -119,7 +119,7 @@ export default async function DashboardPage() {
         </Card>
       )}
       {nothingToShow && <EmptyState><p className="font-semibold text-ink">{t("dash.empty.title")}</p><p className="mt-1">{t("dash.empty.body")}</p></EmptyState>}
-      <AdminBody env={env} setup={setup} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />
+      <AdminBody env={env} setup={setup} reg={can("admission.read") ? await optional("registrar", () => registrarHome(ctx)) : null} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />
     </>
   );
 }
