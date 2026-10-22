@@ -4852,6 +4852,7 @@ export const en = {
   "tch.week": "My week",
   "tch.week.sub": "Lessons on my timetable, day by day",
   "reg.waiting.day1": "1 day",
+  "lc.d.doNow": "Do this now",
 } as const;
 
 export type MessageKey = keyof typeof en;

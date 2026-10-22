@@ -11,7 +11,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { SelectAll } from "@/components/lifecycle/select-all";
 import { ClearanceBadge, CountTabs, OutcomeBadge, deptLabel, stageLabel } from "@/components/lifecycle/parts";
 import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
-import { ColorBars, DonutStat, Panel } from "@/components/dash/parts";
+import { Panel } from "@/components/dash/parts";
 import { Row } from "@/components/dash/rows";
 import { ArrowRight, Info } from "lucide-react";
 import { activateAction, confirmRegistrationAction, createRegistrationsAction, placeReturningAction } from "./actions";
@@ -50,9 +50,6 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
   const by = b.counts.byStage;
   const ready = b.rows.filter((r) => r.stage === "READY_TO_ACTIVATE");
 
-  const STAGE_COLOR: Record<string, string> = { NEEDS_PLACEMENT: "#ff8574", NEEDS_REGISTRATION: "#14a3b8", NEEDS_FEE: "#f3b94c", READY_TO_ACTIVATE: "#8b80ff", WAITING_YEAR_OPEN: "#a9a0ff", ACTIVE: "#2fd08f", NOT_RETURNING: "#4b5a52" };
-  const stageSegments = REGISTRATION_STAGES.filter((s) => (by[s] ?? 0) > 0).map((s) => ({ label: stageLabel(t, s), value: by[s] ?? 0, color: STAGE_COLOR[s] ?? "#4b5a52" }));
-  const rooms = b.places.filter((p) => p.capacity !== null);
   const th = "px-4 py-2.5 text-left text-[13px] font-medium text-muted";
   const td = "px-4 py-2.5 align-middle";
   const notes = [windowNote, t(`lc.ret.policy.${b.settings.feePolicy}` as "lc.ret.policy.INFORM_ONLY")].filter(Boolean);
@@ -164,23 +161,6 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
           <Pagination page={b.page} pageSize={50} total={b.total} basePath="/students/returning" params={{ year: sp.year, class: sp.class, q: sp.q, stage: sp.stage, money: sp.money }} t={t} />
         </Panel>
 
-        <div className="flex flex-[1_1_19rem] flex-col gap-4">
-          {stageSegments.length > 0 && (
-            <Panel title={t("lc.ret.whereTitle")}>
-              <DonutStat label={t("lc.ret.whereTitle")} center={b.counts.total} caption={t("lc.ret.fig.total")} segments={stageSegments} />
-            </Panel>
-          )}
-          {seeMoney && b.counts.total > 0 && (
-            <Panel title={t("lc.col.fees")}>
-              <DonutStat label={t("lc.col.fees")} center={b.counts.total} caption={t("lc.col.fees")} segments={[{ label: t("lc.clear.CLEARED"), value: b.counts.cleared, color: "#2fd08f" }, { label: t("lc.clear.OUTSTANDING"), value: b.counts.owing, color: "#f3b94c" }]} />
-            </Panel>
-          )}
-          {rooms.length > 0 && (
-            <Panel title={t("lc.ret.placesTitle", { year: b.year.name })} subtitle={t("lc.ret.placesSub")}>
-              <ColorBars label={t("lc.ret.placesTitle", { year: b.year.name })} max={Math.max(...rooms.map((p) => p.capacity ?? 0))} labelWidth="5.5rem" items={rooms.map((p) => ({ label: p.name, value: p.inClass + p.reserved, mark: p.capacity }))} />
-            </Panel>
-          )}
-        </div>
       </Row>
     </>
   );

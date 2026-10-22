@@ -124,8 +124,8 @@ export function ColorBars({ items, label, max, unit = "", labelWidth = "6.5rem" 
   );
 }
 
-export const Panel = ({ title, subtitle, children, className = "", right, icon: Icon }: { title: string; subtitle?: string; children: ReactNode; className?: string; right?: ReactNode; icon?: LucideIcon }) => (
-  <section className={`min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] ${className}`}>
+export const Panel = ({ title, subtitle, children, className = "", right, icon: Icon, id }: { title: string; subtitle?: string; children: ReactNode; className?: string; right?: ReactNode; icon?: LucideIcon; id?: string }) => (
+  <section id={id} className={`min-w-0 scroll-mt-24 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] target:border-link/60 target:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-link)_22%,transparent)] ${className}`}>
     <header className="mb-4 flex items-start justify-between gap-3">
       <div className="min-w-0"><h3 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{title}</h3>{subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}</div>
       {right ?? (Icon ? <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-500/15 text-link"><Icon className="size-[1.1rem]" aria-hidden /></span> : null)}

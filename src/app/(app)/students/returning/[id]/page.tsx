@@ -75,7 +75,12 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
               </p>
             </div>
           </div>
-          <Link href="/students/returning" className="text-sm font-medium text-link hover:underline">{t("lc.back")}</Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {now && manage && <a href="#now" className="btn-primary btn-sm inline-flex items-center font-medium">{t(now === "place" ? "lc.step.placeGo" : now === "register" ? "lc.step.registerGo" : "lc.step.joinGo")}</a>}
+            {can("student.read") && <Link href={`/students/${d.student.id}`} className="btn-secondary btn-sm inline-flex items-center font-medium">{t("lc.d.profile")}</Link>}
+            {can("progression.read") && <Link href={`/academic-office/progression/${r.studentId}?year=${r.progression.fromAcademicYearId}`} className="btn-secondary btn-sm inline-flex items-center font-medium">{t("lc.step.openDecision")}</Link>}
+            <Link href="/students/returning" className="px-1.5 text-sm font-medium text-link hover:underline">{t("lc.back")}</Link>
+          </div>
         </div>
 
         <ol className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("lc.ret.title")}>
@@ -90,6 +95,7 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
                 </span>
                 <span className="mt-1 block text-[15px] font-semibold text-ink">{x.title}</span>
                 <span className="mt-0.5 block text-sm text-ink/90">{x.text}</span>
+                {current && manage && <a href="#now" className="mt-2 inline-block text-sm font-medium text-link hover:underline">{t("lc.d.doNow")} ↓</a>}
               </li>
             );
           })}
@@ -99,12 +105,12 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
       <Row>
         <div className="flex flex-[2_1_34rem] flex-col gap-4">
           {now === "place" && manage && (
-            <Panel title={t("lc.d.now")} subtitle={t("lc.step.place")}>
+            <Panel id="now" title={t("lc.d.now")} subtitle={t("lc.step.place")}>
               <PlaceForm d={d} r={r} t={t} can={can} />
             </Panel>
           )}
           {now === "register" && (
-            <Panel title={t("lc.d.now")} subtitle={t("lc.step.register")}>
+            <Panel id="now" title={t("lc.d.now")} subtitle={t("lc.step.register")}>
               {manage ? (
                 <ActionForm action={confirmRegistrationAction} submitLabel={t("lc.step.registerGo")} className="space-y-3" buttonClassName="btn-sm">
                   <input type="hidden" name="id" value={r.id} />
@@ -115,7 +121,7 @@ export default async function ReturningDetailPage({ params }: { params: Promise<
             </Panel>
           )}
           {now === "join" && (
-            <Panel title={t("lc.d.now")} subtitle={t("lc.step.join")}>
+            <Panel id="now" title={t("lc.d.now")} subtitle={t("lc.step.join")}>
               {manage ? (
                 <ActionForm action={activateAction} submitLabel={t("lc.step.joinGo")} className="space-y-2" buttonClassName="btn-sm">
                   <input type="hidden" name="ids" value={r.id} />
