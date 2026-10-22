@@ -4,7 +4,6 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { displayDate } from "@/lib/dates";
 import { listClasses } from "@/server/academics";
 import { awaitingPlacement, classOccupancy } from "@/server/admission-queues";
-import { AdmissionsNav } from "@/components/admissions/subnav";
 import { ActionForm, Field } from "@/components/form";
 import { Card, EmptyState, NoAccess, PageHeader } from "@/components/ui";
 import { placeStudentAction } from "../actions";
@@ -24,8 +23,7 @@ export default async function PlacementPage() {
   });
   return (
     <>
-      <PageHeader title={t("adm.place.title")} subtitle={t("adm.place.sub")} />
-      <AdmissionsNav ctx={ctx} t={t} current="/admissions/placement" />
+      <PageHeader title={t("adm.place.title")} subtitle={t("adm.place.sub")} actions={<Link href="/students" className="text-sm font-medium text-link hover:underline">{t("nav.students")}</Link>} />
       {list.length === 0 ? <EmptyState>{t("adm.place.none")}</EmptyState> : (
         <div className="grid gap-4 lg:grid-cols-2">
           {list.map((s) => (

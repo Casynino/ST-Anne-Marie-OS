@@ -2732,7 +2732,7 @@ export const sw: Record<MessageKey, string> = {
   "adm.enrol.override": "Darasa limejaa: mpange hata hivyo",
   "adm.enrol.overrideReason": "Sababu ya kuzidisha idadi",
   "adm.place.title": "Wanaosubiri darasa",
-  "adm.place.sub": "Wanafunzi waliosajiliwa lakini hawako darasani mwaka huu. Wanaonekana kwenye orodha za darasa na kwa walimu baada ya kupangwa.",
+  "adm.place.sub": "Wanafunzi waliosajiliwa lakini hawana darasa mwaka huu, kwa mfano walioingizwa au kuongezwa bila darasa. Wanafunzi wapya kutoka Uandikishaji wanapewa darasa wanaposajiliwa, kwa hiyo hawasubiri hapa.",
   "adm.place.none": "Hakuna anayesubiri darasa.",
   "adm.place.preferred": "Familia iliomba",
   "adm.place.class": "Darasa",
@@ -4508,4 +4508,6 @@ export const sw: Record<MessageKey, string> = {
   "adm.reg.list.passed": "Alifaulu tarehe {date}",
   "adm.reg.list.done": "Amesajiliwa. Namba ya mwanafunzi {id}, ameekwa darasani.",
   "adm.reg.list.hint": "Darasa lililoombwa limechaguliwa kwa ajili yako, pamoja na mkondo wenye nafasi zaidi. Darasa lililojaa haliwezi kuchaguliwa hapa; mfungue mwombaji ili umweke kwenye darasa lililojaa kwa sababu.",
+  "student.noClass.banner": "Wanafunzi {n} hawana darasa mwaka huu.",
+  "student.noClass.go": "Wape darasa",
 };

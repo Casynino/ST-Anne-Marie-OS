@@ -2730,7 +2730,7 @@ export const en = {
   "adm.enrol.override": "The class is full: place the student anyway",
   "adm.enrol.overrideReason": "Reason for exceeding the capacity",
   "adm.place.title": "Waiting for a class",
-  "adm.place.sub": "Students who are enrolled but not in any class this year. They appear on class lists and to teachers only after placement.",
+  "adm.place.sub": "Students who are enrolled but have no class this year, for example students who were imported or added without a class. New students from Admissions are given their class when they are registered, so they never wait here.",
   "adm.place.none": "Nobody is waiting for a class.",
   "adm.place.preferred": "Family asked for",
   "adm.place.class": "Class",
@@ -4506,6 +4506,8 @@ export const en = {
   "adm.reg.list.passed": "Passed on {date}",
   "adm.reg.list.done": "Registered. Student ID {id}, placed in the class.",
   "adm.reg.list.hint": "The class asked for is chosen for you, with the emptiest stream. A full class cannot be chosen here; open the applicant to place them in a full class with a reason.",
+  "student.noClass.banner": "{n} students have no class this year.",
+  "student.noClass.go": "Give them a class",
 } as const;
 
 export type MessageKey = keyof typeof en;

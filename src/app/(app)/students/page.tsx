@@ -5,6 +5,7 @@ import { requireContext, getT, hasAny } from "@/lib/auth/next";
 import { listStudents } from "@/server/students";
 import { listClasses } from "@/server/academics";
 import { ageOn } from "@/lib/dates";
+import { awaitingPlacement } from "@/server/admission-queues";
 import { ExportMenu } from "@/components/export-menu";
 import { Badge, DataTable, EmptyState, FilterBar, LinkButton, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
 import { Field } from "@/components/form";
@@ -20,9 +21,10 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   if (!hasAny(ctx, ["student.read", "student.read_assigned"])) return <NoAccess t={t} />;
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
-  const [{ items, total, pageSize }, classes] = await Promise.all([
+  const [{ items, total, pageSize }, classes, noClass] = await Promise.all([
     listStudents(ctx, { q: sp.q, classId: sp.classId, status: sp.status, page }),
     ctx.permissions.has("academic.read") ? listClasses(ctx) : Promise.resolve([]),
+    ctx.permissions.has("student.enroll") ? awaitingPlacement(ctx).then((r) => r.length).catch(() => 0) : Promise.resolve(0),
   ]);
 
   return (
@@ -38,6 +40,12 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
           </>
         }
       />
+      {noClass > 0 && (
+        <p role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-warn/40 bg-amber-50 px-3 py-2 text-sm text-warn">
+          <span>{t("student.noClass.banner", { n: noClass })}</span>
+          <Link href="/admissions/placement" className="font-medium text-link hover:underline">{t("student.noClass.go")}</Link>
+        </p>
+      )}
       <FilterBar t={t} resetHref="/students">
         <Field name="q" label={t("common.search")} defaultValue={sp.q} placeholder={t("student.search")} className="min-w-56 flex-1" />
         <Field name="classId" label={t("student.class")} type="select" defaultValue={sp.classId} placeholder={t("common.all")} options={classes.map((c) => ({ value: c.id, label: c.name }))} />
