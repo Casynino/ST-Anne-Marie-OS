@@ -65,7 +65,7 @@ export default async function GuardiansPage({ searchParams }: { searchParams: Pr
                     const acc = accounts.get(g.id);
                     return (
                       <tr key={g.id} className="align-top hover:bg-canvas/50">
-                        <Cell className="py-3"><PersonCell name={g.fullName} sub={g.email ?? undefined} /></Cell>
+                        <Cell className="py-3"><Link href={`/guardians/${g.id}`} className="block hover:underline"><PersonCell name={g.fullName} sub={g.email ?? undefined} /></Link></Cell>
                         <Cell className="whitespace-nowrap py-3 tabular-nums">{g.phone}{g.altPhone && <span className="block text-xs text-muted">{g.altPhone}</span>}</Cell>
                         <Cell className="py-3">
                           {g.students.length === 0 ? <span className="text-muted">—</span> : (

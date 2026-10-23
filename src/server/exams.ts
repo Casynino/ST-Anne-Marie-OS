@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db, type Tx } from "@/lib/db";
 import { conflict, invalid, notFound } from "@/lib/errors";
-import { requirePermission, type AuthContext } from "@/lib/auth/context";
+import { requireAnyPermission, requirePermission, type AuthContext } from "@/lib/auth/context";
 import { formatDateOnly } from "@/lib/dates";
 import { actorOf, writeAudit } from "@/server/audit";
 import { optDateOnly, optText, optUuid, parse, text, uuid } from "@/lib/validation";
@@ -197,14 +197,14 @@ export async function getExam(ctx: AuthContext, id: string) {
   return { exam, term, examSubjects: subjects, classes, subjects: subjectRows, submissions, streams };
 }
 
-/** Terms and classes for pickers; readable by anyone who may see examinations (names only). */
+/** Terms and classes for pickers; readable by anyone who may see examinations or report cards (names only). */
 export async function listExamTerms(ctx: AuthContext) {
-  requirePermission(ctx, "exam.read");
+  requireAnyPermission(ctx, ["exam.read", "reportcard.read"]);
   return db.term.findMany({ where: { schoolId: ctx.schoolId }, orderBy: [{ academicYear: { startsOn: "desc" } }, { sequence: "asc" }], include: { academicYear: { select: { name: true } } } });
 }
 
 export async function listExamClasses(ctx: AuthContext) {
-  requirePermission(ctx, "exam.read");
+  requireAnyPermission(ctx, ["exam.read", "reportcard.read"]);
   return db.schoolClass.findMany({
     where: { schoolId: ctx.schoolId, isActive: true },
     orderBy: [{ level: { sortOrder: "asc" } }, { sortOrder: "asc" }, { name: "asc" }],
