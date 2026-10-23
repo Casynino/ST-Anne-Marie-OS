@@ -5016,4 +5016,5 @@ export const sw: Record<MessageKey, string> = {
   "lc.view.hint.notreg": "Familia ambazo bado hazijasajili. Wapigie simu na uandike wanachosema.",
   "lc.view.hint.repeat": "Wanafunzi walioidhinishwa kurudia darasa mwaka {year}.",
   "lc.view.hint.all": "Kila mwanafunzi anayerudi kwa {year}.",
+  "nav.progression": "Maamuzi ya mwisho wa mwaka",
 };

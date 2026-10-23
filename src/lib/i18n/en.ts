@@ -5014,6 +5014,7 @@ export const en = {
   "lc.view.hint.notreg": "Families who have not registered yet. Call them and write down what they say.",
   "lc.view.hint.repeat": "Students approved to repeat their grade in {year}.",
   "lc.view.hint.all": "Every returning student for {year}.",
+  "nav.progression": "Year-end decisions",
 } as const;
 
 export type MessageKey = keyof typeof en;

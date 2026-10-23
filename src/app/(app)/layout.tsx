@@ -49,6 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (journey.length) groups.push({ label: t("navgroup.journey"), icon: "students" as const, items: journey });
   const academic_ = [
     hasAny(ctx, ["academic.office"]) && { href: "/academic-office", label: t("nav.academicOffice"), icon: "academicOffice" as const },
+    hasAny(ctx, ["progression.read"]) && { href: "/academic-office/progression", label: t("nav.progression"), icon: "returning" as const },
     hasAny(ctx, ["academic.read"]) && { href: "/academic-setup", label: t("nav.academics"), icon: "academics" as const },
   ].filter(Boolean) as NavGroup["items"];
   if (academic_.length) groups.push({ label: t("navgroup.academic"), icon: "academics" as const, items: academic_ });
