@@ -234,13 +234,13 @@ export function DashTable({ head, children, empty, min = "28rem" }: { head: { la
 export const Cell = ({ children, right, className = "" }: { children?: ReactNode; right?: boolean; className?: string }) => <td className={`px-5 py-3 align-middle ${right ? "text-right tabular-nums" : ""} ${className}`}>{children}</td>;
 
 /** Ring chart with a big figure in the middle and a legend of counts (never colour alone). */
-export function DonutStat({ segments, center, caption, label }: { segments: { label: string; value: number; color: string; text?: string }[]; center: ReactNode; caption?: string; label: string }) {
+export function DonutStat({ segments, center, caption, label, compact = false }: { segments: { label: string; value: number; color: string; text?: string }[]; center: ReactNode; caption?: string; label: string; /** A smaller ring and legend, for a card that sits in a row of numbers. */ compact?: boolean }) {
   const total = segments.reduce((n, s) => n + s.value, 0);
   const R = 52, C = 2 * Math.PI * R;
   let offset = 0;
   return (
-    <figure aria-label={label} className="flex flex-wrap items-center gap-6">
-      <div className="relative size-40 shrink-0">
+    <figure aria-label={label} className={`flex flex-wrap items-center ${compact ? "gap-4" : "gap-6"}`}>
+      <div className={`relative shrink-0 ${compact ? "size-28" : "size-40"}`}>
         <svg viewBox="0 0 140 140" className="size-full -rotate-90" role="img" aria-label={label}>
           <circle cx="70" cy="70" r={R} fill="none" strokeWidth="14" className="stroke-line" />
           {total > 0 && segments.map((s) => {
@@ -250,9 +250,9 @@ export function DonutStat({ segments, center, caption, label }: { segments: { la
             return el;
           })}
         </svg>
-        <div className="absolute inset-0 grid place-items-center text-center"><div className="max-w-[5.75rem]"><div className="text-3xl font-semibold leading-8 tabular-nums text-heading">{center}</div>{caption && <div className="mt-0.5 text-[9px] font-bold uppercase leading-[1.15] tracking-[.08em] text-muted">{caption}</div>}</div></div>
+        <div className="absolute inset-0 grid place-items-center text-center"><div className={compact ? "max-w-[4.25rem]" : "max-w-[5.75rem]"}><div className={`font-semibold tabular-nums text-heading ${compact ? "text-xl leading-6" : "text-3xl leading-8"}`}>{center}</div>{caption && <div className="mt-0.5 text-[9px] font-bold uppercase leading-[1.15] tracking-[.08em] text-muted">{caption}</div>}</div></div>
       </div>
-      <ul className="min-w-[10rem] flex-1 space-y-2 text-sm">
+      <ul className={`flex-1 text-sm ${compact ? "min-w-[8rem] space-y-1" : "min-w-[10rem] space-y-2"}`}>
         {segments.map((s) => <li key={s.label} className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 text-ink/90"><span aria-hidden className="size-2.5 rounded-full" style={{ background: s.color }} />{s.label}</span><span className="font-semibold tabular-nums text-ink">{s.text ?? s.value}</span></li>)}
       </ul>
     </figure>

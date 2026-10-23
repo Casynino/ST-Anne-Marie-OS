@@ -151,11 +151,15 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
       {viewBar}
       {!overview.year ? <EmptyState>{t("student.class.noYear")}</EmptyState> : (
         <>
-          <ul className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
+          <div className="mb-5 flex flex-wrap gap-3">
+          <ul className="grid flex-[1_1_30rem] gap-3 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))] self-start">
             <li><GradientTile icon={GraduationCap} tone="orange" label={t("student.fig.enrolled")} value={overview.enrolled} caption={t("reg.tile.girls", { g: girls, b: boys })} /></li>
             <li><GradientTile icon={LayoutGrid} tone="violet" label={t("student.fig.classes")} value={overview.cards.length} caption={levels.join(" · ")} /></li>
             <li><GradientTile icon={Users} tone={overview.noClass > 0 ? "rose" : "green"} label={t("student.fig.noClass")} value={overview.noClass} href={overview.noClass > 0 && ctx.permissions.has("student.enroll") ? "/admissions/placement" : undefined} /></li>
           </ul>
+          <section className="flex-[1_1_21rem] rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]"><h2 className="mb-3 text-sm font-semibold text-ink">{t("student.byLevel")}</h2><DonutStat compact label={t("student.byLevel")} center={overview.enrolled} caption={t("student.fig.enrolled")} segments={levels.map((l, i) => ({ label: l, value: overview.cards.filter((c) => c.level === l).reduce((n, c) => n + c.count, 0), color: SERIES_COLORS[i % SERIES_COLORS.length]! }))} /></section>
+          <section className="flex-[1_1_21rem] rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]"><h2 className="mb-3 text-sm font-semibold text-ink">{t("dash.gender.title")}</h2><DonutStat compact label={t("dash.gender.title")} center={girls + boys} caption={t("student.fig.enrolled")} segments={[{ label: t("student.female"), value: girls, color: "#8b80ff", text: `${girls} · ${girls + boys > 0 ? Math.round((girls / (girls + boys)) * 100) : 0}%` }, { label: t("student.male"), value: boys, color: "#14a3b8", text: `${boys} · ${girls + boys > 0 ? Math.round((boys / (girls + boys)) * 100) : 0}%` }]} /></section>
+          </div>
           {overview.noClass > 0 && ctx.permissions.has("student.enroll") && (
             <Link href="/admissions/placement" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-warn/40 bg-warn/10 px-4 py-2.5 text-sm">
               <UserRound className="size-5 text-warn" aria-hidden />
@@ -164,7 +168,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             </Link>
           )}
           <Row>
-            <Panel className="flex-[3_1_40rem]" title={t("student.view.classes")} subtitle={t("student.class.count", { n: overview.enrolled })}>
+            <Panel className="flex-[1_1_100%]" title={t("student.view.classes")} subtitle={t("student.class.count", { n: overview.enrolled })}>
               <DashTable min="40rem" head={[{ label: t("student.class") }, { label: t("student.fig.enrolled") }, { label: t("student.gender") }, { label: t("student.class.teacherCol") }, { label: "" }]}>
                 {levels.flatMap((level) => {
                   const cards = overview.cards.filter((c) => c.level === level);
@@ -180,14 +184,6 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                 <span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-3 w-0.5 rounded-sm bg-ink/70" />{t("class.capacity")}</span>
               </p>
             </Panel>
-            <div className="flex flex-[1_1_19rem] flex-col gap-4">
-              <Panel title={t("student.byLevel")}>
-                <DonutStat label={t("student.byLevel")} center={overview.enrolled} caption={t("student.fig.enrolled")} segments={levels.map((l, i) => ({ label: l, value: overview.cards.filter((c) => c.level === l).reduce((n, c) => n + c.count, 0), color: SERIES_COLORS[i % SERIES_COLORS.length]! }))} />
-              </Panel>
-              <Panel title={t("dash.gender.title")}>
-                <DonutStat label={t("dash.gender.title")} center={girls + boys} caption={t("student.fig.enrolled")} segments={[{ label: t("student.female"), value: girls, color: "#8b80ff", text: `${girls} · ${girls + boys > 0 ? Math.round((girls / (girls + boys)) * 100) : 0}%` }, { label: t("student.male"), value: boys, color: "#14a3b8", text: `${boys} · ${girls + boys > 0 ? Math.round((boys / (girls + boys)) * 100) : 0}%` }]} />
-              </Panel>
-            </div>
           </Row>
           {formerTotal > 0 && (
             <p className="text-sm text-muted">
