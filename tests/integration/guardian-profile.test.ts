@@ -23,7 +23,7 @@ beforeAll(async () => {
   teacher = (await createTestUser(school.id, ["class_teacher"])).ctx;
   outsider = (await createTestUser((await createTestSchool()).id, ["registrar"])).ctx;
   const setup = await createCurrentYearAcademics(admin, { streams: ["A"] });
-  const kid = await students.createStudent(registrar, studentInput(995001, { classId: setup.cls.id, streamId: setup.streams[0]!.id }));
+  const kid = await students.createStudent(registrar, studentInput(7000000 + Math.floor(Math.random() * 1_500_000), { classId: setup.cls.id, streamId: setup.streams[0]!.id }));
   guardianId = (await db.studentGuardian.findFirstOrThrow({ where: { studentId: kid.id } })).guardianId;
   await portal.createGuardianAccount(admin, guardianId, { email: loginEmail });
   userId = (await db.guardian.findUniqueOrThrow({ where: { id: guardianId } })).userId!;
