@@ -34,16 +34,32 @@ export default async function NewApplicationPage() {
     <>
       <PageHeader title={t("adm.new")} subtitle={t("adm.new.office")} />
       <AdmissionsNav ctx={ctx} t={t} current="/admissions/new" />
-      <div className="max-w-4xl">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
+      <aside className="space-y-4 xl:sticky xl:top-20 xl:order-2">
         {windows.length > 0 && (
-          <div className="mb-4 rounded-lg border border-line bg-surface px-4 py-3 text-sm">
+          <div className="rounded-lg border border-line bg-surface px-4 py-3 text-sm">
             <p className="font-semibold">{t("adm.win.public.title")}</p>
             <ul className="mt-1 space-y-0.5 text-muted">
               {windows.map((w) => <li key={w.id}><span className="font-medium text-ink">{w.name}</span>{w.classNames.length ? ` (${w.classNames.join(", ")})` : ""}: {t("adm.win.public.interview", { when: `${displayDateTime(w.startsAt, school.timezone, ctx.locale)}${w.venue ? `, ${w.venue}` : ""}` })}{w.full ? ` · ${t("adm.win.public.full")}` : ""}</li>)}
             </ul>
           </div>
         )}
-        {fee.feeCents > 0 && <p className="mb-4 rounded-lg border border-tint-2 bg-tint px-4 py-3 text-sm font-medium text-link">{t("adm.new.fee", { amount: formatMoney(fee.feeCents, fee.currency) })}</p>}
+        {fee.feeCents > 0 && <p className="rounded-lg border border-tint-2 bg-tint px-4 py-3 text-sm font-medium text-link">{t("adm.new.fee", { amount: formatMoney(fee.feeCents, fee.currency) })}</p>}
+        <div className="rounded-lg border border-line bg-surface px-4 py-3 text-sm">
+          <p className="font-semibold">{t("adm.new.side.steps")}</p>
+          <ol className="mt-2 space-y-2 text-muted">
+            {[1, 2, 3, 4].map((n) => <li key={n} className="flex gap-2.5"><span aria-hidden className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-md bg-brand-600/15 text-[11px] font-bold text-link">{n}</span><span>{t(`adm.new.step.${n}` as "adm.new.step.1")}</span></li>)}
+          </ol>
+        </div>
+        {policy.requiredDocTypes.filter((d) => d !== "PASSPORT_PHOTO").length > 0 && (
+          <div className="rounded-lg border border-line bg-surface px-4 py-3 text-sm">
+            <p className="font-semibold">{t("adm.new.side.docs")}</p>
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-muted">{policy.requiredDocTypes.filter((d) => d !== "PASSPORT_PHOTO").map((d) => <li key={d}>{t(`doc.type.${d}` as "doc.type.OTHER")}</li>)}</ul>
+            <p className="mt-2 text-xs text-muted">{t("adm.new.side.docsHint")}</p>
+          </div>
+        )}
+      </aside>
+      <div className="xl:order-1">
         <ActionForm action={createOfficeApplicationAction} submitLabel={fee.feeCents > 0 ? t("adm.new.saveFee") : t("adm.new.submit")} className="space-y-6">
           <EntryTypeProvider defaultKind="NEW">
             <ApplicationFields t={t} classOptions={classOptions} relOptions={relOptions} emailRequired={false} variant="portal" />
@@ -63,6 +79,7 @@ export default async function NewApplicationPage() {
             <p className="text-xs text-muted">{t("apply.privacy")}</p>
           </div>
         </ActionForm>
+      </div>
       </div>
     </>
   );

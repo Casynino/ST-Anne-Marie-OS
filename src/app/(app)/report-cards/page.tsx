@@ -24,7 +24,11 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
   const sp = await searchParams;
   const [terms, classes, current] = await Promise.all([listExamTerms(ctx), listExamClasses(ctx), getCurrentAcademicContext(ctx.schoolId)]);
   const termId = sp.termId && terms.some((x) => x.id === sp.termId) ? sp.termId : (current.term?.id ?? terms[0]?.id);
-  const cls = classes.find((c) => c.id === sp.classId);
+  // Where the cards are: per class, how many were made and how many are published to the families (a class with cards opens by default).
+  const made = termId ? await db.reportCard.groupBy({ by: ["classId", "status"], where: { schoolId: ctx.schoolId, termId, status: { in: ["GENERATED", "PUBLISHED"] } }, _count: { _all: true } }) : [];
+  const perClass = new Map<string, { made: number; published: number }>();
+  for (const m of made) { const e = perClass.get(m.classId) ?? { made: 0, published: 0 }; e.made += m._count._all; if (m.status === "PUBLISHED") e.published += m._count._all; perClass.set(m.classId, e); }
+  const cls = classes.find((c) => c.id === sp.classId) ?? classes.find((c) => perClass.has(c.id));
   const streamId = cls?.streams.some((s) => s.id === sp.streamId) ? sp.streamId : undefined;
   const canGenerate = hasAny(ctx, ["reportcard.generate"]);
   const canPublish = hasAny(ctx, ["reportcard.publish"]);
@@ -58,9 +62,26 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
       />
       <FilterBar t={t} resetHref="/report-cards">
         <Field name="termId" type="select" label={t("exam.term")} options={terms.map((x) => ({ value: x.id, label: `${x.academicYear.name} · ${x.name}` }))} defaultValue={termId ?? ""} />
-        <Field name="classId" type="select" label={t("exam.class")} options={classes.map((c) => ({ value: c.id, label: c.name }))} defaultValue={sp.classId ?? ""} placeholder={t("res.chooseClass")} />
+        <Field name="classId" type="select" label={t("exam.class")} options={classes.map((c) => ({ value: c.id, label: c.name }))} defaultValue={cls?.id ?? sp.classId ?? ""} placeholder={t("res.chooseClass")} />
         {cls && cls.streams.length > 0 && <Field name="streamId" type="select" label={t("exam.stream")} options={cls.streams.map((s) => ({ value: s.id, label: s.name }))} defaultValue={streamId ?? ""} placeholder={t("res.allStreams")} />}
       </FilterBar>
+
+      {perClass.size > 0 && (
+        <section className="mb-5 rounded-xl border border-line bg-surface px-4 py-3" aria-label={t("rc.where")}>
+          <p className="mb-2 text-xs font-medium uppercase tracking-[.08em] text-muted">{t("rc.where")}</p>
+          <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+            {classes.filter((c) => perClass.has(c.id)).map((c) => {
+              const e = perClass.get(c.id)!;
+              return <li key={c.id}><Link href={`/report-cards?termId=${termId}&classId=${c.id}`} className={`hover:underline ${cls?.id === c.id ? "font-semibold text-ink" : "font-medium text-link"}`}>{c.name}</Link> <span className="text-xs text-muted">{t("rc.where.n", { made: e.made, published: e.published })}</span></li>;
+            })}
+          </ul>
+        </section>
+      )}
+      <ol className="mb-5 grid gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm sm:grid-cols-2 xl:grid-cols-4" aria-label={t("rc.how.title")}>
+        {[1, 2, 3, 4].map((n) => (
+          <li key={n} className="flex gap-3"><span aria-hidden className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md bg-brand-600/15 text-xs font-bold text-link">{n}</span><span className="text-ink">{t(`rc.how.${n}` as "rc.how.1")}</span></li>
+        ))}
+      </ol>
 
       {!cls ? (
         <EmptyState>{t("res.pick")}</EmptyState>
@@ -93,7 +114,7 @@ export default async function ReportCardsPage({ searchParams }: { searchParams: 
                 <Td className="tabular-nums">{r.position ?? "—"}</Td>
                 <Td className="text-xs">{t("rc.remarks.class")}: {r.hasClassRemark ? "✓" : "—"} · {t("rc.remarks.head")}: {r.hasHeadRemark ? "✓" : "—"}</Td>
                 <Td>{r.card ? <><Badge tone={TONE[r.card.status]}>{t(`rc.status.${r.card.status}` as never)}</Badge>{r.card.version > 1 && <span className="ml-1 text-xs text-muted">v{r.card.version}</span>}</> : <span className="text-sm text-muted">{t("rc.status.none")}</span>}</Td>
-                <Td className="text-right">{r.card && <Link href={`/report-cards/${r.card.id}`} className="text-sm font-semibold text-link hover:underline">{t("common.view")}</Link>}</Td>
+                <Td className="whitespace-nowrap text-right">{r.card && <span className="inline-flex items-center gap-3"><Link href={`/report-cards/${r.card.id}`} className="text-sm font-semibold text-link hover:underline">{t("common.view")}</Link>{r.card.status !== "WITHDRAWN" && <a href={`/api/report-cards/${r.card.id}`} target="_blank" rel="noopener" className="text-sm font-semibold text-link hover:underline">PDF</a>}</span>}</Td>
               </tr>
             ))}
           </DataTable>

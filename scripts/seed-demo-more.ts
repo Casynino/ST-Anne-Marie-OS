@@ -103,7 +103,7 @@ async function main() {
 
   // ───── 0a. Every mark sheet of the term finished and locked (a report card can only be made when all of a class's results are locked) ─────
   await step("finish the open mark sheets", async () => {
-    const open = await db.resultSubmission.findMany({ where: { schoolId, status: { not: "LOCKED" }, examSubject: { exam: { termId: term.id } } }, include: { examSubject: true } });
+    const open = await db.resultSubmission.findMany({ where: { schoolId, status: { not: "LOCKED" }, examSubject: { exam: { termId: term.id, examDate: { lte: new Date(`${today}T00:00:00Z`) } } } }, include: { examSubject: true } }); // exams still ahead are left alone
     let n = 0;
     for (const u of open) {
       try {

@@ -5150,6 +5150,20 @@ export const en = {
   "cal.f.where": "Where",
   "cal.f.public": "Show it to families and on the public website",
   "cal.f.publicHint": "Left empty, only staff see it.",
+  "rc.where": "Classes with report cards this term",
+  "rc.where.n": "{made} made, {published} published",
+  "rc.how.title": "How to get a report card",
+  "rc.how.1": "Choose the term and the class. A class that already has cards opens by itself.",
+  "rc.how.2": "Generate: every subject result of the class must be locked first. This builds each student's card.",
+  "rc.how.3": "Publish to send the cards to the parents and students. Before that only staff see them.",
+  "rc.how.4": "Press View to read a card, or PDF to print it. \"Print all\" gives the whole class.",
+  "adm.new.side.steps": "What happens next",
+  "adm.new.step.1": "Fill in this form with the family. The photo and papers can be added now or later.",
+  "adm.new.step.2": "Save it: the form is printed for the family.",
+  "adm.new.step.3": "The family pays the application fee at Finance (or by phone) and comes back with the receipt.",
+  "adm.new.step.4": "Once the fee is paid, the application appears under Applications for review.",
+  "adm.new.side.docs": "Papers the family should bring",
+  "adm.new.side.docsHint": "The application can only be accepted once these are checked.",
 } as const;
 
 export type MessageKey = keyof typeof en;
