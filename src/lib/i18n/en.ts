@@ -5008,6 +5008,12 @@ export const en = {
   "lc.why.noCard": "No report card has been made for this student yet, so there are no results to show.",
   "lc.why.attendance": "Attendance that term: {rate}% present ({present} of {n} days)",
   "lc.why.draftCard": "This report card is not published to the family yet.",
+  "lc.view.hint.todo": "The office must act on these now: choose the grade and stream, confirm the registration with the family, or put the student in the class once the year starts.",
+  "lc.view.hint.waiting": "Registered for {year}. Nothing to do until the year starts on {date}; then each one joins the class.",
+  "lc.view.hint.active": "Already in the class roster for {year}.",
+  "lc.view.hint.notreg": "Families who have not registered yet. Call them and write down what they say.",
+  "lc.view.hint.repeat": "Students approved to repeat their grade in {year}.",
+  "lc.view.hint.all": "Every returning student for {year}.",
 } as const;
 
 export type MessageKey = keyof typeof en;

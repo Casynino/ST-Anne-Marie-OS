@@ -170,6 +170,7 @@ async function main() {
     await step("next-year registration records", async () => (await reg.createMissingRegistrations(registrar, { yearId: nextYear.id })).created);
     await step("first-instalment rule", async () => { await fees.updateFeeSettings(finance, { defaultDueDays: 30, clearanceMaxOutstanding: "0", initialPaymentPct: "50" }); return "50% (demo)"; });
     await step("placing and confirming", async () => {
+      if (await db.annualRegistration.count({ where: { schoolId, academicYearId: nextYear.id, status: { in: ["REGISTERED", "ACTIVE"] } } }) > 0) return "skipped";
       const regs = await db.annualRegistration.findMany({ where: { schoolId, academicYearId: nextYear.id, status: "PENDING" }, include: { progression: true }, orderBy: { createdAt: "asc" } });
       let placed = 0, confirmed = 0;
       for (const [i, r] of regs.entries()) {

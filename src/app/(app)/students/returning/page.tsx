@@ -132,6 +132,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
             ...((by.NOT_RETURNING ?? 0) > 0 ? [{ href: q({ view: "all", stage: "NOT_RETURNING" }), label: stageLabel(t, "NOT_RETURNING"), count: by.NOT_RETURNING, active: sp.stage === "NOT_RETURNING" }] : []),
             { href: q({ view: "all" }), label: t("lc.tab.all"), count: b.counts.total, active: view === "all" && !sp.stage },
           ]} />
+          <p className="-mt-1 mb-4 text-sm text-muted">{t(`lc.view.hint.${sp.stage === "NOT_RETURNING" ? "all" : view}` as "lc.view.hint.all", { year: b.year.name, date: displayDate(b.year.startsOn, ctx.locale) })}</p>
           <form method="get" className="mb-4 flex flex-wrap items-end gap-2.5">
             {sp.year && <input type="hidden" name="year" value={sp.year} />}
             <input type="hidden" name="view" value={view} />

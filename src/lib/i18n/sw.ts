@@ -5010,4 +5010,10 @@ export const sw: Record<MessageKey, string> = {
   "lc.why.noCard": "Bado hakuna ripoti ya mwanafunzi huyu, kwa hiyo hakuna matokeo ya kuonyesha.",
   "lc.why.attendance": "Mahudhurio muhula huo: {rate}% alikuwepo (siku {present} kati ya {n})",
   "lc.why.draftCard": "Ripoti hii bado haijatolewa kwa familia.",
+  "lc.view.hint.todo": "Ofisi inapaswa kuwashughulikia sasa: kuchagua darasa na mkondo, kuthibitisha usajili na familia, au kumweka mwanafunzi darasani mwaka ukianza.",
+  "lc.view.hint.waiting": "Wamesajiliwa kwa {year}. Hakuna cha kufanya hadi mwaka uanze tarehe {date}; kisha kila mmoja anajiunga darasani.",
+  "lc.view.hint.active": "Tayari wako kwenye orodha ya darasa la {year}.",
+  "lc.view.hint.notreg": "Familia ambazo bado hazijasajili. Wapigie simu na uandike wanachosema.",
+  "lc.view.hint.repeat": "Wanafunzi walioidhinishwa kurudia darasa mwaka {year}.",
+  "lc.view.hint.all": "Kila mwanafunzi anayerudi kwa {year}.",
 };
