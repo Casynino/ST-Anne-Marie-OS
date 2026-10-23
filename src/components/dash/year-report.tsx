@@ -1,3 +1,4 @@
+import { ExportMenu } from "@/components/export-menu";
 import Link from "next/link";
 import type { Translate } from "@/lib/i18n";
 import type { YearReport } from "@/server/year-report";
@@ -72,6 +73,7 @@ export function YearReportPanel({ report, t, money, groups = ["academic", "admis
       ]} />}
     </div>
   );
-  if (flat) return <section aria-label={t("yr.title", { year: report.yearName })} className={`mb-4 rounded-2xl border border-line bg-surface px-5 py-4 ${className}`}>{body}</section>;
-  return <Panel className={className} title={t("yr.title", { year: report.yearName })} subtitle={t("yr.sub")}>{body}</Panel>;
+  const download = <ExportMenu base="/api/export/year-summary" t={t} formats={["xlsx", "pdf"]} />;
+  if (flat) return <section aria-label={t("yr.title", { year: report.yearName })} className={`mb-4 rounded-2xl border border-line bg-surface px-5 py-4 ${className}`}><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold text-ink">{t("yr.title", { year: report.yearName })}</h2>{download}</div>{body}</section>;
+  return <Panel className={className} title={t("yr.title", { year: report.yearName })} subtitle={t("yr.sub")} right={download}>{body}</Panel>;
 }

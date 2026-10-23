@@ -4,7 +4,7 @@ import { requireContext, getT } from "@/lib/auth/next";
 import { db } from "@/lib/db";
 import { displayDate, formatDateOnly, todayInTimezone } from "@/lib/dates";
 import { formatMoney } from "@/lib/finance/money";
-import { returningBoard, TODO_STAGES, type Stage } from "@/server/annual-registration";
+import { returningBoard, returningFilterFromParams, type Stage } from "@/server/annual-registration";
 import { ActionForm, Field } from "@/components/form";
 import { RowAction } from "@/components/lifecycle/row-action";
 import { SubmitButton } from "@/components/submit-button";
@@ -13,6 +13,7 @@ import { ClearanceBadge, CountTabs, FollowUpForm, OutcomeBadge, deptLabel, stage
 import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { Panel } from "@/components/dash/parts";
 import { YearReportPanel } from "@/components/dash/year-report";
+import { ExportMenu } from "@/components/export-menu";
 import { Row } from "@/components/dash/rows";
 import { Info } from "lucide-react";
 import { activateAction, confirmRegistrationAction, createRegistrationsAction, followUpAction, placeReturningAction } from "./actions";
@@ -30,14 +31,9 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
   const can = (p: Parameters<typeof ctx.permissions.has>[0]) => ctx.permissions.has(p);
   if (!can("registration.read")) return <NoAccess t={t} />;
   const sp = await searchParams;
-  const money = sp.money === "cleared" || sp.money === "owing" ? sp.money : undefined;
   // The default list is the work to do now; everything else is one tab away, so finished students never hide the ones who need action.
   const view = sp.view ?? (sp.stage || sp.notreg || sp.outcome ? "all" : "todo");
-  const stages: Stage[] | undefined = view === "todo" ? [...TODO_STAGES] : view === "waiting" ? ["WAITING_YEAR_OPEN"] : view === "active" ? ["ACTIVE"] : undefined;
-  const b = await returningBoard(ctx, {
-    yearId: sp.year, classId: sp.class, stage: sp.stage, stages, q: sp.q, money, notRegistered: view === "notreg" || sp.notreg === "1",
-    outcome: view === "repeat" ? "REPEAT" : sp.outcome === "PROMOTED" || sp.outcome === "REPEAT" ? sp.outcome : undefined, page: Number(sp.page) || 1,
-  });
+  const b = await returningBoard(ctx, { ...returningFilterFromParams(sp), page: Number(sp.page) || 1 });
   const canManage = can("registration.manage");
   if (!b.year) return <><PageHeader title={t("lc.ret.title")} /><EmptyState>{t("lc.noNextYear")}</EmptyState></>;
 
@@ -94,7 +90,7 @@ export default async function ReturningPage({ searchParams }: { searchParams: Pr
   };
   return (
     <>
-      <PageHeader title={t("lc.ret.title")} subtitle={t("lc.ret.sub", { year: b.year.name })} actions={<span className="flex flex-wrap items-center gap-4"><Link href="/students" className="text-sm font-medium text-link hover:underline">{t("student.title")}</Link><Link href="/academic-setup/readiness" className="text-sm font-medium text-link hover:underline">{t("lc.ready.link")}</Link></span>} />
+      <PageHeader title={t("lc.ret.title")} subtitle={t("lc.ret.sub", { year: b.year.name })} actions={<span className="flex flex-wrap items-center gap-4"><ExportMenu base={`/api/export/returning?${new URLSearchParams(Object.entries({ year: sp.year, class: sp.class, q: sp.q, money: sp.money, view, stage: sp.stage, notreg: sp.notreg, outcome: sp.outcome }).filter((e): e is [string, string] => !!e[1])).toString()}`} t={t} /><Link href="/students" className="text-sm font-medium text-link hover:underline">{t("student.title")}</Link><Link href="/academic-setup/readiness" className="text-sm font-medium text-link hover:underline">{t("lc.ready.link")}</Link></span>} />
 
       <p className="mb-4 flex items-start gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm text-muted"><Info className="mt-0.5 size-4 shrink-0 text-link" aria-hidden /><span>{notes.join(" · ")}</span></p>
 

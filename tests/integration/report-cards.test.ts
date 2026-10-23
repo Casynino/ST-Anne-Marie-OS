@@ -67,9 +67,11 @@ describe("generating report cards", () => {
     for (const id of engUnits) await marks.lockMarks(head, id);
   });
 
-  it("only users with reportcard.generate can generate", async () => {
+  it("only users with reportcard.generate can generate, and only reportcard.publish can publish", async () => {
     expect(await code(rc.generateReportCards(teacherA, target()))).toBe("FORBIDDEN");
-    expect(await code(rc.generateReportCards(registrar, target()))).toBe("FORBIDDEN");
+    // The Registrar may generate since 2026-10-23 (not publish): checked without generating, so the next test starts clean.
+    expect(registrar.permissions.has("reportcard.generate")).toBe(true);
+    expect(await code(rc.publishReportCards(registrar, target()))).toBe("FORBIDDEN");
   });
 
   it("builds a snapshot per student from locked results and is idempotent", async () => {

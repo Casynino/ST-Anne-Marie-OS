@@ -35,7 +35,7 @@ export type ProgressionRow = {
   completion: ExamCompletion; signal: PromotionSignal; suggested: { classId: string; className: string } | { final: true };
   decision: DecisionView | null; registration: string | null;
 };
-export type ProgressionFilter = { yearId?: string; classId?: string; streamId?: string; q?: string; show?: "none" | "draft" | "awaiting_head" | "approved" | "review" | "incomplete"; page?: number };
+export type ProgressionFilter = { yearId?: string; classId?: string; streamId?: string; q?: string; show?: "none" | "draft" | "awaiting_head" | "approved" | "review" | "incomplete"; page?: number; /** Every row, for a download. */ all?: boolean };
 export type ClassProgress = { classId: string; name: string; total: number; none: number; draft: number; awaitingHead: number; approved: number; incomplete: number };
 
 const PAGE = 50;
@@ -118,7 +118,7 @@ export async function progressionBoard(ctx: AuthContext, opts: ProgressionFilter
 
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const page = Math.min(Math.max(1, opts.page ?? 1), pages);
-  return { year, years, nextYear, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, classes, totals: totalsOf(all), settings, grades, streams };
+  return { year, years, nextYear, rows: opts.all ? rows : rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, classes, totals: totalsOf(all), settings, grades, streams };
 }
 function totalsOf(all: ProgressionRow[]) {
   const n = (f: (r: ProgressionRow) => boolean) => all.filter(f).length;

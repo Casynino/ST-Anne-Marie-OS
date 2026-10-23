@@ -146,7 +146,18 @@ export async function classPlaces(client: Client, schoolId: string, yearId: stri
 }
 
 const PAGE = 50;
-export type ReturningFilter = { yearId?: string; classId?: string; stage?: string; q?: string; money?: "cleared" | "owing"; notRegistered?: boolean; outcome?: "PROMOTED" | "REPEAT"; stages?: Stage[]; page?: number };
+export type ReturningFilter = { yearId?: string; classId?: string; stage?: string; q?: string; money?: "cleared" | "owing"; notRegistered?: boolean; outcome?: "PROMOTED" | "REPEAT"; stages?: Stage[]; page?: number; /** Every row, for a download. */ all?: boolean };
+
+/** The list's filters from the address (`view`, `class`, `q`, ...): ONE reading, used by the screen and by its download so both show the same students. */
+export function returningFilterFromParams(sp: Record<string, string | undefined>): ReturningFilter {
+  const view = sp.view ?? (sp.stage || sp.notreg || sp.outcome ? "all" : "todo");
+  return {
+    yearId: sp.year, classId: sp.class, stage: sp.stage, q: sp.q, money: sp.money === "cleared" || sp.money === "owing" ? sp.money : undefined,
+    stages: view === "todo" ? [...TODO_STAGES] : view === "waiting" ? ["WAITING_YEAR_OPEN"] : view === "active" ? ["ACTIVE"] : undefined,
+    notRegistered: view === "notreg" || sp.notreg === "1",
+    outcome: view === "repeat" ? "REPEAT" : sp.outcome === "PROMOTED" || sp.outcome === "REPEAT" ? sp.outcome : undefined,
+  };
+}
 
 export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {}) {
   requirePermission(ctx, "registration.read");
@@ -223,7 +234,7 @@ export async function returningBoard(ctx: AuthContext, opts: ReturningFilter = {
     const full = p?.left === 0;
     return c.streams.length ? c.streams.map((st) => ({ value: `${c.id}|${st.id}`, label: `${c.name} – ${st.name}${note}`, full })) : [{ value: c.id, label: `${c.name}${note}`, full }];
   });
-  return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, counts, places, options, missing, settings, open, windowClosed, classes: grades.map((g) => ({ id: g.id, name: g.name })) };
+  return { year, years, rows: opts.all ? rows : rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, counts, places, options, missing, settings, open, windowClosed, classes: grades.map((g) => ({ id: g.id, name: g.name })) };
 }
 function emptyCounts() { return { total: 0, cleared: 0, owing: 0, notRegistered: 0, contacted: 0, registered: 0, repeat: 0, promoted: 0, awaitingPayment: 0, undecided: 0, todo: 0, waiting: 0, active: 0, byStage: {} as Partial<Record<Stage, number>> }; }
 
@@ -543,7 +554,7 @@ export async function reopenRegistration(ctx: AuthContext, input: unknown) {
     if (!reg) throw notFound("Registration");
     if (reg.status !== "CANCELLED") throw conflict("Only a cancelled registration can be opened again.");
     if (reg.progression.status !== "APPROVED" || !(reg.progression.outcome === "PROMOTED" || reg.progression.outcome === "REPEAT")) throw conflict("The student's decision no longer brings them back to school.");
-    await tx.annualRegistration.update({ where: { id: reg.id }, data: { status: "PENDING", cancelReason: null, classId: null, streamId: null, placedAt: null, placedById: null, capacityOverrideReason: null, gradeOverrideReason: null } });
+    await tx.annualRegistration.update({ where: { id: reg.id }, data: { status: "PENDING", cancelReason: null, classId: null, streamId: null, placedAt: null, placedById: null, capacityOverrideReason: null, gradeOverrideReason: null, registeredAt: null, registeredById: null } });
     await openTask(tx, { schoolId: ctx.schoolId, kind: "RETURNING_PLACEMENT", relatedType: "AnnualRegistration", relatedId: reg.id, relatedLabel: `${label(reg.student)} · ${reg.academicYear.name}`, sourceEvent: "registration.reopen", createdById: ctx.userId, discriminator: String(Date.now()) });
     await writeAudit(tx, actorOf(ctx), { action: "registration.reopen", entityType: "AnnualRegistration", entityId: reg.id, summary: `${label(reg.student)} · ${reg.academicYear.name}` });
   });

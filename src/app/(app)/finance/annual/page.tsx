@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireContext, getT } from "@/lib/auth/next";
 import { formatMoney } from "@/lib/finance/money";
 import { annualFeeBoard, type FeeFilter } from "@/server/annual-fees";
+import { ExportMenu } from "@/components/export-menu";
 import { FinanceNav } from "@/components/finance/subnav";
 import { ActionForm, Field } from "@/components/form";
 import { ClearanceBadge, CountTabs, Figures } from "@/components/lifecycle/parts";
@@ -42,7 +43,7 @@ export default async function AnnualFeesPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title={t("lc.fee.title")} subtitle={t("lc.fee.sub", { year: b.year.name })} />
+      <PageHeader title={t("lc.fee.title")} subtitle={t("lc.fee.sub", { year: b.year.name })} actions={<ExportMenu base={`/api/export/annual-fees?${new URLSearchParams(Object.entries({ year: sp.year, class: sp.class, stream: sp.stream, outcome: sp.outcome, reg: sp.reg, state: sp.state, q: sp.q }).filter((e): e is [string, string] => !!e[1])).toString()}`} t={t} />} />
       <FinanceNav ctx={ctx} t={t} current="/finance/annual" />
       <Figures items={[
         { label: t("lc.ret.fig.total"), value: tot.students },

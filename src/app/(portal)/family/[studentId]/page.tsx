@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExportMenu } from "@/components/export-menu";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft, CalendarCheck, CheckCircle2, ClipboardList, FileDown, GraduationCap, Wallet } from "lucide-react";
@@ -236,7 +237,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
       )}
 
       <Row>
-        <Panel className="flex-[1_1_100%]" title={t("fam.reportCards")} subtitle={t("fam.reports.sub")}>
+        <Panel className="flex-[1_1_100%]" title={t("fam.reportCards")} subtitle={t("fam.reports.sub")} right={ov.reportCards.length > 0 ? <span className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted">{t("fam.progressReport")}</span><ExportMenu base={`/api/my-reports/progress?studentId=${child.id}`} t={t} formats={["pdf", "xlsx"]} /></span> : undefined}>
           {ov.reportCards.length === 0 ? <EmptyLine>{t("fam.noReportCards")}</EmptyLine> : (
             <DashTable min="34rem" head={[{ label: t("rc.term") }, { label: t("res.average"), right: true }, { label: t("rc.grade") }, { label: t("rc.position"), right: true }, { label: "" }]}>
               {ov.reportCards.map((c) => (

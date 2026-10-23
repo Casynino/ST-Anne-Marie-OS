@@ -5164,6 +5164,22 @@ export const en = {
   "adm.new.step.4": "Once the fee is paid, the application appears under Applications for review.",
   "adm.new.side.docs": "Papers the family should bring",
   "adm.new.side.docsHint": "The application can only be accepted once these are checked.",
+  "sp.tab.reports": "Reports",
+  "sp.rep.cards": "Report cards",
+  "sp.rep.cardsSub": "The cards made for this student. View one on screen or open the PDF to print.",
+  "sp.rep.noCards": "No report card has been made for this student yet.",
+  "sp.rep.noAccess": "You do not have access to report cards.",
+  "sp.rep.downloads": "Download a report",
+  "sp.rep.downloadsSub": "Choose a report and a format. You only get what you may see on this page.",
+  "sp.rep.summary": "Progress report",
+  "sp.rep.summaryBody": "One page: who the student is, latest results, attendance, fees, homework.",
+  "sp.rep.marks": "Marks by term and subject",
+  "sp.rep.marksBody": "Every subject of every report card, with class average and position.",
+  "sp.rep.attendance": "Attendance record",
+  "sp.rep.attendanceBody": "Day by day for the last six months.",
+  "sp.rep.fees": "Fee statement",
+  "sp.rep.feesBody": "Invoices and payments with dates and balances.",
+  "fam.progressReport": "Progress report",
 } as const;
 
 export type MessageKey = keyof typeof en;

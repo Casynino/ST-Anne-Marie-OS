@@ -6,6 +6,7 @@ import { ActionForm, Field } from "@/components/form";
 import { SubmitButton } from "@/components/submit-button";
 import { SelectAll } from "@/components/lifecycle/select-all";
 import { CountTabs, DecisionStatus, Figures, OutcomeBadge, ResultsCell } from "@/components/lifecycle/parts";
+import { ExportMenu } from "@/components/export-menu";
 import { Card, DataTable, EmptyState, NoAccess, PageHeader, Pagination, Td } from "@/components/ui";
 import { lifecycleSettingsAction, prepareAction, progressionAction } from "./actions";
 
@@ -46,7 +47,7 @@ export default async function ProgressionPage({ searchParams }: { searchParams: 
       <PageHeader
         title={t("lc.prog.title")}
         subtitle={b.nextYear ? t("lc.prog.sub", { from: b.year.name, to: b.nextYear.name }) : t("lc.prog.subNoNext", { from: b.year.name })}
-        actions={<Link href="/academic-setup/readiness" className="text-sm font-medium text-link hover:underline">{t("lc.ready.link")}</Link>}
+        actions={<span className="flex flex-wrap items-center gap-4"><ExportMenu base={`/api/export/progression?${new URLSearchParams(Object.entries({ year: sp.year, class: sp.class, q: sp.q, show: sp.show }).filter((e): e is [string, string] => !!e[1])).toString()}`} t={t} /><Link href="/academic-setup/readiness" className="text-sm font-medium text-link hover:underline">{t("lc.ready.link")}</Link></span>}
       />
       {!b.nextYear && <p role="status" className="mb-4 rounded-lg border border-warn/40 bg-amber-50 px-3 py-2 text-sm text-warn">{t("lc.prog.noNextYear")}</p>}
 

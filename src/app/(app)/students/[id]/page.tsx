@@ -17,6 +17,7 @@ import { Cell, ColorBars, DonutStat, EmptyLine, GradientTile, Panel, Pill } from
 import { AreaChart } from "@/components/dash/charts-client";
 import { Row } from "@/components/dash/rows";
 import { CountTabs } from "@/components/lifecycle/parts";
+import { ExportMenu } from "@/components/export-menu";
 import { studentInsights, type TermResult } from "@/server/student-profile";
 import { attendanceRate, emptyCounts } from "@/server/attendance-reports";
 import { getAttendanceSettings } from "@/server/attendance";
@@ -101,6 +102,15 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
   const strong = sortedSubjects.slice(0, 3);
   const weak = sortedSubjects.length > 3 ? [...sortedSubjects].reverse().slice(0, 3) : [];
 
+  // Reports: the report cards made for the student (staff who may read them) and the downloads the person may use.
+  const canCards = ctx.permissions.has("reportcard.read");
+  const cardRows = canCards ? (await db.reportCard.findMany({ where: { schoolId: ctx.schoolId, studentId: s.id, status: { in: ["GENERATED", "PUBLISHED"] } }, orderBy: { generatedAt: "desc" }, take: 12 })).map((c) => { const snap = c.snapshot as unknown as import("@/lib/results/report-types").ReportSnapshot; return { id: c.id, term: `${snap.term.name} · ${snap.term.year}`, className: `${snap.class.name}${snap.class.stream ? ` ${snap.class.stream}` : ""}`, average: snap.summary.average, grade: snap.summary.grade, position: snap.summary.position, classSize: snap.summary.classSize, status: c.status }; }) : [];
+  const downloads = [
+    { key: "summary", title: t("sp.rep.summary"), body: t("sp.rep.summaryBody"), kind: "student-summary" },
+    ...(perf ? [{ key: "marks", title: t("sp.rep.marks"), body: t("sp.rep.marksBody"), kind: "student-marks" }] : []),
+    ...(att ? [{ key: "att", title: t("sp.rep.attendance"), body: t("sp.rep.attendanceBody"), kind: "student-attendance" }] : []),
+    ...(fees ? [{ key: "fees", title: t("sp.rep.fees"), body: t("sp.rep.feesBody"), kind: "student-fees" }] : []),
+  ];
   const hasLearning = !!hw || (beh && beh.length > 0) || concernRows.length > 0;
   const hasFamily = s.canSeeGuardians || s.canSeeMedical || docs.length > 0 || s.siblings.length > 0;
   const tabs = [
@@ -108,6 +118,7 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
     ...(perf ? [{ id: "performance", label: t("sp.tab.performance") }] : []),
     ...(att ? [{ id: "attendance", label: t("sp.tab.attendance") }] : []),
     ...(hasLearning ? [{ id: "learning", label: t("sp.tab.learning") }] : []),
+    { id: "reports", label: t("sp.tab.reports") },
     ...(hasFamily ? [{ id: "family", label: t("sp.tab.family") }] : []),
     { id: "records", label: t("sp.tab.records") },
   ];
@@ -487,6 +498,42 @@ export default async function StudentPage({ params, searchParams }: { params: Pr
             </Panel>
           )}
           </div>
+        </Row>
+      )}
+
+      {tab === "reports" && (
+        <Row>
+          <Panel className="flex-[2_1_34rem]" title={t("sp.rep.cards")} subtitle={t("sp.rep.cardsSub")}>
+            {!canCards ? <EmptyLine>{t("sp.rep.noAccess")}</EmptyLine> : cardRows.length === 0 ? <EmptyLine>{t("sp.rep.noCards")}</EmptyLine> : (
+              <div className="-mx-5 overflow-x-auto">
+                <table className="w-full min-w-[34rem] text-sm">
+                  <thead><tr className="border-y border-line text-left text-xs text-muted"><th className="px-5 py-2 font-medium">{t("rc.term")}</th><th className="px-3 py-2 text-right font-medium">{t("res.average")}</th><th className="px-3 py-2 font-medium">{t("rc.grade")}</th><th className="px-3 py-2 text-right font-medium">{t("rc.position")}</th><th className="px-3 py-2 font-medium">{t("marks.status")}</th><th className="px-5 py-2" /></tr></thead>
+                  <tbody className="divide-y divide-line">
+                    {cardRows.map((c) => (
+                      <tr key={c.id}>
+                        <td className="px-5 py-2.5"><span className="font-semibold text-ink">{c.term}</span><span className="block text-xs text-muted">{c.className}</span></td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{c.average === null ? "—" : c.average.toFixed(1)}</td>
+                        <td className="px-3 py-2.5">{c.grade ?? "—"}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">{c.position !== null ? `${c.position}/${c.classSize}` : "—"}</td>
+                        <td className="px-3 py-2.5"><Pill tone={c.status === "PUBLISHED" ? "ok" : "warn"}>{t(`rc.status.${c.status}` as never)}</Pill></td>
+                        <td className="whitespace-nowrap px-5 py-2.5 text-right"><span className="inline-flex gap-3"><Link href={`/report-cards/${c.id}`} className="font-medium text-link hover:underline">{t("common.view")}</Link><a href={`/api/report-cards/${c.id}`} target="_blank" rel="noopener" className="font-medium text-link hover:underline">PDF</a></span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+          <Panel className="flex-[1_1_22rem]" title={t("sp.rep.downloads")} subtitle={t("sp.rep.downloadsSub")}>
+            <ul className="divide-y divide-line">
+              {downloads.map((d) => (
+                <li key={d.key} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-ink">{d.title}</span><span className="block text-xs text-muted">{d.body}</span></span>
+                  <ExportMenu base={`/api/export/${d.kind}?studentId=${s.id}`} t={t} formats={["pdf", "xlsx", "csv"]} />
+                </li>
+              ))}
+            </ul>
+          </Panel>
         </Row>
       )}
 

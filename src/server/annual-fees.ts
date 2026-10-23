@@ -25,7 +25,7 @@ export type FeeRow = {
   streamName: string | null; outcome: string; state: ClearanceState; firstTerm: YearFinance["firstTerm"]; year: YearFinance["year"]; previous: YearFinance["previous"]; previousOutstanding: number; exceptionReason: string | null;
 };
 export type GradeReport = { className: string; students: number; expected: number; initialRequired: number | null; collected: number; outstanding: number; verified: number; previousOutstanding: number };
-export type FeeFilter = { yearId?: string; classId?: string; streamId?: string; outcome?: "PROMOTED" | "REPEAT"; regStatus?: "PENDING" | "REGISTERED" | "ACTIVE"; state?: "cleared" | "owing" | "not_billed" | "exception" | "previous"; q?: string; page?: number };
+export type FeeFilter = { yearId?: string; classId?: string; streamId?: string; outcome?: "PROMOTED" | "REPEAT"; regStatus?: "PENDING" | "REGISTERED" | "ACTIVE"; state?: "cleared" | "owing" | "not_billed" | "exception" | "previous"; q?: string; page?: number; all?: boolean };
 
 export async function annualFeeBoard(ctx: AuthContext, opts: FeeFilter = {}) {
   requirePermission(ctx, "fees.read");
@@ -92,7 +92,7 @@ export async function annualFeeBoard(ctx: AuthContext, opts: FeeFilter = {}) {
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const page = Math.min(Math.max(1, opts.page ?? 1), pages);
   const firstTerm = await db.term.findFirst({ where: { schoolId: ctx.schoolId, academicYearId: year.id }, orderBy: { sequence: "asc" }, select: { name: true } });
-  return { year, years, rows: rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, totals, needBilling: totals.notBilled, byGrade, initial, awaitingReconciliation, firstTermName: firstTerm?.name ?? null, settings, classes: grades.map((g) => ({ id: g.id, name: g.name })),
+  return { year, years, rows: opts.all ? rows : rows.slice((page - 1) * PAGE, page * PAGE), total: rows.length, page, pages, totals, needBilling: totals.notBilled, byGrade, initial, awaitingReconciliation, firstTermName: firstTerm?.name ?? null, settings, classes: grades.map((g) => ({ id: g.id, name: g.name })),
     streams: streamRows.filter((x) => !opts.classId || x.classId === opts.classId).map((x) => ({ id: x.id, name: `${className.get(x.classId) ?? ""} ${x.name}`.trim() })) };
 }
 
