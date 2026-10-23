@@ -258,6 +258,7 @@ export const SYSTEM_ROLES: readonly SystemRoleDef[] = [
       "progression.read", "registration.read", "registration.manage",
       "admission.exam.assign",
       "reportcard.read",
+      "reportcard.generate",
       "timetable.read",
       "calendar.manage",
       "document.read",
