@@ -2,7 +2,7 @@ export const en = {
   "app.name": "St Anne Marie Schools",
   "app.tagline": "School management system",
 
-  "nav.dashboard": "Overview",
+  "nav.dashboard": "Home",
   "nav.students": "Students",
   "nav.guardians": "Parents",
   "nav.academics": "Academics",
@@ -70,7 +70,7 @@ export const en = {
   "auth.confirmPassword": "Confirm new password",
   "auth.passwordRules": "At least 10 characters, with letters and numbers.",
 
-  "dash.title": "Overview",
+  "dash.title": "Home",
   "dash.welcome": "Welcome, {name}",
   "dash.year": "Academic year",
   "dash.term": "Current term",
@@ -994,7 +994,7 @@ export const en = {
   "dash.table.viewAll": "View all",
   "dash.empty.title": "No dashboard information yet",
   "dash.empty.body": "Your account does not have access to any dashboard information yet. Please contact the school office.",
-  "navgroup.overview": "Overview",
+  "navgroup.overview": "Home",
   "navgroup.academic": "Academic",
   "navgroup.communication": "Communication",
   "navgroup.administration": "Administration",
@@ -1288,7 +1288,7 @@ export const en = {
   "navgroup.finance": "Finance",
   "fin.title": "Finance",
   "fin.subtitle": "Fees, invoices, payments, receipts, refunds and expenses.",
-  "fin.nav.overview": "Overview",
+  "fin.nav.overview": "Home",
   "fin.nav.invoices": "Invoices",
   "fin.nav.payments": "Payments",
   "fin.nav.refunds": "Refunds",
@@ -5015,6 +5015,13 @@ export const en = {
   "lc.view.hint.repeat": "Students approved to repeat their grade in {year}.",
   "lc.view.hint.all": "Every returning student for {year}.",
   "nav.progression": "Year-end decisions",
+  "guardian.ov.linked": "{n} linked to a child",
+  "guardian.ov.withAccount": "With a portal account",
+  "guardian.ov.suspendedN": "{n} suspended",
+  "guardian.ov.noneSuspended": "None suspended",
+  "guardian.ov.noAccountHint": "Can be given one in the table",
+  "guardian.ov.neverHint": "Has an account, never opened it",
+  "guardian.ov.noChildHint": "Not linked to any student",
 } as const;
 
 export type MessageKey = keyof typeof en;

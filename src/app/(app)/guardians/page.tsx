@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Search } from "lucide-react";
+import { Link2Off, LogIn, Search, UserCheck, UserX, Users } from "lucide-react";
 import { requireContext, getT } from "@/lib/auth/next";
 import { guardianOverview, listGuardians } from "@/server/guardians";
 import { guardianAccountStates } from "@/server/portal";
 import { ActionForm } from "@/components/form";
-import { Cell, DonutStat, PersonCell, Panel, Pill } from "@/components/dash/parts";
+import { Cell, GradientTile, PersonCell, Panel, Pill } from "@/components/dash/parts";
 import { Row } from "@/components/dash/rows";
-import { DefList, EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
+import { EmptyState, NoAccess, PageHeader, Pagination } from "@/components/ui";
 import { createGuardianAccountAction, resetPortalPasswordAction, setPortalActiveAction } from "./actions";
 
 export const metadata: Metadata = { title: "Guardians" };
@@ -45,8 +45,15 @@ export default async function GuardiansPage({ searchParams }: { searchParams: Pr
           </form>
         }
       />
+      <ul className="mb-5 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(11rem,13.5rem))]">
+        <li><GradientTile icon={Users} tone="orange" label={t("guardian.ov.total")} value={ov.total} caption={t("guardian.ov.linked", { n: ov.total - ov.noChild })} /></li>
+        {canPortal && <li><GradientTile icon={UserCheck} tone="green" label={t("guardian.ov.withAccount")} value={ov.active} caption={ov.suspended > 0 ? t("guardian.ov.suspendedN", { n: ov.suspended }) : t("guardian.ov.noneSuspended")} /></li>}
+        {canPortal && <li><GradientTile icon={UserX} tone={ov.noAccount > 0 ? "rose" : "teal"} label={t("guardian.ov.noAccount")} value={ov.noAccount} caption={t("guardian.ov.noAccountHint")} /></li>}
+        {canPortal && <li><GradientTile icon={LogIn} tone="violet" label={t("guardian.ov.never")} value={ov.neverSignedIn} caption={t("guardian.ov.neverHint")} /></li>}
+        <li><GradientTile icon={Link2Off} tone={ov.noChild > 0 ? "indigo" : "teal"} label={t("guardian.ov.noChild")} value={ov.noChild} caption={t("guardian.ov.noChildHint")} /></li>
+      </ul>
       <Row>
-        <Panel className="flex-[3_1_40rem]" title={t("guardian.title")} subtitle={sp.q ? `${total}` : undefined}>
+        <Panel className="flex-[1_1_100%]" title={t("guardian.title")} subtitle={sp.q ? `${total}` : undefined}>
           {items.length === 0 ? <EmptyState>{t("common.noResults")}</EmptyState> : (
             <div className="-mx-5 overflow-x-auto">
               <table className="w-full min-w-[50rem] text-sm">
@@ -97,24 +104,6 @@ export default async function GuardiansPage({ searchParams }: { searchParams: Pr
           <Pagination page={page} pageSize={pageSize} total={total} basePath="/guardians" params={{ q: sp.q }} t={t} />
         </Panel>
 
-        <div className="flex flex-[1_1_19rem] flex-col gap-4">
-          {canPortal && ov.total > 0 && (
-            <Panel title={t("guardian.ov.accounts")}>
-              <DonutStat label={t("guardian.ov.accounts")} center={ov.total} caption={t("guardian.ov.total")} segments={[
-                { label: t("common.active"), value: ov.active, color: "#2fd08f" },
-                { label: t("guardian.ov.suspended"), value: ov.suspended, color: "#ff8574" },
-                { label: t("guardian.ov.noAccount"), value: ov.noAccount, color: "#4b5a52" },
-              ]} />
-            </Panel>
-          )}
-          <Panel title={t("guardian.ov.numbers")}>
-            <DefList items={[
-              { label: t("guardian.ov.total"), value: String(ov.total) },
-              { label: t("guardian.ov.noChild"), value: String(ov.noChild) },
-              ...(canPortal ? [{ label: t("guardian.ov.never"), value: String(ov.neverSignedIn) }] : []),
-            ]} />
-          </Panel>
-        </div>
       </Row>
     </>
   );
