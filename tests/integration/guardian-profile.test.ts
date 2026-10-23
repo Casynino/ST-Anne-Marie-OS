@@ -12,6 +12,7 @@ import { createCurrentYearAcademics, createTestSchool, createTestUser, studentIn
 
 let registrar: AuthContext, accountant: AuthContext, teacher: AuthContext, outsider: AuthContext;
 let guardianId: string, userId: string;
+const loginEmail = `parent.profile.${Math.random().toString(36).slice(2, 10)}@example.test`;
 const code = async (p: Promise<unknown>) => ((await p.then(() => null, (e) => e)) as AppError | null)?.code ?? null;
 
 beforeAll(async () => {
@@ -24,9 +25,9 @@ beforeAll(async () => {
   const setup = await createCurrentYearAcademics(admin, { streams: ["A"] });
   const kid = await students.createStudent(registrar, studentInput(995001, { classId: setup.cls.id, streamId: setup.streams[0]!.id }));
   guardianId = (await db.studentGuardian.findFirstOrThrow({ where: { studentId: kid.id } })).guardianId;
-  await portal.createGuardianAccount(admin, guardianId, { email: "parent.profile@example.test" });
+  await portal.createGuardianAccount(admin, guardianId, { email: loginEmail });
   userId = (await db.guardian.findUniqueOrThrow({ where: { id: guardianId } })).userId!;
-  await db.loginAttempt.createMany({ data: [{ identifier: "parent.profile@example.test", success: false }, { identifier: "parent.profile@example.test", success: false }, { identifier: "parent.profile@example.test", success: true }] });
+  await db.loginAttempt.createMany({ data: [{ identifier: loginEmail, success: false }, { identifier: loginEmail, success: false }, { identifier: loginEmail, success: true }] });
 });
 
 describe("one parent's page", () => {

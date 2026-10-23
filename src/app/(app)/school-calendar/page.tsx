@@ -1,35 +1,42 @@
 import type { Metadata } from "next";
 import { requireContext, getT } from "@/lib/auth/next";
 import { calendarFor } from "@/server/calendar";
-import { displayDate, parseDateOnly } from "@/lib/dates";
-import { Badge, EmptyState, PageHeader } from "@/components/ui";
+import { getSchoolBasics } from "@/server/settings";
+import { todayInTimezone, parseDateOnly } from "@/lib/dates";
+import { EventCalendar } from "@/components/calendar/event-calendar";
+import { CountTabs } from "@/components/lifecycle/parts";
+import { EmptyState, PageHeader } from "@/components/ui";
 
 export const metadata: Metadata = { title: "School calendar" };
+const TYPES = ["term", "events", "internal"] as const;
 
-export default async function StaffCalendarPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+/** The school calendar for one year as event cards: the next three events first, then every month; filter by term dates, school events or staff-only. */
+export default async function StaffCalendarPage({ searchParams }: { searchParams: Promise<{ year?: string; type?: string }> }) {
   const ctx = await requireContext();
   const t = await getT();
   const sp = await searchParams;
-  const year = Number(sp.year) >= 2000 && Number(sp.year) <= 2100 ? Number(sp.year) : new Date().getUTCFullYear();
-  const items = await calendarFor(ctx, parseDateOnly(`${year}-01-01`)!, parseDateOnly(`${year}-12-31`)!);
-  const months = new Map<string, typeof items>();
-  for (const i of items) (months.get(i.from.slice(0, 7)) ?? months.set(i.from.slice(0, 7), []).get(i.from.slice(0, 7))!).push(i);
+  const school = await getSchoolBasics(ctx.schoolId);
+  const today = todayInTimezone(school.timezone);
+  const year = Number(sp.year) >= 2000 && Number(sp.year) <= 2100 ? Number(sp.year) : Number(today.slice(0, 4));
+  const type = (TYPES as readonly string[]).includes(sp.type ?? "") ? (sp.type as (typeof TYPES)[number]) : undefined;
+  const all = await calendarFor(ctx, parseDateOnly(`${year}-01-01`)!, parseDateOnly(`${year}-12-31`)!);
+  const count = { term: all.filter((i) => i.kind !== "EVENT").length, events: all.filter((i) => i.kind === "EVENT" && i.isPublic).length, internal: all.filter((i) => i.kind === "EVENT" && !i.isPublic).length };
+  const items = all.filter((i) => (type === "term" ? i.kind !== "EVENT" : type === "events" ? i.kind === "EVENT" && i.isPublic : type === "internal" ? i.kind === "EVENT" && !i.isPublic : true));
+  const href = (y: number, ty?: string) => `/school-calendar?year=${y}${ty ? `&type=${ty}` : ""}`;
   return (
     <>
-      <PageHeader title={t("cal.title")} subtitle={t("cal.subtitle")} actions={<span className="flex gap-3 text-sm"><a className="font-medium text-link hover:underline" href={`/school-calendar?year=${year - 1}`}>{year - 1}</a><strong>{year}</strong><a className="font-medium text-link hover:underline" href={`/school-calendar?year=${year + 1}`}>{year + 1}</a></span>} />
-      {items.length === 0 ? <EmptyState>{t("cal.empty")}</EmptyState> : [...months].map(([m, list]) => (
-        <section key={m} className="mb-6">
-          <h2 className="mb-2 text-base font-semibold">{displayDate(parseDateOnly(`${m}-01`)!, ctx.locale).replace(/^\d+\s/, "")}</h2>
-          <ul className="space-y-2">
-            {list.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3">
-                <span><span className="font-medium">{ctx.locale === "SW" && i.titleSw ? i.titleSw : i.title}</span>{i.location && <span className="block text-sm text-muted">{i.location}</span>}</span>
-                <span className="flex items-center gap-2 text-sm text-muted">{!i.isPublic && <Badge>{t("cal.internal")}</Badge>}{displayDate(parseDateOnly(i.from)!, ctx.locale)}{i.to && i.to !== i.from ? ` – ${displayDate(parseDateOnly(i.to)!, ctx.locale)}` : ""}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      <PageHeader
+        title={`${t("cal.title")} ${year}`}
+        subtitle={t("cal.subtitle")}
+        actions={<span className="flex gap-4 text-sm">{[year - 1, year, year + 1].map((y) => <a key={y} href={href(y, type)} className={y === year ? "font-semibold text-ink" : "font-medium text-link hover:underline"}>{y}</a>)}</span>}
+      />
+      <CountTabs items={[
+        { href: href(year), label: t("cal.filter.all"), count: all.length, active: !type },
+        { href: href(year, "term"), label: t("cal.filter.term"), count: count.term, active: type === "term" },
+        { href: href(year, "events"), label: t("cal.filter.events"), count: count.events, active: type === "events" },
+        { href: href(year, "internal"), label: t("cal.filter.internal"), count: count.internal, active: type === "internal" },
+      ]} />
+      {items.length === 0 ? <EmptyState>{t("cal.empty")}</EmptyState> : <EventCalendar items={items} today={today} locale={ctx.locale} t={t} upcoming={!type || year === Number(today.slice(0, 4))} />}
     </>
   );
 }
