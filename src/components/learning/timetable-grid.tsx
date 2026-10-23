@@ -37,7 +37,7 @@ export function TimetableGrid({ periods, lessons, labels, detail, cellHref }: { 
           </thead>
           <tbody>
             {periods.map((p) => (
-              <tr key={p.id} className={`border-t border-line align-top ${p.isBreak ? "bg-cream-deep/60" : ""}`}>
+              <tr key={p.id} className={`border-t border-line align-top ${p.isBreak ? "bg-tint/50" : ""}`}>
                 <th scope="row" className="px-3 py-2 text-left"><span className="block font-semibold text-heading">{p.name}</span><span className="block text-xs font-normal text-muted">{p.startTime}–{p.endTime}</span></th>
                 {p.isBreak ? (
                   <td colSpan={days.length} className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-widest text-muted">{labels.break}</td>
@@ -70,7 +70,7 @@ export function TimetableGrid({ periods, lessons, labels, detail, cellHref }: { 
             <ul className="divide-y divide-line">
               {periods.map((p) => {
                 const ls = at(d, p.id);
-                if (p.isBreak) return <li key={p.id} className="bg-cream-deep/60 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted">{labels.break} · {p.startTime}–{p.endTime}</li>;
+                if (p.isBreak) return <li key={p.id} className="bg-tint/50 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-muted">{labels.break} · {p.startTime}–{p.endTime}</li>;
                 return (
                   <li key={p.id} className="flex gap-3 px-3 py-2.5">
                     <div className="w-16 shrink-0 pt-1 text-xs"><span className="block font-semibold text-heading">{p.name}</span><span className="text-muted">{p.startTime}</span></div>

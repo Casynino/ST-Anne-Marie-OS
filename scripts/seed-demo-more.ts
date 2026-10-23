@@ -28,6 +28,8 @@ import * as messaging from "../src/server/messaging";
 import * as payments from "../src/server/payments";
 import * as portal from "../src/server/portal";
 import * as portfolio from "../src/server/portfolio";
+import * as timetable from "../src/server/timetable";
+import * as users from "../src/server/users";
 import * as prog from "../src/server/progression";
 import * as reg from "../src/server/annual-registration";
 import * as transfers from "../src/server/transfers";
@@ -145,6 +147,43 @@ async function main() {
       } catch (e) { console.log("  comments:", (e as Error).message?.split("\n")[0]); }
     }
     return `${done} report cards`;
+  });
+
+  // ───── 0c. A full timetable for every class (prepared by the Academic Office): more teachers, a full school day, every class and stream ─────
+  await step("timetable for every class", async () => {
+    const existing = await db.timetableEntry.count({ where: { schoolId } });
+    if (existing > 120) return "skipped";
+    const NEW_TEACHERS = [["teacher5", "Rose Mwakasege", "Science Teacher"], ["teacher6", "Elia Shayo", "Social Studies Teacher"], ["teacher7", "Happy Komba", "Kiswahili Teacher"], ["teacher8", "Jonas Temba", "Sciences Teacher"], ["teacher9", "Upendo Haji", "Class Teacher"], ["teacher10", "Godfrey Lyimo", "Class Teacher"]] as const;
+    for (const [local, fullName, jobTitle] of NEW_TEACHERS) {
+      if (await db.user.findFirst({ where: { schoolId, email: `${local}@${DOMAIN}` } })) continue;
+      await users.createStaffUser(admin, { fullName, email: `${local}@${DOMAIN}`, department: "teaching", jobTitle, password: "StAnne2026" });
+    }
+    const teachers = await db.staff.findMany({ where: { schoolId, user: { status: "ACTIVE", email: { startsWith: "teacher" } } }, select: { id: true }, orderBy: { user: { email: "asc" } } });
+    // The school day: three more lessons before lunch, lunch, then two after.
+    const have = await timetable.listPeriods(admin);
+    const addPeriod = async (name: string, startTime: string, endTime: string, isBreak = false) => { if (!have.some((p) => p.name === name)) await timetable.createPeriod(admin, { name, startTime, endTime, ...(isBreak ? { isBreak: "on" } : {}) }); };
+    await addPeriod("P4", "10:20", "11:00"); await addPeriod("P5", "11:00", "11:40"); await addPeriod("P6", "11:40", "12:20"); await addPeriod("Lunch", "12:20", "13:00", true); await addPeriod("P7", "13:00", "13:40"); await addPeriod("P8", "13:40", "14:20");
+    const periods = (await timetable.listPeriods(admin)).filter((p) => !p.isBreak);
+    const classes = await db.schoolClass.findMany({ where: { schoolId, enrollments: { some: { academicYearId: year.id, status: "ACTIVE" } } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { streams: { orderBy: { name: "asc" } }, subjects: { include: { subject: { select: { id: true, name: true } } } } } });
+    const groups = classes.flatMap((c) => (c.streams.length ? c.streams.map((st) => ({ c, streamId: st.id as string | null })) : [{ c, streamId: null as string | null }]));
+    let set = 0, noTeacher = 0;
+    for (const [gi, g] of groups.entries()) {
+      const subjects = g.c.subjects.map((x) => x.subject).sort((a, b) => a.name.localeCompare(b.name));
+      if (!subjects.length) continue;
+      for (let day = 1; day <= 5; day++) {
+        for (const [pi, p] of periods.entries()) {
+          if (await db.timetableEntry.findFirst({ where: { schoolId, classId: g.c.id, streamId: g.streamId, dayOfWeek: day, periodId: p.id } })) continue;
+          const subject = subjects[(pi + day * 2 + gi) % subjects.length]!;
+          const pref = [...subject.name].reduce((a, ch) => a + ch.charCodeAt(0), 0) % teachers.length;
+          let done = false;
+          for (let k = 0; k < teachers.length && !done; k++) {
+            try { await timetable.setTimetableEntry(admin, { classId: g.c.id, streamId: g.streamId ?? undefined, dayOfWeek: day, periodId: p.id, subjectId: subject.id, teacherStaffId: teachers[(pref + k) % teachers.length]!.id, room: `Room ${gi + 1}` }); done = true; set++; } catch { /* that teacher is busy in this period: try the next */ }
+          }
+          if (!done) { try { await timetable.setTimetableEntry(admin, { classId: g.c.id, streamId: g.streamId ?? undefined, dayOfWeek: day, periodId: p.id, subjectId: subject.id, room: `Room ${gi + 1}` }); set++; noTeacher++; } catch { /* leaves the slot empty */ } }
+        }
+      }
+    }
+    return `${set} lessons (${noTeacher} without a teacher yet), ${teachers.length} teachers`;
   });
 
   // ───── 1. End-of-year decisions: most move up, a few repeat, a few still wait for the Academic Office ─────

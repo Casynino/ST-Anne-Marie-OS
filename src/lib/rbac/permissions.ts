@@ -149,6 +149,7 @@ export const PERMISSIONS = {
   "comms.read": { module: "communication", description: "View sent announcements and fee reminders and their delivery results" },
   "comms.send": { module: "communication", description: "Send announcements to parents (SMS and in-app)" },
   "comms.fee_reminder": { module: "communication", description: "Send fee reminders to parents of students who owe fees" },
+  "calendar.manage": { module: "communication", description: "Add, change and remove events on the school calendar" },
   "comms.manage": { module: "communication", description: "Edit the wording of system messages (absence, fees, results)" },
   "messages.read": { module: "communication", description: "Read parent-teacher conversations you take part in" },
   "messages.send": { module: "communication", description: "Write to parents of students you teach and reply to their messages" },

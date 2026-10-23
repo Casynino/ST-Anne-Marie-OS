@@ -394,14 +394,14 @@ export async function listEvents(ctx: AuthContext) {
 }
 
 export async function getEvent(ctx: AuthContext, id: string) {
-  requirePermission(ctx, "website.manage");
+  requireAnyPermission(ctx, ["website.manage", "calendar.manage"]);
   const row = await db.schoolEvent.findFirst({ where: { id, schoolId: ctx.schoolId } });
   if (!row) throw notFound("Event");
   return row;
 }
 
 export async function createEvent(ctx: AuthContext, input: unknown) {
-  requirePermission(ctx, "website.manage");
+  requireAnyPermission(ctx, ["website.manage", "calendar.manage"]);
   const d = parse(eventSchema, input);
   return db.$transaction(async (tx) => {
     const row = await tx.schoolEvent.create({ data: { ...d, schoolId: ctx.schoolId, createdById: ctx.userId } });
@@ -411,7 +411,7 @@ export async function createEvent(ctx: AuthContext, input: unknown) {
 }
 
 export async function updateEvent(ctx: AuthContext, id: string, input: unknown) {
-  requirePermission(ctx, "website.manage");
+  requireAnyPermission(ctx, ["website.manage", "calendar.manage"]);
   const d = parse(eventSchema, input);
   await getEvent(ctx, id);
   await db.$transaction(async (tx) => {
@@ -424,7 +424,7 @@ export async function updateEvent(ctx: AuthContext, id: string, input: unknown) 
 }
 
 export async function deleteEvent(ctx: AuthContext, id: string) {
-  requirePermission(ctx, "website.manage");
+  requireAnyPermission(ctx, ["website.manage", "calendar.manage"]);
   const row = await getEvent(ctx, id);
   await db.$transaction(async (tx) => {
     await tx.schoolEvent.delete({ where: { id } });
