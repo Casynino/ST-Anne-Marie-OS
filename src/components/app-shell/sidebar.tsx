@@ -23,7 +23,7 @@ function Brand({ name, initials, logo, collapsed }: { name: string; subtitle?: s
  * The menu: the home items first, then each group with its icon and heading and its pages under a thin guide line. The page you are on is a
  * soft filled block with a yellow mark on the guide line; icons stay visible when the menu is collapsed.
  */
-function Groups({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collapsed?: boolean; onNavigate?: () => void }) {
+function Groups({ groups, collapsed, onNavigate, touch }: { groups: NavGroup[]; collapsed?: boolean; onNavigate?: () => void; touch?: boolean }) {
   const pathname = usePathname();
   // Only the most specific menu entry is "current" (Returning students sits under /students, but Students must not light up with it).
   const current = groups.flatMap((g) => g.items).filter((i) => isActive(pathname, i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
@@ -36,25 +36,25 @@ function Groups({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collaps
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         title={collapsed ? item.label : undefined}
-        className={`group relative flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] transition-colors ${collapsed ? "justify-center" : ""} ${active ? "bg-white/10 font-medium text-white" : "text-brand-100 hover:bg-white/5 hover:text-white"}`}
+        className={`group relative flex items-center rounded-lg transition-colors ${touch ? "min-h-12 gap-3 px-3 text-base" : "min-h-10 gap-2.5 px-2.5 text-[14.5px]"} ${collapsed ? "justify-center" : ""} ${active ? "bg-white/10 font-medium text-white" : "text-brand-100 hover:bg-white/5 hover:text-white"}`}
       >
         {active && <span aria-hidden className={`absolute inset-y-2 w-[3px] rounded-full bg-sun ${nested && !collapsed ? "-left-[9px]" : "left-0"}`} />}
-        <Icon className={`size-4 shrink-0 ${active ? "text-sun" : "text-brand-300 group-hover:text-white"}`} aria-hidden />
+        <Icon className={`${touch ? "size-5" : "size-[18px]"} shrink-0 ${active ? "text-sun" : "text-brand-300 group-hover:text-white"}`} aria-hidden />
         {collapsed ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
         {!!item.badge && <span className={`ml-auto rounded-md bg-sun px-1.5 py-0.5 text-[11px] font-semibold leading-none text-brand-950 ${collapsed ? "absolute right-1 top-1 ml-0" : ""}`}>{item.badge}</span>}
       </Link>
     );
   };
   return (
-    <nav aria-label="Main" className="space-y-4">
+    <nav aria-label="Main" className={touch ? "space-y-5" : "space-y-4"}>
       {groups.map((g) => {
         if (g.flat) return <ul key={g.label} className="space-y-0.5">{g.items.map((i) => <li key={i.href}>{link(i, false)}</li>)}</ul>;
         return (
           <div key={g.label}>
             {collapsed ? <div aria-hidden className="mx-3 mb-2 h-px bg-white/10" /> : (
-              <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase leading-tight tracking-[0.14em] text-brand-300">{g.label}</p>
+              <p className={`px-2.5 font-semibold uppercase leading-tight tracking-[0.14em] text-brand-300 ${touch ? "mb-1.5 text-xs" : "mb-1 text-xs"}`}>{g.label}</p>
             )}
-            <ul className={collapsed ? "space-y-0.5" : "ml-3 space-y-0.5 border-l border-white/10 pl-2"}>
+            <ul className={collapsed ? "space-y-0.5" : `ml-3 border-l border-white/10 pl-2 ${touch ? "space-y-1" : "space-y-0.5"}`}>
               {g.items.map((i) => <li key={i.href}>{link(i, true)}</li>)}
             </ul>
           </div>
@@ -108,9 +108,9 @@ export function MobileDrawer({ groups, name, subtitle, initials, logo, labels, f
       {mounted && createPortal(
       <div className={`fixed inset-0 z-50 lg:hidden ${open ? "" : "pointer-events-none"}`} role="dialog" aria-modal="true" aria-label={labels.menu} aria-hidden={!open}>
         <button type="button" tabIndex={open ? 0 : -1} aria-label={labels.close} className={`absolute inset-0 bg-black/45 transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`} onClick={() => setOpen(false)} />
-        <div className={`absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col rail-glass p-4 text-white shadow-2xl transition-transform duration-200 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`} inert={!open}>
+        <div className={`absolute inset-y-0 left-0 flex w-80 max-w-[88vw] flex-col rail-glass p-4 text-white shadow-2xl transition-transform duration-200 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`} inert={!open}>
           <div className="mb-4 flex items-center justify-between"><Brand name={name} initials={initials} logo={logo} /><button type="button" onClick={() => setOpen(false)} aria-label={labels.close} className="inline-flex size-11 items-center justify-center rounded-lg hover:bg-white/10"><X className="size-5" aria-hidden /></button></div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><Groups groups={groups} onNavigate={() => setOpen(false)} /></div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><Groups groups={groups} onNavigate={() => setOpen(false)} touch /></div>
           {footer && <div className="mt-3 border-t border-dashed border-white/15 pt-3">{footer}</div>}
         </div>
       </div>, document.querySelector("[data-theme-root]") ?? document.body)}

@@ -129,7 +129,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
     ),
   };
-  const drawerFooter = <div className="space-y-3"><LanguageSwitch current={locale} dark /><SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-brand-100 hover:bg-surface/10"><LogOut className="size-5" aria-hidden /> {t("nav.signOut")}</SignOutButton></div>;
+  const drawerFooter = (
+    <div className="space-y-2">
+      <Link href="/change-password" className="block rounded-lg px-3 py-1.5 hover:bg-white/5">
+        <span className="block truncate text-base font-medium text-white">{ctx.fullName}</span>
+        {roles[0]?.name && <span className="block truncate text-sm text-brand-200">{roles[0].name}</span>}
+      </Link>
+      {ctx.oversight && <Link href="/step-in" className="block rounded-lg px-3 py-1 text-sm text-brand-300 hover:bg-white/5 hover:text-white">{t("step.link")}</Link>}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <LanguageSwitch current={locale} dark />
+        <SignOutButton action={signOutAction} className="flex min-h-12 items-center gap-2 rounded-lg px-3 text-base font-medium text-[#ff9b8e] hover:bg-white/5"><LogOut className="size-5" aria-hidden /> {t("nav.signOut")}</SignOutButton>
+      </div>
+    </div>
+  );
 
   return (
     <ThemeRoot className="flex min-h-dvh">
