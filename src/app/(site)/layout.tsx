@@ -3,6 +3,7 @@ import { getContext, getLocale, getT } from "@/lib/auth/next";
 import { homeFor } from "@/lib/auth/home";
 import { baseUrl, getSite, initialsOf, schoolJsonLd, telHref } from "@/lib/site";
 import { LanguageSwitch } from "@/components/language-switch";
+import { SiteThemeToggle } from "@/components/site/site-theme-toggle";
 import { SiteHeader, type SiteLink, type SiteSubLink } from "@/components/site/site-header";
 import { SiteFooter } from "@/components/site/site-footer";
 import { inter, montserrat } from "@/lib/fonts";
@@ -72,7 +73,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         menuLabel={t("nav.menu")}
         closeLabel={t("nav.close")}
         skipLabel={t("site.skip")}
-        languageSwitch={<LanguageSwitch current={locale} pill />}
+        languageSwitch={<span className="inline-flex items-center gap-1"><LanguageSwitch current={locale} pill /><SiteThemeToggle labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} /></span>}
         topSlot={<AnnouncementBar schoolId={site.school.id} t={t} locale={locale} />}
       />
       <SideTabs t={t} applyHref="/apply/form" />
