@@ -2,6 +2,13 @@
 
 Audience: whoever hosts the system (Nino). Everything here is checked against the code; steps marked **YOU** need your accounts.
 
+## 0. Live system (since 2026-11-16)
+- Address: https://st-anne-marie-os.vercel.app (Vercel project `st-anne-marie-os`, functions in Frankfurt). Repository: `Casynino/ST-Anne-Marie-OS` (a push to `main` starts the production build).
+- Database: a new Neon project (`ep-red-hall`, PostgreSQL 18.7), migrated through `phase24` and bootstrapped: one school, 141 permissions, 9 roles, one Super Admin, no students. Nothing demo or fake was loaded.
+- Vercel settings (production only, sensitive): `DATABASE_URL` (pooled), `CRON_SECRET`, `APP_URL`. Not set on purpose: `PAYMENTS_SANDBOX`, file storage (uploads are refused until a bucket is chosen), payment and SMS secrets.
+- First sign-in: the one-off owner password was written to a gitignored file on the computer that did the set-up (`.env.first-login`); change it after signing in. Then follow `docs/manuals/ADMIN.md`.
+- Still to do by the owner: rotate the Neon password that was pasted in chat (then update `DATABASE_URL` in Vercel), set up backups (section 5), and later a custom domain (then update `APP_URL`).
+
 ## 1. What runs where
 | Part | Where | Notes |
 |---|---|---|
