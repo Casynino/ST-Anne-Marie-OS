@@ -197,14 +197,17 @@ export async function getExam(ctx: AuthContext, id: string) {
   return { exam, term, examSubjects: subjects, classes, subjects: subjectRows, submissions, streams };
 }
 
-/** Terms and classes for pickers; readable by anyone who may see examinations or report cards (names only). */
+/**
+ * Terms and classes for pickers (names only): readable by anyone who may see examinations, report cards or the academic structure. The
+ * Finance Office needs them for its term pickers (fees, invoices, reports) and has none of the exam permissions, so `academic.read` is accepted too.
+ */
 export async function listExamTerms(ctx: AuthContext) {
-  requireAnyPermission(ctx, ["exam.read", "reportcard.read"]);
+  requireAnyPermission(ctx, ["exam.read", "reportcard.read", "academic.read"]);
   return db.term.findMany({ where: { schoolId: ctx.schoolId }, orderBy: [{ academicYear: { startsOn: "desc" } }, { sequence: "asc" }], include: { academicYear: { select: { name: true } } } });
 }
 
 export async function listExamClasses(ctx: AuthContext) {
-  requireAnyPermission(ctx, ["exam.read", "reportcard.read"]);
+  requireAnyPermission(ctx, ["exam.read", "reportcard.read", "academic.read"]);
   return db.schoolClass.findMany({
     where: { schoolId: ctx.schoolId, isActive: true },
     orderBy: [{ level: { sortOrder: "asc" } }, { sortOrder: "asc" }, { name: "asc" }],

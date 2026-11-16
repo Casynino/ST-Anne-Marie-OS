@@ -67,3 +67,12 @@ describe("the owner oversees and does not do the departments' work", () => {
     expect(owner(["super_admin", "registrar"]).permissions.has("registration.manage")).toBe(true); // an owner who also holds a department role keeps that department's work
   });
 });
+
+describe("every department can open the pickers its own pages use", () => {
+  it("Finance holds a permission that lets it list terms and classes for its fees, invoices and reports pages", () => {
+    const need = ["exam.read", "reportcard.read", "academic.read"];
+    for (const key of ["accountant", "registrar", "academic_office", "head_teacher", "class_teacher", "subject_teacher"]) {
+      expect(need.some((p) => role(key).has(p)), `${key} needs one of ${need.join(", ")}`).toBe(true);
+    }
+  });
+});

@@ -1,0 +1,127 @@
+<!-- ═════════════ CHAPTER 11: PUBLIC WEBSITE ═════════════ -->
+<section class="chapter">
+  <div class="chap-head"><div class="no">11</div><div><h1>The public website and online application</h1><p>What visitors and applicants see, and how it connects to Admissions.</p></div></div>
+  <p class="lead">The school's public website is part of the same system. It uses <b>only the school's own text and photographs</b>. Where the school has not yet entered something, the section stays hidden instead of showing invented content. Visitors can switch to a calm dark look with the moon button; light is the default.</p>
+  <div class="pair">
+    <figure class="shot"><img src="shots/pub-home.jpg" alt="Website home"><figcaption>The website home page.</figcaption></figure>
+    <figure class="shot"><img src="shots/pub-home-2.jpg" alt="Website sections"><figcaption>Sections for the school, levels, news and events appear as the school fills them in.</figcaption></figure>
+  </div>
+  <h2>11.1 How a family applies</h2>
+  <figure class="shot"><img src="shots/pub-apply.jpg" alt="Apply page"><figcaption>The Admissions page: how to apply, the open application windows and their interview days.</figcaption></figure>
+  <ol class="steps">
+    <li>The family opens <b>Apply online</b> and sees the windows that are open now. They can also apply at any time: with no open window, Admissions gives the interview date later.</li>
+    <li>They fill the form: the child's details, guardians (an email address is needed because the account is created in the same step), the previous school, health note, emergency contact and the papers. A <b>transfer</b> student also gives the previous school, last class and reason, and adds the transfer letter and previous report.</li>
+    <li>They confirm on a review page. If the school sets an application fee, they pay by quoting the reference; the application reaches Admissions only after the payment provider confirms the money.</li>
+    <li>They can track the application at any time from their account, or with the application number and phone on the <b>Track</b> page.</li>
+  </ol>
+  <div class="pair">
+    <figure class="shot"><img src="shots/pub-applyform.jpg" alt="Application form"><figcaption>The online application form.</figcaption></figure>
+    <figure class="shot"><img src="shots/pub-track.jpg" alt="Track"><figcaption>Track an application: the answer never reveals anyone else's records.</figcaption></figure>
+  </div>
+  <figure class="shot sm"><img src="shots/pub-calendar.jpg" alt="Public calendar"><figcaption>The public calendar shows only the events the school chose to publish.</figcaption></figure>
+  <div class="call tip"><b class="t">Who edits the website?</b><p>The Owner (and the Head Teacher) edit the text and photographs under <b>Website</b>; calendar events are added by Admissions, the Academic Office or the Head Teacher. Images must be the school's own; photographs of children are used only with the school's consent.</p></div>
+</section>
+
+<!-- ═════════════ CHAPTER 12: SECURITY ═════════════ -->
+<section class="chapter">
+  <div class="chap-head"><div class="no">12</div><div><h1>Security, privacy and accountability</h1><p>How the school's data, money and children's information are protected.</p></div></div>
+  <div class="cards">
+    <div class="card"><h4>Sign-in</h4><p>Passwords are stored scrambled (never readable). Sessions are protected cookies. Repeated wrong passwords make the account wait. The connection is encrypted (https).</p></div>
+    <div class="card"><h4>Permissions</h4><p>Every page and every action checks the person's department on the school's server. A hidden button is never the only protection; a person cannot open a page by guessing its address.</p></div>
+    <div class="card"><h4>Audit log</h4><p>Every important action (who, what, which record, when, and the reason where one is asked) is recorded and cannot be changed or erased.</p></div>
+    <div class="card"><h4>Nothing is rewritten</h4><p>Money, receipts, approved results and behaviour records are corrected by a reversal or revision, so the history is always complete.</p></div>
+    <div class="card"><h4>Two people for money</h4><p>Expenses and refunds are approved by a second person. The Owner decides above his own limit.</p></div>
+    <div class="card"><h4>Children's privacy</h4><p>Medical notes are visible only to Admissions and the Head Teacher, and each view is logged. Parents see only their own children. Downloaded files are checked for permission each time.</p></div>
+    <div class="card"><h4>The owner's step-in</h4><p>The Owner can enter a department's work only for 30 minutes, with a written reason, a banner on every page, and a record at the start and the end.</p></div>
+    <div class="card"><h4>Backups</h4><p>The database provider keeps a short history for recovery; a separate backup copy should also be made regularly (see chapter 13). The Owner's home warns if the newest backup is too old.</p></div>
+    <div class="card"><h4>Honest messages</h4><p>The system never says an SMS was delivered or a fee was paid unless the provider's signed confirmation says so.</p></div>
+  </div>
+  <h2>Who is accountable for what</h2>
+  <table>
+    <tr><th>If this goes wrong…</th><th>Look here</th><th>Who answers</th></tr>
+    <tr><td>A mark changed after approval</td><td>The mark sheet history and the audit log</td><td>The person named in the entry and the approver</td></tr>
+    <tr><td>A payment looks wrong</td><td>The payment, its reversal and the audit log</td><td>Finance (and the second approver where one applies)</td></tr>
+    <tr><td>An application is stuck</td><td>The Applications list and the Tasks page</td><td>Admissions (the person holding the task)</td></tr>
+    <tr><td>A department is behind</td><td>The Owner's Departments table</td><td>The department and the person holding the oldest task</td></tr>
+    <tr><td>Somebody used the Owner's step-in</td><td>The audit log (owner.step_in, owner.step_out)</td><td>The Owner, with the reason he wrote</td></tr>
+  </table>
+</section>
+
+<!-- ═════════════ CHAPTER 13: GO LIVE ═════════════ -->
+<section class="chapter">
+  <div class="chap-head"><div class="no">13</div><div><h1>Setting up the school and going live</h1><p>A practical checklist, in the order it should be done.</p></div></div>
+  <p class="lead">The live system starts <b>empty and honest</b>: one school, the departments' accounts, and no students, fees or payments. Real information is entered by the department that owns it. The order below avoids waiting: each step unlocks the next.</p>
+  <div class="flow">
+    <div class="row"><div class="n">1</div><div class="who"><span class="tag owner">Owner</span></div><div class="what"><b>Day 1.</b> Sign in, change the password, check the school profile (name, motto, contact, currency, timezone). Give each department its login privately and ask them to change the password.</div></div>
+    <div class="row"><div class="n">2</div><div class="who"><span class="tag aca">Academic</span></div><div class="what"><b>Week 1.</b> Academic year and terms; levels, classes and streams with capacity; subjects; grading scale; teacher assignments. Open the readiness checklist until it is complete. Then the periods and the timetable.</div></div>
+    <div class="row"><div class="n">3</div><div class="who"><span class="tag fin">Finance</span></div><div class="what"><b>Week 1.</b> Fee items; the fee structure for each class and term; the "How to pay" text exactly as the bank or mobile-money account; the due days, the first-payment share for returning students, and the expense approval amount.</div></div>
+    <div class="row"><div class="n">4</div><div class="who"><span class="tag owner">Owner</span></div><div class="what"><b>Week 1.</b> Create each teacher's account (Staff and users, department Teacher). Set the approval limit. Enter the website text and photographs.</div></div>
+    <div class="row"><div class="n">5</div><div class="who"><span class="tag adm">Admissions</span></div><div class="what"><b>Week 2.</b> Admissions policy (required papers, interview or exam by level, application fee) and the application windows. Import the existing students and parents from a CSV file; check the preview, then confirm. Check the counts against the paper registers.</div></div>
+    <div class="row"><div class="n">6</div><div class="who"><span class="tag head">Head</span></div><div class="what"><b>Week 2.</b> Check each class has a class teacher and the timetable is complete. Review the teachers' accounts and who has not signed in.</div></div>
+    <div class="row"><div class="n">7</div><div class="who"><span class="tag sys">Everyone</span></div><div class="what"><b>Week 2.</b> A 1-hour session per department using its chapter in this guide. Each person signs in on their own phone or computer and does one real task.</div></div>
+    <div class="row"><div class="n">8</div><div class="who"><span class="tag tch">Teachers</span> <span class="tag fin">Finance</span></div><div class="what"><b>Week 3.</b> Go live with attendance each morning and with payments each day. Admissions creates parent accounts or families register through applications.</div></div>
+    <div class="row"><div class="n">9</div><div class="who"><span class="tag owner">Owner</span></div><div class="what"><b>Week 4.</b> Read the first full report: the Money, School and Departments sections. Fix what is behind. Check that a backup exists.</div></div>
+  </div>
+  <h2>Switched on later, when the school decides</h2>
+  <table>
+    <tr><th style="width:30%">Feature</th><th>What it needs</th></tr>
+    <tr><td>SMS to parents</td><td>An SMS provider and sender name. Until then, parents are told inside their account and the system never claims an SMS was sent.</td></tr>
+    <tr><td>Online fee payment and the online application fee</td><td>A payment provider (for example Selcom, AzamPay or ClickPesa) and its secrets. Until then fees are recorded by Finance, and the application fee stays at zero.</td></tr>
+    <tr><td>File uploads (papers, homework, library)</td><td>A storage account. Until then uploads are politely refused and text hand-ins still work.</td></tr>
+    <tr><td>A school web address of its own</td><td>A domain name connected to the system.</td></tr>
+    <tr><td>Scheduled backups</td><td>A computer or scheduled job that makes a backup copy each night.</td></tr>
+    <tr><td>Staff payroll</td><td>Not part of this version.</td></tr>
+  </table>
+  <div class="call tip"><b class="t">Training without risking real data</b><p>The live school never contains demonstration data. For training a separate copy with made-up pupils can be prepared on request, so staff can practise freely.</p></div>
+  <div class="call rule"><b class="t">Support and contact</b><p><b>Emmanuel Paul Marcel</b>, Business Developer and Systems Specialist<br>Phone / WhatsApp: <b>+255 762 133 926</b> · Email: <b>emmanuelmarcel6@gmail.com</b></p></div>
+</section>
+
+<!-- ═════════════ CHAPTER 14: QUICK REFERENCE ═════════════ -->
+<section class="chapter">
+  <div class="chap-head"><div class="no">14</div><div><h1>Quick reference</h1><p>Common questions, key words, and a one-page cheat sheet for each department.</p></div></div>
+
+  <h2>14.1 Questions and answers</h2>
+  <table>
+    <tr><th style="width:36%">Question</th><th>Answer</th></tr>
+    <tr><td>I forgot my password.</td><td>Ask the school office. The Owner resets staff passwords; Admissions or the Owner resets a parent's.</td></tr>
+    <tr><td>I cannot see a page my colleague can.</td><td>Your department does not include it. That is on purpose. Ask the Owner if your department's access should change.</td></tr>
+    <tr><td>A teacher entered a wrong mark and it is already approved.</td><td>Ask the Head Teacher to unlock the unit with a reason. The change is recorded.</td></tr>
+    <tr><td>A payment was recorded for the wrong student.</td><td>Finance reverses it with a reason and records it again. It is never edited.</td></tr>
+    <tr><td>A parent cannot see the report card.</td><td>Only published cards are visible. Check with the Academic Office; if fees must be cleared first, Finance and the Owner decide that rule.</td></tr>
+    <tr><td>Accept is greyed out on an application.</td><td>The file is incomplete. Hover to see what is missing; send it back or add the paper.</td></tr>
+    <tr><td>The class is full.</td><td>Only the Owner can override, with a reason. Otherwise choose another stream or class.</td></tr>
+    <tr><td>A student arrives in the middle of the year.</td><td>Admissions registers the student; the student joins the class list and can be added to a finished register later.</td></tr>
+    <tr><td>A teacher has left.</td><td>The Owner suspends the account. Marks and history stay. The Academic Office reassigns the classes.</td></tr>
+    <tr><td>There is no internet.</td><td>Teachers can take attendance offline after downloading the class lists. It syncs when the internet returns.</td></tr>
+    <tr><td>Where is the proof of who did something?</td><td>The audit log (Owner and Head Teacher).</td></tr>
+    <tr><td>Can the Owner fix a department's work?</td><td>Not as normal work. In an emergency he can step in for 30 minutes with a reason; it is recorded.</td></tr>
+  </table>
+
+  <h2>14.2 Key words</h2>
+  <div class="cards four">
+    <div class="card"><h4>Student ID</h4><p>The student's number, created at registration and kept for life.</p></div>
+    <div class="card"><h4>Stream</h4><p>A section of a class, for example Form I A.</p></div>
+    <div class="card"><h4>Register</h4><p>The attendance list for a class on a day.</p></div>
+    <div class="card"><h4>Finalise</h4><p>To finish a register so it counts.</p></div>
+    <div class="card"><h4>Mark sheet</h4><p>The marks of one class and subject for one exam.</p></div>
+    <div class="card"><h4>Lock</h4><p>To make approved results official.</p></div>
+    <div class="card"><h4>Publish</h4><p>To let parents see a report card.</p></div>
+    <div class="card"><h4>Cleared</h4><p>A returning student whose fees meet the school's rule.</p></div>
+    <div class="card"><h4>Reconcile</h4><p>To match a payment notification to a student.</p></div>
+    <div class="card"><h4>Task</h4><p>A hand-off with a department, a due date and a status.</p></div>
+    <div class="card"><h4>Step in</h4><p>The Owner's recorded, time-limited emergency entry.</p></div>
+    <div class="card"><h4>Audit log</h4><p>The permanent record of who did what.</p></div>
+  </div>
+
+  <h2>14.3 Department cheat sheets</h2>
+  <div class="cards two">
+    <div class="card owner"><h4>Owner: your day</h4><p>1) Read the alert lines. 2) Press a department line to see who holds overdue work. 3) Decide items above your limit. 4) Weekly: Money and Departments sections. 5) Termly: audit log and backups. 6) Step in only in an emergency.</p></div>
+    <div class="card adm"><h4>Admissions: your day</h4><p>1) New applications: view, then accept, send back or decline. 2) Interviews with no result: record. 3) Passed: register with a class. 4) Returning list: Place, Register, Join class. 5) Answer enquiries. 6) Keep parent phones correct.</p></div>
+    <div class="card aca"><h4>Academic Office: your day</h4><p>1) Set up year, classes, subjects, teachers, timetable. 2) Create exams. 3) Approve and lock mark sheets. 4) Generate and publish report cards. 5) Year-end decisions. 6) Transfers, concerns, entrance exams.</p></div>
+    <div class="card fin"><h4>Finance: your day</h4><p>1) Record payments; issue receipts. 2) Match mobile-money payments. 3) Generate term invoices. 4) Record expenses; request refunds. 5) Read arrears and collections. 6) Tell Admissions who is cleared.</p></div>
+    <div class="card head"><h4>Head Teacher: your day</h4><p>1) See which registers are open. 2) Approve expenses below the limit. 3) Approve marks and plans. 4) Chase teachers using the teachers' table. 5) Correct a register with a reason. 6) Add the head's comment and publish.</p></div>
+    <div class="card tch"><h4>Teacher: your day</h4><p>1) Take and finalise the register. 2) Teach; set homework. 3) Enter marks; save; submit. 4) Mark hand-ins; release marks. 5) Update plans. 6) Record behaviour; flag concerns; reply to parents.</p></div>
+    <div class="card fam"><h4>Parent: your day</h4><p>1) Check attendance and homework. 2) See fees and how to pay. 3) Read the inbox. 4) Message the teacher. 5) At year-end register the child. 6) Download the report card when published.</p></div>
+  </div>
+  <div class="call rule" style="margin-top:12pt"><b class="t">Prepared by</b><p><b>Emmanuel Paul Marcel</b>, Business Developer and Systems Specialist · +255 762 133 926 · emmanuelmarcel6@gmail.com<br><span class="minor">This guide describes version 1.0 of the St Anne Marie Schools system as at 16 November 2026.</span></p></div>
+</section>

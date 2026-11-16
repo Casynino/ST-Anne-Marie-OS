@@ -17,3 +17,8 @@ uploads
 .next-build
 backups
 .env*
+
+# Guide: big generated files stay out of git
+guide/shots/
+guide/guide.html
+guide/*.pdf
