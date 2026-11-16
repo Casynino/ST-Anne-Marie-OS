@@ -120,8 +120,8 @@ export function ColorBars({ items, label, max, unit = "", labelWidth = "6.5rem" 
 }
 
 export const Panel = ({ title, subtitle, children, className = "", right, icon: Icon, id }: { title: string; subtitle?: string; children: ReactNode; className?: string; right?: ReactNode; icon?: LucideIcon; id?: string }) => (
-  <section id={id} className={`min-w-0 scroll-mt-24 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] target:border-link/60 target:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-link)_22%,transparent)] ${className}`}>
-    <header className="mb-4 flex items-start justify-between gap-3">
+  <section id={id} className={`min-w-0 scroll-mt-24 rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-card)] target:border-link/60 target:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-link)_22%,transparent)] ${className}`}>
+    <header className="mb-3 flex items-start justify-between gap-3">
       <div className="min-w-0"><h3 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{title}</h3>{subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}</div>
       {right ?? (Icon ? <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-500/15 text-link"><Icon className="size-[1.1rem]" aria-hidden /></span> : null)}
     </header>
@@ -129,21 +129,21 @@ export const Panel = ({ title, subtitle, children, className = "", right, icon: 
   </section>
 );
 
-/** A department's standing at a glance: a coloured top edge, a capital label, a big number with its noun, what it means, and the one thing wrong. */
+/** A department's standing at a glance, as small as the number cards: a quiet label, one figure with its noun, what it means in a line, and the one thing wrong. */
 export function DeskCard({ label, value, noun, note, foot, tone = "brand", href }: { label: string; value: ReactNode; noun: string; note?: string; foot?: { text: string; tone: "ok" | "warn" | "bad" | "brand" }; tone?: keyof typeof ACCENT; href?: string }) {
   const a = ACCENT[tone];
   const FOOT = { ok: "text-ok", warn: "text-warn", bad: "text-bad", brand: "text-link" } as const;
   const body = (
     <>
       <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${a.bar}`} />
-      <span className="flex items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-[.14em] text-muted">{label}</span>{href && <ArrowRight className="size-4 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />}</span>
-      <span className="mt-2 flex items-baseline gap-2"><span className="text-[2rem] font-semibold leading-9 tabular-nums text-ink">{value}</span><span className="text-sm text-muted">{noun}</span></span>
-      {note && <span className="mt-1 block text-sm text-muted">{note}</span>}
-      {foot && <span className={`mt-3 block border-t border-line pt-3 text-sm font-medium ${FOOT[foot.tone]}`}>{foot.text}</span>}
+      <span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-semibold uppercase tracking-[.12em] text-muted">{label}</span>{href && <ArrowRight className="size-3.5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />}</span>
+      <span className="mt-1.5 flex items-baseline gap-1.5"><span className="text-[1.4rem] font-semibold leading-7 tabular-nums text-ink">{value}</span><span className="truncate text-xs text-muted">{noun}</span></span>
+      {note && <span className="mt-0.5 line-clamp-1 text-xs text-muted">{note}</span>}
+      {foot && <span className={`mt-1 line-clamp-2 text-xs font-medium ${FOOT[foot.tone]}`}>{foot.text}</span>}
     </>
   );
-  const cls = "group relative block overflow-hidden rounded-xl border border-line bg-surface p-4 pl-5 shadow-[var(--shadow-card)]";
-  return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
+  const cls = "group relative block min-h-[5.5rem] overflow-hidden rounded-xl border border-line bg-surface p-3.5 pl-4";
+  return href ? <Link href={href} className={`${cls} transition-colors hover:border-link/40`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
 export const SERIES_COLORS = ["#0f9462", "#4f46e5", "#e0a100", "#14a3b8", "#e5604d", "#8b95a1", "#a066d9"] as const;
@@ -218,15 +218,15 @@ export const EmptyLine = ({ children }: { children: ReactNode }) => <p className
 export function DashTable({ head, children, empty, min = "28rem" }: { head: { label: string; right?: boolean }[]; children: ReactNode; empty?: ReactNode; min?: string }) {
   if (empty) return <EmptyLine>{empty}</EmptyLine>;
   return (
-    <div className="-mx-5 overflow-x-auto">
+    <div className="-mx-4 overflow-x-auto">
       <table className="w-full text-sm" style={{ minWidth: min }}>
-        <thead><tr className="border-y border-line text-left text-[13px] font-medium text-muted">{head.map((h, i) => <th key={i} className={`px-5 py-2.5 ${h.right ? "text-right" : ""}`}>{h.label}</th>)}</tr></thead>
+        <thead><tr className="border-y border-line text-left text-[13px] font-medium text-muted">{head.map((h, i) => <th key={i} className={`px-4 py-2 ${h.right ? "text-right" : ""}`}>{h.label}</th>)}</tr></thead>
         <tbody className="divide-y divide-line">{children}</tbody>
       </table>
     </div>
   );
 }
-export const Cell = ({ children, right, className = "" }: { children?: ReactNode; right?: boolean; className?: string }) => <td className={`px-5 py-3 align-middle ${right ? "text-right tabular-nums" : ""} ${className}`}>{children}</td>;
+export const Cell = ({ children, right, className = "" }: { children?: ReactNode; right?: boolean; className?: string }) => <td className={`px-4 py-2.5 align-middle ${right ? "text-right tabular-nums" : ""} ${className}`}>{children}</td>;
 
 /** Ring chart with a big figure in the middle and a legend of counts (never colour alone). */
 export function DonutStat({ segments, center, caption, label, compact = false }: { segments: { label: string; value: number; color: string; text?: string }[]; center: ReactNode; caption?: string; label: string; /** A smaller ring and legend, for a card that sits in a row of numbers. */ compact?: boolean }) {

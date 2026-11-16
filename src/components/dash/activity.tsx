@@ -32,16 +32,16 @@ export function ActivityBlock({ t, act, failed24, fmtDay, ago, id = "activity" }
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel title={t("dash.act.recent")} subtitle={t("dash.act.recent.sub")} className="overflow-hidden">
           {act.recentSignIns.length === 0 ? <EmptyLine>{t("dash.act.none")}</EmptyLine> : (
-            <div className="-mx-5 overflow-x-auto">
+            <div className="-mx-4 overflow-x-auto">
               <table className="w-full min-w-[34rem] text-sm">
                 <thead><tr className="border-y border-line text-left text-[11px] font-bold uppercase tracking-[.12em] text-muted"><th className="px-5 py-2.5">{t("dash.act.person")}</th><th className="px-3 py-2.5">{t("dash.act.device")}</th><th className="px-3 py-2.5">{t("dash.act.from")}</th><th className="px-5 py-2.5 text-right">{t("audit.when")}</th></tr></thead>
                 <tbody className="divide-y divide-line">
                   {act.recentSignIns.map((r, i) => (
                     <tr key={i}>
-                      <td className="px-5 py-3"><PersonCell name={r.name} sub={r.role} /></td>
+                      <td className="px-4 py-2.5"><PersonCell name={r.name} sub={r.role} /></td>
                       <td className="px-3 py-3 text-ink/80">{r.device.label}</td>
                       <td className="px-3 py-3 font-mono text-xs text-muted">{r.ip ?? "—"}</td>
-                      <td className="whitespace-nowrap px-5 py-3 text-right text-muted">{ago(r.at)}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right text-muted">{ago(r.at)}</td>
                     </tr>
                   ))}
                 </tbody>

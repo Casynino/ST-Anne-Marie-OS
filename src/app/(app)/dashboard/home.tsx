@@ -535,8 +535,8 @@ export function DeskRow({ env }: { env: DashEnv }) {
   if (cards.length === 0) return null;
   return (
     <section aria-label={t("desk.title")} className="mt-5">
-      <h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[.16em] text-muted">{t("desk.title")}</h2>
-      <ul className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(16rem,1fr))]">{cards.map((c, i) => <li key={i}>{c}</li>)}</ul>
+      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[.16em] text-muted">{t("desk.title")}</h2>
+      <ul className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))]">{cards.map((c, i) => <li key={i}>{c}</li>)}</ul>
     </section>
   );
 }
