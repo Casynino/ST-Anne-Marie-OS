@@ -27,7 +27,7 @@ export default async function StudentLifePage() {
             <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {text.clubs.map((c, i) => (
                 <Reveal as="li" key={c.title} delay={(i % 3) * 80} className="card-y p-7">
-                  <span aria-hidden className="display text-4xl text-brand-600">{String(i + 1).padStart(2, "0")}</span>
+                  <span aria-hidden className="display text-4xl text-link">{String(i + 1).padStart(2, "0")}</span>
                   <h3 className="display mt-3 text-3xl text-heading">{c.title}</h3>
                   {c.text && <p className="mt-2 text-muted">{c.text}</p>}
                 </Reveal>

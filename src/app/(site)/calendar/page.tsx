@@ -37,7 +37,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const monthLabel = new Intl.DateTimeFormat(lc, { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(cur.year, cur.month - 1, 1)));
   const weekdays = Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(lc, { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2026, 9, 5 + i))));
   const dayLabel = (d: string) => new Intl.DateTimeFormat(lc, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(parseDateOnly(d) as Date);
-  const chip = (active: boolean) => `inline-flex min-h-10 items-center rounded-full border-2 px-4 text-sm font-bold transition-colors ${active ? "border-brand-700 bg-brand-700 text-white" : "border-line text-ink/80 hover:border-brand-600 hover:text-brand-700"}`;
+  const chip = (active: boolean) => `inline-flex min-h-10 items-center rounded-full border-2 px-4 text-sm font-bold transition-colors ${active ? "border-link bg-brand-700 text-white" : "border-line text-ink/80 hover:border-link hover:text-link"}`;
   const feed = "/calendar.ics";
 
   return (
@@ -45,10 +45,10 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       <PageHero eyebrow={t("site.cal.kicker")} title={t("site.cal.title")} crumbs={[{ href: "/", label: t("site.nav.home") }, { href: "/calendar", label: t("site.cal.title") }]}>{t("site.cal.lead")}</PageHero>
       <div className="mx-auto max-w-[100rem] px-4 pb-24 pt-10 sm:px-8">
         <div className="flex flex-wrap items-center gap-3">
-          <Link href={href(prev.year, prev.month)} aria-label={t("site.cal.prev")} className="inline-flex size-11 items-center justify-center rounded-full border-2 border-brand-700 text-brand-800 hover:bg-brand-700 hover:text-white"><ChevronLeft className="size-5" aria-hidden /></Link>
+          <Link href={href(prev.year, prev.month)} aria-label={t("site.cal.prev")} className="inline-flex size-11 items-center justify-center rounded-full border-2 border-link text-link hover:bg-brand-700 hover:text-white"><ChevronLeft className="size-5" aria-hidden /></Link>
           <h2 className="display min-w-0 px-2 text-4xl capitalize text-heading sm:text-5xl" aria-live="polite">{monthLabel}</h2>
-          <Link href={href(next.year, next.month)} aria-label={t("site.cal.next")} className="inline-flex size-11 items-center justify-center rounded-full border-2 border-brand-700 text-brand-800 hover:bg-brand-700 hover:text-white"><ChevronRight className="size-5" aria-hidden /></Link>
-          <Link href={`/calendar${cat ? `?cat=${encodeURIComponent(cat)}` : ""}`} className="ml-auto inline-flex min-h-10 items-center rounded-full border-2 border-brand-700 px-4 text-sm font-bold text-brand-800 hover:bg-brand-700 hover:text-white">{t("site.cal.today")}</Link>
+          <Link href={href(next.year, next.month)} aria-label={t("site.cal.next")} className="inline-flex size-11 items-center justify-center rounded-full border-2 border-link text-link hover:bg-brand-700 hover:text-white"><ChevronRight className="size-5" aria-hidden /></Link>
+          <Link href={`/calendar${cat ? `?cat=${encodeURIComponent(cat)}` : ""}`} className="ml-auto inline-flex min-h-10 items-center rounded-full border-2 border-link px-4 text-sm font-bold text-link hover:bg-brand-700 hover:text-white">{t("site.cal.today")}</Link>
         </div>
 
         {cats.length > 0 && (
@@ -98,7 +98,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                   {inMonth.map((i) => {
                     const body = (
                       <>
-                        <div aria-hidden className="w-24 shrink-0 text-sm font-semibold uppercase tracking-[.08em] text-brand-700">{dayLabel(i.from < mFrom ? mFrom : i.from)}{i.to && i.to !== i.from ? <span className="block text-xs font-medium normal-case tracking-normal text-muted">→ {dayLabel(i.to)}</span> : null}</div>
+                        <div aria-hidden className="w-24 shrink-0 text-sm font-semibold uppercase tracking-[.08em] text-link">{dayLabel(i.from < mFrom ? mFrom : i.from)}{i.to && i.to !== i.from ? <span className="block text-xs font-medium normal-case tracking-normal text-muted">→ {dayLabel(i.to)}</span> : null}</div>
                         <div className="min-w-0">
                           <p className="display text-2xl text-heading">{i.title}</p>
                           <p className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-muted">{i.category && <span>{i.category}</span>}{i.location && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{i.location}</span>}</p>
@@ -114,13 +114,13 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
           <aside className="space-y-5 xl:sticky xl:top-28 xl:self-start">
             <div className="card-y p-6">
-              <p className="flex items-center gap-2 text-sm font-bold text-brand-700"><CalendarDays className="size-4" aria-hidden />{t("site.cal.subscribe")}</p>
+              <p className="flex items-center gap-2 text-sm font-bold text-link"><CalendarDays className="size-4" aria-hidden />{t("site.cal.subscribe")}</p>
               <p className="mt-3 text-sm leading-relaxed text-muted">{t("site.cal.subscribe.body")}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <ButtonLink href={feed} variant="primary" size="sm">{t("site.cal.download")}</ButtonLink>
               </div>
               <p className="mt-4 break-all text-xs text-muted">webcal://{new URL(process.env.APP_URL ?? "http://localhost:3000").host}{feed}</p>
-              <Link href="/news/rss.xml" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-ink/80 hover:text-brand-700"><Rss className="size-4" aria-hidden />{t("site.cal.rss")}</Link>
+              <Link href="/news/rss.xml" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-ink/80 hover:text-link"><Rss className="size-4" aria-hidden />{t("site.cal.rss")}</Link>
             </div>
             <div className="card-y p-6 text-sm text-muted">
               <p className="flex items-center gap-2"><span className="size-3 rounded-sm bg-brand-100 ring-1 ring-brand-300" aria-hidden />{t("site.cal.term")}</p>

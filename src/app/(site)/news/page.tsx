@@ -20,7 +20,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   const category = sp.category?.slice(0, 40);
   const [{ items, total, pageSize }, categories] = await Promise.all([listPublicNews(site.school.id, { page, limit: 9, category }), listNewsCategories(site.school.id)]);
   const covers = await resolveSiteImages(items.map((n) => n.coverImage));
-  const chip = (active: boolean) => `inline-flex min-h-10 items-center rounded-full border-2 px-5 text-sm font-bold transition-colors ${active ? "border-brand-700 bg-brand-700 text-white" : "border-line text-ink/80 hover:border-brand-600 hover:text-brand-700"}`;
+  const chip = (active: boolean) => `inline-flex min-h-10 items-center rounded-full border-2 px-5 text-sm font-bold transition-colors ${active ? "border-link bg-brand-700 text-white" : "border-line text-ink/80 hover:border-link hover:text-link"}`;
 
   return (
     <>

@@ -30,7 +30,7 @@ export function SiteFooter({ t, site, links }: { t: Translate; site: PublicSite;
       <div className="mx-auto grid max-w-[100rem] gap-x-12 gap-y-12 px-4 py-16 sm:px-8 sm:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr_0.8fr_1.4fr]">
         <div>
           <Link href="/" className="inline-flex items-center gap-4" aria-label={school.name}>
-            {images.logo ? <Image src={images.logo.src} alt="" width={64} height={64} className="size-16 shrink-0 rounded-full bg-white object-contain" /> : <span aria-hidden className="display flex size-14 shrink-0 items-center justify-center rounded-full bg-white text-base text-brand-800">{initialsOf(school.name)}</span>}
+            {images.logo ? <Image src={images.logo.src} alt="" width={64} height={64} className="size-16 shrink-0 rounded-full bg-white object-contain" /> : <span aria-hidden className="display flex size-14 shrink-0 items-center justify-center rounded-full bg-white text-base text-link">{initialsOf(school.name)}</span>}
             <span className="display text-2xl text-white">{school.name}</span>
           </Link>
           {intro && <p className="mt-5 max-w-xs text-[15px] leading-relaxed text-white/70">{intro}</p>}

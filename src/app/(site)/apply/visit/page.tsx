@@ -21,7 +21,7 @@ export default async function VisitPage() {
         <div className="space-y-4 text-lg">
           {contact.address && <p className="text-ink/90">{contact.address}</p>}
           {contact.hours && <p className="text-muted">{contact.hours}</p>}
-          {contact.phone && <p><a href={telHref(contact.phone)} className="font-bold text-brand-700 hover:underline">{contact.phone}</a></p>}
+          {contact.phone && <p><a href={telHref(contact.phone)} className="font-bold text-link hover:underline">{contact.phone}</a></p>}
           {contact.mapUrl && <div className="pt-2"><ButtonLink href={contact.mapUrl} external variant="outline" arrow>{t("site.contact.directions")}</ButtonLink></div>}
         </div>
         <div className="card-y p-6 sm:p-9"><ContactForm t={t} idPrefix="visit" defaultTopic="Visit" messageHint={t("site.visit.hint")} /></div>

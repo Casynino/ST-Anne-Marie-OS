@@ -45,9 +45,9 @@ export function WebsiteLink({ label }: { label: string }) {
   );
 }
 
-export function NotificationBell({ count, label }: { count: number; label: string }) {
+export function NotificationBell({ count, label, href = "/notifications" }: { count: number; label: string; href?: string }) {
   return (
-    <Link href="/notifications" aria-label={`${label}${count ? ` (${count})` : ""}`} className="relative inline-flex size-11 items-center justify-center rounded-md text-ink hover:bg-canvas">
+    <Link href={href} aria-label={`${label}${count ? ` (${count})` : ""}`} className="relative inline-flex size-11 items-center justify-center rounded-md text-ink hover:bg-canvas">
       <Bell className="size-5" aria-hidden />
       {count > 0 && <span className="absolute right-1.5 top-1.5 min-w-5 rounded-full bg-bad px-1 text-center text-[11px] font-bold leading-5 text-white">{count > 99 ? "99+" : count}</span>}
     </Link>

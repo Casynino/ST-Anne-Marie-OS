@@ -15,7 +15,7 @@ function Card({ g, i, mobile }: { g: SiteImage; i: number; mobile?: boolean }) {
       <div className={`frame overflow-hidden rounded-lg shadow-[var(--shadow-card)] ${mobile ? "aspect-[4/5]" : `${SIZE[i % SIZE.length]} ${portrait ? "aspect-[4/5]" : "aspect-[4/3]"}`}`}>
         <Image src={g.src} alt={g.alt} width={g.width} height={g.height} sizes={mobile ? "78vw" : "40vw"} loading="lazy" className="size-full object-cover" />
       </div>
-      <figcaption className="mt-3 flex max-w-xs gap-3 text-sm text-muted"><span className="font-medium tabular-nums text-brand-700">{String(i + 1).padStart(2, "0")}</span><span className="line-clamp-2">{g.alt}</span></figcaption>
+      <figcaption className="mt-3 flex max-w-xs gap-3 text-sm text-muted"><span className="font-medium tabular-nums text-link">{String(i + 1).padStart(2, "0")}</span><span className="line-clamp-2">{g.alt}</span></figcaption>
     </figure>
   );
 }

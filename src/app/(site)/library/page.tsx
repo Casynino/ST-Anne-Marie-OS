@@ -32,13 +32,13 @@ export default async function LibraryPage() {
             <label htmlFor="lib-q" className="sr-only">{t("lib.search")}</label>
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted" aria-hidden />
-              <input id="lib-q" name="q" type="search" placeholder={t("lib.search.placeholder")} className="h-14 w-full border-2 border-brand-700 bg-surface pl-12 pr-4 text-lg placeholder:text-muted/70 focus:border-brand-500" />
+              <input id="lib-q" name="q" type="search" placeholder={t("lib.search.placeholder")} className="h-14 w-full border-2 border-link bg-surface pl-12 pr-4 text-lg placeholder:text-muted/70 focus:border-brand-500" />
             </div>
             <button type="submit" className="inline-flex h-14 items-center justify-center bg-brand-700 px-8 text-lg font-semibold text-white hover:bg-brand-800">{t("lib.search.button")}</button>
           </form>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
             {verified && role ? (
-              <div className="flex flex-wrap items-center gap-3"><span className="font-semibold text-brand-800">{t("lib.verified", { role })}</span>
+              <div className="flex flex-wrap items-center gap-3"><span className="font-semibold text-link">{t("lib.verified", { role })}</span>
                 <ActionForm action={leaveLibraryAction} submitLabel={t("lib.leave")} inline />
               </div>
             ) : lv.source === "visitor" ? (
@@ -50,7 +50,7 @@ export default async function LibraryPage() {
 
         {home.total === 0 ? (
           <section className="border border-dashed border-line bg-tint p-10 text-center">
-            <BookOpen className="mx-auto size-10 text-brand-700" aria-hidden />
+            <BookOpen className="mx-auto size-10 text-link" aria-hidden />
             <p className="display mt-3 text-2xl text-heading">{t("lib.empty.title")}</p>
             <p className="mt-1 text-muted">{t("lib.empty.body")}</p>
           </section>
@@ -60,7 +60,7 @@ export default async function LibraryPage() {
               <SectionHeading eyebrow={t("lib.browse")} title={t("lib.byCategory")} />
               <ul id="by-category" className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {home.categories.filter((c) => c.count > 0).map((c) => (
-                  <li key={c.id}><Link href={`/library/search?categoryId=${c.id}`} className="flex min-h-16 items-center justify-between gap-3 border border-line bg-surface px-5 py-4 hover:border-brand-600"><span className="font-semibold text-heading">{c.name}</span><span className="text-sm text-muted">{c.count}</span></Link></li>
+                  <li key={c.id}><Link href={`/library/search?categoryId=${c.id}`} className="flex min-h-16 items-center justify-between gap-3 border border-line bg-surface px-5 py-4 hover:border-link"><span className="font-semibold text-heading">{c.name}</span><span className="text-sm text-muted">{c.count}</span></Link></li>
                 ))}
               </ul>
             </section>
@@ -70,7 +70,7 @@ export default async function LibraryPage() {
                 <SectionHeading eyebrow={t("lib.browse")} title={t("lib.byClass")} />
                 <ul id="by-class" className="mt-8 grid gap-3 sm:grid-cols-2">
                   {home.classes.filter((c) => c.count > 0).map((c) => (
-                    <li key={c.id}><Link href={`/library/search?classId=${c.id}`} className="flex min-h-14 items-center justify-between gap-3 border border-line bg-surface px-4 py-3 hover:border-brand-600"><span className="font-semibold text-heading">{c.name}</span><span className="text-sm text-muted">{c.count}</span></Link></li>
+                    <li key={c.id}><Link href={`/library/search?classId=${c.id}`} className="flex min-h-14 items-center justify-between gap-3 border border-line bg-surface px-4 py-3 hover:border-link"><span className="font-semibold text-heading">{c.name}</span><span className="text-sm text-muted">{c.count}</span></Link></li>
                   ))}
                   {home.classes.every((c) => c.count === 0) && <li className="text-muted">{t("lib.byClass.none")}</li>}
                 </ul>
@@ -79,7 +79,7 @@ export default async function LibraryPage() {
                 <SectionHeading eyebrow={t("lib.browse")} title={t("lib.bySubject")} />
                 <ul className="mt-8 grid gap-3 sm:grid-cols-2">
                   {home.subjects.map((s) => (
-                    <li key={s.id}><Link href={`/library/search?subjectId=${s.id}`} className="flex min-h-14 items-center justify-between gap-3 border border-line bg-surface px-4 py-3 hover:border-brand-600"><span className="font-semibold text-heading">{s.name}</span><span className="text-sm text-muted">{s.count}</span></Link></li>
+                    <li key={s.id}><Link href={`/library/search?subjectId=${s.id}`} className="flex min-h-14 items-center justify-between gap-3 border border-line bg-surface px-4 py-3 hover:border-link"><span className="font-semibold text-heading">{s.name}</span><span className="text-sm text-muted">{s.count}</span></Link></li>
                   ))}
                   {home.subjects.length === 0 && <li className="text-muted">{t("lib.bySubject.none")}</li>}
                 </ul>

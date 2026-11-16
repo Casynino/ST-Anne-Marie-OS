@@ -23,7 +23,7 @@ export function WhenTransfer({ children }: { children: ReactNode }) {
 export function EntryTypeChoice({ labels }: { labels: { newTitle: string; newBody: string; transferTitle: string; transferBody: string; name: string } }) {
   const { kind, setKind } = useContext(Ctx);
   const option = (value: Kind, title: string, body: string) => (
-    <label className="flex min-h-11 cursor-pointer items-start gap-3 border border-line p-4 has-[:checked]:border-brand-600 has-[:checked]:bg-tint">
+    <label className="flex min-h-11 cursor-pointer items-start gap-3 border border-line p-4 has-[:checked]:border-link has-[:checked]:bg-tint">
       <input type="radio" name="entryType" value={value} checked={kind === value} onChange={() => setKind(value)} className="mt-1 size-5 accent-brand-700" />
       <span><span className="block font-semibold text-heading">{title}</span><span className="block text-sm text-muted">{body}</span></span>
     </label>

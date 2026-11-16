@@ -18,11 +18,11 @@ export function NewsCard({ post, cover, locale, featured }: { post: Post; cover?
       )}
       <div className={`flex flex-1 flex-col p-6 ${featured ? "md:justify-center md:p-10" : ""}`}>
         <p className="flex flex-wrap items-center gap-x-3 text-xs font-bold uppercase tracking-[.12em] text-muted">
-          {post.category && <span className="text-brand-700">{post.category}</span>}
+          {post.category && <span className="text-link">{post.category}</span>}
           <time dateTime={post.publishedAt?.toISOString()}>{displayDate(post.publishedAt, locale)}</time>
         </p>
         <h3 className={`display mt-3 text-heading ${featured ? "text-3xl md:text-4xl" : "text-xl"}`}>
-          <Link href={`/news/${post.slug ?? post.id}`} className="after:absolute after:inset-0 group-hover:text-brand-700">{title}</Link>
+          <Link href={`/news/${post.slug ?? post.id}`} className="after:absolute after:inset-0 group-hover:text-link">{title}</Link>
         </h3>
         <p className="mt-3 line-clamp-3 text-muted">{excerptOf(post, locale)}</p>
       </div>

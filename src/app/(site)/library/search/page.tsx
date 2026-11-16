@@ -38,7 +38,7 @@ export default async function LibrarySearchPage({ searchParams }: { searchParams
         <form method="get" action="/library/search" role="search" className="grid gap-3 border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2 lg:col-span-4">
             <label htmlFor="q" className="mb-1 block text-sm font-medium">{t("lib.search")}</label>
-            <input id="q" name="q" type="search" defaultValue={filters.q ?? ""} placeholder={t("lib.search.placeholder")} className="h-12 w-full border-2 border-brand-700 bg-surface px-4 text-lg" />
+            <input id="q" name="q" type="search" defaultValue={filters.q ?? ""} placeholder={t("lib.search.placeholder")} className="h-12 w-full border-2 border-link bg-surface px-4 text-lg" />
           </div>
           <div><label htmlFor="classId" className="mb-1 block text-sm font-medium">{t("lib.f.class")}</label><select id="classId" name="classId" className={SELECT} defaultValue={filters.classId ?? ""}><option value="">{t("lib.f.any")}</option>{opt(facets.classes)}</select></div>
           <div><label htmlFor="subjectId" className="mb-1 block text-sm font-medium">{t("lib.f.subject")}</label><select id="subjectId" name="subjectId" className={SELECT} defaultValue={filters.subjectId ?? ""}><option value="">{t("lib.f.any")}</option>{opt(facets.subjects)}</select></div>
@@ -58,7 +58,7 @@ export default async function LibrarySearchPage({ searchParams }: { searchParams
         <p className="mb-5 mt-8 text-muted" aria-live="polite">{t("lib.results", { n: String(res.total) })}{lv.source === "visitor" && <> · <Link href="/library/verify" className="font-semibold text-link underline underline-offset-4">{t("lib.member.cta")}</Link></>}</p>
         {res.items.length === 0 ? (
           <div className="border border-dashed border-line bg-tint p-10 text-center">
-            <SearchX className="mx-auto size-10 text-brand-700" aria-hidden />
+            <SearchX className="mx-auto size-10 text-link" aria-hidden />
             <p className="display mt-3 text-2xl text-heading">{t("lib.none.title")}</p>
             <p className="mt-1 text-muted">{t("lib.none.body")}</p>
           </div>
@@ -67,9 +67,9 @@ export default async function LibrarySearchPage({ searchParams }: { searchParams
         )}
         {pages > 1 && (
           <nav aria-label={t("lib.pages")} className="mt-10 flex items-center justify-between gap-4">
-            {page > 1 ? <Link href={link(page - 1)} className="inline-flex min-h-11 items-center border border-line bg-surface px-5 font-semibold hover:border-brand-600">{t("lib.prev")}</Link> : <span />}
+            {page > 1 ? <Link href={link(page - 1)} className="inline-flex min-h-11 items-center border border-line bg-surface px-5 font-semibold hover:border-link">{t("lib.prev")}</Link> : <span />}
             <span className="text-muted">{t("lib.pageOf", { page: String(page), pages: String(pages) })}</span>
-            {page < pages ? <Link href={link(page + 1)} className="inline-flex min-h-11 items-center border border-line bg-surface px-5 font-semibold hover:border-brand-600">{t("lib.next")}</Link> : <span />}
+            {page < pages ? <Link href={link(page + 1)} className="inline-flex min-h-11 items-center border border-line bg-surface px-5 font-semibold hover:border-link">{t("lib.next")}</Link> : <span />}
           </nav>
         )}
       </div>

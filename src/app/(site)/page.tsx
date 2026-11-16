@@ -157,8 +157,8 @@ export default async function HomePage() {
                       <div className="flex flex-1 flex-col p-6">
                         <h3 className="display text-2xl text-heading">{l.name}</h3>
                         {l.summary && <p className="mt-2 line-clamp-3 text-muted">{l.summary}</p>}
-                        <ul className="mt-4 flex flex-wrap gap-1.5">{l.classes.map((c) => <li key={c} className="rounded bg-tint px-2.5 py-1 text-xs font-bold text-brand-800">{c}</li>)}</ul>
-                        <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-bold uppercase tracking-[.06em] text-brand-700">{t("site.programs.cta")} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1.5" aria-hidden /></span>
+                        <ul className="mt-4 flex flex-wrap gap-1.5">{l.classes.map((c) => <li key={c} className="rounded bg-tint px-2.5 py-1 text-xs font-bold text-link">{c}</li>)}</ul>
+                        <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-bold uppercase tracking-[.06em] text-link">{t("site.programs.cta")} <ArrowRight className="size-4 transition-transform group-hover:translate-x-1.5" aria-hidden /></span>
                       </div>
                     </Link>
                   </Reveal>
@@ -187,15 +187,15 @@ export default async function HomePage() {
                             {cover && <div className="frame h-28 w-28 shrink-0 rounded"><Photo image={cover} sizes="112px" position="top" /></div>}
                             <div className="min-w-0">
                               <p className="text-xs font-semibold text-muted">{displayDate(n.publishedAt, locale)}{n.category ? ` · ${n.category}` : ""}</p>
-                              <p className="display mt-1 text-xl text-heading group-hover:text-brand-700">{locale === "SW" && n.titleSw ? n.titleSw : n.title}</p>
-                              <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-[.1em] text-brand-700">{t("site.news.read")} <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden /></span>
+                              <p className="display mt-1 text-xl text-heading group-hover:text-link">{locale === "SW" && n.titleSw ? n.titleSw : n.title}</p>
+                              <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-[.1em] text-link">{t("site.news.read")} <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden /></span>
                             </div>
                           </Link>
                         </li>
                       );
                     })}
                   </ul>
-                  <Link href="/news" className="mt-2 inline-flex min-h-11 items-center gap-2 border-t border-line pt-4 text-xs font-extrabold uppercase tracking-[.1em] text-brand-800 hover:text-brand-600">{t("site.news.all")} <ArrowRight className="size-3.5" aria-hidden /></Link>
+                  <Link href="/news" className="mt-2 inline-flex min-h-11 items-center gap-2 border-t border-line pt-4 text-xs font-extrabold uppercase tracking-[.1em] text-link hover:text-link">{t("site.news.all")} <ArrowRight className="size-3.5" aria-hidden /></Link>
                 </Reveal>
               )}
               <Reveal delay={90} className={`card-y p-6 sm:p-8 ${news.items.length === 0 ? "lg:col-span-2" : ""}`}>
@@ -222,9 +222,9 @@ export default async function HomePage() {
                       const title = locale === "SW" && e.titleSw ? e.titleSw : e.title;
                       const inner = (
                         <>
-                          <div aria-hidden className="grid size-[4.5rem] shrink-0 place-content-center rounded-full border-2 border-brand-700 text-center leading-none text-brand-800 transition-colors group-hover:bg-brand-700 group-hover:text-white"><span className="block text-[10px] font-extrabold uppercase tracking-[.14em]">{displayDate(d, locale).split(" ")[1]}</span><span className="display mt-0.5 block text-3xl">{d.getUTCDate()}</span></div>
+                          <div aria-hidden className="grid size-[4.5rem] shrink-0 place-content-center rounded-full border-2 border-link text-center leading-none text-link transition-colors group-hover:bg-brand-700 group-hover:text-white"><span className="block text-[10px] font-extrabold uppercase tracking-[.14em]">{displayDate(d, locale).split(" ")[1]}</span><span className="display mt-0.5 block text-3xl">{d.getUTCDate()}</span></div>
                           <div className="min-w-0 self-center">
-                            <p className="flex items-center gap-2 text-base font-bold text-heading"><span aria-hidden className={`size-2 shrink-0 rounded-full ${e.kind === "EVENT" ? "bg-sun" : "bg-brand-600"}`} /><span className="group-hover:text-brand-700">{title}</span></p>
+                            <p className="flex items-center gap-2 text-base font-bold text-heading"><span aria-hidden className={`size-2 shrink-0 rounded-full ${e.kind === "EVENT" ? "bg-sun" : "bg-brand-600"}`} /><span className="group-hover:text-link">{title}</span></p>
                             <p className="mt-0.5 flex flex-wrap gap-x-3 text-sm text-muted">{e.to && e.to !== e.from ? <span>→ {displayDate(parseDateOnly(e.to) as Date, locale)}</span> : <span>{t("site.now.allDay")}</span>}{e.location && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden />{e.location}</span>}</p>
                           </div>
                         </>
@@ -233,7 +233,7 @@ export default async function HomePage() {
                     })}
                   </ul>
                 )}
-                <Link href="/calendar" className="mt-2 inline-flex min-h-11 items-center gap-2 border-t border-line pt-4 text-xs font-extrabold uppercase tracking-[.1em] text-brand-800 hover:text-brand-600">{t("site.now.fullCalendar")} <ArrowRight className="size-3.5" aria-hidden /></Link>
+                <Link href="/calendar" className="mt-2 inline-flex min-h-11 items-center gap-2 border-t border-line pt-4 text-xs font-extrabold uppercase tracking-[.1em] text-link hover:text-link">{t("site.now.fullCalendar")} <ArrowRight className="size-3.5" aria-hidden /></Link>
               </Reveal>
             </div>
           </div>
@@ -271,7 +271,7 @@ export default async function HomePage() {
               <Link href={a.href} className="group flex items-center gap-5 px-2 py-7 transition-colors hover:bg-tint sm:px-8 sm:first:pl-0">
                 <span aria-hidden className={`grid size-14 shrink-0 place-items-center rounded-full transition-colors ${i === 2 ? "bg-sun text-[#10200f]" : "bg-brand-800 text-white group-hover:bg-brand-600"}`}><a.icon className="size-6" /></span>
                 <span className="min-w-0"><span className="display block text-2xl text-heading">{a.title}</span><span className="block text-sm text-muted">{a.body}</span></span>
-                <ArrowRight className="ml-auto size-5 shrink-0 text-muted transition-transform group-hover:translate-x-1.5 group-hover:text-brand-700" aria-hidden />
+                <ArrowRight className="ml-auto size-5 shrink-0 text-muted transition-transform group-hover:translate-x-1.5 group-hover:text-link" aria-hidden />
               </Link>
             </li>
           ))}
@@ -377,12 +377,12 @@ export default async function HomePage() {
             <SectionHeading eyebrow={t("site.contact.kicker")} title={t("site.contact.title")} />
             {hasContact ? (
               <dl className="card-y mt-8 divide-y divide-line px-6 text-lg">
-                {contact.address && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-brand-700">{t("site.contact.address")}</dt><dd>{contact.address}</dd></div>}
-                {contact.phone && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-brand-700">{t("site.contact.phone")}</dt><dd><a href={telHref(contact.phone)} className="font-bold hover:text-brand-600">{contact.phone}</a></dd></div>}
-                {contact.phone2 && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-brand-700">{t("site.contact.phone")}</dt><dd><a href={telHref(contact.phone2)} className="font-bold hover:text-brand-600">{contact.phone2}</a></dd></div>}
-                {contact.whatsapp && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-brand-700">WhatsApp</dt><dd><a href={waHref(contact.whatsapp)} target="_blank" rel="noopener noreferrer" className="font-bold hover:text-brand-600">{contact.whatsapp}</a></dd></div>}
-                {contact.email && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-brand-700">{t("site.contact.email")}</dt><dd><a href={`mailto:${contact.email}`} className="break-all font-bold hover:text-brand-600">{contact.email}</a></dd></div>}
-                {contact.hours && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-brand-700">{t("site.contact.hours")}</dt><dd>{contact.hours}</dd></div>}
+                {contact.address && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-link">{t("site.contact.address")}</dt><dd>{contact.address}</dd></div>}
+                {contact.phone && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-link">{t("site.contact.phone")}</dt><dd><a href={telHref(contact.phone)} className="font-bold hover:text-link">{contact.phone}</a></dd></div>}
+                {contact.phone2 && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-link">{t("site.contact.phone")}</dt><dd><a href={telHref(contact.phone2)} className="font-bold hover:text-link">{contact.phone2}</a></dd></div>}
+                {contact.whatsapp && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-link">WhatsApp</dt><dd><a href={waHref(contact.whatsapp)} target="_blank" rel="noopener noreferrer" className="font-bold hover:text-link">{contact.whatsapp}</a></dd></div>}
+                {contact.email && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-link">{t("site.contact.email")}</dt><dd><a href={`mailto:${contact.email}`} className="break-all font-bold hover:text-link">{contact.email}</a></dd></div>}
+                {contact.hours && <div className="grid gap-1 py-5 sm:grid-cols-[8rem_1fr]"><dt className="pt-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-link">{t("site.contact.hours")}</dt><dd>{contact.hours}</dd></div>}
               </dl>
             ) : <p className="mt-6 text-muted">{t("site.contact.empty")}</p>}
             {contact.mapUrl && <div className="mt-6"><ButtonLink href={contact.mapUrl} external variant="outline" arrow>{t("site.contact.directions")}</ButtonLink></div>}

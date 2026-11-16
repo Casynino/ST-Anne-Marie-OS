@@ -75,7 +75,7 @@ html { color-scheme: light; }
 .app-root thead th { text-transform: none; letter-spacing: 0; font-size: 0.8125rem; font-weight: 500; }
 .theme-night {
   color-scheme: dark;
-  --color-canvas: #09100c; --color-surface: #121b16; --color-ink: #e8f0ea; --color-muted: #93a79b; --color-line: #22302a; --color-rail: #04251a;
+  --color-canvas: #070d0a; --color-surface: rgb(15 25 20 / .9); --color-ink: #e8f0ea; --color-muted: #93a79b; --color-line: #22302a; --color-rail: #04251a;
   --color-link: #6fd9a8; --color-heading: #f2f8f4; --color-tint: rgb(15 148 98 / .16); --color-tint-2: rgb(15 148 98 / .28);
   --color-ok: #4ade9a; --color-warn: #f3b94c; --color-bad: #ff8574;
   --color-green-50: rgb(74 222 154 / .12); --color-green-200: rgb(74 222 154 / .32);
@@ -84,6 +84,12 @@ html { color-scheme: light; }
   --shadow-card: 0 1px 0 rgb(255 255 255 / .03) inset, 0 12px 28px -16px rgb(0 0 0 / .7);
   --shadow-lift: 0 1px 0 rgb(255 255 255 / .05) inset, 0 22px 44px -18px rgb(0 0 0 / .8);
 }
+/* The ZELab background in St Anne's green: a soft green glow in the top-left and the right edge over near-black, with a faint scatter of dots fixed behind the page. */
+.theme-night[data-theme-root], .site-root { position: relative; isolation: isolate; background: radial-gradient(90% 55% at 12% -8%, rgb(15 148 98 / .26) 0%, transparent 60%), radial-gradient(70% 45% at 100% 32%, rgb(15 148 98 / .1) 0%, transparent 60%), #070d0a fixed; }
+.theme-night[data-theme-root]::before, .site-root::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .8; background-size: 340px 230px;
+  background-image: radial-gradient(1px 1px at 12% 18%, rgb(255 255 255 / .5), transparent), radial-gradient(1px 1px at 47% 63%, rgb(255 255 255 / .36), transparent), radial-gradient(1.5px 1.5px at 78% 27%, rgb(255 255 255 / .45), transparent),
+    radial-gradient(1px 1px at 31% 86%, rgb(255 255 255 / .32), transparent), radial-gradient(1px 1px at 91% 74%, rgb(255 255 255 / .4), transparent), radial-gradient(1.5px 1.5px at 63% 8%, rgb(255 255 255 / .3), transparent); }
+@media print { .theme-night[data-theme-root]::before, .site-root::before { display: none; } .theme-night[data-theme-root], .site-root { background: #fff; } }
 @media print { .theme-night { color-scheme: light; --color-canvas: #f3f6f4; --color-surface: #fff; --color-ink: #10231a; --color-muted: #51615a; --color-line: #dfe6e0; --color-link: #026a43; --color-heading: #083d2a; --color-tint: #eaf7f1; --color-tint-2: #d1efe1; --color-ok: #17794a; --color-warn: #a35f00; --color-bad: #b42318; } }
 
 /* Soft category colours (homework, timetable, quick links): pastel on light, tinted glass on dark. */
@@ -106,27 +112,26 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
    All motion is switched off for prefers-reduced-motion. */
 .site-root {
   --font-display: var(--font-montserrat), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; /* resolved here, where next/font defines the variable */
-  color-scheme: light;
-  --color-canvas: #ffffff; --color-surface: #ffffff; --color-ink: #1b2b23; --color-muted: #56675e; --color-line: #dbe5df;
-  --color-link: #026a43; --color-accent: #026a43; --color-heading: #0b3d2a; --color-tint: #ecf6f0; --color-tint-2: #d5ede0;
-  --color-cream: #ffffff; --color-cream-deep: #f3f8f5;
-  --shadow-card: 0 1px 2px rgb(8 61 42 / .06), 0 14px 32px -18px rgb(8 61 42 / .28);
-  --shadow-lift: 0 2px 4px rgb(8 61 42 / .08), 0 26px 50px -22px rgb(8 61 42 / .35);
-  background: var(--color-canvas);
+  color-scheme: dark;
+  --color-canvas: #070d0a; --color-surface: rgb(15 25 20 / .88); --color-ink: #e8f0ea; --color-muted: #9db3a5; --color-line: #213229;
+  --color-link: #6fd9a8; --color-accent: #6fd9a8; --color-heading: #f2f8f4; --color-tint: rgb(15 148 98 / .14); --color-tint-2: rgb(15 148 98 / .26);
+  --color-cream: #0b130f; --color-cream-deep: #0e1813;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / .03) inset, 0 14px 32px -18px rgb(0 0 0 / .7);
+  --shadow-lift: 0 1px 0 rgb(255 255 255 / .05) inset, 0 26px 50px -22px rgb(0 0 0 / .8);
   color: var(--color-ink);
 }
-.site-soft { --color-canvas: #f3f8f5; background: var(--color-canvas); }
+.site-soft { --color-canvas: #0a120e; background: rgb(20 44 32 / .3); }
 .site-deep {
   color-scheme: dark;
-  --color-canvas: #083d2a; --color-surface: #0d4a34; --color-ink: #e8f4ed; --color-muted: #a9ccb9; --color-line: #1f6247;
+  --color-canvas: #06261b; --color-surface: #0a3326; --color-ink: #e8f4ed; --color-muted: #a9ccb9; --color-line: #1b5440;
   --color-link: #f1e65a; --color-accent: #f1e65a; --color-heading: #ffffff; --color-tint: rgb(255 255 255 / .08); --color-tint-2: rgb(255 255 255 / .15);
-  background: var(--color-canvas); color: var(--color-ink);
+  background: radial-gradient(80% 90% at 8% 0%, rgb(15 148 98 / .3) 0%, transparent 60%), #06261b; color: var(--color-ink);
 }
 
 @layer components {
 .display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; line-height: 1.04; }
 .site-root .display { font-weight: 700; letter-spacing: -0.025em; line-height: 1.08; text-wrap: balance; }
-.eyebrow { display: inline-flex; align-items: center; gap: .7rem; font-size: .75rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--color-brand-700); }
+.eyebrow { display: inline-flex; align-items: center; gap: .7rem; font-size: .75rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--color-link); }
 .eyebrow::before { content: ""; width: 1.75rem; height: 3px; border-radius: 3px; background: var(--color-sun); }
 .site-deep .eyebrow, .eyebrow-light { color: #ffffff; }
 .lead { font-size: clamp(1.05rem, 1rem + .35vw, 1.25rem); line-height: 1.7; text-wrap: pretty; }
@@ -233,6 +238,10 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
   background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem; padding-right: 2.25rem;
 }
 .app-root input[type="checkbox"], .app-root input[type="radio"] { accent-color: var(--color-brand-500); }
+
+/* The side menu as a soft green glass panel on the night theme (plain deep green on the light theme). */
+.rail-glass { background: var(--color-rail); }
+.theme-night .rail-glass { background: linear-gradient(165deg, rgb(22 78 54 / .55) 0%, rgb(5 30 21 / .93) 55%); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
 
 /* ───── Dashboard hero and surfaces ───── */
 @layer components {

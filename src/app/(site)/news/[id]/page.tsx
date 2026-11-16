@@ -49,7 +49,7 @@ export default async function NewsPostPage({ params }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
       <header>
         <div className="mx-auto max-w-3xl px-4 pb-10 pt-32 sm:px-6 sm:pt-44">
-          <Link href="/news" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-brand-700 hover:underline"><ArrowLeft className="size-4" aria-hidden /> {t("site.news.back")}</Link>
+          <Link href="/news" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-link hover:underline"><ArrowLeft className="size-4" aria-hidden /> {t("site.news.back")}</Link>
           <p className="mt-6 flex flex-wrap items-center gap-3 text-xs font-bold uppercase tracking-wider text-muted">
             {post.category && <span className="text-link">{post.category}</span>}
             <time dateTime={post.publishedAt?.toISOString()}>{displayDate(post.publishedAt, locale)}</time>

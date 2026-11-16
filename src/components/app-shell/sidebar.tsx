@@ -72,7 +72,7 @@ export function AppSidebar({ groups, name, subtitle, initials, logo, collapsedIn
   };
   return (
     <aside className={`no-print sticky top-0 hidden h-dvh shrink-0 p-3 transition-[width] duration-200 lg:block ${collapsed ? "w-[5.25rem]" : "w-72"}`}>
-      <div className="flex h-full flex-col rounded-[1.25rem] border border-white/10 bg-rail px-3 pb-3 pt-4 text-white shadow-[0_18px_48px_-20px_rgba(0,0,0,.65)]">
+      <div className="flex h-full flex-col rounded-[1.25rem] border border-white/10 rail-glass px-3 pb-3 pt-4 text-white shadow-[0_18px_48px_-20px_rgba(0,0,0,.65)]">
         <div className={`mb-5 flex items-center ${collapsed ? "flex-col gap-2" : "justify-between gap-2 px-1"}`}>
           <Brand name={name} initials={initials} logo={logo} collapsed={collapsed} />
           <button type="button" onClick={toggle} aria-label={collapsed ? labels.expand : labels.collapse} aria-pressed={collapsed} title={collapsed ? labels.expand : labels.collapse} className="grid size-7 shrink-0 place-items-center rounded-md text-brand-300 hover:bg-white/10 hover:text-white">
@@ -102,7 +102,7 @@ export function MobileDrawer({ groups, name, subtitle, initials, logo, labels, f
       <button type="button" onClick={() => setOpen(true)} aria-label={labels.menu} aria-expanded={open} className="inline-flex size-11 items-center justify-center rounded-lg text-ink hover:bg-canvas lg:hidden"><Menu className="size-6" aria-hidden /></button>
       <div className={`fixed inset-0 z-50 lg:hidden ${open ? "" : "pointer-events-none"}`} role="dialog" aria-modal="true" aria-label={labels.menu} aria-hidden={!open}>
         <button type="button" tabIndex={open ? 0 : -1} aria-label={labels.close} className={`absolute inset-0 bg-black/45 transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`} onClick={() => setOpen(false)} />
-        <div className={`absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col bg-rail p-4 text-white shadow-2xl transition-transform duration-200 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`} inert={!open}>
+        <div className={`absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col rail-glass p-4 text-white shadow-2xl transition-transform duration-200 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`} inert={!open}>
           <div className="mb-4 flex items-center justify-between"><Brand name={name} initials={initials} logo={logo} /><button type="button" onClick={() => setOpen(false)} aria-label={labels.close} className="inline-flex size-11 items-center justify-center rounded-lg hover:bg-white/10"><X className="size-5" aria-hidden /></button></div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><Groups groups={groups} onNavigate={() => setOpen(false)} /></div>
           {footer && <div className="mt-3 border-t border-dashed border-white/15 pt-3">{footer}</div>}

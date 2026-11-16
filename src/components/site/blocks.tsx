@@ -26,9 +26,9 @@ export function SectionHeading({ eyebrow, title, children, align = "left" }: { e
 const BTN = {
   primary: "bg-brand-700 text-white hover:bg-brand-800",
   sun: "bg-sun text-[#10200f] hover:bg-sun-600",
-  outline: "border-2 border-brand-700 text-brand-800 hover:bg-brand-700 hover:text-white",
+  outline: "border-2 border-link text-link hover:bg-brand-700 hover:text-white",
   ghost: "border-2 border-white/70 text-white hover:bg-white hover:text-brand-900",
-  soft: "bg-tint text-brand-800 hover:bg-tint-2",
+  soft: "bg-tint text-link hover:bg-tint-2",
 } as const;
 
 export function ButtonLink({ href, children, variant = "primary", arrow, external, size = "md" }: { href: string; children: ReactNode; variant?: keyof typeof BTN; arrow?: boolean; external?: boolean; size?: "md" | "sm" }) {
@@ -46,7 +46,7 @@ export function Print({ image, n, sizes, className = "", ratio = "aspect-[4/5]",
   return (
     <figure className={className}>
       <div className={`frame print rounded-lg shadow-[var(--shadow-card)] ${ratio}`}><Photo image={image} sizes={sizes} priority={priority} position={position} /></div>
-      {caption && <figcaption className="mt-3 flex gap-3 text-[13px] leading-snug text-muted">{n !== undefined && <span className="shrink-0 font-bold tabular-nums text-brand-700">{String(n).padStart(2, "0")}</span>}<span className="line-clamp-2">{image.alt}</span></figcaption>}
+      {caption && <figcaption className="mt-3 flex gap-3 text-[13px] leading-snug text-muted">{n !== undefined && <span className="shrink-0 font-bold tabular-nums text-link">{String(n).padStart(2, "0")}</span>}<span className="line-clamp-2">{image.alt}</span></figcaption>}
     </figure>
   );
 }

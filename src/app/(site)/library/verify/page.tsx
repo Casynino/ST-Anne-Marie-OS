@@ -24,7 +24,7 @@ export default async function LibraryVerifyPage({ searchParams }: { searchParams
           {lv.source === "visitor" ? <VerifyForm t={t} next={next} /> : <div className="space-y-4 border border-line bg-surface p-5"><p>{t("lib.verify.already")} <Link href={next} className="font-semibold text-link underline underline-offset-4">{t("lib.verify.continue")}</Link></p><ActionForm action={leaveLibraryAction} submitLabel={t("lib.leave")} inline /></div>}
         </div>
         <div className="space-y-4 text-muted">
-          <p className="flex gap-3"><ShieldCheck className="mt-1 size-5 shrink-0 text-brand-700" aria-hidden /><span>{t("lib.verify.why")}</span></p>
+          <p className="flex gap-3"><ShieldCheck className="mt-1 size-5 shrink-0 text-link" aria-hidden /><span>{t("lib.verify.why")}</span></p>
           <p>{t("lib.verify.students")}</p>
           <p>{t("lib.verify.staff")}</p>
         </div>

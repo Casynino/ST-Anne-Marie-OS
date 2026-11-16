@@ -53,7 +53,7 @@ export default async function ResourcePage({ params, searchParams }: { params: P
             <div className="mt-5 space-y-3">
               <h2 className="display text-2xl text-heading">{t("lib.access.ok")}</h2>
               {readable && <a href={`/api/library/files/${id}`} target="_blank" rel="noopener" className="flex min-h-12 items-center justify-center gap-2 bg-brand-700 px-6 text-lg font-semibold text-white hover:bg-brand-800"><Eye className="size-5" aria-hidden />{t("lib.read")}</a>}
-              <a href={`/api/library/files/${id}?download=1`} className={`flex min-h-12 items-center justify-center gap-2 px-6 text-lg font-semibold ${readable ? "border-2 border-brand-700 text-brand-800 hover:bg-tint" : "bg-brand-700 text-white hover:bg-brand-800"}`}><Download className="size-5" aria-hidden />{t("lib.download")}</a>
+              <a href={`/api/library/files/${id}?download=1`} className={`flex min-h-12 items-center justify-center gap-2 px-6 text-lg font-semibold ${readable ? "border-2 border-link text-link hover:bg-tint" : "bg-brand-700 text-white hover:bg-brand-800"}`}><Download className="size-5" aria-hidden />{t("lib.download")}</a>
               <p className="text-sm text-muted">{t("lib.access.note")}</p>
             </div>
           ) : reason === "VERIFY" || reason === "PIN_NEEDED" ? (

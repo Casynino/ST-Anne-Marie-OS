@@ -56,7 +56,7 @@ export function SiteHeader({
       {topSlot}
 
       {/* Identity row: sticky on phones, scrolls away on larger screens (the navigation bar below stays) */}
-      <div className="sticky top-0 z-40 border-b border-line bg-white xl:static">
+      <div className="sticky top-0 z-40 border-b border-line bg-canvas/85 backdrop-blur-md xl:static">
         <div className="mx-auto flex h-[4.25rem] max-w-[100rem] items-center gap-4 px-4 sm:px-8 xl:h-28">
           <Link href="/" className="flex min-w-0 items-center gap-3.5" aria-label={name}>
             {mark}
@@ -68,19 +68,19 @@ export function SiteHeader({
 
           {/* Plain and clear: links are text, the only filled control is Apply online (a rectangle). Every control is 44px high. */}
           <div className="ml-auto hidden items-center gap-1.5 xl:flex">
-            <Link href="/calendar" className="inline-flex h-11 items-center gap-2 rounded-md px-3 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint"><CalendarDays className="size-[18px]" aria-hidden />{calendarLabel}</Link>
+            <Link href="/calendar" className="inline-flex h-11 items-center gap-2 rounded-md px-3 text-[15px] font-semibold text-link transition-colors hover:bg-tint"><CalendarDays className="size-[18px]" aria-hidden />{calendarLabel}</Link>
             <div className="group relative">
-              <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-md px-3 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint">{quickLabel}<ChevronDown className="size-4 transition-transform group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden /></button>
+              <button type="button" className="inline-flex h-11 items-center gap-1.5 rounded-md px-3 text-[15px] font-semibold text-link transition-colors hover:bg-tint">{quickLabel}<ChevronDown className="size-4 transition-transform group-focus-within:rotate-180 group-hover:rotate-180" aria-hidden /></button>
               <div className="invisible absolute right-0 top-full z-50 w-64 pt-2 opacity-0 transition-[opacity,visibility] duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-                <ul className="rounded-md border-t-4 border-sun bg-white p-2 shadow-[var(--shadow-lift)]">
+                <ul className="rounded-md border-t-4 border-sun bg-surface p-2 shadow-[var(--shadow-lift)]">
                   {quickLinks.map((q) => <li key={q.href}><Link href={q.href} className="flex min-h-11 items-center rounded px-3 text-[15px] font-semibold text-brand-900 transition-colors hover:bg-tint">{q.label}</Link></li>)}
                 </ul>
               </div>
             </div>
-            <Link href="/search" aria-label={searchLabel} title={searchLabel} className="inline-flex size-11 items-center justify-center rounded-md text-brand-800 transition-colors hover:bg-tint"><Search className="size-[18px]" aria-hidden /></Link>
+            <Link href="/search" aria-label={searchLabel} title={searchLabel} className="inline-flex size-11 items-center justify-center rounded-md text-link transition-colors hover:bg-tint"><Search className="size-[18px]" aria-hidden /></Link>
             <div className="ml-1">{languageSwitch}</div>
             <span aria-hidden className="mx-2 h-6 w-px bg-line" />
-            <Link href={portalHref} className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-md px-3 text-[15px] font-semibold text-brand-800 transition-colors hover:bg-tint">
+            <Link href={portalHref} className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-md px-3 text-[15px] font-semibold text-link transition-colors hover:bg-tint">
               <span className="max-w-[11rem] truncate">{portalLabel}</span>
             </Link>
             <Link href={applyHref} className="inline-flex h-11 items-center whitespace-nowrap rounded-md bg-sun px-5 text-[15px] font-semibold text-[#10200f] transition-colors hover:bg-sun-600">{applyLabel}</Link>
@@ -99,7 +99,7 @@ export function SiteHeader({
       <div className="sticky top-0 z-40 hidden bg-brand-800 shadow-[0_6px_18px_-10px_rgb(0_0_0/.5)] xl:block">
         <nav aria-label="Main" className="mx-auto flex h-14 max-w-[100rem] items-center px-8">
           <Link href="/" aria-label={name} className={`shrink-0 overflow-hidden transition-[width,opacity,margin] duration-300 ${scrolled ? "mr-4 w-10 opacity-100" : "mr-0 w-0 opacity-0"}`} tabIndex={scrolled ? 0 : -1}>
-            {logo ? <Image src={logo.src} alt="" width={40} height={40} className="size-10 rounded-full bg-white object-contain" /> : <span aria-hidden className="grid size-10 place-items-center rounded-full bg-white text-xs font-bold text-brand-800">{initials}</span>}
+            {logo ? <Image src={logo.src} alt="" width={40} height={40} className="size-10 rounded-full bg-white object-contain" /> : <span aria-hidden className="grid size-10 place-items-center rounded-full bg-white text-xs font-bold text-link">{initials}</span>}
           </Link>
           <div className="flex flex-1 items-stretch justify-between self-stretch">
             {links.map((l) => {
@@ -116,7 +116,7 @@ export function SiteHeader({
                 <div key={l.href} className="group relative flex">
                   {link}
                   <div className="invisible absolute left-0 top-full z-50 w-72 opacity-0 transition-[opacity,visibility] duration-200 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-                    <ul className="border-t-4 border-sun bg-white p-2 shadow-[var(--shadow-lift)]">
+                    <ul className="border-t-4 border-sun bg-surface p-2 shadow-[var(--shadow-lift)]">
                       {l.items.map((i) => <li key={i.href}><Link href={i.href} className="flex min-h-11 items-center rounded px-3 text-[15px] font-semibold text-brand-900 transition-colors hover:bg-tint">{i.label}</Link></li>)}
                     </ul>
                   </div>
@@ -128,16 +128,16 @@ export function SiteHeader({
       </div>
 
       {/* Phone menu */}
-      <div id="site-menu" className={`fixed inset-x-0 bottom-0 top-[4.25rem] z-30 overflow-y-auto bg-white transition-[opacity,visibility] duration-300 xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`} inert={!open}>
+      <div id="site-menu" className={`fixed inset-x-0 bottom-0 top-[4.25rem] z-30 overflow-y-auto bg-canvas transition-[opacity,visibility] duration-300 xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`} inert={!open}>
         <nav aria-label="Mobile" className="mx-auto max-w-3xl px-4 pb-16 pt-2 sm:px-8">
           <ul>
             {links.map((l) => (
               <li key={l.href} className="border-b border-line py-3">
-                <Link href={l.href} aria-current={isActive(l) ? "page" : undefined} className={`flex min-h-11 items-center text-xl font-bold ${isActive(l) ? "text-brand-600" : "text-heading"}`}>{l.label}</Link>
-                {l.items && l.items.length > 1 && <ul className="mb-1 flex flex-wrap gap-x-5 gap-y-0.5 pl-1">{l.items.map((i) => <li key={i.href}><Link href={i.href} className="inline-flex min-h-10 items-center text-[15px] font-medium text-muted hover:text-brand-700">{i.label}</Link></li>)}</ul>}
+                <Link href={l.href} aria-current={isActive(l) ? "page" : undefined} className={`flex min-h-11 items-center text-xl font-bold ${isActive(l) ? "text-link" : "text-heading"}`}>{l.label}</Link>
+                {l.items && l.items.length > 1 && <ul className="mb-1 flex flex-wrap gap-x-5 gap-y-0.5 pl-1">{l.items.map((i) => <li key={i.href}><Link href={i.href} className="inline-flex min-h-10 items-center text-[15px] font-medium text-muted hover:text-link">{i.label}</Link></li>)}</ul>}
               </li>
             ))}
-            {[{ href: "/calendar", label: calendarLabel }, { href: "/search", label: searchLabel }, { href: portalHref, label: portalLabel }].map((q) => <li key={q.href} className="border-b border-line"><Link href={q.href} className="flex min-h-14 items-center text-lg font-bold text-brand-700">{q.label}</Link></li>)}
+            {[{ href: "/calendar", label: calendarLabel }, { href: "/search", label: searchLabel }, { href: portalHref, label: portalLabel }].map((q) => <li key={q.href} className="border-b border-line"><Link href={q.href} className="flex min-h-14 items-center text-lg font-bold text-link">{q.label}</Link></li>)}
           </ul>
           <div className="mt-6">{languageSwitch}</div>
         </nav>
