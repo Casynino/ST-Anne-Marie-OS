@@ -2,7 +2,7 @@ import { getApprovalLimits } from "@/server/approval-limits";
 import { z } from "zod";
 import { db, type Tx } from "@/lib/db";
 import { conflict, forbidden, invalid, notFound } from "@/lib/errors";
-import { requirePermission, type AuthContext } from "@/lib/auth/context";
+import { requirePermission, requireAnyPermission, type AuthContext } from "@/lib/auth/context";
 import { formatDateOnly } from "@/lib/dates";
 import { centsOf, decimalOf, formatMoney, positiveAmount } from "@/lib/finance/money";
 import { actorOf, writeAudit, type AuditActor } from "@/server/audit";
@@ -196,7 +196,7 @@ export async function requestRefund(ctx: AuthContext, input: unknown) {
 const decisionSchema = z.object({ decision: z.enum(["APPROVE", "REJECT"]), note: optText(300) });
 
 export async function decideRefund(ctx: AuthContext, refundId: string, input: unknown) {
-  requirePermission(ctx, "refund.approve");
+  requireAnyPermission(ctx, ["refund.approve", "refund.approve_high"]);
   const d = parse(decisionSchema, input);
   if (d.decision === "REJECT" && !d.note) throw invalid("Please correct the highlighted fields.", { note: "Say why the request is rejected" });
   const pre = await db.refund.findFirst({ where: { id: refundId, schoolId: ctx.schoolId }, select: { studentId: true } });
@@ -208,7 +208,8 @@ export async function decideRefund(ctx: AuthContext, refundId: string, input: un
     if (r.status !== "REQUESTED") throw conflict("This request has already been decided.");
     if (r.requestedById === ctx.userId) throw forbidden("You cannot decide a refund you requested yourself.");
     const { refundOwnerAboveCents } = await getApprovalLimits(tx, ctx.schoolId);
-    if (refundOwnerAboveCents > 0 && centsOf(r.amount) >= refundOwnerAboveCents && !ctx.permissions.has("refund.approve_high")) throw forbidden("This refund is above the owner's approval limit. Only the owner can decide it.");
+    const high = refundOwnerAboveCents > 0 && centsOf(r.amount) >= refundOwnerAboveCents;
+    if (!ctx.permissions.has(high ? "refund.approve_high" : "refund.approve")) throw forbidden(high ? "This refund is above the owner's approval limit. Only the owner can decide it." : undefined);
     await tx.refund.update({ where: { id: refundId }, data: { status: d.decision === "APPROVE" ? "APPROVED" : "REJECTED", decidedById: ctx.userId, decidedAt: new Date(), decisionNote: d.note ?? null } });
     await writeAudit(tx, actorOf(ctx), { action: d.decision === "APPROVE" ? "refund.approve" : "refund.reject", entityType: "Refund", entityId: refundId, summary: formatMoney(centsOf(r.amount)), reason: d.note, changes: { studentId: r.studentId } });
   });

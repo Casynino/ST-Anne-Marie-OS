@@ -5273,6 +5273,15 @@ export const en = {
   "exec.noTerm": "No academic year is set up yet.",
   "exec.more": "Show {n} more",
   "exec.less": "Show less",
+  "step.title": "Step in as owner",
+  "step.sub": "Each department does its own work. If one is stuck and nobody can act, you may step in for {n} minutes. A banner shows on every page while you do, and the start and the end are written to the audit log.",
+  "step.reason": "Why do you need to step in?",
+  "step.reason.hint": "A few words, for example: the registrar is away and a family is waiting.",
+  "step.cta": "Step in for {n} minutes",
+  "step.link": "Step in…",
+  "step.stop": "Stop stepping in",
+  "step.on": "You are stepping in now.",
+  "step.banner": "You are stepping in as owner. About {n} min left. Everything you do is on the audit log.",
 } as const;
 
 export type MessageKey = keyof typeof en;

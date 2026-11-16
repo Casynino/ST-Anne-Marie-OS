@@ -15,6 +15,10 @@ Each department does its own work and is accountable for it. The owner (Super Ad
 | **Head Teacher** (`head_teacher`) | Oversight and second approval: marks, plans, year-end decisions, routine expenses and refunds (never one they recorded) | Teachers' work, finance reports | Record or verify payments, set fees, hold owner-only powers |
 | **Owner** (`super_admin`) | Everything below, plus: users and roles, school settings, website, backups, audit, approval limits, anything above the approval limits | All departments through the executive home | Should not do daily departmental work (the home gives him no such queues) |
 
+## The owner works in an oversight view (enforced on the server)
+`src/lib/rbac/oversight.ts`. A signed-in owner whose only role is Super Admin runs every page, action and download with a reduced set (`applyOversight`, applied in `getContext`): every view permission, plus his own powers (users and roles, settings, audit, backups, website, library admin, grading, the approval limits, hiring decisions, and the reserved items below). He holds no daily-work permission: he cannot place or register students, record or verify payments, enter or approve marks, take or correct attendance, publish report cards, or manage the academic structure. His menu and every button follow from that. `tasks.admin` lets him see every department's tasks but work only the owner's own.
+**Stepping in** (`/step-in`): when a department is stuck and nobody can act, the owner may step in for 30 minutes with a stated reason (cookie `sam_stepin` holds the end time; it only ever gives the owner his own full set back). A banner shows on every page, and `owner.step_in` / `owner.step_out` are written to the audit log. An owner who was also given a department's role keeps that department's work.
+
 ## What is reserved for the owner
 - Permissions `executive.read`, `expense.approve_high`, `refund.approve_high` (only Super Admin holds them by default).
 - Approval limits (Settings, Approval limits; `approval_limits` setting, owner-level `school.settings.update`): an expense or refund at or above the limit can be decided only by the owner; below it, by the head teacher. 0 = no limit, so nothing changes until the owner sets one.
@@ -29,5 +33,6 @@ Alerts first (only what is the owner's: items above his limits, hiring decisions
 ## Known gaps (not done)
 - Expenses are not tagged with a department, so "departmental expenses" is by category only.
 - The Head Teacher still holds some Finance and Admissions powers (second approvals, reviewing); trimming them is a decision for the school.
+- Admissions no longer records teachers' attendance (migration `phase24_registrar_no_staff_attendance`); that is the Head Teacher's.
 - Admissions keeps `student.status_change` (transfer, withdraw, graduate on the student screen); progression decisions themselves are the Academic Office's.
 - Existing schools need `npm run db:bootstrap` after deploy so the new permissions are registered and given to Super Admin.

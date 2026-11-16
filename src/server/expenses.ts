@@ -82,29 +82,34 @@ export async function voidExpense(ctx: AuthContext, id: string, input: unknown) 
   });
 }
 
-/** At or above the owner's limit only a person holding `expense.approve_high` may decide (the head teacher decides everything below it). */
-async function requireOwnerIfHigh(tx: Parameters<typeof getApprovalLimits>[0], ctx: AuthContext, cents: number) {
+/**
+ * At or above the owner's limit only a person holding `expense.approve_high` may decide; below it only a person holding
+ * `expense.approve` (the head teacher). Each tier has its own holder, so the owner does not decide routine expenses and the head teacher
+ * cannot decide the big ones.
+ */
+async function requireApproverFor(tx: Parameters<typeof getApprovalLimits>[0], ctx: AuthContext, cents: number) {
   const { expenseOwnerAboveCents } = await getApprovalLimits(tx, ctx.schoolId);
-  if (expenseOwnerAboveCents > 0 && cents >= expenseOwnerAboveCents && !ctx.permissions.has("expense.approve_high")) throw forbidden("This expense is above the owner's approval limit. Only the owner can decide it.");
+  const high = expenseOwnerAboveCents > 0 && cents >= expenseOwnerAboveCents;
+  if (!ctx.permissions.has(high ? "expense.approve_high" : "expense.approve")) throw forbidden(high ? "This expense is above the owner's approval limit. Only the owner can decide it." : undefined);
 }
 
 /** PENDING -> APPROVED by someone other than the person who recorded it. Until then the expense is in no total. */
 export async function approveExpense(ctx: AuthContext, id: string) {
-  requirePermission(ctx, "expense.approve");
+  requireAnyPermission(ctx, ["expense.approve", "expense.approve_high"]);
   await db.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM expenses WHERE id = ${id}::uuid AND "schoolId" = ${ctx.schoolId}::uuid FOR UPDATE`;
     if (!rows.length) throw notFound("Expense");
     const e = await tx.expense.findUniqueOrThrow({ where: { id } });
     if (e.approval !== "PENDING") throw conflict("This expense is not waiting for approval.");
     if (e.createdById === ctx.userId) throw conflict("An expense must be approved by someone other than the person who recorded it.");
-    await requireOwnerIfHigh(tx, ctx, centsOf(e.amount));
+    await requireApproverFor(tx, ctx, centsOf(e.amount));
     await tx.expense.update({ where: { id }, data: { approval: "APPROVED", approvedById: ctx.userId, approvedAt: new Date() } });
     await writeAudit(tx, actorOf(ctx), { action: "expense.approve", entityType: "Expense", entityId: id, summary: formatMoney(centsOf(e.amount)), changes: { payee: e.payee } });
   });
 }
 
 export async function rejectExpense(ctx: AuthContext, id: string, input: unknown) {
-  requirePermission(ctx, "expense.approve");
+  requireAnyPermission(ctx, ["expense.approve", "expense.approve_high"]);
   const { reason } = parse(z.object({ reason: text(300) }), input);
   await db.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM expenses WHERE id = ${id}::uuid AND "schoolId" = ${ctx.schoolId}::uuid FOR UPDATE`;
@@ -112,7 +117,7 @@ export async function rejectExpense(ctx: AuthContext, id: string, input: unknown
     const e = await tx.expense.findUniqueOrThrow({ where: { id } });
     if (e.approval !== "PENDING") throw conflict("This expense is not waiting for approval.");
     if (e.createdById === ctx.userId) throw conflict("An expense must be decided by someone other than the person who recorded it.");
-    await requireOwnerIfHigh(tx, ctx, centsOf(e.amount));
+    await requireApproverFor(tx, ctx, centsOf(e.amount));
     await tx.expense.update({ where: { id }, data: { approval: "REJECTED", approvedById: ctx.userId, approvedAt: new Date(), approvalNote: reason } });
     await writeAudit(tx, actorOf(ctx), { action: "expense.reject", entityType: "Expense", entityId: id, summary: formatMoney(centsOf(e.amount)), reason });
   });

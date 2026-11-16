@@ -5275,4 +5275,13 @@ export const sw: Record<MessageKey, string> = {
   "exec.noTerm": "Mwaka wa masomo haujawekwa bado.",
   "exec.more": "Onyesha {n} zaidi",
   "exec.less": "Onyesha chache",
+  "step.title": "Ingia kama mmiliki",
+  "step.sub": "Kila idara hufanya kazi yake. Ikiwa moja imekwama na hakuna anayeweza kutenda, unaweza kuingia kwa dakika {n}. Bango linaonekana kwenye kila ukurasa wakati huo, na mwanzo na mwisho vinaandikwa kwenye kumbukumbu ya ukaguzi.",
+  "step.reason": "Kwa nini unahitaji kuingia?",
+  "step.reason.hint": "Maneno machache, mfano: msajili hayupo na familia inasubiri.",
+  "step.cta": "Ingia kwa dakika {n}",
+  "step.link": "Ingia kuingilia…",
+  "step.stop": "Acha kuingilia",
+  "step.on": "Unaingilia sasa.",
+  "step.banner": "Unaingilia kama mmiliki. Dakika {n} zimebaki. Kila unachofanya kiko kwenye kumbukumbu ya ukaguzi.",
 };

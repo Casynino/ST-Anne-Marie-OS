@@ -60,7 +60,8 @@ const WORK: Record<TaskDepartment, readonly PermissionKey[]> = {
   ADMIN: ["tasks.admin"],
 };
 const canSee = (ctx: AuthContext, d: TaskDepartment) => ctx.permissions.has("tasks.admin") || SEE[d].some((p) => ctx.permissions.has(p));
-const canWork = (ctx: AuthContext, d: TaskDepartment) => ctx.permissions.has("tasks.admin") || WORK[d].some((p) => ctx.permissions.has(p));
+// `tasks.admin` sees every department (to oversee it) but works only the owner's own tasks; another department's tasks are worked with that department's permissions.
+const canWork = (ctx: AuthContext, d: TaskDepartment) => (d === "ADMIN" && ctx.permissions.has("tasks.admin")) || WORK[d].some((p) => ctx.permissions.has(p));
 export const visibleDepartments = (ctx: AuthContext) => TASK_DEPARTMENTS.filter((d) => canSee(ctx, d));
 
 type Client = Db | Tx;

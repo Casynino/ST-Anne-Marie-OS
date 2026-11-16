@@ -5,6 +5,7 @@ import { buildAuthContext, type AuthContext, type RequestMeta } from "./context"
 import { resolveSession, SESSION_COOKIE } from "./session";
 import { isLocale, LOCALE_COOKIE, makeT, type Locale, type Translate } from "@/lib/i18n";
 import type { PermissionKey } from "@/lib/rbac/permissions";
+import { applyOversight, STEP_IN_COOKIE } from "@/lib/rbac/oversight";
 
 export const getRequestMeta = cache(async (): Promise<RequestMeta> => {
   const h = await headers();
@@ -22,7 +23,10 @@ export const getContext = cache(async (): Promise<AuthContext | null> => {
   const session = await getSessionInfo();
   if (!session) return null;
   try {
-    return await buildAuthContext(session.userId, await getRequestMeta());
+    const ctx = await buildAuthContext(session.userId, await getRequestMeta());
+    // The owner works in his oversight view unless he has deliberately stepped in (cookie holds the end time; it only ever gives the owner his own full set back).
+    const until = Number((await cookies()).get(STEP_IN_COOKIE)?.value);
+    return applyOversight(ctx, Number.isFinite(until) && until > 0 ? until : null);
   } catch {
     return null;
   }

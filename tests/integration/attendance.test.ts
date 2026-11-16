@@ -423,13 +423,15 @@ describe("registers overview and staff attendance", () => {
 
   it("records staff attendance with audit and permission checks", async () => {
     expect(await code(att.recordStaffAttendance(teacherA, { date: setup.today, entries: [{ staffId: teacherB.staffId, status: "PRESENT" }] }))).toBe("FORBIDDEN");
-    await att.recordStaffAttendance(registrar, { date: setup.today, entries: [{ staffId: teacherA.staffId, status: "PRESENT" }, { staffId: teacherB.staffId, status: "ABSENT", note: "sick" }] });
-    await att.recordStaffAttendance(registrar, { date: setup.today, entries: [{ staffId: teacherB.staffId, status: "EXCUSED" }] });
+    // Recording teachers' attendance is the Head Teacher's; Admissions may look at it but not record it.
+    expect(await code(att.recordStaffAttendance(registrar, { date: setup.today, entries: [{ staffId: teacherB.staffId, status: "PRESENT" }] }))).toBe("FORBIDDEN");
+    await att.recordStaffAttendance(headTeacher, { date: setup.today, entries: [{ staffId: teacherA.staffId, status: "PRESENT" }, { staffId: teacherB.staffId, status: "ABSENT", note: "sick" }] });
+    await att.recordStaffAttendance(headTeacher, { date: setup.today, entries: [{ staffId: teacherB.staffId, status: "EXCUSED" }] });
     const list = await att.listStaffAttendance(registrar, setup.today);
     expect(list.find((s) => s.staffId === teacherB.staffId)?.status).toBe("EXCUSED");
     expect(await db.staffAttendance.count({ where: { schoolId: school.id, date: new Date(`${setup.today}T00:00:00Z`) } })).toBe(2);
     expect(await db.auditLog.count({ where: { schoolId: school.id, action: "staff_attendance.record" } })).toBe(2);
-    expect(await code(att.recordStaffAttendance(registrar, { date: "2999-01-01", entries: [{ staffId: teacherA.staffId, status: "PRESENT" }] }))).toBe("VALIDATION");
+    expect(await code(att.recordStaffAttendance(headTeacher, { date: "2999-01-01", entries: [{ staffId: teacherA.staffId, status: "PRESENT" }] }))).toBe("VALIDATION");
   });
 });
 

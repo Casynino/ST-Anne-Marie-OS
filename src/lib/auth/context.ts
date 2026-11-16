@@ -17,6 +17,9 @@ export type AuthContext = {
   roleKeys: readonly string[];
   permissions: ReadonlySet<PermissionKey>;
   meta: RequestMeta;
+  /** True while the owner is in his oversight view (no daily-work permissions); `stepInUntil` is when a deliberate step-in ends (ms), if one is on. Set only by the web layer. */
+  oversight?: boolean;
+  stepInUntil?: number | null;
 };
 
 export const NO_META: RequestMeta = { ip: null, userAgent: null };

@@ -21,6 +21,7 @@ import { countExamWork } from "@/server/admission-exams";
 import { countAdmissionPaymentsDue } from "@/server/admission-offers";
 import { Breadcrumbs, GlobalSearch, NotificationBell, UserMenu, WebsiteLink } from "@/components/app-shell/topbar";
 import { ThemeRoot, getTheme } from "@/components/theme-root";
+import { stepOutAction } from "./step-in/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -116,6 +117,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="block truncate text-sm font-medium text-white">{ctx.fullName}</span>
           {roles[0]?.name && <span className="block truncate text-xs text-brand-200">{roles[0].name}</span>}
         </Link>
+        {ctx.oversight && <Link href="/step-in" className="block rounded-lg px-2.5 py-1.5 text-xs text-brand-300 hover:bg-white/5 hover:text-white">{t("step.link")}</Link>}
         <div className="flex items-center justify-between px-1"><LanguageSwitch current={locale} dark pill /><ThemeToggle onDark initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} /></div>
         <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-4" aria-hidden /> {t("nav.signOut")}</SignOutButton>
       </div>
@@ -151,6 +153,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         </header>
+        {ctx.stepInUntil && ctx.stepInUntil > Date.now() && (
+          <div role="status" className="no-print flex flex-wrap items-center justify-between gap-2 bg-warn/20 px-4 py-2 text-sm text-ink lg:px-6">
+            <span>{t("step.banner", { n: Math.max(1, Math.ceil((ctx.stepInUntil - Date.now()) / 60000)) })}</span>
+            <form action={stepOutAction}><button type="submit" className="font-semibold text-link hover:underline">{t("step.stop")}</button></form>
+          </div>
+        )}
         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[112rem] px-3 py-5 outline-none sm:px-6 sm:py-7 xl:px-10">{children}</main>
       </div>
     </ThemeRoot>
