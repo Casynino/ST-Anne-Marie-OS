@@ -10,19 +10,18 @@ import { MonthCard } from "@/components/dash/month-card";
 import type { AttentionRow } from "@/components/dash/attention-tabs";
 import { AttentionBlock } from "./attention";
 import { Row, N, T, W } from "@/components/dash/rows";
-import type { Quick } from "@/components/dash/quick-links";
 import { toneFor } from "@/components/learning/timetable-grid";
 
 const STATUS_COLOR = { PRESENT: "#2fd08f", LATE: "#f3b94c", EXCUSED: "#8b80ff", ABSENT: "#ff8574", NOT_MARKED: "#4b5a52" } as const;
 const More = ({ href, label }: { href: string; label: string }) => <Link href={href} className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">{label}<ArrowRight className="size-4" aria-hidden /></Link>;
 
-type Props = { t: Translate; locale: "EN" | "SW"; first: string; hour: number; schoolName: string; portal: string; today: string; d: DashboardData; th: Awaited<ReturnType<typeof teacherHome>>; quick: Quick[]; events: string[] };
+type Props = { t: Translate; locale: "EN" | "SW"; first: string; hour: number; schoolName: string; portal: string; today: string; d: DashboardData; th: Awaited<ReturnType<typeof teacherHome>>; events: string[] };
 
 /**
  * The teacher's own home. One strip of coloured numbers, then what needs them, today's lessons and registers, how their students are doing
  * today, who needs a word, and the work in hand. A figure is shown once.
  */
-export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, today, d, th, quick, events }: Props) {
+export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, today, d, th, events }: Props) {
   const regDone = d.myRegisters.filter((r) => r.status === "FINALISED").length;
   const registers = d.myRegisters.filter((r) => r.status !== "FINALISED");
   const sheets = d.exams?.mine ?? [];
@@ -56,15 +55,13 @@ export function TeacherDashboard({ t, locale, first, hour, schoolName, portal, t
         eyebrow={`${schoolName} · ${portal}`.toUpperCase()}
         title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}
         date={`${displayDate(new Date(`${today}T00:00:00Z`), locale)}${d.term ? ` · ${d.term.name}` : ""}`}
-        quick={quick}
-        allLabel={t("dash.quick.title")}
       >
         {bits.length > 0 ? bits.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("tch.hero.calm")}
       </HomeBanner>
 
       <AttentionBlock t={t} rows={rows} />
 
-      <ul className="mt-5 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("dash.kpis")}>
+      <ul className="mt-4 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]" aria-label={t("dash.kpis")}>
         {d.myRegisters.length > 0 && <li><GradientTile icon={CalendarCheck} tone={regDone === d.myRegisters.length ? "green" : "rose"} label={t("tch.kpi.registers")} value={`${regDone}/${d.myRegisters.length}`} caption={t("tch.kpi.registers.cap", { done: regDone, total: d.myRegisters.length })} href="/attendance" /></li>}
         <li><GradientTile icon={Users} tone="orange" label={t("tch.kpi.students")} value={th.studentCount} caption={t("tch.kpi.students.cap")} href="/students" /></li>
         <li><GradientTile icon={CalendarClock} tone="teal" label={t("tch.kpi.lessons")} value={th.today.length} caption={t("tch.kpi.lessons.cap")} href="/timetable" /></li>

@@ -1,3 +1,4 @@
+import { getApprovalLimits } from "@/server/approval-limits";
 import { z } from "zod";
 import { db, type Tx } from "@/lib/db";
 import { conflict, forbidden, invalid, notFound } from "@/lib/errors";
@@ -206,6 +207,8 @@ export async function decideRefund(ctx: AuthContext, refundId: string, input: un
     if (!r) throw notFound("Refund");
     if (r.status !== "REQUESTED") throw conflict("This request has already been decided.");
     if (r.requestedById === ctx.userId) throw forbidden("You cannot decide a refund you requested yourself.");
+    const { refundOwnerAboveCents } = await getApprovalLimits(tx, ctx.schoolId);
+    if (refundOwnerAboveCents > 0 && centsOf(r.amount) >= refundOwnerAboveCents && !ctx.permissions.has("refund.approve_high")) throw forbidden("This refund is above the owner's approval limit. Only the owner can decide it.");
     await tx.refund.update({ where: { id: refundId }, data: { status: d.decision === "APPROVE" ? "APPROVED" : "REJECTED", decidedById: ctx.userId, decidedAt: new Date(), decisionNote: d.note ?? null } });
     await writeAudit(tx, actorOf(ctx), { action: d.decision === "APPROVE" ? "refund.approve" : "refund.reject", entityType: "Refund", entityId: refundId, summary: formatMoney(centsOf(r.amount)), reason: d.note, changes: { studentId: r.studentId } });
   });

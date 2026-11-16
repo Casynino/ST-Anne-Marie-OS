@@ -30,7 +30,7 @@ function Strip({ env, reg }: { env: DashEnv; reg: RegistrarHome | null }) {
   const left = o.fill ? o.fill.reduce((n, c) => n + Math.max(0, c.capacity - c.count), 0) : null;
   const today = adm.overview?.interviews.today ?? 0;
   return (
-    <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("dash.kpis")}>
+    <ul className="mt-4 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]" aria-label={t("dash.kpis")}>
       {enrolled && <li><GradientTile icon={Users} tone="orange" label={t("dash.kpi.enrolled")} value={Number(enrolled.value).toLocaleString()} caption={d.gender ? t("reg.tile.girls", { g: d.gender.FEMALE ?? 0, b: d.gender.MALE ?? 0 }) : undefined} href={enrolled.href} /></li>}
       {received !== null && <li><GradientTile icon={UserPlus} tone="violet" label={t("reg.tile.received")} value={received} caption={open !== null ? t("reg.tile.received.cap", { n: open }) : undefined} spark={series.some((n) => n > 0) ? series : undefined} href="/admissions" /></li>}
       {reg && <li><GradientTile icon={CalendarClock} tone="teal" label={t("reg.tile.interviews")} value={reg.interviews.total} caption={reg.interviews.total === 0 ? t("reg.tile.interviews.none") : t("reg.tile.interviews.cap", { n: today })} href="/admissions/interviews" /></li>}

@@ -7,8 +7,11 @@ import { Ring, Spark, type VizTone } from "./viz";
 export function DashSection({ id, eyebrow, title, subtitle, link, children }: { id: string; eyebrow?: string; title: string; subtitle?: string; link?: { href: string; label: string }; children: ReactNode }) {
   return (
     <section id={id} aria-labelledby={`${id}-h`} className="mt-7 scroll-mt-24">
-      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-        <h2 id={`${id}-h`} className="min-w-0 text-[13px] text-muted"><span className="font-semibold text-ink">{eyebrow ? `${eyebrow} · ` : ""}{title}</span>{subtitle && <span> · {subtitle}</span>}</h2>
+      <div className="mb-2.5 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+        <div className="min-w-0">
+          <h2 id={`${id}-h`} className="text-[11px] font-semibold uppercase tracking-[.16em] text-muted">{eyebrow ? `${eyebrow} · ` : ""}{title}</h2>
+          {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
+        </div>
         {link && <Link href={link.href} className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">{link.label}<ArrowRight className="size-4" aria-hidden /></Link>}
       </div>
       {children}
@@ -85,19 +88,17 @@ export type GradientTone = keyof typeof GRADIENT;
  * sparkline. Colour only tells the cards apart; every card still carries its label and number in text.
  */
 export function GradientTile({ label, value, caption, icon: Icon, tone = "green", spark, href }: { label: string; value: ReactNode; caption?: string; icon: LucideIcon; tone?: GradientTone; spark?: number[]; href?: string }) {
-  const long = typeof value === "string" && value.length > 7;
+  const long = typeof value === "string" && value.length > 9;
   const body = (
-    <>
-      <span className="relative z-10 flex w-full min-w-0 flex-col gap-1">
-        <span className="flex items-center gap-2"><span className="tint-icon grid size-7 shrink-0 place-items-center rounded-lg"><Icon className="size-3.5" aria-hidden /></span><span className="truncate text-xs font-medium text-muted">{label}</span></span>
-        <span className={`tint-num block whitespace-nowrap font-semibold tabular-nums tracking-tight ${long ? "text-[1.4rem] leading-8" : "text-[1.8rem] leading-9"}`}>{value}</span>
-        {caption && <span className="block truncate text-[11px] leading-4 text-muted">{caption}</span>}
-      </span>
-      {spark && spark.length > 1 && <span aria-hidden className="pointer-events-none absolute bottom-1 right-2 h-7 w-20 overflow-hidden opacity-70 [&_svg]:h-7"><Spark values={spark} tone="tint" /></span>}
-    </>
+    <span className="relative z-10 flex w-full min-w-0 flex-col">
+      <span className="flex items-start justify-between gap-2"><span className="truncate text-[13px] font-medium text-muted">{label}</span><span className="tint-icon grid size-7 shrink-0 place-items-center rounded-lg"><Icon className="size-3.5" aria-hidden /></span></span>
+      <span className={`mt-2 block whitespace-nowrap font-semibold tabular-nums tracking-tight text-ink ${long ? "text-[1.15rem] leading-7" : "text-[1.4rem] leading-7"}`}>{value}</span>
+      {caption && <span className="mt-0.5 block truncate text-xs text-muted">{caption}</span>}
+      {spark && spark.length > 1 && <span aria-hidden className="pointer-events-none mt-1.5 block h-5 overflow-hidden opacity-70 [&_svg]:h-5"><Spark values={spark} tone="tint" /></span>}
+    </span>
   );
-  const cls = `tint tint-${tone} group relative flex h-full items-start overflow-hidden rounded-xl px-3.5 py-3 shadow-[var(--shadow-card)]`;
-  return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
+  const cls = `tint tint-${tone} group relative flex h-full min-h-[5.5rem] overflow-hidden rounded-xl p-3.5`;
+  return href ? <Link href={href} className={`${cls} transition-colors hover:border-link/40`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
 /** Thick coloured bars, one per row, with the figure inside the bar (the way a subject or class comparison reads best). `mark` draws a tick, e.g. the class average. */

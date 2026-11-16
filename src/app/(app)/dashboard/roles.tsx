@@ -10,10 +10,8 @@ import { Ring } from "@/components/dash/viz";
 import type { HeadHome } from "@/server/head-home";
 import type { adminHome } from "@/server/admin-home";
 import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LearningSection, MyRegistersSection, PulseSection, ResultsSection, StudentsSection, type DashEnv } from "./sections";
-import type { Quick } from "@/components/dash/quick-links";
 import { AttentionBlock, financeRows, headRows, standardRows } from "./attention";
 import { DeskRow } from "./home";
-import { quickItems, type QuickKind } from "./quick";
 import { compactMoney } from "./sections";
 import { AccountantBody, HeadBody } from "./homes";
 import { RegistrarBody } from "./registrar";
@@ -27,7 +25,7 @@ import type { RegistrarHome } from "@/server/registrar-home";
 
 export type HomeProps = { env: DashEnv; first: string; hour: number; portal: string; today: string; can: (p: string) => boolean };
 
-function Greeting({ env, first, hour, portal, today, can, children, photoIndex = 1, kind }: HomeProps & { children: ReactNode; photoIndex?: number; kind: QuickKind }) {
+function Greeting({ env, first, hour, portal, today, children, photoIndex = 1 }: HomeProps & { children: ReactNode; photoIndex?: number }) {
   const { t, school, locale, d } = env;
   return (
     <HomeBanner
@@ -35,8 +33,6 @@ function Greeting({ env, first, hour, portal, today, can, children, photoIndex =
       eyebrow={`${school.name} · ${portal}`.toUpperCase()}
       title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}
       date={`${displayDate(new Date(`${today}T00:00:00Z`), locale)}${d.term ? ` · ${d.term.name}` : ""}`}
-      quick={quickItems(kind, t, can, d.attention)}
-      allLabel={t("dash.quick.title")}
     >
       {children}
     </HomeBanner>
@@ -80,12 +76,12 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
   );
   return (
     <>
-      <Greeting {...props} kind="head" photoIndex={0}><Sentence bits={bits} empty={t("head.hero.calm")} /></Greeting>
+      <Greeting {...props} photoIndex={0}><Sentence bits={bits} empty={t("head.hero.calm")} /></Greeting>
       <AttentionBlock t={t} rows={[...standardRows(env, { queues: true }), ...financeRows(env), ...headRows(t, tot)]} />
       <DeskRow env={env} />
 
       {tot && (
-        <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]">
+        <ul className="mt-4 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]">
           <li><GradientTile icon={Users} tone="orange" label={t("head.kpi.teachers")} value={tot.teachers} caption={tot.neverSignedIn > 0 ? t("head.kpi.teachers.never", { n: tot.neverSignedIn }) : t("head.kpi.teachers.cap")} /></li>
           <li><GradientTile icon={CalendarCheck} tone={tot.registersTotal > 0 && tot.registersFinalised < tot.registersTotal ? "rose" : "green"} label={t("head.kpi.registers")} value={tot.registersTotal === 0 ? "—" : `${tot.registersFinalised}/${tot.registersTotal}`} caption={t("head.kpi.registers.cap")} href="/attendance" /></li>
           <li><GradientTile icon={FileCheck} tone="teal" label={t("head.kpi.sheets")} value={tot.sheetsAwaiting} caption={tot.sheetsOverdue > 0 ? t("head.kpi.sheets.overdue", { n: tot.sheetsOverdue }) : t("head.kpi.sheets.cap")} href="/marks" /></li>
@@ -113,11 +109,11 @@ export function AccountantDashboard({ props }: { props: HomeProps }) {
   }
   return (
     <>
-      <Greeting {...props} kind="accountant" photoIndex={2}><Sentence bits={bits} empty={t("acc.hero.empty")} /></Greeting>
+      <Greeting {...props} photoIndex={2}><Sentence bits={bits} empty={t("acc.hero.empty")} /></Greeting>
       <AttentionBlock t={t} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />
 
       {f && (
-        <ul className="mt-5 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("dash.money.title")}>
+        <ul className="mt-4 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]" aria-label={t("dash.money.title")}>
           <li><GradientTile icon={Wallet} tone="green" spark={f.trend.some((p) => p.cents > 0) ? running(f.trend.map((p) => p.cents)) : undefined} label={t("dash.kpi.collected")} value={`${env.school.currency} ${compactMoney(f.collected)}`} caption={f.ratePct !== null ? t("dash.kpi.collected.hint", { pct: String(f.ratePct) }) : undefined} href="/finance/payments" /></li>
           <li><GradientTile icon={Receipt} tone="violet" label={t("dash.money.billed")} value={`${env.school.currency} ${compactMoney(f.billed)}`} caption={f.term.name} href="/finance/invoices" /></li>
           <li><GradientTile icon={Receipt} tone="orange" label={t("dash.kpi.outstanding")} value={`${env.school.currency} ${compactMoney(f.outstanding)}`} caption={t("dash.money.notYet")} href="/finance/reports" /></li>
@@ -146,7 +142,7 @@ export function RegistrarDashboard({ props, reg }: { props: HomeProps; reg: Regi
   if (enquiries && Number(enquiries.value) > 0) bits.push(<><Hi tone="warn">{String(enquiries.value)}</Hi> {t("reg.hero.enquiries")}</>);
   return (
     <>
-      <Greeting {...props} kind="registrar" photoIndex={4}><Sentence bits={bits} empty={t("dash.hero.empty")} /></Greeting>
+      <Greeting {...props} photoIndex={4}><Sentence bits={bits} empty={t("dash.hero.empty")} /></Greeting>
       <AttentionBlock t={t} rows={standardRows(env, { queues: true, skip: ["registersOpen", "conflicts"] })} />
       <RegistrarBody env={env} reg={reg} />
     </>

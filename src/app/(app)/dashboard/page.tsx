@@ -24,9 +24,11 @@ import { admissionOverview, admissionQueues } from "@/server/admission-queues";
 import { TeacherDashboard } from "./teacher";
 import { AccountantDashboard, HeadDashboard, RegistrarDashboard, type HomeProps } from "./roles";
 import { AdminBody } from "./homes";
+import { ExecutiveBody } from "./executive";
+import { executiveOverview } from "@/server/executive";
 import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LatestSection, LearningSection, MyRegistersSection, PeopleSection, PulseSection, ResultsSection, StudentsSection, type DashEnv, type Overview } from "./sections";
 import { financeRows, standardRows } from "./attention";
-import { jumpItems, quickItems } from "./quick";
+import { jumpItems } from "./quick";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -40,8 +42,9 @@ async function optional<T>(name: string, fn: () => Promise<T>): Promise<T | null
  * set-up and school overview, the head teacher's view of the teachers, the accountant's money desk, the registrar's admissions desk, or
  * a teacher's own day. Every panel inside is still permission-checked by the service that supplies it.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const ctx = await requireContext();
+  const sp = await searchParams;
   const t = await getT();
   const locale = await getLocale();
   const kind = portalOf(ctx);
@@ -56,7 +59,7 @@ export default async function DashboardPage() {
   if (kind === "teacher") {
     const [th, evs] = await Promise.all([teacherHome(ctx), optional("events", () => ov.upcomingEvents(ctx, 12))]);
     const events = (evs ?? []).flatMap((e) => (e.to ? [e.from, e.to] : [e.from]));
-    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} events={events} quick={quickItems("teacher", t, can, d.attention)} />;
+    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} events={events} />;
   }
 
   // School data panels: each is gated by the permission of its detail screen and fails alone, never the whole page.
@@ -104,7 +107,6 @@ export default async function DashboardPage() {
   const chips = jumpItems(env, ["setup", "quick", "attention", "school", "pulse", "classes", "students", "fees", "results", "admissions", "learning", "activity", "people", "calendar", "latest"], {
     setup: !!setup && t("setup.title"), activity: !!act && t("dash.sec.activity"), people: !!accounts && accounts.length > 0 && t("dash.sec.people"), latest: !!d.activity && t("dash.sec.latest"),
   });
-  const quick = quickItems(kind === "admin" ? "admin" : "staff", t, can, d.attention);
 
   return (
     <>
@@ -112,8 +114,6 @@ export default async function DashboardPage() {
         eyebrow={`${school.name} · ${portal}`.toUpperCase()}
         title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}
         date={`${displayDate(new Date(`${d.today}T00:00:00Z`), locale)}${d.term ? ` · ${d.term.name}` : ""}`}
-        quick={quick}
-        allLabel={t("dash.quick.title")}
       >
         {summary.length > 0 ? summary.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("dash.hero.empty")}
       </HomeBanner>
@@ -125,7 +125,9 @@ export default async function DashboardPage() {
         </Card>
       )}
       {nothingToShow && <EmptyState><p className="font-semibold text-ink">{t("dash.empty.title")}</p><p className="mt-1">{t("dash.empty.body")}</p></EmptyState>}
-      <AdminBody env={env} setup={setup} reg={can("admission.read") ? await optional("registrar", () => registrarHome(ctx)) : null} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />
+      {can("executive.read")
+        ? <ExecutiveBody env={env} setup={setup} x={await executiveOverview(ctx, { period: sp.period })} head={await optional("head", () => headHome(ctx))} />
+        : <AdminBody env={env} setup={setup} reg={can("admission.read") ? await optional("registrar", () => registrarHome(ctx)) : null} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />}
     </>
   );
 }

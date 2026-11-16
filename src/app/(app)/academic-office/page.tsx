@@ -16,7 +16,6 @@ import { AttentionBlock } from "../dashboard/attention";
 import { Badge, LinkButton, NoAccess } from "@/components/ui";
 import { HomeBanner, Hi } from "@/components/dash/hero";
 import { JumpNav } from "@/components/dash/jump-nav";
-import { quickItems } from "../dashboard/quick";
 import { AreaChart } from "@/components/dash/charts-client";
 import { Ring, StageBar } from "@/components/dash/viz";
 import { updateAcademicSettingsAction } from "./actions";
@@ -34,7 +33,6 @@ export default async function AcademicOfficePage() {
   const fmt = (iso: string) => displayDate(new Date(`${iso}T00:00:00Z`), ctx.locale);
   const hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: school.timezone }).format(new Date()));
 
-  const quick = quickItems("academic", t, (p) => can(p as never), d.alerts.map((a) => ({ key: a.key, count: a.count })));
   const SEV: Record<string, "bad" | "warn" | "info"> = { marksOverdue: "bad", attendanceMissing: "warn", resultsToApprove: "warn", awaitingPlacement: "warn", repeatedAbsences: "warn", pendingTransfers: "warn", headProgression: "warn", configGaps: "info", cardsToPrepare: "info", cardsToPublish: "info", capacityWarnings: "info", openConcerns: "info", progressionTodo: "info" };
   const AREA: Record<string, string> = { marksOverdue: "results", resultsToApprove: "results", cardsToPrepare: "results", cardsToPublish: "results", attendanceMissing: "attendance", repeatedAbsences: "attendance" };
   const alertRows: AttentionRow[] = d.alerts.map((a) => ({ key: a.key, area: AREA[a.key] ?? "academic", href: a.href, tone: SEV[a.key] ?? "warn", text: t(`ac.alert.${a.key}` as "ac.alert.configGaps"), detail: t(`att.d.ac.${a.key}` as "att.d.ac.configGaps"), count: a.count }));
@@ -45,8 +43,6 @@ export default async function AcademicOfficePage() {
         eyebrow={`${school.name} · ${t(portalLabelKey("academic"))}`.toUpperCase()}
         title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}
         date={`${d.year ? d.year.name : t("ac.noYear")}${d.term ? ` · ${d.term.name}` : ""}`}
-        quick={quick}
-        allLabel={t("dash.quick.title")}
       >
         {[
           <><Hi>{d.students.enrolled.toLocaleString()}</Hi> {t("dash.hero.students")}</>,
@@ -61,7 +57,7 @@ export default async function AcademicOfficePage() {
 
       <YearReportPanel report={year} t={t} money={(c) => formatMoney(c, school.currency)} groups={["academic", "admissions"]} className="mb-5" />
 
-      <ul className="mt-5 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("ac.title")}>
+      <ul className="mt-4 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]" aria-label={t("ac.title")}>
         <li><GradientTile icon={GraduationCap} tone="orange" label={t("ac.kpi.enrolled")} value={d.students.enrolled.toLocaleString()} caption={t("ac.kpi.enrolled.cap")} href="/students" /></li>
         <li><GradientTile icon={Users} tone={d.students.awaitingPlacement > 0 ? "rose" : "green"} label={t("ac.kpi.placement")} value={d.students.awaitingPlacement} caption={t("ac.kpi.placement.cap")} href="/admissions/placement" /></li>
         <li><GradientTile icon={HeartHandshake} tone="violet" label={t("ac.kpi.concerns")} value={d.students.openConcerns} caption={t("ac.kpi.concerns.cap")} href="/academic-office/concerns" /></li>

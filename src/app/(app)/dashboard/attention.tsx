@@ -1,5 +1,6 @@
 import type { Translate } from "@/lib/i18n";
-import { AttentionTabs, type AttentionRow } from "@/components/dash/attention-tabs";
+import type { AttentionRow } from "@/components/dash/attention-tabs";
+import { AttentionList } from "@/components/dash/attention-list";
 import type { DashEnv } from "./sections";
 
 /*
@@ -7,9 +8,7 @@ import type { DashEnv } from "./sections";
  * Each home builds its rows from the services it is allowed to read; the block itself only draws them.
  */
 
-export type Area = "attendance" | "admissions" | "finance" | "results" | "messages" | "system" | "homework" | "planning" | "teaching" | "family" | "academic";
-const AREAS: Area[] = ["admissions", "academic", "attendance", "teaching", "results", "finance", "messages", "homework", "planning", "family", "system"];
-const AREA_LABEL: Record<Area, string> = { attendance: "dash.area.attendance", admissions: "dash.area.admissions", finance: "dash.area.finance", results: "dash.area.results", messages: "dash.area.messages", system: "dash.area.system", homework: "dash.area.homework", planning: "dash.area.planning", teaching: "desk.teaching", family: "fam.portal", academic: "desk.academic" };
+export type Area = "owner" | "departments" | "attendance" | "admissions" | "finance" | "results" | "messages" | "system" | "homework" | "planning" | "teaching" | "family" | "academic";
 
 const SEVERITY: Record<string, "bad" | "warn" | "info"> = {
   failedNotifications: "bad", backupStale: "bad", marksOverdue: "bad", tasksOverdue: "bad", feeOverdue: "bad", conflicts: "warn", unmatchedPayments: "warn", refundsPending: "warn", expensesPending: "warn", resultsToApprove: "warn",
@@ -44,11 +43,8 @@ export function sortRows(rows: AttentionRow[]): AttentionRow[] {
 /** The finished block. With nothing to show it draws one calm line, never an empty box. */
 export function AttentionBlock({ t, rows }: { t: Translate; rows: AttentionRow[] }) {
   const sorted = sortRows(rows);
-  if (sorted.length === 0) {
-    return <section aria-label={t("attn.title")} className="mt-5"><h2 className="mb-2.5 text-xs font-semibold uppercase tracking-[.16em] text-muted">{t("attn.title")}</h2><p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ok shadow-[var(--shadow-card)]">{t("att.clear")}</p></section>;
-  }
-  const used = AREAS.filter((a) => sorted.some((r) => r.area === a));
-  return <AttentionTabs heading={t("attn.title")} moreLabel={t("att.more")} allLabel={t("dash.attention.all")} areas={used.map((x) => ({ id: x, label: t(AREA_LABEL[x] as "dash.area.system") }))} rows={sorted} />;
+  if (sorted.length === 0) return null; // nothing to flag: no empty box and no "all clear" banner
+  return <AttentionList heading={t("attn.title")} moreLabel={t("exec.more")} lessLabel={t("exec.less")} rows={sorted} />;
 }
 
 /** Money that needs following up: overdue invoices and what falls due within a week (only for people who may see finance). */

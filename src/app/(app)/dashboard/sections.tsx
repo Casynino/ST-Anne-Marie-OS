@@ -66,7 +66,7 @@ export function KpiSection({ env, bare = false }: { env: DashEnv; bare?: boolean
     <>
       {d.kpis.length > 0 && (
         <Wrap bare={bare} t={t}>
-          <ul className={bare ? "mt-6 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"} aria-label={t("dash.kpis")}>
+          <ul className={bare ? "mt-4 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]" : "grid gap-4 sm:grid-cols-2 xl:grid-cols-4"} aria-label={t("dash.kpis")}>
             {kpis.map((k) => {
               const Icon = KPI_ICON[k.key as keyof typeof KPI_ICON];
               const money_ = k.key === "collected" || k.key === "outstanding";

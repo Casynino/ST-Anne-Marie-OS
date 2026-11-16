@@ -76,7 +76,7 @@ export default async function AttendancePage({ searchParams }: { searchParams: P
     <>
       {header}
 
-      <ul className="mt-1 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("att.title")}>
+      <ul className="mt-1 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]" aria-label={t("att.title")}>
         <li><GradientTile icon={ClipboardCheck} tone={done.length === lines.length ? "green" : "orange"} label={t("attd.tile.done")} value={`${done.length}/${lines.length}`} caption={t("attd.tile.done.cap", { total: lines.length })} /></li>
         <li><GradientTile icon={Percent} tone={rate !== null && rate < overview.settings.lowThresholdPct ? "rose" : "teal"} label={t("attd.tile.rate")} value={rate === null ? "—" : `${rate}%`} caption={t("attd.tile.rate.cap")} /></li>
         <li><GradientTile icon={UserX} tone={sum.ABSENT > 0 ? "rose" : "green"} label={t("attd.tile.absent")} value={sum.ABSENT} caption={t("attd.tile.absent.cap")} /></li>

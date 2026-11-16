@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { conflict, invalid, notFound } from "@/lib/errors";
+import { conflict, forbidden, invalid, notFound } from "@/lib/errors";
 import { requirePermission, requireAnyPermission, type AuthContext } from "@/lib/auth/context";
 import { formatDateOnly } from "@/lib/dates";
 import { centsOf, decimalOf, formatMoney, positiveAmount } from "@/lib/finance/money";
 import { actorOf, writeAudit } from "@/server/audit";
 import { schoolToday } from "@/server/balances";
 import { getFeeSettings } from "@/server/fees";
+import { getApprovalLimits } from "@/server/approval-limits";
 import { optDateOnly, optText, optUuid, parse, text, uuid } from "@/lib/validation";
 
 const METHODS = ["CASH", "BANK", "MOBILE_MONEY", "OTHER"] as const;
@@ -81,6 +82,12 @@ export async function voidExpense(ctx: AuthContext, id: string, input: unknown) 
   });
 }
 
+/** At or above the owner's limit only a person holding `expense.approve_high` may decide (the head teacher decides everything below it). */
+async function requireOwnerIfHigh(tx: Parameters<typeof getApprovalLimits>[0], ctx: AuthContext, cents: number) {
+  const { expenseOwnerAboveCents } = await getApprovalLimits(tx, ctx.schoolId);
+  if (expenseOwnerAboveCents > 0 && cents >= expenseOwnerAboveCents && !ctx.permissions.has("expense.approve_high")) throw forbidden("This expense is above the owner's approval limit. Only the owner can decide it.");
+}
+
 /** PENDING -> APPROVED by someone other than the person who recorded it. Until then the expense is in no total. */
 export async function approveExpense(ctx: AuthContext, id: string) {
   requirePermission(ctx, "expense.approve");
@@ -90,6 +97,7 @@ export async function approveExpense(ctx: AuthContext, id: string) {
     const e = await tx.expense.findUniqueOrThrow({ where: { id } });
     if (e.approval !== "PENDING") throw conflict("This expense is not waiting for approval.");
     if (e.createdById === ctx.userId) throw conflict("An expense must be approved by someone other than the person who recorded it.");
+    await requireOwnerIfHigh(tx, ctx, centsOf(e.amount));
     await tx.expense.update({ where: { id }, data: { approval: "APPROVED", approvedById: ctx.userId, approvedAt: new Date() } });
     await writeAudit(tx, actorOf(ctx), { action: "expense.approve", entityType: "Expense", entityId: id, summary: formatMoney(centsOf(e.amount)), changes: { payee: e.payee } });
   });
@@ -104,6 +112,7 @@ export async function rejectExpense(ctx: AuthContext, id: string, input: unknown
     const e = await tx.expense.findUniqueOrThrow({ where: { id } });
     if (e.approval !== "PENDING") throw conflict("This expense is not waiting for approval.");
     if (e.createdById === ctx.userId) throw conflict("An expense must be decided by someone other than the person who recorded it.");
+    await requireOwnerIfHigh(tx, ctx, centsOf(e.amount));
     await tx.expense.update({ where: { id }, data: { approval: "REJECTED", approvedById: ctx.userId, approvedAt: new Date(), approvalNote: reason } });
     await writeAudit(tx, actorOf(ctx), { action: "expense.reject", entityType: "Expense", entityId: id, summary: formatMoney(centsOf(e.amount)), reason });
   });

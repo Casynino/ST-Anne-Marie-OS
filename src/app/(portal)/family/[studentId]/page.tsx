@@ -149,7 +149,7 @@ export default async function ChildPage({ params }: { params: Promise<{ studentI
 
       <AttentionBlock t={t} rows={rows} />
 
-      <ul className="mt-5 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(11rem,1fr))]" aria-label={t("dash.kpis")}>
+      <ul className="mt-4 grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr))]" aria-label={t("dash.kpis")}>
         <li><GradientTile icon={CalendarCheck} tone={a.ratePct !== null && a.ratePct < 85 ? "rose" : "green"} label={t("fam.summary.attendance")} value={a.ratePct === null ? "—" : `${a.ratePct}%`} caption={ov.period?.label} /></li>
         <li><GradientTile icon={GraduationCap} tone="violet" label={t("fam.summary.report")} value={latest && latest.average !== null ? latest.average.toFixed(1) : "—"} caption={latest ? `${latest.term}${latest.position !== null ? ` · ${t("rc.position")} ${latest.position}/${latest.classSize}` : ""}` : t("fam.summary.noReport")} /></li>
         <li><GradientTile icon={ClipboardList} tone="teal" label={t("learn.fam.homework")} value={todo} caption={todo > 0 ? t("learn.fam.todoCount", { count: todo }) : homework.items.length > 0 ? t("fam.hw.allDone") : t("learn.fam.noHomework")} href={`/family/${child.id}/assignments`} /></li>

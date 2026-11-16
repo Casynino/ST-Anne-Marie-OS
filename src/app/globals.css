@@ -237,8 +237,10 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
 /* ───── Dashboard hero and surfaces ───── */
 @layer components {
   .dash-hero-bg { background: linear-gradient(105deg, #06261b 0%, #0a3a2a 52%, #0c4a38 100%); }
+  /* The photograph fades into the banner on its left edge, so the text side stays plain. */
+  .dash-hero-photo { -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%); mask-image: linear-gradient(90deg, transparent 0%, #000 45%); }
   /* Headline number cards (Target Express / Swift Cargo look): a card tinted by its tone, the figure in the tone's colour, an icon square. */
-  .tint { background: linear-gradient(135deg, color-mix(in srgb, var(--tt) 9%, var(--color-surface)) 0%, var(--color-surface) 80%); border: 1px solid color-mix(in srgb, var(--tt) 22%, var(--color-line)); }
+  .tint { background: var(--color-surface); border: 1px solid var(--color-line); }
   .tint-num { color: var(--tf); }
   .tint-icon { background: color-mix(in srgb, var(--tt) 20%, transparent); color: var(--tf); }
   .tint-green { --tt: #12a06a; --tf: #0a6a45; } .tint-teal { --tt: #14a5bd; --tf: #0a6f82; } .tint-violet { --tt: #8579f0; --tf: #5446cf; }

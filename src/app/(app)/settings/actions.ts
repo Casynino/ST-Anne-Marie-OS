@@ -19,3 +19,6 @@ export async function assignStaffIdsAction(_: ActionState, form: FormData) {
     return { message: makeT(ctx.locale)("sid.assigned", { n: String(r.assigned) }) };
   });
 }
+export async function updateApprovalLimitsAction(_: ActionState, form: FormData) {
+  return run(form, async (ctx, i) => (await (await import("@/server/approval-limits")).updateApprovalLimits(ctx, i), { message: makeT(ctx.locale)("common.saved") }));
+}

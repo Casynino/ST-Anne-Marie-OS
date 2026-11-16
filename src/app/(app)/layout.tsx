@@ -107,23 +107,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const signOut = (
     <SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-bad hover:bg-red-50"><LogOut className="size-4" aria-hidden /> {t("nav.signOut")}</SignOutButton>
   );
-  const signOutClass = "flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/15 text-[14px] font-medium text-brand-100 hover:bg-white/10 hover:text-white";
+  const signOutClass = "flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium text-[#ff9b8e] hover:bg-white/5";
   const who = initialsOf(ctx.fullName).slice(0, 2);
   const sidebarSignOut = {
     full: (
-      <div className="space-y-2.5">
-        <Link href="/change-password" title={t("auth.changePassword.button")} className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-white/5">
-          <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white">{who}</span>
-          <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold text-white">{ctx.fullName}</span>{roles[0]?.name && <span className="block truncate text-xs text-brand-200">{roles[0].name}</span>}</span>
+      <div className="space-y-1">
+        <Link href="/change-password" title={t("auth.changePassword.button")} className="block rounded-lg px-2.5 py-1.5 hover:bg-white/5">
+          <span className="block truncate text-sm font-medium text-white">{ctx.fullName}</span>
+          {roles[0]?.name && <span className="block truncate text-xs text-brand-200">{roles[0].name}</span>}
         </Link>
-        <div className="flex items-center justify-between gap-2"><LanguageSwitch current={locale} dark /><ThemeToggle onDark initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} /></div>
-        <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-[18px]" aria-hidden /> {t("nav.signOut")}</SignOutButton>
+        <div className="flex items-center justify-between px-1"><LanguageSwitch current={locale} dark pill /><ThemeToggle onDark initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} /></div>
+        <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-4" aria-hidden /> {t("nav.signOut")}</SignOutButton>
       </div>
     ),
     icon: (
-      <div className="space-y-2">
-        <Link href="/change-password" title={ctx.fullName} className="relative mx-auto grid size-10 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white"><span aria-hidden>{who}</span><span aria-hidden className="absolute bottom-0 right-0 size-2.5 rounded-full bg-[#4ade9a] ring-2 ring-rail" /><span className="sr-only">{t("auth.changePassword.button")}</span></Link>
-        <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-[18px]" aria-hidden /><span className="sr-only">{t("nav.signOut")}</span></SignOutButton>
+      <div className="space-y-1">
+        <Link href="/change-password" title={ctx.fullName} className="mx-auto grid size-9 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white"><span aria-hidden>{who}</span><span className="sr-only">{t("auth.changePassword.button")}</span></Link>
+        <SignOutButton action={signOutAction} className={`${signOutClass} justify-center px-0`}><LogOut className="size-4" aria-hidden /><span className="sr-only">{t("nav.signOut")}</span></SignOutButton>
       </div>
     ),
   };
@@ -132,7 +132,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <ThemeRoot className="flex min-h-dvh">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:shadow-lg">{t("site.skip")}</a>
-      <AppSidebar groups={groups} name={school.name} subtitle={t("nav.subtitle")} initials={initials} logo={logoRef} collapsedInitially={jar.get("sam_nav")?.value !== "open"} labels={{ collapse: t("nav.collapse"), expand: t("nav.expand") }} footer={sidebarSignOut} />
+      <AppSidebar groups={groups} name={school.name} subtitle={t("nav.subtitle")} initials={initials} logo={logoRef} collapsedInitially={jar.get("sam_nav")?.value === "collapsed"} labels={{ collapse: t("nav.collapse"), expand: t("nav.expand") }} footer={sidebarSignOut} />
       <div className="min-w-0 flex-1">
         <header className="no-print sticky top-0 z-30 flex h-16 items-center gap-2 bg-canvas/85 px-3 backdrop-blur-md lg:px-6">
           <MobileDrawer groups={groups} name={school.name} subtitle={t("nav.subtitle")} initials={initials} logo={logoRef} labels={{ menu: t("nav.menu"), close: t("nav.close") }} footer={drawerFooter} />
@@ -140,13 +140,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {canSearch ? <GlobalSearch action="/students" placeholder={t("search.students")} label={t("search.students")} /> : <span className="flex-1" />}
           <div className="ml-auto flex items-center gap-1">
             {academic.year && <span className="mr-1 hidden items-center rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted xl:inline-flex" title={`${t("dash.year")} / ${t("dash.term")}`}>{academic.year.name}{academic.term ? ` · ${academic.term.name}` : ""}</span>}
-            <ThemeToggle initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} />
+            <div className="lg:hidden"><ThemeToggle initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} /></div>
             <WebsiteLink label={t("nav.website")} />
             <NotificationBell count={unread} label={t("nav.notifications")} />
-            <UserMenu name={ctx.fullName} initials={who} role={roles[0]?.name} passwordLabel={t("auth.changePassword.button")}>
-              <div className="px-1"><LanguageSwitch current={locale} /></div>
-              {signOut}
-            </UserMenu>
+            <div className="lg:hidden">
+              <UserMenu name={ctx.fullName} initials={who} role={roles[0]?.name} passwordLabel={t("auth.changePassword.button")}>
+                <div className="px-1"><LanguageSwitch current={locale} /></div>
+                {signOut}
+              </UserMenu>
+            </div>
           </div>
         </header>
         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[112rem] px-3 py-5 outline-none sm:px-6 sm:py-7 xl:px-10">{children}</main>

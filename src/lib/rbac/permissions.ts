@@ -8,6 +8,7 @@ export const PERMISSIONS = {
   // School & settings
   "school.settings.read": { module: "school", description: "View school profile and settings" },
   "school.settings.update": { module: "school", description: "Change school profile and settings" },
+  "executive.read": { module: "school", description: "View the executive dashboard: school-wide money and performance, and each department's open and overdue work" },
 
   // Users, roles, audit
   "user.read": { module: "users", description: "View staff users" },
@@ -142,6 +143,8 @@ export const PERMISSIONS = {
   "expense.read": { module: "finance", description: "View school expenses" },
   "expense.manage": { module: "finance", description: "Record and void expenses, manage expense categories" },
   "expense.approve": { module: "finance", description: "Approve or reject expenses that need approval (never your own)" },
+  "expense.approve_high": { module: "finance", description: "Approve or reject expenses at or above the owner's approval limit (reserved for the owner)" },
+  "refund.approve_high": { module: "finance", description: "Approve or reject refunds at or above the owner's approval limit (reserved for the owner)" },
   "finance.reports": { module: "finance", description: "View finance dashboards and reports (arrears, collections, expenses) and export them" },
   "finance.reconcile": { module: "finance", description: "Match or reject mobile-money and bank notifications that could not be matched automatically" },
 
