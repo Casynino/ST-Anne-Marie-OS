@@ -22,3 +22,7 @@ backups
 guide/shots/
 guide/guide.html
 guide/*.pdf
+
+# promo films (large local media, not part of the app)
+video/
+video-reel/
