@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { ArrowLeft } from "lucide-react";
 import { getContext, getLocale, getT } from "@/lib/auth/next";
 import { homeFor } from "@/lib/auth/home";
 import { getSite, initialsOf } from "@/lib/site";
@@ -38,6 +39,8 @@ export default async function LoginPage() {
       <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(75%_65%_at_50%_35%,rgb(6_38_27/.5),rgb(5_14_10/.9))]" />
       <div aria-hidden className="entry-dots pointer-events-none absolute inset-0 -z-10 opacity-70" />
 
+      <Link href="/" className="absolute left-3 top-3 inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white sm:left-5 sm:top-5"><ArrowLeft className="size-4" aria-hidden />{t("auth.backToSite")}</Link>
+
       <main className="flex w-full max-w-md flex-col items-center">
         <Link href="/" className="rise flex flex-col items-center gap-4" aria-label={name}>
           {logo ? <Image src={logo.src} alt="" width={96} height={96} priority className="size-20 shrink-0 rounded-full bg-white object-contain p-1 shadow-[0_10px_40px_-10px_rgb(0_0_0/.7)] sm:size-24" /> : <span aria-hidden className="display grid size-20 shrink-0 place-items-center rounded-full bg-brand-700 text-2xl text-white sm:size-24">{initialsOf(name)}</span>}
@@ -57,7 +60,6 @@ export default async function LoginPage() {
         </div>
         <nav aria-label={t("auth.signIn.title")} className="rise-3 mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm">
           <Link href="/apply/form" className="inline-flex min-h-11 items-center text-white/80 hover:text-white hover:underline">{t("auth.login.apply")}</Link>
-          <Link href="/" className="inline-flex min-h-11 items-center text-white/60 hover:text-white hover:underline">{t("auth.backToSite")}</Link>
         </nav>
         <div className="rise-3 mt-1"><LanguageSwitch current={locale} dark pill /></div>
       </main>
