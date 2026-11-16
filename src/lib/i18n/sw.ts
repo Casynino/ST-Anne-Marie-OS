@@ -5284,4 +5284,6 @@ export const sw: Record<MessageKey, string> = {
   "step.stop": "Acha kuingilia",
   "step.on": "Unaingilia sasa.",
   "step.banner": "Unaingilia kama mmiliki. Dakika {n} zimebaki. Kila unachofanya kiko kwenye kumbukumbu ya ukaguzi.",
+  "auth.login.close": "Funga",
+  "auth.login.entry": "Ingia",
 };

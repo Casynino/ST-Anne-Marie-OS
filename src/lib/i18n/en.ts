@@ -5282,6 +5282,8 @@ export const en = {
   "step.stop": "Stop stepping in",
   "step.on": "You are stepping in now.",
   "step.banner": "You are stepping in as owner. About {n} min left. Everything you do is on the audit log.",
+  "auth.login.close": "Close",
+  "auth.login.entry": "Log in",
 } as const;
 
 export type MessageKey = keyof typeof en;
