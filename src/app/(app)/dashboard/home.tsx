@@ -49,7 +49,8 @@ export function SetupBanner({ env, setup }: { env: DashEnv; setup: Awaited<Retur
       <Ring value={Math.round((setup.doneCount / setup.items.length) * 100)} size={52} stroke={12} tone="warn" label={t("setup.ring")}><span className="text-[11px] font-semibold tabular-nums text-ink">{setup.doneCount}/{setup.items.length}</span></Ring>
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-ink">{t("home.setup.banner", { done: setup.doneCount, total: setup.items.length })}</p>
-        <ul className="mt-2 flex flex-wrap gap-2">{todo.slice(0, 5).map((i) => <li key={i.key}><Link href={i.href} className="btn-secondary inline-flex min-h-9 items-center gap-2 px-3 text-sm"><Circle className="size-3.5 text-warn" aria-hidden />{t(`setup.${i.key}`)}</Link></li>)}</ul>
+        <ul className="mt-2 flex flex-wrap gap-2">{todo.slice(0, 5).map((i) => <li key={i.key}><Link href={i.href} className="btn-secondary inline-flex min-h-9 items-center gap-2 px-3 text-sm"><Circle className="size-3.5 text-warn" aria-hidden />{t(`setup.${i.key}`)}<span className="text-muted">· {t(`setup.by.${i.key}`)}</span></Link></li>)}</ul>
+        <p className="mt-2 text-sm text-muted">{t("home.setup.who")} <Link href="/step-in" className="font-medium text-link underline-offset-2 hover:underline">{t("step.link")}</Link></p>
       </div>
     </section>
   );
