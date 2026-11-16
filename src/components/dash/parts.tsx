@@ -94,15 +94,15 @@ export function GradientTile({ label, value, caption, icon: Icon, tone = "green"
   const body = (
     <>
       <span className="relative z-10 min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium text-white/90">{label}</span>
-        <span className={`block whitespace-nowrap font-semibold tabular-nums tracking-tight text-white ${long ? "text-[1.3rem] leading-7" : "text-[1.65rem] leading-8"}`}>{value}</span>
-        {caption && <span className="block truncate text-[11px] leading-4 text-white/80">{caption}</span>}
+        <span className="block truncate text-xs font-medium text-muted">{label}</span>
+        <span className={`tint-num block whitespace-nowrap font-semibold tabular-nums tracking-tight ${long ? "text-[1.35rem] leading-7" : "text-[1.75rem] leading-8"}`}>{value}</span>
+        {caption && <span className="block truncate text-[11px] leading-4 text-muted">{caption}</span>}
       </span>
-      {spark && spark.length > 1 && <span aria-hidden className="pointer-events-none absolute bottom-1 right-2 h-7 w-20 overflow-hidden opacity-60 [&_svg]:h-7"><Spark values={spark} tone="white" /></span>}
-      <span className="relative z-10 grid size-8 shrink-0 place-items-center self-start rounded-lg bg-white/95 shadow-sm"><Icon className="size-4 text-[#10231a]" aria-hidden /></span>
+      {spark && spark.length > 1 && <span aria-hidden className="pointer-events-none absolute bottom-1 right-2 h-7 w-20 overflow-hidden opacity-70 [&_svg]:h-7"><Spark values={spark} tone="tint" /></span>}
+      <span className="tint-icon relative z-10 grid size-8 shrink-0 place-items-center self-start rounded-lg"><Icon className="size-4" aria-hidden /></span>
     </>
   );
-  const cls = `group relative flex h-full items-start justify-between gap-2 overflow-hidden rounded-xl bg-gradient-to-br ${GRADIENT[tone]} px-3.5 py-2.5 shadow-[var(--shadow-card)]`;
+  const cls = `tint tint-${tone} group relative flex h-full items-start justify-between gap-2 overflow-hidden rounded-xl px-3.5 py-2.5 shadow-[var(--shadow-card)]`;
   return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 
@@ -140,14 +140,14 @@ export function DeskCard({ label, value, noun, note, foot, tone = "brand", href 
   const FOOT = { ok: "text-ok", warn: "text-warn", bad: "text-bad", brand: "text-link" } as const;
   const body = (
     <>
-      <span aria-hidden className={`absolute inset-x-0 top-0 h-[3px] ${a.bar}`} />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${a.bar}`} />
       <span className="flex items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-[.14em] text-muted">{label}</span>{href && <ArrowRight className="size-4 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden />}</span>
       <span className="mt-2 flex items-baseline gap-2"><span className="text-[2rem] font-semibold leading-9 tabular-nums text-ink">{value}</span><span className="text-sm text-muted">{noun}</span></span>
       {note && <span className="mt-1 block text-sm text-muted">{note}</span>}
       {foot && <span className={`mt-3 block border-t border-line pt-3 text-sm font-medium ${FOOT[foot.tone]}`}>{foot.text}</span>}
     </>
   );
-  const cls = "group relative block overflow-hidden rounded-xl border border-line bg-surface p-4 pt-5 shadow-[var(--shadow-card)]";
+  const cls = "group relative block overflow-hidden rounded-xl border border-line bg-surface p-4 pl-5 shadow-[var(--shadow-card)]";
   return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 

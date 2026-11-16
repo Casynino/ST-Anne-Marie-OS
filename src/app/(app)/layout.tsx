@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
@@ -106,10 +107,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const signOut = (
     <SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-bad hover:bg-red-50"><LogOut className="size-4" aria-hidden /> {t("nav.signOut")}</SignOutButton>
   );
-  const signOutClass = "flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/15 text-[14px] font-medium text-brand-100 hover:bg-white/10 hover:text-white";
+  const signOutClass = "flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/15 text-[14px] font-medium text-brand-100 hover:bg-white/10 hover:text-white";
+  const who = initialsOf(ctx.fullName).slice(0, 2);
   const sidebarSignOut = {
-    full: <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-[18px]" aria-hidden /> {t("nav.signOut")}</SignOutButton>,
-    icon: <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-[18px]" aria-hidden /><span className="sr-only">{t("nav.signOut")}</span></SignOutButton>,
+    full: (
+      <div className="space-y-2.5">
+        <Link href="/change-password" title={t("auth.changePassword.button")} className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-white/5">
+          <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white">{who}</span>
+          <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-semibold text-white">{ctx.fullName}</span>{roles[0]?.name && <span className="block truncate text-xs text-brand-200">{roles[0].name}</span>}</span>
+        </Link>
+        <div className="flex items-center justify-between gap-2"><LanguageSwitch current={locale} dark /><ThemeToggle onDark initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} /></div>
+        <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-[18px]" aria-hidden /> {t("nav.signOut")}</SignOutButton>
+      </div>
+    ),
+    icon: (
+      <div className="space-y-2">
+        <Link href="/change-password" title={ctx.fullName} className="mx-auto grid size-10 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white"><span aria-hidden>{who}</span><span className="sr-only">{t("auth.changePassword.button")}</span></Link>
+        <SignOutButton action={signOutAction} className={signOutClass}><LogOut className="size-[18px]" aria-hidden /><span className="sr-only">{t("nav.signOut")}</span></SignOutButton>
+      </div>
+    ),
   };
   const drawerFooter = <div className="space-y-3"><LanguageSwitch current={locale} dark /><SignOutButton action={signOutAction} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-brand-100 hover:bg-surface/10"><LogOut className="size-5" aria-hidden /> {t("nav.signOut")}</SignOutButton></div>;
 
@@ -124,13 +140,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {canSearch ? <GlobalSearch action="/students" placeholder={t("search.students")} label={t("search.students")} /> : <span className="flex-1" />}
           <div className="ml-auto flex items-center gap-1">
             {academic.year && <span className="mr-1 hidden items-center rounded-full border border-line px-3 py-1.5 text-xs font-medium text-muted xl:inline-flex" title={`${t("dash.year")} / ${t("dash.term")}`}>{academic.year.name}{academic.term ? ` · ${academic.term.name}` : ""}</span>}
-            <ThemeToggle initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} />
+            <div className="lg:hidden"><ThemeToggle initial={theme} labels={{ toDark: t("theme.dark"), toLight: t("theme.light") }} /></div>
             <WebsiteLink label={t("nav.website")} />
             <NotificationBell count={unread} label={t("nav.notifications")} />
-            <UserMenu name={ctx.fullName} initials={initialsOf(ctx.fullName).slice(0, 2)} role={roles[0]?.name} passwordLabel={t("auth.changePassword.button")}>
-              <div className="px-1"><LanguageSwitch current={locale} /></div>
-              {signOut}
-            </UserMenu>
+            <div className="lg:hidden">
+              <UserMenu name={ctx.fullName} initials={who} role={roles[0]?.name} passwordLabel={t("auth.changePassword.button")}>
+                <div className="px-1"><LanguageSwitch current={locale} /></div>
+                {signOut}
+              </UserMenu>
+            </div>
           </div>
         </header>
         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[112rem] px-3 py-5 outline-none sm:px-6 sm:py-7 xl:px-10">{children}</main>

@@ -235,7 +235,15 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
 
 /* ───── Dashboard hero and surfaces ───── */
 @layer components {
-  .dash-hero-bg { background: linear-gradient(105deg, #06261b 0%, #0a3a2a 52%, #0c4a38 100%); }
+  .dash-hero-bg { background: linear-gradient(105deg, #075f40 0%, #0a6a5a 46%, #14588f 100%); }
+  /* Headline number cards (Target Express / Swift Cargo look): a card tinted by its tone, the figure in the tone's colour, an icon square. */
+  .tint { background: linear-gradient(135deg, color-mix(in srgb, var(--tt) 20%, var(--color-surface)) 0%, var(--color-surface) 78%); border: 1px solid color-mix(in srgb, var(--tt) 34%, var(--color-line)); }
+  .tint-num { color: var(--tf); }
+  .tint-icon { background: color-mix(in srgb, var(--tt) 20%, transparent); color: var(--tf); }
+  .tint-green { --tt: #12a06a; --tf: #0a6a45; } .tint-teal { --tt: #14a5bd; --tf: #0a6f82; } .tint-violet { --tt: #8579f0; --tf: #5446cf; }
+  .tint-orange { --tt: #e8801f; --tf: #a8470a; } .tint-rose { --tt: #e8634e; --tf: #b8362a; } .tint-indigo { --tt: #4a5cc9; --tf: #2a3590; }
+  .theme-night .tint-green { --tf: #4ade9a; } .theme-night .tint-teal { --tf: #4fd1e8; } .theme-night .tint-violet { --tf: #a79eff; }
+  .theme-night .tint-orange { --tf: #ffb066; } .theme-night .tint-rose { --tf: #ff8d7b; } .theme-night .tint-indigo { --tf: #8fa0ff; }
   /* The photograph fades into the banner on its left edge, so the text side stays plain. */
   .dash-hero-photo { -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 42%); mask-image: linear-gradient(90deg, transparent 0%, #000 42%); }
   .live-dot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: #4ade9a; animation: live-pulse 2.2s ease-out infinite; }

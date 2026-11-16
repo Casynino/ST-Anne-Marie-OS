@@ -9,7 +9,7 @@ import { displayDate } from "@/lib/dates";
 import { getSchoolBasics } from "@/server/settings";
 import { formatMoney } from "@/lib/finance/money";
 import { Card, EmptyState, LinkButton } from "@/components/ui";
-import { DashHero, Hi } from "@/components/dash/hero";
+import { HomeBanner, Hi } from "@/components/dash/hero";
 import { JumpNav } from "@/components/dash/jump-nav";
 import { ActivityBlock } from "@/components/dash/activity";
 import { teacherHome } from "@/server/teacher-home";
@@ -25,7 +25,6 @@ import { TeacherDashboard } from "./teacher";
 import { AccountantDashboard, HeadDashboard, RegistrarDashboard, type HomeProps } from "./roles";
 import { AdminBody } from "./homes";
 import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LatestSection, LearningSection, MyRegistersSection, PeopleSection, PulseSection, ResultsSection, StudentsSection, type DashEnv, type Overview } from "./sections";
-import { ActionBar } from "@/components/dash/action-bar";
 import { financeRows, standardRows } from "./attention";
 import { jumpItems, quickItems } from "./quick";
 
@@ -57,7 +56,7 @@ export default async function DashboardPage() {
   if (kind === "teacher") {
     const [th, evs] = await Promise.all([teacherHome(ctx), optional("events", () => ov.upcomingEvents(ctx, 12))]);
     const events = (evs ?? []).flatMap((e) => (e.to ? [e.from, e.to] : [e.from]));
-    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} events={events} quick={quickItems("teacher", t, can, d.attention)} />;
+    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} events={events} quick={quickItems("teacher", t, can, d.attention)} canSearch={can("student.read") || can("student.read_assigned")} />;
   }
 
   // School data panels: each is gated by the permission of its detail screen and fails alone, never the whole page.
@@ -109,10 +108,16 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <DashHero eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
+      <HomeBanner
+        eyebrow={`${school.name} · ${portal}`.toUpperCase()}
+        title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}
+        date={`${displayDate(new Date(`${d.today}T00:00:00Z`), locale)}${d.term ? ` · ${d.term.name}` : ""}`}
+        quick={quick}
+        searchBox={can("student.read") || can("student.read_assigned") ? { action: "/students", placeholder: t("search.students"), button: t("common.search") } : undefined}
+        allLabel={t("dash.quick.title")}
+      >
         {summary.length > 0 ? summary.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("dash.hero.empty")}
-      </DashHero>
-      <ActionBar label={t("dash.quick.title")} items={quick} trailing={<span className="ml-auto inline-flex items-center gap-2 text-sm text-muted"><CalendarDays className="size-4" aria-hidden />{displayDate(new Date(`${d.today}T00:00:00Z`), locale)}{d.year ? ` · ${d.year.name}` : ""}{d.term ? ` · ${d.term.name}` : ""}</span>} />
+      </HomeBanner>
       {d.needsSetup && !setup && (
         <Card className="mb-5 mt-5 border-amber-200 bg-amber-50">
           <h2 className="font-semibold text-warn">{t("dash.setup.title")}</h2>

@@ -80,8 +80,8 @@ export function AppSidebar({ groups, name, subtitle, initials, logo, collapsedIn
     document.cookie = `sam_nav=${next ? "collapsed" : "open"}; path=/; max-age=31536000; samesite=lax`;
   };
   return (
-    <aside className={`no-print sticky top-0 hidden h-dvh shrink-0 p-3 transition-[width] duration-200 lg:block ${collapsed ? "w-[5.25rem]" : "w-72"}`}>
-      <div className="flex h-full flex-col rounded-[1.25rem] border border-white/10 bg-brand-950 px-3 pb-3 pt-4 text-white shadow-[0_18px_48px_-20px_rgba(0,0,0,.65)]">
+    <aside className={`no-print sticky top-0 hidden h-dvh shrink-0 transition-[width] duration-200 lg:block ${collapsed ? "w-[5.25rem]" : "w-72"}`}>
+      <div className="flex h-full flex-col border-r border-white/10 bg-brand-950 px-3 pb-3 pt-4 text-white">
         <div className={`mb-6 flex items-center ${collapsed ? "justify-center" : "px-1"}`}><Brand name={name} subtitle={subtitle} initials={initials} logo={logo} collapsed={collapsed} /></div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5"><Groups groups={groups} collapsed={collapsed} /></div>
         <div className="mt-3 space-y-1 border-t border-dashed border-white/15 pt-3">

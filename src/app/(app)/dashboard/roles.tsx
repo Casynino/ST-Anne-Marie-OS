@@ -3,18 +3,17 @@ import type { ReactNode } from "react";
 import { BookOpen, CalendarCheck, CheckCircle2, ClipboardCheck, Circle, FileCheck, Inbox, Receipt, UserPlus, Users, Wallet } from "lucide-react";
 import { displayDate } from "@/lib/dates";
 import { LinkButton } from "@/components/ui";
-import { DashHero, Hi } from "@/components/dash/hero";
+import { HomeBanner, Hi } from "@/components/dash/hero";
 import { Cell, DashSection, DashTable, DonutStat, EmptyLine, GradientTile, KpiCard, Panel, PersonCell, Pill } from "@/components/dash/parts";
 import { JumpNav } from "@/components/dash/jump-nav";
 import { Ring } from "@/components/dash/viz";
 import type { HeadHome } from "@/server/head-home";
 import type { adminHome } from "@/server/admin-home";
 import { AdmissionsSection, AttentionSection, QueueSection, CalendarSection, ClassesSection, FeesSection, KpiSection, LearningSection, MyRegistersSection, PulseSection, ResultsSection, StudentsSection, type DashEnv } from "./sections";
-import { ActionBar } from "@/components/dash/action-bar";
 import type { Quick } from "@/components/dash/quick-links";
 import { AttentionBlock, financeRows, headRows, standardRows } from "./attention";
 import { DeskRow } from "./home";
-import { quickItems } from "./quick";
+import { quickItems, type QuickKind } from "./quick";
 import { compactMoney } from "./sections";
 import { AccountantBody, HeadBody } from "./homes";
 import { RegistrarBody } from "./registrar";
@@ -28,22 +27,26 @@ import type { RegistrarHome } from "@/server/registrar-home";
 
 export type HomeProps = { env: DashEnv; first: string; hour: number; portal: string; today: string; can: (p: string) => boolean };
 
-function Greeting({ env, first, hour, portal, children, photoIndex = 1 }: { env: DashEnv; first: string; hour: number; portal: string; children: ReactNode; photoIndex?: number }) {
-  const { t, school } = env;
+function Greeting({ env, first, hour, portal, today, can, children, photoIndex = 1, kind }: HomeProps & { children: ReactNode; photoIndex?: number; kind: QuickKind }) {
+  const { t, school, locale, d } = env;
   return (
-    <DashHero photoIndex={photoIndex} eyebrow={`${school.name} · ${portal}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}>
+    <HomeBanner
+      photoIndex={photoIndex}
+      eyebrow={`${school.name} · ${portal}`.toUpperCase()}
+      title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}
+      date={`${displayDate(new Date(`${today}T00:00:00Z`), locale)}${d.term ? ` · ${d.term.name}` : ""}`}
+      quick={quickItems(kind, t, can, d.attention)}
+      searchBox={can("student.read") || can("student.read_assigned") ? { action: "/students", placeholder: t("search.students"), button: t("common.search") } : undefined}
+      allLabel={t("dash.quick.title")}
+    >
       {children}
-    </DashHero>
+    </HomeBanner>
   );
 }
 
 const Sentence = ({ bits, empty }: { bits: ReactNode[]; empty: string }) => <>{bits.length > 0 ? bits.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : empty}</>;
 
 const running = (xs: number[]) => { let a = 0; return xs.map((x) => (a += x)); };
-
-function Date_({ env, today }: { env: DashEnv; today: string }) {
-  return <span className="ml-auto text-sm text-muted">{displayDate(new Date(`${today}T00:00:00Z`), env.locale)}{env.d.term ? ` · ${env.d.term.name}` : ""}</span>;
-}
 
 /* ───────────────────────── Head teacher ───────────────────────── */
 
@@ -78,8 +81,7 @@ export function HeadDashboard({ props, head }: { props: HomeProps; head: HeadHom
   );
   return (
     <>
-      <Greeting {...props} photoIndex={0}><Sentence bits={bits} empty={t("head.hero.calm")} /></Greeting>
-      <ActionBar label={t("dash.quick.title")} items={quickItems("head", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
+      <Greeting {...props} kind="head" photoIndex={0}><Sentence bits={bits} empty={t("head.hero.calm")} /></Greeting>
       <AttentionBlock t={t} rows={[...standardRows(env, { queues: true }), ...financeRows(env), ...headRows(t, tot)]} />
       <DeskRow env={env} />
 
@@ -112,8 +114,7 @@ export function AccountantDashboard({ props }: { props: HomeProps }) {
   }
   return (
     <>
-      <Greeting {...props} photoIndex={2}><Sentence bits={bits} empty={t("acc.hero.empty")} /></Greeting>
-      <ActionBar label={t("dash.quick.title")} items={quickItems("accountant", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
+      <Greeting {...props} kind="accountant" photoIndex={2}><Sentence bits={bits} empty={t("acc.hero.empty")} /></Greeting>
       <AttentionBlock t={t} rows={[...standardRows(env, { queues: true }), ...financeRows(env)]} />
 
       {f && (
@@ -146,8 +147,7 @@ export function RegistrarDashboard({ props, reg }: { props: HomeProps; reg: Regi
   if (enquiries && Number(enquiries.value) > 0) bits.push(<><Hi tone="warn">{String(enquiries.value)}</Hi> {t("reg.hero.enquiries")}</>);
   return (
     <>
-      <Greeting {...props} photoIndex={4}><Sentence bits={bits} empty={t("dash.hero.empty")} /></Greeting>
-      <ActionBar label={t("dash.quick.title")} items={quickItems("registrar", t, can, d.attention)} trailing={<Date_ env={env} today={props.today} />} />
+      <Greeting {...props} kind="registrar" photoIndex={4}><Sentence bits={bits} empty={t("dash.hero.empty")} /></Greeting>
       <AttentionBlock t={t} rows={standardRows(env, { queues: true, skip: ["registersOpen", "conflicts"] })} />
       <RegistrarBody env={env} reg={reg} />
     </>

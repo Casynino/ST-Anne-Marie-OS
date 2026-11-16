@@ -14,9 +14,8 @@ import { Cell, DashSection, DashTable, DonutStat, EmptyLine, GradientTile, HBars
 import type { AttentionRow } from "@/components/dash/attention-tabs";
 import { AttentionBlock } from "../dashboard/attention";
 import { Badge, LinkButton, NoAccess } from "@/components/ui";
-import { DashHero, Hi } from "@/components/dash/hero";
+import { HomeBanner, Hi } from "@/components/dash/hero";
 import { JumpNav } from "@/components/dash/jump-nav";
-import { ActionBar } from "@/components/dash/action-bar";
 import { quickItems } from "../dashboard/quick";
 import { AreaChart } from "@/components/dash/charts-client";
 import { Ring, StageBar } from "@/components/dash/viz";
@@ -41,15 +40,22 @@ export default async function AcademicOfficePage() {
   const alertRows: AttentionRow[] = d.alerts.map((a) => ({ key: a.key, area: AREA[a.key] ?? "academic", href: a.href, tone: SEV[a.key] ?? "warn", text: t(`ac.alert.${a.key}` as "ac.alert.configGaps"), detail: t(`att.d.ac.${a.key}` as "att.d.ac.configGaps"), count: a.count }));
   return (
     <>
-      <DashHero photoIndex={3} eyebrow={`${school.name} · ${t(portalLabelKey("academic"))}`.toUpperCase()} title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}>
+      <HomeBanner
+        photoIndex={3}
+        eyebrow={`${school.name} · ${t(portalLabelKey("academic"))}`.toUpperCase()}
+        title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}
+        date={`${d.year ? d.year.name : t("ac.noYear")}${d.term ? ` · ${d.term.name}` : ""}`}
+        quick={quick}
+        searchBox={can("student.read") || can("student.read_assigned") ? { action: "/students", placeholder: t("search.students"), button: t("common.search") } : undefined}
+        allLabel={t("dash.quick.title")}
+      >
         {[
           <><Hi>{d.students.enrolled.toLocaleString()}</Hi> {t("dash.hero.students")}</>,
           ...(att && att.rate !== null ? [<>{t("dash.hero.attendance")} <Hi tone={att.rate >= 90 ? "ok" : "warn"}>{att.rate}%</Hi></>] : []),
           ...(d.students.awaitingPlacement > 0 ? [<><Hi tone="warn">{d.students.awaitingPlacement}</Hi> {t("ac.kpi.placement").toLowerCase()}</>] : []),
           ...(d.students.openConcerns > 0 ? [<><Hi tone="warn">{d.students.openConcerns}</Hi> {t("ac.kpi.concerns").toLowerCase()}</>] : []),
         ].map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>)}
-      </DashHero>
-      <ActionBar label={t("dash.quick.title")} items={quick} trailing={<span className="ml-auto text-sm text-muted">{d.year ? d.year.name : t("ac.noYear")}{d.term ? ` · ${d.term.name}` : ""}</span>} />
+      </HomeBanner>
       <JumpNav label={t("dash.jump")} items={[{ id: "students", label: t("ac.students") }, { id: "attendance", label: t("ac.attendance") }, { id: "performance", label: t("ac.performance") }, ...(d.teachers ? [{ id: "teachers", label: t("ac.teachers") }] : []), { id: "calendar", label: t("ac.calendar") }]} />
 
       <AttentionBlock t={t} rows={alertRows} />
