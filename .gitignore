@@ -16,3 +16,4 @@ uploads
 .next-smoke
 .next-build
 backups
+.env*
