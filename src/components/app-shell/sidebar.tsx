@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChevronsLeft, ChevronsRight, Menu, X } from "lucide-react";
 import { NAV_ICONS, type NavGroup } from "./icons";
 
@@ -88,7 +89,9 @@ export function AppSidebar({ groups, name, subtitle, initials, logo, collapsedIn
 
 export function MobileDrawer({ groups, name, subtitle, initials, logo, labels, footer }: { groups: NavGroup[]; name: string; subtitle?: string; initials: string; logo?: { src: string }; labels: { menu: string; close: string }; footer?: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  useEffect(() => setMounted(true), []);
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
@@ -100,6 +103,9 @@ export function MobileDrawer({ groups, name, subtitle, initials, logo, labels, f
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} aria-label={labels.menu} aria-expanded={open} className="inline-flex size-11 items-center justify-center rounded-lg text-ink hover:bg-canvas lg:hidden"><Menu className="size-6" aria-hidden /></button>
+      {/* The top bar is translucent (backdrop blur), and a blurred parent becomes the box a "fixed" child is measured against, which squashed the menu into the 64 px bar.
+          So the menu is drawn inside the theme wrapper instead, outside the bar, and covers the whole screen. */}
+      {mounted && createPortal(
       <div className={`fixed inset-0 z-50 lg:hidden ${open ? "" : "pointer-events-none"}`} role="dialog" aria-modal="true" aria-label={labels.menu} aria-hidden={!open}>
         <button type="button" tabIndex={open ? 0 : -1} aria-label={labels.close} className={`absolute inset-0 bg-black/45 transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`} onClick={() => setOpen(false)} />
         <div className={`absolute inset-y-0 left-0 flex w-72 max-w-[86vw] flex-col rail-glass p-4 text-white shadow-2xl transition-transform duration-200 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`} inert={!open}>
@@ -107,7 +113,7 @@ export function MobileDrawer({ groups, name, subtitle, initials, logo, labels, f
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><Groups groups={groups} onNavigate={() => setOpen(false)} /></div>
           {footer && <div className="mt-3 border-t border-dashed border-white/15 pt-3">{footer}</div>}
         </div>
-      </div>
+      </div>, document.querySelector("[data-theme-root]") ?? document.body)}
     </>
   );
 }
