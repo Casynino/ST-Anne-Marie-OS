@@ -93,16 +93,15 @@ export function GradientTile({ label, value, caption, icon: Icon, tone = "green"
   const long = typeof value === "string" && value.length > 7;
   const body = (
     <>
-      <span className="relative z-10 min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium text-muted">{label}</span>
-        <span className={`tint-num block whitespace-nowrap font-semibold tabular-nums tracking-tight ${long ? "text-[1.35rem] leading-7" : "text-[1.75rem] leading-8"}`}>{value}</span>
+      <span className="relative z-10 flex w-full min-w-0 flex-col gap-1">
+        <span className="flex items-center gap-2"><span className="tint-icon grid size-7 shrink-0 place-items-center rounded-lg"><Icon className="size-3.5" aria-hidden /></span><span className="truncate text-xs font-medium text-muted">{label}</span></span>
+        <span className={`tint-num block whitespace-nowrap font-semibold tabular-nums tracking-tight ${long ? "text-[1.4rem] leading-8" : "text-[1.8rem] leading-9"}`}>{value}</span>
         {caption && <span className="block truncate text-[11px] leading-4 text-muted">{caption}</span>}
       </span>
       {spark && spark.length > 1 && <span aria-hidden className="pointer-events-none absolute bottom-1 right-2 h-7 w-20 overflow-hidden opacity-70 [&_svg]:h-7"><Spark values={spark} tone="tint" /></span>}
-      <span className="tint-icon relative z-10 grid size-8 shrink-0 place-items-center self-start rounded-lg"><Icon className="size-4" aria-hidden /></span>
     </>
   );
-  const cls = `tint tint-${tone} group relative flex h-full items-start justify-between gap-2 overflow-hidden rounded-xl px-3.5 py-2.5 shadow-[var(--shadow-card)]`;
+  const cls = `tint tint-${tone} group relative flex h-full items-start overflow-hidden rounded-xl px-3.5 py-3 shadow-[var(--shadow-card)]`;
   return href ? <Link href={href} className={`${cls} transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]`}>{body}</Link> : <div className={cls}>{body}</div>;
 }
 

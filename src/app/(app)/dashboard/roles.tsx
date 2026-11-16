@@ -36,7 +36,6 @@ function Greeting({ env, first, hour, portal, today, can, children, photoIndex =
       title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}
       date={`${displayDate(new Date(`${today}T00:00:00Z`), locale)}${d.term ? ` · ${d.term.name}` : ""}`}
       quick={quickItems(kind, t, can, d.attention)}
-      searchBox={can("student.read") || can("student.read_assigned") ? { action: "/students", placeholder: t("search.students"), button: t("common.search") } : undefined}
       allLabel={t("dash.quick.title")}
     >
       {children}

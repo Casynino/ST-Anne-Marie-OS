@@ -56,7 +56,7 @@ export default async function DashboardPage() {
   if (kind === "teacher") {
     const [th, evs] = await Promise.all([teacherHome(ctx), optional("events", () => ov.upcomingEvents(ctx, 12))]);
     const events = (evs ?? []).flatMap((e) => (e.to ? [e.from, e.to] : [e.from]));
-    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} events={events} quick={quickItems("teacher", t, can, d.attention)} canSearch={can("student.read") || can("student.read_assigned")} />;
+    return <TeacherDashboard t={t} locale={locale} first={first} hour={hour} schoolName={school.name} portal={portal} today={d.today} d={d} th={th} events={events} quick={quickItems("teacher", t, can, d.attention)} />;
   }
 
   // School data panels: each is gated by the permission of its detail screen and fails alone, never the whole page.
@@ -113,7 +113,6 @@ export default async function DashboardPage() {
         title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: first })}
         date={`${displayDate(new Date(`${d.today}T00:00:00Z`), locale)}${d.term ? ` · ${d.term.name}` : ""}`}
         quick={quick}
-        searchBox={can("student.read") || can("student.read_assigned") ? { action: "/students", placeholder: t("search.students"), button: t("common.search") } : undefined}
         allLabel={t("dash.quick.title")}
       >
         {summary.length > 0 ? summary.map((x, i) => <span key={i}>{i > 0 && " · "}{x}</span>) : t("dash.hero.empty")}

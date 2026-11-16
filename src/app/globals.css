@@ -42,6 +42,7 @@
   --color-line: #dfe6e0;
   --color-surface: #ffffff;
   --color-canvas: #f3f6f4;
+  --color-rail: #04251a;
 
   /* Status */
   --color-ok: #17794a;
@@ -74,8 +75,8 @@ html { color-scheme: light; }
 .app-root thead th { text-transform: none; letter-spacing: 0; font-size: 0.8125rem; font-weight: 500; }
 .theme-night {
   color-scheme: dark;
-  --color-canvas: #09100c; --color-surface: #121b16; --color-ink: #e8f0ea; --color-muted: #93a79b; --color-line: #22302a;
-  --color-link: #6fd9a8; --color-heading: #f2f8f4; --color-tint: rgb(15 148 98 / .16); --color-tint-2: rgb(15 148 98 / .28);
+  --color-canvas: #070c18; --color-surface: #0e172e; --color-ink: #e6ecf8; --color-muted: #8f9db8; --color-line: #1d2b4a; --color-rail: #0a1228;
+  --color-link: #6fd9a8; --color-heading: #f1f5fd; --color-tint: rgb(15 148 98 / .16); --color-tint-2: rgb(15 148 98 / .28);
   --color-ok: #4ade9a; --color-warn: #f3b94c; --color-bad: #ff8574;
   --color-green-50: rgb(74 222 154 / .12); --color-green-200: rgb(74 222 154 / .32);
   --color-amber-50: rgb(243 185 76 / .12); --color-amber-200: rgb(243 185 76 / .32);
@@ -83,6 +84,12 @@ html { color-scheme: light; }
   --shadow-card: 0 1px 0 rgb(255 255 255 / .03) inset, 0 12px 28px -16px rgb(0 0 0 / .7);
   --shadow-lift: 0 1px 0 rgb(255 255 255 / .05) inset, 0 22px 44px -18px rgb(0 0 0 / .8);
 }
+/* The navy night backdrop with a faint starfield (Swift Cargo look): fixed behind the page, only visible in the gaps between the cards. */
+.theme-night[data-theme-root] { position: relative; isolation: isolate; background: radial-gradient(120% 70% at 50% -10%, #15244a 0%, #0a1226 45%, #070c18 100%) fixed; }
+.theme-night[data-theme-root]::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .75; background-size: 340px 230px;
+  background-image: radial-gradient(1px 1px at 12% 18%, rgb(255 255 255 / .55), transparent), radial-gradient(1px 1px at 47% 63%, rgb(255 255 255 / .4), transparent), radial-gradient(1.5px 1.5px at 78% 27%, rgb(255 255 255 / .5), transparent),
+    radial-gradient(1px 1px at 31% 86%, rgb(255 255 255 / .35), transparent), radial-gradient(1px 1px at 91% 74%, rgb(255 255 255 / .45), transparent), radial-gradient(1.5px 1.5px at 63% 8%, rgb(255 255 255 / .35), transparent); }
+@media print { .theme-night[data-theme-root]::before { display: none; } .theme-night[data-theme-root] { background: #fff; } }
 @media print { .theme-night { color-scheme: light; --color-canvas: #f3f6f4; --color-surface: #fff; --color-ink: #10231a; --color-muted: #51615a; --color-line: #dfe6e0; --color-link: #026a43; --color-heading: #083d2a; --color-tint: #eaf7f1; --color-tint-2: #d1efe1; --color-ok: #17794a; --color-warn: #a35f00; --color-bad: #b42318; } }
 
 /* Soft category colours (homework, timetable, quick links): pastel on light, tinted glass on dark. */
@@ -235,17 +242,15 @@ body { background: var(--color-canvas); color: var(--color-ink); font-family: va
 
 /* ───── Dashboard hero and surfaces ───── */
 @layer components {
-  .dash-hero-bg { background: linear-gradient(105deg, #075f40 0%, #0a6a5a 46%, #14588f 100%); }
+  .dash-hero-bg { background: linear-gradient(100deg, #08122b 0%, #0b1c40 55%, #0e2a55 100%); }
   /* Headline number cards (Target Express / Swift Cargo look): a card tinted by its tone, the figure in the tone's colour, an icon square. */
-  .tint { background: linear-gradient(135deg, color-mix(in srgb, var(--tt) 20%, var(--color-surface)) 0%, var(--color-surface) 78%); border: 1px solid color-mix(in srgb, var(--tt) 34%, var(--color-line)); }
+  .tint { background: linear-gradient(135deg, color-mix(in srgb, var(--tt) 9%, var(--color-surface)) 0%, var(--color-surface) 80%); border: 1px solid color-mix(in srgb, var(--tt) 22%, var(--color-line)); }
   .tint-num { color: var(--tf); }
   .tint-icon { background: color-mix(in srgb, var(--tt) 20%, transparent); color: var(--tf); }
   .tint-green { --tt: #12a06a; --tf: #0a6a45; } .tint-teal { --tt: #14a5bd; --tf: #0a6f82; } .tint-violet { --tt: #8579f0; --tf: #5446cf; }
   .tint-orange { --tt: #e8801f; --tf: #a8470a; } .tint-rose { --tt: #e8634e; --tf: #b8362a; } .tint-indigo { --tt: #4a5cc9; --tf: #2a3590; }
   .theme-night .tint-green { --tf: #4ade9a; } .theme-night .tint-teal { --tf: #4fd1e8; } .theme-night .tint-violet { --tf: #a79eff; }
   .theme-night .tint-orange { --tf: #ffb066; } .theme-night .tint-rose { --tf: #ff8d7b; } .theme-night .tint-indigo { --tf: #8fa0ff; }
-  /* The photograph fades into the banner on its left edge, so the text side stays plain. */
-  .dash-hero-photo { -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 42%); mask-image: linear-gradient(90deg, transparent 0%, #000 42%); }
   .live-dot { width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: #4ade9a; animation: live-pulse 2.2s ease-out infinite; }
   @keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgb(74 222 154 / .55); } 70% { box-shadow: 0 0 0 8px rgb(74 222 154 / 0); } 100% { box-shadow: 0 0 0 0 rgb(74 222 154 / 0); } }
 }

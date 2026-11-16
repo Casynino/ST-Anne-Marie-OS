@@ -46,7 +46,6 @@ export default async function AcademicOfficePage() {
         title={t(hour < 12 ? "dash.greet.morning" : hour < 17 ? "dash.greet.afternoon" : "dash.greet.evening", { name: ctx.fullName.split(" ")[0] ?? ctx.fullName })}
         date={`${d.year ? d.year.name : t("ac.noYear")}${d.term ? ` · ${d.term.name}` : ""}`}
         quick={quick}
-        searchBox={can("student.read") || can("student.read_assigned") ? { action: "/students", placeholder: t("search.students"), button: t("common.search") } : undefined}
         allLabel={t("dash.quick.title")}
       >
         {[
