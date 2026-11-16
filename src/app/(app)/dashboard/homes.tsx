@@ -1,7 +1,7 @@
 import type { adminHome } from "@/server/admin-home";
 import type { AttentionRow } from "@/components/dash/attention-tabs";
 import { KpiSection, type DashEnv } from "./sections";
-import { AbsentPanel, ActivityPanel, AdmissionsPanel, ArrearsPanel, AttendanceDailyPanel, AttendanceTrendPanel, EnrollmentPanel, FillPanel, GenderPanel, CalendarPanel, ClassCollectionPanel, ClassesPanel, CollectionsPanel, DeskRow, FeesPanel, H, InvoicesPanel, LearningPanel, MethodsPanel, N, PaymentsPanel, PeoplePanel, ResultsPanel, Row, SetupBanner, T, TodayPanel, W } from "./home";
+import { AbsentPanel, ActivityPanel, AdmissionsPanel, ArrearsPanel, AttendanceDailyPanel, AttendanceTrendPanel, EnrollmentPanel, FillPanel, GenderPanel, CalendarPanel, ClassCollectionPanel, ClassesPanel, CollectionsPanel, DeskRow, H, MoneyCard, InvoicesPanel, LearningPanel, MethodsPanel, N, PaymentsPanel, PeoplePanel, ResultsPanel, Row, SetupBanner, T, TodayPanel, W } from "./home";
 import { AttentionBlock } from "./attention";
 import { YearReportPanel } from "@/components/dash/year-report";
 import { Students, Waiting } from "./registrar";
@@ -21,7 +21,8 @@ export function AdminBody({ env, setup, rows, reg }: { env: DashEnv; setup: Awai
       <KpiSection env={env} bare />
       <Row><YearReportPanel report={env.year} t={env.t} money={env.money} className="flex-[1_1_100%]" /></Row>
       <Row><AttendanceDailyPanel env={env} className={H} /><AbsentPanel env={env} className={H} /></Row>
-      <Row><AttendanceTrendPanel env={env} className={H} /><FeesPanel env={env} className={H} /></Row>
+      <Row><MoneyCard env={env} className="flex-[1_1_100%]" /></Row>
+      <Row><AttendanceTrendPanel env={env} className="flex-[1_1_100%]" /></Row>
       <Row><EnrollmentPanel env={env} className={W} /><GenderPanel env={env} className={N} /></Row>
       <Row><FillPanel env={env} className={W} /><TodayPanel env={env} className={N} /></Row>
       <Row><ClassesPanel env={env} className="flex-[1_1_100%]" /></Row>
@@ -37,6 +38,7 @@ export function AdminBody({ env, setup, rows, reg }: { env: DashEnv; setup: Awai
 export function AccountantBody({ env }: { env: DashEnv }) {
   return (
     <>
+      <Row><MoneyCard env={env} className="flex-[1_1_100%]" /></Row>
       <Row><YearReportPanel report={env.year} t={env.t} money={env.money} className="flex-[1_1_100%]" /></Row>
       <Row><CollectionsPanel env={env} className={W} /><MethodsPanel env={env} className={N} /></Row>
       <Row><ArrearsPanel env={env} className={H} /><PaymentsPanel env={env} className={H} /></Row>

@@ -223,25 +223,60 @@ export function FillPanel({ env, className = "" }: { env: DashEnv; className?: s
 
 // ───────────────────────── Money ─────────────────────────
 
-export function FeesPanel({ env, className = "" }: { env: DashEnv; className?: string }) {
+/**
+ * The money, as one wide card (the Swift Cargo director's "The money"): what was collected this term with the collection ring and the
+ * billed / owed / overdue lines on the left, and what came in today, this week and this month on the right. Same figures as the fees
+ * screens; nothing is added up here that the finance service does not already give.
+ */
+export function MoneyCard({ env, className = "" }: { env: DashEnv; className?: string }) {
   const { t, money, d } = env;
   const fin = d.finance;
   if (!fin) return null;
-  const pct = fin.billed > 0 ? Math.min(100, Math.round((fin.collected / fin.billed) * 100)) : null;
-  const daily = fin.trend.map((p) => p.cents);
+  const rate = fin.ratePct;
+  const row = (label: string, value: string, tone?: "ok" | "warn" | "bad", sub?: string) => (
+    <li key={label} className="flex items-baseline justify-between gap-4 border-t border-line py-2.5 first:border-t-0">
+      <span className="text-sm text-muted">{label}{sub && <span className="ml-2 text-xs">{sub}</span>}</span>
+      <span className={`text-sm font-semibold tabular-nums ${tone === "ok" ? "text-ok" : tone === "warn" ? "text-warn" : tone === "bad" ? "text-bad" : "text-ink"}`}>{value}</span>
+    </li>
+  );
   return (
-    <Panel className={className} title={t("dash.sec.fees")} subtitle={fin.term.name} right={<More href="/finance" label={t("dash.kpi.open")} />}>
-      <p className="text-[1.9rem] font-semibold leading-9 tabular-nums text-ink">{money(fin.collected)}</p>
-      <p className="mt-0.5 text-sm text-muted">{pct === null ? t("dash.money.sub") : t("home.fees.paid", { pct, billed: money(fin.billed) })}</p>
-      {pct !== null && <div aria-hidden className="mt-3 h-2 overflow-hidden rounded-sm bg-line"><div className="h-full rounded-sm bg-ok" style={{ width: `${pct}%` }} /></div>}
-      <dl className="mt-4 grid grid-cols-2 gap-2.5">
-        <Mini label={t("dash.money.outstanding")} value={money(fin.outstanding)} tone={fin.outstanding > 0 ? "warn" : "ok"} />
-        <Mini label={t("dash.money.overdue")} value={money(fin.overdue)} tone={fin.overdue > 0 ? "bad" : "ok"} />
-        <Mini label={t("dash.money.received.today")} value={money(fin.received.today)} />
-        <Mini label={t("dash.money.received.week")} value={money(fin.received.week)} />
-      </dl>
-      {daily.some((v) => v > 0) && <div className="mt-4"><p className="mb-1 text-xs text-muted">{t("dash.fees.daily")}</p><Spark values={daily} tone="ok" /></div>}
-    </Panel>
+    <section aria-label={t("dash.sec.fees")} className={`min-w-0 overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-card)] ${className}`}>
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-3">
+        <h3 className="text-[15px] font-semibold text-ink">{t("dash.sec.fees")} <span className="font-normal text-muted">· {fin.term.name}</span></h3>
+        <More href="/finance" label={t("dash.kpi.open")} />
+      </header>
+      <div className="grid lg:grid-cols-[1.25fr_1fr]">
+        <div className="p-5">
+          <p className="text-xs text-muted">{t("dash.money.sub")}</p>
+          <p className="mt-1 text-3xl font-semibold tabular-nums text-heading sm:text-4xl">{money(fin.collected)}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-6">
+            <Ring value={rate} size={116} stroke={10} tone={rate !== null && rate >= 70 ? "ok" : "warn"} label={t("dash.fees.rate")}>
+              <span><span className="block text-2xl font-semibold tabular-nums text-heading">{rate === null ? "—" : `${rate}%`}</span><span className="block text-[10px] font-medium text-muted">{t("dash.money.ofBilled")}</span></span>
+            </Ring>
+            <ul className="min-w-[14rem] flex-1">
+              {row(t("dash.money.billed"), money(fin.billed))}
+              {row(t("dash.money.outstanding"), money(fin.outstanding), fin.outstanding > 0 ? "warn" : "ok")}
+              {row(t("dash.money.overdue"), money(fin.overdue), fin.overdue > 0 ? "bad" : "ok")}
+              {row(t("dash.money.credit"), money(fin.credit))}
+              {row(t("dash.money.expenses"), money(fin.expenses))}
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-line p-5 lg:border-l lg:border-t-0">
+          <p className="text-xs text-muted">{t("dash.money.received")}</p>
+          <ul className="mt-1">
+            {row(t("dash.money.received.today"), money(fin.received.today), "ok")}
+            {row(t("dash.money.received.week"), money(fin.received.week), "ok")}
+            {row(t("dash.money.received.month"), money(fin.received.month), "ok")}
+            {row(t("dash.money.admission"), money(fin.admissionFees.verified), undefined, fin.admissionFees.pending > 0 ? t("dash.money.admission.pending", { amount: money(fin.admissionFees.pending) }) : undefined)}
+            {row(t("dash.money.application"), money(fin.admissionFees.application))}
+            {row(t("dash.money.dueSoon"), money(fin.dueSoon.amount), fin.dueSoon.amount > 0 ? "warn" : "ok", t("dash.money.dueSoon.n", { n: fin.dueSoon.students }))}
+            {row(t("dash.money.net"), money(fin.netOperating), fin.netOperating < 0 ? "bad" : "ok")}
+          </ul>
+        </div>
+      </div>
+      <p className="border-t border-line px-5 py-2 text-xs text-muted">{t("dash.money.net.note")}</p>
+    </section>
   );
 }
 

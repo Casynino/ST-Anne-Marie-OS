@@ -6,14 +6,9 @@ import { Ring, Spark, type VizTone } from "./viz";
 /** Section heading in the dashboard: a short yellow bar, a spaced capital title, one line of purpose, and an optional link on the right. */
 export function DashSection({ id, eyebrow, title, subtitle, link, children }: { id: string; eyebrow?: string; title: string; subtitle?: string; link?: { href: string; label: string }; children: ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-h`} className="mt-10 scroll-mt-24">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-        <div className="min-w-0">
-          <span aria-hidden className="mb-2 block h-[3px] w-9 rounded-sm bg-sun" />
-          {eyebrow && <p className="mb-0.5 text-xs text-muted">{eyebrow}</p>}
-          <h2 id={`${id}-h`} className="text-[13px] font-semibold uppercase tracking-[.16em] text-ink">{title}</h2>
-          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
-        </div>
+    <section id={id} aria-labelledby={`${id}-h`} className="mt-7 scroll-mt-24">
+      <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+        <h2 id={`${id}-h`} className="min-w-0 text-[13px] text-muted"><span className="font-semibold text-ink">{eyebrow ? `${eyebrow} · ` : ""}{title}</span>{subtitle && <span> · {subtitle}</span>}</h2>
         {link && <Link href={link.href} className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">{link.label}<ArrowRight className="size-4" aria-hidden /></Link>}
       </div>
       {children}
@@ -126,7 +121,7 @@ export function ColorBars({ items, label, max, unit = "", labelWidth = "6.5rem" 
 export const Panel = ({ title, subtitle, children, className = "", right, icon: Icon, id }: { title: string; subtitle?: string; children: ReactNode; className?: string; right?: ReactNode; icon?: LucideIcon; id?: string }) => (
   <section id={id} className={`min-w-0 scroll-mt-24 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] target:border-link/60 target:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-link)_22%,transparent)] ${className}`}>
     <header className="mb-4 flex items-start justify-between gap-3">
-      <div className="min-w-0"><h3 className="text-[17px] font-semibold tracking-[-0.01em] text-ink">{title}</h3>{subtitle && <p className="mt-0.5 text-sm text-muted">{subtitle}</p>}</div>
+      <div className="min-w-0"><h3 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{title}</h3>{subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}</div>
       {right ?? (Icon ? <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-500/15 text-link"><Icon className="size-[1.1rem]" aria-hidden /></span> : null)}
     </header>
     {children}
